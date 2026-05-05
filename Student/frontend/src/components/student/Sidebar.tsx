@@ -1,0 +1,119 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { IconDashboard, IconDocs, IconInfo } from "./icons";
+
+type NavItem = {
+  href: string;
+  label: string;
+  Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+};
+
+const navItems: NavItem[] = [
+  { href: "/", label: "Dashboard", Icon: IconDashboard },
+  { href: "/tai-lieu-them", label: "Tài liệu thêm", Icon: IconDocs },
+  { href: "/skill", label: "Skill", Icon: IconInfo },
+];
+
+function isActivePath(pathname: string, href: string) {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+export function Sidebar() {
+  const pathname = usePathname();
+
+  return (
+    <aside className="fixed left-0 top-0 z-50 h-screen w-64 p-4 transition-all duration-300">
+      <div className="h-full bg-white rounded-2xl shadow-soft flex flex-col overflow-hidden">
+        {/* Logo Section */}
+        <div className="px-6 py-8 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-primary-soft flex items-center justify-center shadow-premium">
+            <span className="text-white font-black text-sm">X</span>
+          </div>
+          <span className="text-sm font-bold text-foreground tracking-tight">Xalo LMS Student</span>
+        </div>
+
+        <div className="h-px w-full bg-gradient-to-r from-transparent via-background to-transparent mb-4"></div>
+
+        {/* Navigation Section */}
+        <nav className="flex-1 px-3 space-y-1">
+          <div className="px-4 mb-2 text-[10px] font-bold text-muted uppercase tracking-widest opacity-60">
+            Học tập
+          </div>
+          
+          {navItems.map(({ href, label, Icon }) => {
+            const active = isActivePath(pathname, href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={[
+                  "group flex items-center gap-3 rounded-xl px-4 py-3 transition-all duration-300",
+                  active
+                    ? "bg-foreground shadow-premium text-white"
+                    : "text-muted hover:text-foreground hover:bg-background",
+                ].join(" ")}
+              >
+                <div className={[
+                  "w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 shadow-sm",
+                  active 
+                    ? "bg-white/10 text-white" 
+                    : "bg-white text-primary group-hover:text-primary-dark"
+                ].join(" ")}>
+                  <Icon className="h-4 w-4" strokeWidth={active ? 2.5 : 2} />
+                </div>
+                <span className={`text-xs font-bold transition-colors ${active ? "text-white" : "text-muted"}`}>
+                  {label}
+                </span>
+                {active && (
+                  <div className="ml-auto w-1 h-1 rounded-full bg-white animate-pulse"></div>
+                )}
+              </Link>
+            );
+          })}
+
+          <div className="pt-6 px-4 mb-2 text-[10px] font-bold text-muted uppercase tracking-widest opacity-60">
+            Tài khoản
+          </div>
+          
+          {[
+            { label: "Trang cá nhân", icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" },
+            { label: "Đăng xuất", icon: "M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" },
+          ].map((item, i) => (
+            <button
+              key={i}
+              className="w-full group flex items-center gap-3 rounded-xl px-4 py-3 text-muted hover:text-foreground hover:bg-background transition-all duration-200"
+            >
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-white text-muted group-hover:text-foreground transition-all">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d={item.icon} /></svg>
+              </div>
+              <span className="text-xs font-bold">{item.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        {/* Footer Support Card */}
+        <div className="p-4 mt-auto">
+          <div className="relative rounded-2xl bg-gradient-to-br from-foreground to-[#141727] p-5 shadow-premium overflow-hidden group">
+            <div className="absolute -top-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-2xl group-hover:bg-white/10 transition-all duration-700"></div>
+            <div className="relative z-10">
+              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center mb-3 text-white">
+                <IconInfo className="w-4 h-4" />
+              </div>
+              <h4 className="text-white text-xs font-bold mb-1">Cần hỗ trợ?</h4>
+              <p className="text-white/50 text-[10px] leading-relaxed mb-4">
+                Đội ngũ Xalo luôn sẵn sàng giải đáp thắc mắc của bạn.
+              </p>
+              <button className="w-full py-2 bg-white text-foreground text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-0.5 transition-all active:scale-95">
+                Nhắn tin ngay
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  );
+}
+

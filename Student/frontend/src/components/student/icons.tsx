@@ -1,0 +1,57 @@
+import * as React from "react";
+
+type IconProps = React.SVGProps<SVGSVGElement> & {
+  title?: string;
+};
+
+function BaseIcon({ title, children, ...props }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden={title ? undefined : true}
+      role={title ? "img" : "presentation"}
+      {...props}
+    >
+      {title ? <title>{title}</title> : null}
+      {children}
+    </svg>
+  );
+}
+
+export function IconDashboard(props: IconProps) {
+  return (
+    <BaseIcon title="Dashboard" {...props}>
+      <path d="M4 13.5V6.5a2 2 0 0 1 2-2h4.5v9H4Z" />
+      <path d="M13.5 4.5H18a2 2 0 0 1 2 2v7h-6.5V4.5Z" />
+      <path d="M4 16.5h6.5V20H6a2 2 0 0 1-2-2v-1.5Z" />
+      <path d="M13.5 16.5H20V18a2 2 0 0 1-2 2h-4.5v-3.5Z" />
+    </BaseIcon>
+  );
+}
+
+export function IconDocs(props: IconProps) {
+  return (
+    <BaseIcon title="Tài liệu thêm" {...props}>
+      <path d="M7 4h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />
+      <path d="M8.5 8h7" />
+      <path d="M8.5 11h7" />
+      <path d="M8.5 14h4.5" />
+    </BaseIcon>
+  );
+}
+
+export function IconInfo(props: IconProps) {
+  return (
+    <BaseIcon title="Skill" {...props}>
+      <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" />
+      <path d="M12 10.5v6" />
+      <path d="M12 7.5h.01" />
+    </BaseIcon>
+  );
+}
+
