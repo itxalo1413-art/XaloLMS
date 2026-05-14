@@ -1,15 +1,27 @@
 "use client";
 
 import { StudentLayout } from "@/app/StudentLayout";
-import { Field, Select } from "@/components/student/ui";
+import Link from "next/link";
+import { useState } from "react";
 import {
   contentTypeLabel,
   getRecentlyViewedDocuments,
   statusLabel,
 } from "@/components/student/mockLearning";
+import {
+  defaultStudyHabitForm,
+  studyHabitOptionLists,
+} from "@/lib/studentProfileStudyOptions";
 
 const student = {
   name: "Dương Ngọc Khôi Nguyên",
+  email: "nguyenduong939705@gmail.com",
+  phone: "0947 188 794",
+  dob: "20/08/2006",
+  zodiac: "Sư Tử",
+  examDate: "10/08/2026",
+  countdown: "Còn 108 ngày",
+  aim: "7.5 Overall",
   bcb: "BCB",
   scores: {
     listening: 7.5,
@@ -20,8 +32,52 @@ const student = {
   },
 };
 
+const studyHabitOptions = studyHabitOptionLists;
+
+/** Same pattern as `tai-lieu-them/page.tsx`: wrapper + `appearance-none` + overlay chevron. */
+function HabitSelect({
+  label,
+  value,
+  onValueChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onValueChange: (next: string) => void;
+  options: readonly string[];
+}) {
+  return (
+    <div>
+      <label className="text-xs font-semibold text-zinc-600">{label}</label>
+      <div className="relative group mt-2">
+        <select
+          value={value}
+          onChange={(e) => onValueChange(e.target.value)}
+          className="h-11 w-full cursor-pointer appearance-none rounded-2xl border border-zinc-200 bg-white px-4 pr-10 text-sm font-bold text-foreground shadow-sm outline-none transition-all focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+        >
+          {options.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+        <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted">
+          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const recentlyViewed = getRecentlyViewedDocuments(4);
+  const [habitForm, setHabitForm] = useState({ ...defaultStudyHabitForm });
+
+  const onHabitChange = (key: keyof typeof habitForm, value: string) => {
+    setHabitForm((prev) => ({ ...prev, [key]: value }));
+  };
 
   return (
     <StudentLayout>
@@ -30,11 +86,9 @@ export default function Home() {
         {/* Welcome Header */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-extrabold text-foreground tracking-tight">
-              Chào mừng quay trở lại, {student.name.split(' ').pop()}!
-            </h2>
+            <h2 className="text-2xl font-extrabold text-foreground tracking-tight">Thông tin học viên</h2>
             <p className="text-muted text-sm mt-1 font-medium">
-              Đây là tổng quan về quá trình học tập của bạn.
+              Lộ trình học tập, mục tiêu và tài liệu học của bạn trong thời gian đăng ký.
             </p>
           </div>
           <div className="flex gap-2">
@@ -48,44 +102,181 @@ export default function Home() {
           </div>
         </header>
 
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-          
-          {/* Main Content Area - 8 columns */}
-          <div className="xl:col-span-8 space-y-10">
+        <div className="space-y-10">
             
-            {/* Section: STUDENT PROFILE */}
             <section>
               <div className="flex items-center gap-2 mb-6">
                 <div className="w-1.5 h-6 bg-primary rounded-full"></div>
-                <h3 className="text-sm font-black text-muted uppercase tracking-[0.2em]">Thông tin học viên</h3>
+                <h3 className="text-sm font-black text-muted uppercase  ">
+                  Hero Overview
+                </h3>
               </div>
-              
-              <div className="relative group">
-                <div className="absolute -inset-1 bg-gradient-to-r from-primary to-secondary rounded-3xl blur opacity-5 group-hover:opacity-10 transition duration-1000"></div>
-                
-                <div className="relative bg-white p-8 rounded-2xl shadow-soft overflow-hidden">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
-                  
-                  <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
-                    {[
-                      { k: "Họ và tên", v: student.name, icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z", color: "text-primary bg-primary/5" },
-                      { k: "Ngày sinh", v: "—", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z", color: "text-muted bg-background" },
-                      { k: "Cung hoàng đạo", v: "—", icon: "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.382-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z", color: "text-warning bg-warning/10" },
-                      { k: "Email & Số điện thoại", v: "nguyenduong939705@gmail.com • 0947 188 794", icon: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z", color: "text-info bg-info/10" },
-                      { k: "Động lực học tập", v: "Học để lấy bằng đi du học và phát triển sự nghiệp.", icon: "M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.989-2.386l-.548-.547z", color: "text-success bg-success/10" },
-                    ].map((row, idx) => (
-                      <div key={row.k} className={`flex gap-4 items-start p-2 rounded-xl transition-all hover:bg-background ${idx === 4 ? 'md:col-span-2' : ''}`}>
-                        <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center ${row.color}`}>
-                          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d={row.icon} />
-                          </svg>
+
+              <div className="rounded-3xl bg-white p-6 md:p-8 shadow-soft border border-primary/10">
+                <div className="mb-6 flex items-center gap-4">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-xl font-black text-primary">
+                    {student.name.slice(0, 1)}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-lg font-extrabold tracking-tight text-foreground">
+                      {student.name}
+                    </div>
+                    <div className="mt-1 text-xs font-semibold text-muted">
+                      {student.email} · {student.phone}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 lg:items-start">
+                  <div className="lg:col-span-12">
+                    <Link
+                      href="#bcb-archive"
+                      className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-primary bg-primary/5 px-4 py-3.5 text-center text-xs font-black uppercase tracking-widest text-primary shadow-sm transition-colors hover:bg-primary hover:text-white"
+                    >
+                      <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                      </svg>
+                      BCB Archive
+                    </Link>
+                  </div>
+                  <div className="space-y-5 lg:col-span-8">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div className="rounded-2xl bg-background p-4">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-muted">
+                          Ngày sinh
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-[10px] font-black text-muted uppercase tracking-widest">{row.k}</span>
-                          <span className="text-sm font-bold text-foreground mt-1 leading-relaxed">{row.v}</span>
+                        <div className="mt-1 text-sm font-bold text-foreground">{student.dob}</div>
+                      </div>
+                      <div className="rounded-2xl bg-background p-4">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-muted">
+                          Cung hoàng đạo
+                        </div>
+                        <div className="mt-1 text-sm font-bold text-foreground">{student.zodiac}</div>
+                      </div>
+                      <div className="rounded-2xl bg-background p-4">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-muted">
+                          Điểm đầu vào
+                        </div>
+                        <div className="mt-1 text-sm font-bold text-foreground">
+                          {student.scores.overall} Overall
                         </div>
                       </div>
-                    ))}
+                      <div className="rounded-2xl bg-background p-4">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-muted">
+                          Mục tiêu
+                        </div>
+                        <div className="mt-1 text-sm font-bold text-primary">{student.aim}</div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-primary/10 bg-white p-4">
+                      <div className="mb-3 text-[10px] font-black uppercase tracking-widest text-muted">
+                        Điểm đầu vào từng kỹ năng
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                        {[
+                          { k: "Listening", v: student.scores.listening, c: "text-primary" },
+                          { k: "Reading", v: student.scores.reading, c: "text-info" },
+                          { k: "Writing", v: student.scores.writing, c: "text-secondary" },
+                          { k: "Speaking", v: student.scores.speaking, c: "text-warning" },
+                        ].map((s) => (
+                          <div key={s.k} className="rounded-xl bg-background p-3">
+                            <div className="text-[10px] font-black uppercase tracking-widest text-muted">
+                              {s.k}
+                            </div>
+                            <div className={`mt-1 text-lg font-black ${s.c}`}>{s.v}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 lg:col-span-4">
+                    <div className="rounded-2xl border border-primary/15 bg-primary/5 p-5">
+                      <div className="text-center text-[10px] font-black uppercase tracking-widest text-muted">
+                        Current Overall
+                      </div>
+                      <div className="mt-4 flex justify-center">
+                        <div
+                          className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full border-[5px] border-primary bg-white shadow-sm"
+                          aria-label={`Điểm overall ${student.scores.overall}`}
+                        >
+                          <span className="text-4xl font-black tabular-nums leading-none text-primary">
+                            {student.scores.overall}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-secondary/20 bg-secondary/10 p-5">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-muted">
+                        Countdown ngày thi
+                      </div>
+                      <div className="mt-1 text-sm font-bold text-foreground">
+                        {student.examDate} · {student.countdown}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-1.5 h-6 bg-primary rounded-full"></div>
+                <h3 className="text-sm font-black text-muted uppercase  ">
+                  Study Habits & Learner&apos;s Situation
+                </h3>
+              </div>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div className="rounded-2xl bg-white p-6 shadow-soft">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-muted">
+                    Study Habits
+                  </div>
+                  <div className="mt-4 space-y-4">
+                    <HabitSelect
+                      label="Phương pháp học hiệu quả nhất đối với bạn"
+                      value={habitForm.method}
+                      onValueChange={(v) => onHabitChange("method", v)}
+                      options={studyHabitOptions.method}
+                    />
+                    <HabitSelect
+                      label="Thời gian dành ra trong 1 tuần cho việc học IELTS"
+                      value={habitForm.weeklyHours}
+                      onValueChange={(v) => onHabitChange("weeklyHours", v)}
+                      options={studyHabitOptions.weeklyHours}
+                    />
+                    <HabitSelect
+                      label="Môi trường lớp học phù hợp với bạn"
+                      value={habitForm.classEnvironment}
+                      onValueChange={(v) => onHabitChange("classEnvironment", v)}
+                      options={studyHabitOptions.classEnvironment}
+                    />
+                  </div>
+                </div>
+                <div className="rounded-2xl bg-white p-6 shadow-soft">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-muted">
+                    Learner&apos;s Situation
+                  </div>
+                  <div className="mt-4 space-y-4">
+                    <HabitSelect
+                      label="IELTS với bạn là..."
+                      value={habitForm.ieltsMeaning}
+                      onValueChange={(v) => onHabitChange("ieltsMeaning", v)}
+                      options={studyHabitOptions.ieltsMeaning}
+                    />
+                    <HabitSelect
+                      label="Band điểm trước đây (nếu đã từng thi)"
+                      value={habitForm.previousBand}
+                      onValueChange={(v) => onHabitChange("previousBand", v)}
+                      options={studyHabitOptions.previousBand}
+                    />
+                    <HabitSelect
+                      label="Kỹ năng muốn được học tập trung"
+                      value={habitForm.focusSkills}
+                      onValueChange={(v) => onHabitChange("focusSkills", v)}
+                      options={studyHabitOptions.focusSkills}
+                    />
                   </div>
                 </div>
               </div>
@@ -95,7 +286,7 @@ export default function Home() {
             <section>
               <div className="flex items-center gap-2 mb-6">
                 <div className="w-1.5 h-6 bg-secondary rounded-full"></div>
-                <h3 className="text-sm font-black text-muted uppercase tracking-[0.2em]">Đã xem gần đây</h3>
+                <h3 className="text-sm font-black text-muted uppercase  ">Đã xem gần đây</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {recentlyViewed.map((item) => (
@@ -116,7 +307,7 @@ export default function Home() {
                       </div>
                       <span
                         className={[
-                          "inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-wider",
+                          "inline-flex items-center rounded-lg px-2.5 py-1 text-[10px] font-black uppercase  ",
                           item.status === "completed"
                             ? "bg-success/10 text-success"
                             : item.status === "in_progress"
@@ -140,41 +331,18 @@ export default function Home() {
               </div>
             </section>
 
-            {/* Section: AIMS AND ASPIRATIONS */}
-            <section>
-              <div className="flex items-center gap-2 mb-6">
-                <div className="w-1.5 h-6 bg-info rounded-full"></div>
-                <h3 className="text-sm font-black text-muted uppercase tracking-[0.2em]">Mục tiêu & Dự định</h3>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {[
-                  { title: "Ngày thi dự kiến", value: "10/08/2026", img: "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=400&q=80", color: "text-primary" },
-                  { title: "Đếm ngược", value: "Còn 108 ngày", img: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=400&q=80", color: "text-success", badge: "TRUNG BÌNH" },
-                  { title: "Band điểm mục tiêu", value: "7.5 Overall", img: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=400&q=80", color: "text-warning" }
-                ].map((card, i) => (
-                  <div key={i} className="rounded-2xl bg-white shadow-soft overflow-hidden hover:shadow-hover transition-all group">
-                    <div className="h-24 w-full relative overflow-hidden">
-                      <img src={card.img} alt={card.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-foreground/40 to-transparent"></div>
-                    </div>
-                    <div className="p-5">
-                      <div className="text-[10px] font-black text-muted uppercase tracking-widest mb-1">{card.title}</div>
-                      <div className={`text-base font-extrabold ${card.color} tracking-tight`}>{card.value}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
+            
 
             {/* Section: BCB Grading & Diagnosis */}
-            <section>
-              <div className="flex items-center gap-2 mb-6">
-                <div className="w-1.5 h-6 bg-primary rounded-full"></div>
-                <h3 className="text-sm font-black text-muted uppercase tracking-[0.2em]">Bảng Chẩn Bệnh (BCB)</h3>
+            <section id="bcb-archive">
+              <div className="mb-6 flex items-center gap-2">
+                <div className="h-6 w-1.5 rounded-full bg-primary"></div>
+                <h3 className="text-sm font-black uppercase text-muted">
+                  Bảng Chẩn Bệnh (BCB)
+                </h3>
               </div>
 
-              <div className="bg-white rounded-2xl shadow-soft overflow-hidden">
+              <div className="overflow-hidden rounded-2xl bg-white shadow-soft">
                 <div className="divide-y divide-background">
                   {[
                     { k: "LISTENING", v: "Bạn hiểu phần lớn từ vựng trong nhiều chủ đề, kể cả thuật ngữ học thuật. Bạn nắm được nội dung, liên kết giữa các câu." },
@@ -185,7 +353,7 @@ export default function Home() {
                   ].map((item) => (
                     <div key={item.k} className="p-6 flex flex-col md:flex-row gap-6 hover:bg-background transition-colors">
                       <div className="w-24 shrink-0">
-                        <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider ${
+                        <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-lg text-[10px] font-black uppercase   ${
                           item.primary ? 'bg-primary text-white shadow-premium' : 'bg-background text-muted'
                         }`}>
                           {item.k}
@@ -199,79 +367,6 @@ export default function Home() {
                 </div>
               </div>
             </section>
-
-          </div>
-
-          {/* Right Sidebar - 4 columns */}
-          <div className="xl:col-span-4 space-y-10">
-            
-            <section>
-              <div className="flex items-center gap-2 mb-6">
-                <div className="w-1.5 h-6 bg-secondary rounded-full"></div>
-                <h3 className="text-sm font-black text-muted uppercase tracking-[0.2em]">Điểm đầu vào</h3>
-              </div>
-              
-              <div className="p-8 bg-white rounded-3xl shadow-premium flex flex-col items-center relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary to-secondary"></div>
-                
-                <div className="w-full flex justify-between items-center mb-10">
-                  <div className="text-xs font-black text-foreground uppercase tracking-widest">Entrance Result</div>
-                  <div className="px-3 py-1 bg-primary/10 text-primary text-[10px] font-black rounded-full">BCB ARCHIVE</div>
-                </div>
-
-                {/* Score Circle */}
-                <div className="relative w-48 h-48 flex items-center justify-center">
-                  <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="42" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-background" />
-                    <circle cx="50" cy="50" r="42" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray="264" strokeDashoffset={264 * (1 - 6.0 / 9)} className="text-primary" strokeLinecap="round" />
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-5xl font-black text-foreground">{student.scores.overall}</span>
-                    <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em] mt-2">Overall</span>
-                  </div>
-                </div>
-                
-                <div className="mt-12 grid grid-cols-2 gap-4 w-full">
-                  {[
-                    { k: "Listening", v: student.scores.listening, c: "text-primary" },
-                    { k: "Reading", v: student.scores.reading, c: "text-info" },
-                    { k: "Writing", v: student.scores.writing, c: "text-secondary" },
-                    { k: "Speaking", v: student.scores.speaking, c: "text-warning" },
-                  ].map((s) => (
-                    <div key={s.k} className="bg-background p-4 rounded-2xl">
-                      <div className="text-[10px] font-black text-muted uppercase tracking-widest mb-1">{s.k}</div>
-                      <div className={`text-lg font-black ${s.c}`}>{s.v}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            <section>
-              <div className="flex items-center gap-2 mb-6">
-                <div className="w-1.5 h-6 bg-foreground rounded-full"></div>
-                <h3 className="text-sm font-black text-muted uppercase tracking-[0.2em]">Thói quen học tập</h3>
-              </div>
-              
-              <div className="bg-white p-6 rounded-2xl shadow-soft space-y-6">
-                 <div className="space-y-4">
-                    <label className="text-[11px] font-black text-muted uppercase tracking-widest">Phương pháp học</label>
-                    <div className="p-3 bg-background rounded-xl text-sm font-bold text-foreground">
-                      Tập trung luyện đề thực tế
-                    </div>
-                 </div>
-                 <div className="space-y-4">
-                    <label className="text-[11px] font-black text-muted uppercase tracking-widest">Thời gian cam kết</label>
-                    <div className="p-3 bg-background rounded-xl text-sm font-bold text-foreground">
-                      Trên 10 giờ / tuần
-                    </div>
-                 </div>
-                 <button className="w-full py-4 bg-foreground text-white text-xs font-black rounded-xl shadow-premium hover:shadow-2xl transition-all active:scale-[0.98] uppercase tracking-widest">
-                   Cập nhật thông tin
-                 </button>
-              </div>
-            </section>
-          </div>
         </div>
 
       </div>

@@ -41,7 +41,7 @@ export default function DocumentViewerPage() {
               href="/tai-lieu-them"
               className="mt-4 inline-flex rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
             >
-              Quay lại trang Tài liệu thêm
+              Quay lại trang Kho tài liệu
             </Link>
           </div>
         </div>
@@ -66,9 +66,9 @@ export default function DocumentViewerPage() {
             href="/tai-lieu-them"
             className="inline-flex rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
           >
-            ← Quay lại Tài liệu thêm
+            ← Quay lại Kho tài liệu
           </Link>
-          <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+          <span className="text-xs font-semibold text-zinc-500 uppercase  ">
             Trình xem (demo)
           </span>
         </div>

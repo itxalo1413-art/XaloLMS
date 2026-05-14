@@ -102,93 +102,26 @@ export default function TaiLieuThemPage() {
     <StudentLayout>
       <div className="flex flex-col pb-20">
         <header>
-          <h2 className="text-2xl font-extrabold text-foreground tracking-tight">Thư viện tài liệu</h2>
-          <p className="text-muted text-sm mt-1 font-medium">Tìm kiếm và ôn tập các tài liệu bổ trợ cho khóa học.</p>
+          <h2 className="text-2xl font-extrabold text-foreground tracking-tight">Kho tài liệu</h2>
+          <p className="text-muted text-sm mt-1 font-medium">Tìm kiếm, gợi ý và truy cập nhanh tài liệu học tập mọi lúc.</p>
         </header>
 
-        {/* Section: LỚP LUYỆN ĐỀ */}
+        {/* Section moved to self-study */}
         <section className="mt-[18px]">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-1.5 h-6 bg-primary rounded-full"></div>
-            <h3 className="text-sm font-black text-muted uppercase tracking-[0.2em]">Lớp luyện đề tập trung</h3>
+            <h3 className="text-sm font-black text-muted uppercase  0.2em]">Hỗ trợ tự học</h3>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-            <div className="bg-white p-6 rounded-2xl shadow-soft">
-              <h3 className="text-[10px] font-black text-muted uppercase tracking-widest mb-6 flex items-center gap-2">
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                Lịch học tập trung
-              </h3>
-              <ul className="space-y-4">
-                {[
-                  { day: "Chủ Nhật", time: "9h - 11h30", activity: "Làm đề tập trung" },
-                  { day: "Thứ 3", time: "19h45 - 21h30", activity: "Sửa W - L - R" },
-                  { day: "Thứ 7", time: "19h45 - 21h30", activity: "Sửa Speaking" }
-                ].map((item, i) => (
-                  <li key={i} className="flex items-center justify-between group">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-extrabold text-foreground">{item.day}</span>
-                      <span className="text-[10px] font-bold text-muted uppercase">{item.time}</span>
-                    </div>
-                    <span className="text-sm font-bold text-primary bg-primary-soft px-3 py-1 rounded-lg transition-colors group-hover:bg-primary group-hover:text-white">
-                      {item.activity}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            
-            <div className="bg-foreground p-8 rounded-2xl shadow-premium relative overflow-hidden flex flex-col justify-center">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-              <h3 className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-6 relative z-10 flex items-center gap-2">
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M15.6 11.6L22 7v10l-6.4-4.6v-0.8z"></path><rect x="2" y="7" width="12" height="10" rx="2" ry="2"></rect></svg>
-                Thông tin Zoom
-              </h3>
-              <div className="space-y-4 relative z-10">
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl backdrop-blur hover:bg-white/10 transition-all">
-                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Meeting ID</span>
-                  <span className="text-base font-black text-white tracking-wider">853 7727 0229</span>
-                </div>
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl backdrop-blur hover:bg-white/10 transition-all">
-                  <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Mật mã</span>
-                  <span className="text-base font-black text-white tracking-wider">123456</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-soft overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm border-collapse">
-                <thead>
-                  <tr className="bg-background">
-                    <th className="px-6 py-5 font-black text-muted uppercase tracking-widest text-[10px]">Test/Date</th>
-                    <th className="px-4 py-5 font-black text-muted uppercase tracking-widest text-[10px] text-center">Listening</th>
-                    <th className="px-4 py-5 font-black text-muted uppercase tracking-widest text-[10px] text-center">Reading</th>
-                    <th className="px-4 py-5 font-black text-muted uppercase tracking-widest text-[10px] text-center">Writing</th>
-                    <th className="px-4 py-5 font-black text-muted uppercase tracking-widest text-[10px] text-center">Speaking</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-background">
-                  {[
-                    { name: "LĐ16 | Bùi Phạm Diệu Linh", l: "—", r: "—", w: "5.5", s: "—" },
-                    { name: "LĐ17 | Bùi Phạm Diệu Linh", l: "6.0", r: "5.5", w: "4.5", s: "—" },
-                    { name: "LĐ18 | Bùi Phạm Diệu Linh", l: "—", r: "—", w: "—", s: "—" },
-                    { name: "LĐ19 | Bùi Phạm Diệu Linh", l: "—", r: "—", w: "—", s: "—" },
-                    { name: "LĐ 20 | Bùi Phạm Diệu Linh", l: "8.0", r: "6.0", w: "5.5", s: "—" },
-                    { name: "LĐ 21 | Bùi Phạm Diệu Linh", l: "6.5", r: "5.0", w: "5.0", s: "—" },
-                  ].map((row, i) => (
-                    <tr key={i} className="hover:bg-background transition-colors group">
-                      <td className="px-6 py-4 font-bold text-foreground/80 whitespace-nowrap group-hover:text-primary">{row.name}</td>
-                      <td className={`px-4 py-4 text-center font-black ${row.l !== '—' ? 'text-primary' : 'text-muted/30'}`}>{row.l}</td>
-                      <td className={`px-4 py-4 text-center font-black ${row.r !== '—' ? 'text-info' : 'text-muted/30'}`}>{row.r}</td>
-                      <td className={`px-4 py-4 text-center font-black ${row.w !== '—' ? 'text-secondary' : 'text-muted/30'}`}>{row.w}</td>
-                      <td className={`px-4 py-4 text-center font-black ${row.s !== '—' ? 'text-warning' : 'text-muted/30'}`}>{row.s}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="rounded-2xl border border-primary/25 bg-primary-soft/20 p-5 mb-8">
+            <p className="text-sm font-semibold text-zinc-800">
+              Lớp luyện đề tập trung và đăng ký mock test đã chuyển sang tab <strong>Hỗ trợ tự học</strong>.
+            </p>
+            <Link
+              href="/ho-tro-tu-hoc"
+              className="mt-3 inline-flex rounded-xl bg-primary px-4 py-2 text-xs font-bold uppercase tracking-wide text-white hover:bg-primary/90"
+            >
+              Mở tab hỗ trợ tự học
+            </Link>
           </div>
         </section>
 
@@ -196,18 +129,58 @@ export default function TaiLieuThemPage() {
         <section className="mt-12">
            <div className="flex items-center gap-2 mb-6">
             <div className="w-1.5 h-6 bg-secondary rounded-full"></div>
-            <h3 className="text-sm font-black text-muted uppercase tracking-[0.2em]">Welcome Package</h3>
+            <h3 className="text-sm font-black text-muted uppercase  0.2em]">Welcome Package</h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { label: "Computer trial", color: "text-primary", icon: "💻", items: ["LISTENING", "READING", "WRITING T1", "WRITING T2"] },
-              { label: "Registration guide", color: "text-info", icon: "📑", items: ["HƯỚNG DẪN ĐĂNG KÝ THI.docx"] },
-              { label: "Orientation guide", color: "text-secondary", icon: "🚀", items: ["Solidifying Stage Craft"] },
-              { label: "Resource Website", color: "text-warning", icon: "🌐", items: ["bestmytest.com/ielts"] }
+              {
+                label: "Computer trial",
+                color: "text-primary",
+                icon: (
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="4" width="18" height="12" rx="2" />
+                    <path d="M8 20h8M10 16v4m4-4v4" />
+                  </svg>
+                ),
+                items: ["LISTENING", "READING", "WRITING T1", "WRITING T2"],
+              },
+              {
+                label: "Registration guide",
+                color: "text-info",
+                icon: (
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+                    <path d="M14 3v6h6M8 13h8M8 17h6" />
+                  </svg>
+                ),
+                items: ["HƯỚNG DẪN ĐĂNG KÝ THI.docx"],
+              },
+              {
+                label: "Orientation guide",
+                color: "text-secondary",
+                icon: (
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M10 14l1.5-4.5L16 8l-1.5 4.5L10 14z" />
+                  </svg>
+                ),
+                items: ["Solidifying Stage Craft"],
+              },
+              {
+                label: "Resource Website",
+                color: "text-warning",
+                icon: (
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" />
+                  </svg>
+                ),
+                items: ["bestmytest.com/ielts"],
+              },
             ].map((box, i) => (
               <div key={i} className="bg-white p-6 rounded-2xl shadow-soft hover:shadow-hover transition-all group">
-                <div className="w-10 h-10 rounded-xl bg-background flex items-center justify-center text-xl mb-4 group-hover:bg-primary/5 transition-colors">
+                <div className="w-10 h-10 rounded-xl bg-background flex items-center justify-center text-foreground mb-4 group-hover:bg-primary/5 transition-colors">
                   {box.icon}
                 </div>
                 <div className={`text-[10px] font-black uppercase tracking-widest mb-3 ${box.color}`}>{box.label}</div>
@@ -228,7 +201,7 @@ export default function TaiLieuThemPage() {
         <section className="mt-12">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-1.5 h-6 bg-info rounded-full"></div>
-            <h3 className="text-sm font-black text-muted uppercase tracking-[0.2em]">Tìm kiếm & Phân loại</h3>
+            <h3 className="text-sm font-black text-muted uppercase  0.2em]">Kho tài liệu</h3>
           </div>
 
           <div className="bg-white p-8 rounded-2xl shadow-soft space-y-8">
@@ -252,7 +225,7 @@ export default function TaiLieuThemPage() {
                   <select
                     value={filter.val}
                     onChange={(e) => filter.set(e.target.value)}
-                    className="w-full h-12 appearance-none rounded-xl bg-background px-4 pr-10 text-xs font-black text-muted uppercase tracking-widest outline-none focus:bg-white transition-all cursor-pointer group-hover:bg-zinc-50"
+                    className="w-full h-11 appearance-none rounded-2xl border border-zinc-200 bg-white px-4 pr-10 text-sm font-bold text-foreground shadow-sm outline-none transition-all focus:border-primary/40 focus:ring-2 focus:ring-primary/10 cursor-pointer"
                   >
                     {filter.options.map((opt, j) => <option key={j} value={opt.v}>{opt.l}</option>)}
                   </select>
@@ -269,7 +242,7 @@ export default function TaiLieuThemPage() {
         <section className="mt-12">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-1.5 h-6 bg-warning rounded-full"></div>
-            <h3 className="text-sm font-black text-muted uppercase tracking-[0.2em]">Tài liệu gợi ý</h3>
+            <h3 className="text-sm font-black text-muted uppercase">Tài liệu gợi ý</h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -294,7 +267,7 @@ export default function TaiLieuThemPage() {
         <section className="mt-12">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-1.5 h-6 bg-primary rounded-full"></div>
-            <h3 className="text-sm font-black text-muted uppercase tracking-[0.2em]">Sách tặng thêm</h3>
+            <h3 className="text-sm font-black text-muted uppercase  0.2em]">Sách tặng thêm</h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

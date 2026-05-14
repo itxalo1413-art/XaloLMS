@@ -7,6 +7,7 @@ import {
   type ContentStatus,
   contentStatusVi,
 } from "./mockData";
+import { NativeSelectChevron } from "@/components/student/ui";
 
 const categories = ["Tất cả", ...Array.from(new Set(contentRows.map((c) => c.category)))];
 
@@ -68,34 +69,34 @@ export function ContentGovernanceSection() {
               placeholder="Tên tài liệu hoặc danh mục…"
             />
           </div>
-          <select
+          <NativeSelectChevron
             value={st}
             onChange={(e) => setSt(e.target.value as typeof st)}
-            className="rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:border-[#6a5acd] lg:w-44"
+            className="h-11 rounded-2xl border border-zinc-200 bg-white text-sm font-bold text-foreground shadow-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/10 lg:w-44"
           >
             <option value="all">Mọi trạng thái</option>
             <option value="draft">Nháp</option>
             <option value="pending">Chờ duyệt</option>
             <option value="published">Đã hiển thị</option>
             <option value="hidden">Đã ẩn</option>
-          </select>
-          <select
+          </NativeSelectChevron>
+          <NativeSelectChevron
             value={cat}
             onChange={(e) => setCat(e.target.value)}
-            className="rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:border-[#6a5acd] lg:w-52"
+            className="h-11 rounded-2xl border border-zinc-200 bg-white text-sm font-bold text-foreground shadow-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/10 lg:w-52"
           >
             {categories.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
             ))}
-          </select>
+          </NativeSelectChevron>
         </div>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-zinc-100 bg-zinc-50/90 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+          <thead className="border-b border-zinc-100 bg-zinc-50/90 text-[10px] font-bold uppercase   text-zinc-500">
             <tr>
               <th className="px-4 py-3">Tiêu đề</th>
               <th className="hidden px-4 py-3 md:table-cell">Danh mục</th>

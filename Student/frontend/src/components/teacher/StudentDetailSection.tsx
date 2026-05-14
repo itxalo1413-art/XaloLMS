@@ -12,6 +12,7 @@ import {
   timelineByStudent,
   statusLabel,
 } from "@/components/teacher/mockData";
+import { NativeSelectChevron } from "@/components/student/ui";
 
 type Props = { studentId: string };
 
@@ -118,7 +119,7 @@ export function StudentDetailSection({ studentId }: Props) {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Cá nhân */}
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm lg:col-span-1">
-          <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+          <h3 className="text-[11px] font-bold uppercase   text-zinc-500">
             Thông tin cá nhân
           </h3>
           <dl className="mt-4 space-y-3 text-sm">
@@ -137,7 +138,7 @@ export function StudentDetailSection({ studentId }: Props) {
 
         {/* Học tập */}
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm lg:col-span-2">
-          <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+          <h3 className="text-[11px] font-bold uppercase   text-zinc-500">
             Thông tin học tập
           </h3>
           {scores ? (
@@ -172,7 +173,7 @@ export function StudentDetailSection({ studentId }: Props) {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+          <h3 className="text-[11px] font-bold uppercase   text-zinc-500">
             Hoạt động gần đây
           </h3>
           <ul className="mt-4 list-inside list-disc space-y-2 text-sm text-zinc-600">
@@ -183,7 +184,7 @@ export function StudentDetailSection({ studentId }: Props) {
         </section>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+          <h3 className="text-[11px] font-bold uppercase   text-zinc-500">
             Ghi chú nội bộ (trước đó)
           </h3>
           <p className="mt-4 text-sm leading-relaxed text-zinc-700">{note}</p>
@@ -192,7 +193,7 @@ export function StudentDetailSection({ studentId }: Props) {
 
       {/* Nhận xét — form ngắn */}
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+        <h3 className="text-[11px] font-bold uppercase   text-zinc-500">
           Nhận xét nhanh
         </h3>
         <p className="mt-1 text-xs text-zinc-500">
@@ -223,7 +224,7 @@ export function StudentDetailSection({ studentId }: Props) {
 
       {/* Cập nhật có cấu trúc */}
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+        <h3 className="text-[11px] font-bold uppercase   text-zinc-500">
           Cập nhật thông tin (có cấu trúc)
         </h3>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -231,16 +232,16 @@ export function StudentDetailSection({ studentId }: Props) {
             <label className="text-xs font-medium text-zinc-500">
               Kết quả học tập
             </label>
-            <select
+            <NativeSelectChevron
               value={resultPick}
               onChange={(e) => setResultPick(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-[#6a5acd]"
+              className="mt-1 h-11 rounded-2xl border border-zinc-200 bg-white text-sm font-bold text-foreground shadow-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
             >
               <option value="">Chọn…</option>
               <option value="Tiến bộ rõ">Tiến bộ rõ</option>
               <option value="Ổn định">Ổn định</option>
               <option value="Cần hỗ trợ thêm">Cần hỗ trợ thêm</option>
-            </select>
+            </NativeSelectChevron>
           </div>
           <div>
             <label className="text-xs font-medium text-zinc-500">
@@ -265,14 +266,14 @@ export function StudentDetailSection({ studentId }: Props) {
 
       {/* Timeline */}
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+        <h3 className="text-[11px] font-bold uppercase   text-zinc-500">
           Lịch sử & theo dõi
         </h3>
         <ol className="relative mt-6 ml-1 border-l border-zinc-200">
           {sortedTimeline.map((item) => (
             <li key={item.id} className="relative pb-8 pl-6 last:pb-0">
               <span className="absolute left-0 top-1.5 z-10 size-2.5 -translate-x-1/2 rounded-full bg-[#6a5acd] ring-4 ring-white" />
-              <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+              <div className="text-[10px] font-bold uppercase   text-zinc-400">
                 {item.date}
                 {item.skill ? ` · ${item.skill}` : ""}
               </div>

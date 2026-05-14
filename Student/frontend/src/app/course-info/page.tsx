@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { StudentLayout } from "@/app/StudentLayout";
 import { Panel } from "@/components/student/ui";
+import Link from "next/link";
 import {
   createPendingRequest,
   DEMO_STUDENT,
@@ -34,20 +35,100 @@ const sessions = [
   {
     code: "R1.1",
     no: 1,
-    target: "READING: Làm quen, tổng quát và luyện tập các dạng bài Completion, Multiple choice và Information Identification \n\nSPEAKING: Làm quen, tổng quát và luyện tập các chủ đề cơ bản trong Part 1 và các chủ đề sử dụng Descriptive language trong Part 2 - Part 3",
+    date: "02/10/2025",
     skill: "Speaking",
-    teacher: "-",
-    contents: "Giới thiệu Speaking IELTS\nGiới thiệu Speaking Part 1\n- Hiểu tính chất của Part 1 và trả lời với độ dài phù hợp\n- Chiến thuật trả lời các câu hỏi trong Part 1 (Công việc, Quê hương, Sở thích, Du lịch...)\n- Luyện tập, áp dụng chiến thuật"
+    contents:
+      "Introduction to Speaking Part 1 - chiến thuật trả lời chủ đề Work, Hobbies, Travel",
+    teacherNote: "Đã nắm được đủ cấu trúc trả lời Part 1, mở rộng ví linh hoạt được.",
   },
-  // (Adding a few more for demo purposes)
   {
     code: "R1.2",
     no: 2,
-    target: "",
+    date: "04/10/2025",
     skill: "Speaking",
-    teacher: "-",
-    contents: "Giới thiệu Speaking Part 2\n- Hiểu tính chất của Part 2 và trả lời trong khung thời gian\n- Chiến thuật trả lời Descriptive language (Miêu tả người)\n- Luyện tập, áp dụng chiến thuật"
-  }
+    contents: "Speaking Part 2 - Descriptive language, Describe a person",
+    teacherNote: "Hiểu yêu cầu Part 2, thiếu từ vựng cụ thể, cần luyện thêm chèn story.",
+  },
+  {
+    code: "R1.3",
+    no: 3,
+    date: "09/10/2025",
+    skill: "Reading",
+    contents: "Reading - Matching headings, Sentence endings",
+    teacherNote: "Nắm cách định vị đáp án Completion, làm được từ khóa T/F/NG.",
+  },
+  {
+    code: "R1.4",
+    no: 4,
+    date: "11/10/2025",
+    skill: "Speaking",
+    contents: "Speaking Part 2 - Describe an item, phát âm & giọng cuối câu",
+    teacherNote: "Cần chú ý hạ giọng khi phát âm, đã biết ở cuối câu hay cụm từ.",
+  },
+  {
+    code: "R1.5",
+    no: 5,
+    date: "16/10/2025",
+    skill: "Speaking",
+    contents: "Speaking Part 3 - Chiến thuật câu hỏi, phát triển ý",
+    teacherNote: "Nắm được cách kéo dài để suy nghĩ idea cho Part 3.",
+  },
+  {
+    code: "R1.6",
+    no: 6,
+    date: "18/10/2025",
+    skill: "Reading",
+    contents: "Reading - Matching features, Matching information",
+    teacherNote: "Hiểu cách đọc dày để áp dụng vào bài Matching headings.",
+  },
+  {
+    code: "R1.7",
+    no: 7,
+    date: "18/10/2025",
+    skill: "Speaking",
+    contents: "Speaking Part 2 - Describe a place, cleft sentence",
+    teacherNote: "Hiểu ứng dụng cleft sentence, cần luyện thêm để thành nhuần nhuyễn.",
+  },
+  {
+    code: "R1.8",
+    no: 8,
+    date: "21/10/2025",
+    skill: "Speaking",
+    contents: "Speaking Part 2 & 3 liên tục, tạo ngữ cơ bản, nguyên âm đôi",
+    teacherNote: "Nắm mẫu câu tạo ngữ căn bản, cần luyện phát âm nguyên âm đôi.",
+  },
+  {
+    code: "R1.9",
+    no: 9,
+    date: "23/10/2025",
+    skill: "Reading",
+    contents: "Reading - Multiple choice (Passage 2)",
+    teacherNote: "Xử lý tốt dạng multiple choice đoạn học thuật.",
+  },
+  {
+    code: "R1.10",
+    no: 10,
+    date: "25/10/2025",
+    skill: "Speaking",
+    contents: "Speaking Part 1 - Accommodation, Sport, Transportation",
+    teacherNote: "Diễn đạt hẹp hơn, nắm thành phần câu cơ bản.",
+  },
+  {
+    code: "R1.11",
+    no: 11,
+    date: "28/10/2025",
+    skill: "Speaking",
+    contents: "Speaking Part 2 - Story telling, Describe an experience",
+    teacherNote: "Luyện cụm động từ danh từ, đa phần hình thành cụm danh từ cơ bản.",
+  },
+  {
+    code: "R1.12",
+    no: 12,
+    date: "30/10/2025",
+    skill: "Reading",
+    contents: "Reading - Information Identification (T/F/NG, Y/N/NG)",
+    teacherNote: "Nắm cách đọc lấy thông tin và so sánh với câu hỏi.",
+  },
 ];
 
 const months = [
@@ -56,8 +137,8 @@ const months = [
 ];
 
 export default function CourseInfoPage() {
-  const [activeLink, setActiveLink] = useState<string | null>(null);
   const [requests, setRequests] = useState<MockTestRequest[]>([]);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   const [viewDate, setViewDate] = useState(new Date(2026, 3, 1)); // Tháng 4, 2026
   const [regSkill, setRegSkill] = useState("Speaking Mock Test");
@@ -96,10 +177,6 @@ export default function CourseInfoPage() {
     [myRequests],
   );
 
-  const handleLinkClick = (id: string) => {
-    setActiveLink(activeLink === id ? null : id);
-  };
-
   const registerMockTest = () => {
     const year = viewDate.getFullYear();
     if (
@@ -134,6 +211,7 @@ export default function CourseInfoPage() {
     const newDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + offset, 1);
     setViewDate(newDate);
     setRegMonth(newDate.getMonth());
+    setSelectedDay(null);
   };
 
   const getDaysInMonth = (month: number, year: number) => new Date(year, month + 1, 0).getDate();
@@ -142,20 +220,49 @@ export default function CourseInfoPage() {
   const daysInMonth = getDaysInMonth(viewDate.getMonth(), viewDate.getFullYear());
   const firstDay = getFirstDayOfMonth(viewDate.getMonth(), viewDate.getFullYear());
   const prevMonthPadding = (firstDay + 6) % 7; 
+  const selectedDayEvents = useMemo(() => {
+    if (!selectedDay) return [];
+    const approvedEvents = approvedTests
+      .filter(
+        (t) =>
+          t.day === selectedDay &&
+          t.month === viewDate.getMonth() &&
+          t.year === viewDate.getFullYear(),
+      )
+      .map((t) => ({
+        type: "mock" as const,
+        label: t.skill,
+        detail: `Giờ ${t.examTime ?? "—"} · ${t.examTeacher ?? "GV —"}`,
+      }));
+
+    const isCourseDay =
+      viewDate.getMonth() === 3 && [21, 23, 25, 28, 30].includes(selectedDay);
+    const courseEvent = isCourseDay
+      ? [
+          {
+            type: "course" as const,
+            label: "Lớp chính khóa",
+            detail: "19h45 - 21h30 · Offline Momentum",
+          },
+        ]
+      : [];
+
+    return [...courseEvent, ...approvedEvents];
+  }, [approvedTests, selectedDay, viewDate]);
 
   return (
     <StudentLayout>
       <div className="space-y-10 pb-20">
         
         <header>
-          <h2 className="text-2xl font-extrabold text-foreground tracking-tight">Skill</h2>
-          <p className="text-muted text-sm mt-1 font-medium">Thông tin kỹ năng, lịch học và lịch Mock Test cá nhân.</p>
+          <h2 className="text-2xl font-extrabold text-foreground tracking-tight">Thông tin khóa học</h2>
+          <p className="text-muted text-sm mt-1 font-medium">Thông tin lớp học, RLP và lịch học chính khóa của bạn.</p>
         </header>
 
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
           
           <div className="lg:col-span-8 space-y-10">
-            <Panel title="Tổng quan Skill">
+            <Panel title="Tổng quan khoá học">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 {[
                   { label: "Khoá học", value: courseOverview.course, icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
@@ -177,114 +284,23 @@ export default function CourseInfoPage() {
               </div>
             </Panel>
 
-            <Panel title="Đăng ký Mock Test">
-              <p className="mb-6 text-xs font-medium leading-relaxed text-muted">
-                Sau khi bấm <strong>Đăng ký</strong>, yêu cầu ở trạng thái{" "}
-                <strong>chờ ACA duyệt</strong>. ACA sẽ gán <strong>giờ thi</strong> và{" "}
-                <strong>giáo viên test</strong>. Chỉ khi được duyệt, ca thi mới hiện trên{" "}
-                <strong>Lịch</strong> bên phải và trong mục sự kiện.
-              </p>
-              <div className="space-y-8">
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 bg-background p-6 rounded-3xl shadow-inner">
-                  <div className="flex flex-col gap-2 sm:col-span-1">
-                    <label className="text-[10px] font-black text-muted uppercase tracking-widest">Kỹ năng</label>
-                    <select value={regSkill} onChange={(e) => setRegSkill(e.target.value)} className="h-11 w-full rounded-xl bg-white px-4 text-xs font-bold text-foreground shadow-sm outline-none focus:ring-4 focus:ring-primary/5">
-                      <option>Speaking Mock Test</option><option>Writing Mock Test</option><option>Listening Mock Test</option><option>Reading Mock Test</option>
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-black text-muted uppercase tracking-widest">Tháng</label>
-                    <select value={regMonth} onChange={(e) => setRegMonth(parseInt(e.target.value))} className="h-11 w-full rounded-xl bg-white px-4 text-xs font-bold text-foreground shadow-sm outline-none focus:ring-4 focus:ring-primary/5">
-                      {months.map((m, i) => <option key={m} value={i}>{m}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[10px] font-black text-muted uppercase tracking-widest">Ngày</label>
-                    <select value={regDay} onChange={(e) => setRegDay(parseInt(e.target.value))} className="h-11 w-full rounded-xl bg-white px-4 text-xs font-bold text-foreground shadow-sm outline-none focus:ring-4 focus:ring-primary/5">
-                      {Array.from({ length: getDaysInMonth(regMonth, viewDate.getFullYear()) }).map((_, i) => (
-                        <option key={i+1} value={i+1}>Ngày {i+1}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex items-end">
-                    <button onClick={registerMockTest} className="w-full h-11 bg-foreground text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-premium hover:shadow-2xl hover:-translate-y-0.5 transition-all active:scale-95">Đăng ký</button>
-                  </div>
-                </div>
-
-                {pendingTests.length > 0 && (
-                  <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-muted uppercase tracking-widest flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-warning"></div>
-                      Chờ ACA duyệt
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {pendingTests.map((test) => (
-                        <div key={test.id} className="flex items-center justify-between p-5 rounded-2xl border border-warning/25 bg-warning/5 shadow-soft group hover:shadow-hover transition-all">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-warning/15 flex items-center justify-center text-warning font-black text-sm">
-                              {test.skill.charAt(0)}
-                            </div>
-                            <div>
-                              <div className="text-sm font-extrabold text-foreground">{test.skill}</div>
-                              <div className="text-[10px] font-bold text-muted uppercase mt-1">{test.day} {months[test.month]}, {test.year}</div>
-                              <div className="text-[9px] font-bold text-warning mt-1 uppercase tracking-tight">Chưa có trên lịch</div>
-                            </div>
-                          </div>
-                          <button type="button" onClick={() => cancelPendingRequest(test.id)} className="w-8 h-8 rounded-lg flex items-center justify-center bg-white shadow-sm text-muted hover:text-danger transition-all">
-                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6L6 18M6 6l12 12"></path></svg>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {approvedTests.length > 0 && (
-                  <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-muted uppercase tracking-widest flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-secondary"></div>
-                      Đã được duyệt (hiển thị trên lịch)
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {approvedTests.map((test) => (
-                        <div key={test.id} className="flex items-start justify-between gap-3 p-5 rounded-2xl bg-gradient-to-tr from-secondary/5 to-white shadow-soft group hover:shadow-hover transition-all">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center text-secondary font-black text-sm shrink-0">
-                              {test.skill.charAt(0)}
-                            </div>
-                            <div>
-                              <div className="text-sm font-extrabold text-foreground">{test.skill}</div>
-                              <div className="text-[10px] font-bold text-muted uppercase mt-1">{test.day} {months[test.month]}, {test.year}</div>
-                              <div className="text-[10px] font-bold text-secondary mt-1">
-                                Giờ: {test.examTime ?? "—"} · GV: {test.examTeacher ?? "—"}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+            <Panel title="Hỗ trợ tự học">
+              <div className="rounded-2xl border border-primary/25 bg-primary-soft/20 p-5">
+                <p className="text-sm font-semibold text-zinc-800">
+                  Các mục đăng ký Mock Test, chấm chữa Writing và lớp luyện đề đã được chuyển sang tab mới.
+                </p>
+                <p className="mt-2 text-xs text-zinc-600">
+                  Vào tab <strong>Hỗ trợ tự học</strong> để thao tác đăng ký và theo dõi lịch tự học.
+                </p>
+                <Link
+                  href="/ho-tro-tu-hoc"
+                  className="mt-4 inline-flex rounded-xl bg-primary px-4 py-2 text-xs font-bold uppercase tracking-wide text-white hover:bg-primary/90"
+                >
+                  Mở tab hỗ trợ tự học
+                </Link>
               </div>
             </Panel>
 
-            <Panel title="Liên kết quan trọng">
-              <div className="flex flex-wrap gap-3">
-                {importantLinks.map((link) => (
-                  <button key={link.id} onClick={() => handleLinkClick(link.id)} className={`px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-soft transition-all active:scale-95 ${activeLink === link.id ? 'bg-primary text-white shadow-premium' : 'bg-white text-muted hover:text-foreground hover:bg-background'}`}>{link.label}</button>
-                ))}
-              </div>
-              {activeLink && (
-                <div className="mt-6 p-6 bg-foreground rounded-2xl shadow-premium flex items-center justify-between group overflow-hidden relative">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-                  <div className="relative z-10">
-                    <span className="text-[10px] font-black text-white/40 uppercase tracking-widest block mb-2">Giá trị liên kết</span>
-                    <span className="text-base font-bold text-white truncate max-w-[300px] md:max-w-[500px] block">{importantLinks.find(l => l.id === activeLink)?.value}</span>
-                  </div>
-                  <button className="relative z-10 bg-white text-foreground px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest hover:shadow-premium transition-all">Truy cập</button>
-                </div>
-              )}
-            </Panel>
           </div>
 
           <div className="lg:col-span-4 space-y-10">
@@ -313,12 +329,34 @@ export default function CourseInfoPage() {
                     const isToday = new Date().getDate() === day && new Date().getMonth() === viewDate.getMonth() && new Date().getFullYear() === viewDate.getFullYear();
                     const isCourseDay = viewDate.getMonth() === 3 && [21, 23, 25, 28, 30].includes(day);
 
+                    const isHighlighted = isCourseDay || isApprovedMock || isToday;
+                    const isSelected = selectedDay === day;
                     return (
-                      <div key={day} className={`h-8 flex items-center justify-center text-[11px] font-bold rounded-lg relative transition-all cursor-pointer ${isToday ? 'bg-primary text-white shadow-premium scale-110 z-10' : isCourseDay ? 'bg-primary-soft text-primary shadow-sm' : isApprovedMock ? 'bg-secondary-soft text-secondary shadow-sm' : 'text-foreground/80 hover:bg-background'}`}>
+                      <button
+                        type="button"
+                        key={day}
+                        onClick={() => {
+                          if (!isHighlighted) return;
+                          setSelectedDay((prev) => (prev === day ? null : day));
+                        }}
+                        className={`h-8 w-full flex items-center justify-center text-[11px] font-bold rounded-lg relative transition-all ${
+                          isSelected
+                            ? "ring-2 ring-primary/35"
+                            : ""
+                        } ${
+                          isToday
+                            ? 'bg-primary text-white shadow-premium scale-110 z-10'
+                            : isCourseDay
+                              ? 'bg-primary-soft text-primary shadow-sm'
+                              : isApprovedMock
+                                ? 'bg-secondary-soft text-secondary shadow-sm'
+                                : 'text-foreground/50'
+                        } ${isHighlighted ? "cursor-pointer" : "cursor-default"}`}
+                      >
                         {day}
                         {isApprovedMock && !isToday && <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-secondary rounded-full ring-2 ring-white"></div>}
                         {isCourseDay && !isToday && <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full"></div>}
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
@@ -328,6 +366,29 @@ export default function CourseInfoPage() {
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                     Sự kiện & Nhắc hẹn
                   </h4>
+                  <div className="rounded-xl border border-primary/10 bg-background/60 p-3">
+                    <div className="text-[10px] font-black text-muted uppercase tracking-widest">
+                      {selectedDay
+                        ? `Sự kiện ngày ${selectedDay} ${months[viewDate.getMonth()]}`
+                        : "Chọn ngày highlight để xem sự kiện"}
+                    </div>
+                    <div className="mt-2 space-y-2">
+                      {selectedDay ? (
+                        selectedDayEvents.length > 0 ? (
+                          selectedDayEvents.map((event, idx) => (
+                            <div key={`${event.type}-${idx}`} className="rounded-lg bg-white p-3">
+                              <div className="text-xs font-bold text-foreground">{event.label}</div>
+                              <div className="mt-1 text-[11px] text-muted">{event.detail}</div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="text-[11px] text-muted">
+                            Không có sự kiện được duyệt trong ngày này.
+                          </div>
+                        )
+                      ) : null}
+                    </div>
+                  </div>
                   <div className="space-y-4">
                     {approvedTests
                       .filter(
@@ -371,6 +432,84 @@ export default function CourseInfoPage() {
                     )}
                   </div>
                 </div>
+              </div>
+            </Panel>
+          </div>
+
+          <div className="lg:col-span-12">
+            <Panel title="Liên kết quan trọng">
+              <div className="space-y-4">
+                {importantLinks.map((link) => (
+                  <div
+                    key={link.id}
+                    className="rounded-2xl border border-primary/15 bg-white p-5 shadow-soft"
+                  >
+                    <div className="text-[10px] font-black uppercase tracking-widest text-primary">
+                      {link.label}
+                    </div>
+                    <div className="mt-2 text-sm font-bold text-foreground break-words">
+                      {link.value}
+                    </div>
+                    {link.id !== "rlp" ? (
+                      <button className="mt-4 rounded-lg bg-primary px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white hover:bg-primary/90 transition-all">
+                        Truy cập
+                      </button>
+                    ) : null}
+                    {link.id === "rlp" ? (
+                      <div className="mt-4 rounded-xl border border-primary/10 bg-background/40 p-3">
+                        <div className="overflow-x-auto">
+                          <table className="min-w-[980px] w-full border-separate border-spacing-0">
+                            <thead>
+                              <tr className="text-left">
+                                {["CODE", "SESSION", "SKILL", "NỘI DUNG", "NGÀY", "GHI CHÚ GV"].map((h) => (
+                                  <th
+                                    key={h}
+                                    className="sticky top-0 z-10 bg-background px-3 py-3 text-[10px] font-black uppercase tracking-widest text-muted border-b border-primary/10"
+                                  >
+                                    {h}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {sessions.map((row) => (
+                                <tr key={row.code} className="align-top hover:bg-white/80 transition-colors">
+                                  <td className="px-3 py-3 text-[11px] font-bold text-muted border-b border-primary/10 whitespace-nowrap">
+                                    {row.code}
+                                  </td>
+                                  <td className="px-3 py-3 text-[11px] font-bold text-foreground border-b border-primary/10 whitespace-nowrap">
+                                    {row.no}
+                                  </td>
+                                  <td className="px-3 py-3 border-b border-primary/10 whitespace-nowrap">
+                                    <span
+                                      className={[
+                                        "inline-flex rounded-full px-2 py-0.5 text-[10px] font-black uppercase",
+                                        row.skill === "Speaking"
+                                          ? "bg-primary/10 text-primary"
+                                          : "bg-info/10 text-info",
+                                      ].join(" ")}
+                                    >
+                                      {row.skill}
+                                    </span>
+                                  </td>
+                                  <td className="px-3 py-3 text-[12px] font-medium text-foreground border-b border-primary/10 min-w-[340px]">
+                                    {row.contents}
+                                  </td>
+                                  <td className="px-3 py-3 text-[11px] font-semibold text-muted border-b border-primary/10 whitespace-nowrap">
+                                    {row.date}
+                                  </td>
+                                  <td className="px-3 py-3 text-[12px] font-medium text-muted border-b border-primary/10 min-w-[260px]">
+                                    {row.teacherNote}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
               </div>
             </Panel>
           </div>

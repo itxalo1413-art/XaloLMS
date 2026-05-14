@@ -21,24 +21,18 @@ export function Donut({
   return (
     <div className="relative grid place-items-center">
       <svg width="132" height="132" viewBox="0 0 120 120" className="block">
+        <circle cx="60" cy="60" r={r} stroke="currentColor" strokeWidth="10" fill="none" className="text-zinc-200" />
         <circle
           cx="60"
           cy="60"
           r={r}
-          stroke="#E4E4E7"
-          strokeWidth="10"
-          fill="none"
-        />
-        <circle
-          cx="60"
-          cy="60"
-          r={r}
-          stroke="#A78BFA"
+          stroke="currentColor"
           strokeWidth="10"
           fill="none"
           strokeLinecap="round"
           strokeDasharray={`${dash} ${c - dash}`}
           transform="rotate(-90 60 60)"
+          className="text-primary"
         />
       </svg>
 

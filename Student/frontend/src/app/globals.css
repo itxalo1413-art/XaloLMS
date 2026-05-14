@@ -1,35 +1,35 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #f8f9fa;
-  --color-foreground: #344767;
-  --color-primary: #7c4dff;
-  --color-primary-soft: #f4f0ff;
-  --color-secondary: #f06292;
-  --color-secondary-soft: #fdf2f8;
+  --color-background: #fafcf7;
+  --color-foreground: #2f2b46;
+  --color-primary: #6a5acd;
+  --color-primary-soft: #9494ff;
+  --color-secondary: #fe7789;
+  --color-secondary-soft: #ffeef2;
   --color-success: #4caf50;
   --color-info: #03a9f4;
   --color-warning: #fb8c00;
   --color-danger: #f44336;
   
-  --shadow-soft: 0 4px 6px rgba(52, 71, 103, 0.05), 0 1px 3px rgba(0, 0, 0, 0.03);
-  --shadow-hover: 0 7px 14px rgba(52, 71, 103, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
-  --shadow-premium: 0 20px 27px 0 rgba(0, 0, 0, 0.05);
+  --shadow-soft: 0 6px 14px rgba(64, 46, 128, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-hover: 0 12px 24px rgba(64, 46, 128, 0.14), 0 4px 8px rgba(0, 0, 0, 0.06);
+  --shadow-premium: 0 16px 32px rgba(97, 81, 190, 0.16);
   
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 :root {
-  --background: #f8f9fa;
-  --foreground: #344767;
-  --primary: #7c4dff;
-  --primary-soft: #f4f0ff;
-  --secondary: #f06292;
-  --secondary-soft: #fdf2f8;
+  --background: #fafcf7;
+  --foreground: #2f2b46;
+  --primary: #6a5acd;
+  --primary-soft: #9494ff;
+  --secondary: #fe7789;
+  --secondary-soft: #ffeef2;
 }
 
 body {
-  background-color: var(--background);
+  background: linear-gradient(180deg, #f6f8f4 0%, var(--background) 22%, var(--background) 100%);
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;

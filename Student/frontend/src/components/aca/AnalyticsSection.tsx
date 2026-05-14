@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { analyticsSnapshot, subjectComparison } from "./mockData";
+import { NativeSelectChevron } from "@/components/student/ui";
 
 const fmt = (n: number) => n.toLocaleString("vi-VN");
 
@@ -16,29 +17,29 @@ export function AnalyticsSection() {
           <label className="text-[10px] font-bold uppercase text-zinc-500">
             Chu kỳ
           </label>
-          <select
+          <NativeSelectChevron
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
-            className="mt-2 rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-[#6a5acd]"
+            className="mt-2 h-11 rounded-2xl border border-zinc-200 bg-white text-sm font-bold text-foreground shadow-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
           >
             <option value="7d">7 ngày</option>
             <option value="30d">30 ngày</option>
             <option value="90d">90 ngày</option>
-          </select>
+          </NativeSelectChevron>
         </div>
         <div>
           <label className="text-[10px] font-bold uppercase text-zinc-500">
             Danh mục (lọc)
           </label>
-          <select
+          <NativeSelectChevron
             value={cat}
             onChange={(e) => setCat(e.target.value)}
-            className="mt-2 rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-[#6a5acd]"
+            className="mt-2 h-11 rounded-2xl border border-zinc-200 bg-white text-sm font-bold text-foreground shadow-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
           >
             <option value="all">Toàn hệ</option>
             <option value="ielts">IELTS</option>
             <option value="vocab">Từ vựng</option>
-          </select>
+          </NativeSelectChevron>
         </div>
         <p className="ml-auto max-w-xs text-[11px] text-zinc-500">
           Bộ lọc chỉ làm đổi nhãn trên chip (demo) — không gọi API.
@@ -56,7 +57,7 @@ export function AnalyticsSection() {
             key={m.k}
             className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm"
           >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <div className="text-[10px] font-bold uppercase   text-zinc-500">
               {m.k}{" "}
               <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[9px] text-zinc-500">
                 {period}
@@ -122,7 +123,7 @@ export function AnalyticsSection() {
       </div>
 
       <section className="rounded-2xl border border-dashed border-zinc-200 bg-white/80 p-5">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+        <h3 className="text-xs font-bold uppercase   text-zinc-500">
           Insight thoát xem (demo)
         </h3>
         <p className="mt-2 text-sm text-zinc-700">{analyticsSnapshot.dropoffHint}</p>

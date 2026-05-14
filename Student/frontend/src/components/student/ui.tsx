@@ -16,16 +16,16 @@ export function Panel({
   return (
     <section
       className={[
-        "rounded-2xl bg-white shadow-soft overflow-hidden",
+        "rounded-2xl bg-white shadow-soft border border-primary/10 overflow-hidden",
         className,
       ].join(" ")}
     >
       <div className="flex items-center justify-between gap-3 px-6 py-5">
         <div className="flex items-center gap-2">
-          <div className="w-1.5 h-4 bg-primary rounded-full"></div>
-          <div className="text-xs font-black text-foreground uppercase tracking-widest">{title}</div>
+          <div className="w-1.5 h-4 bg-gradient-to-b from-primary to-secondary rounded-full"></div>
+          <div className="text-xs font-black text-foreground uppercase">{title}</div>
         </div>
-        {right ? <div className="text-[10px] font-bold text-muted uppercase tracking-widest">{right}</div> : null}
+        {right ? <div className="text-[10px] font-bold text-muted uppercase">{right}</div> : null}
       </div>
       <div className="px-6 pb-6 pt-2">{children}</div>
     </section>
@@ -49,7 +49,7 @@ export function Pill({
   return (
     <span
       className={[
-        "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-wider",
+        "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[10px] font-black uppercase  ",
         styles,
       ].join(" ")}
     >
@@ -73,6 +73,34 @@ export function Field({
   );
 }
 
+/** Native `<select>` + overlay chevron (same pattern as kho tài liệu / HabitSelect). */
+export function NativeSelectChevron({
+  className = "",
+  children,
+  ...rest
+}: React.ComponentProps<"select">) {
+  return (
+    <div className="relative group">
+      <select
+        {...rest}
+        className={[
+          "w-full cursor-pointer appearance-none rounded-2xl border border-zinc-200 bg-white pl-4 pr-10 text-sm font-bold text-foreground shadow-sm outline-none transition-all focus:border-primary/40 focus:ring-2 focus:ring-primary/10",
+          className,
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
+        {children}
+      </select>
+      <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted">
+        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden>
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 export function Select({
   value,
   onChange,
@@ -89,7 +117,7 @@ export function Select({
       <select
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
-        className="h-11 w-full appearance-none rounded-xl bg-background px-4 text-sm font-bold text-foreground shadow-sm outline-none transition-all focus:bg-white focus:ring-4 focus:ring-primary/5"
+        className="h-11 w-full cursor-pointer appearance-none rounded-2xl border border-zinc-200 bg-white pl-4 pr-10 text-sm font-bold text-foreground shadow-sm outline-none transition-all focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
       >
         <option value="" disabled>
           {placeholder}

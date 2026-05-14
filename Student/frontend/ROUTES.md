@@ -8,6 +8,7 @@ App merged hien tai chay trong `Student/frontend`.
 - `/student`
 - `/login`
 - `/skill`
+- `/ho-tro-tu-hoc`
 - `/course-info` (alias cu, giu de tuong thich)
 - `/tai-lieu-them`
 - `/tai-lieu-them/xem/[id]` (vi du: `/tai-lieu-them/xem/doc-001`)

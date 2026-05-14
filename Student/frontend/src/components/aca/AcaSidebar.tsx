@@ -16,53 +16,77 @@ export function AcaSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-zinc-200/80 bg-white">
-      <div className="border-b border-zinc-100 px-5 py-6">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#6a5acd] text-sm font-black text-white">
-            A
-          </div>
-          <div>
-            <div className="text-xs font-bold text-zinc-900">Xalo LMS</div>
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-[#6a5acd]">
+    <aside className="fixed left-0 top-0 z-50 hidden h-screen w-72 p-4 transition-all duration-300 md:block">
+      <div className="flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-soft">
+        <div className="flex items-center gap-3 px-6 py-6">
+          <img
+            src="/Logo_XLE.svg"
+            alt="Logo XLE"
+            className="h-8 w-auto object-contain"
+          />
+          <img
+            src="/XALO.ENGLISH.svg"
+            alt="Logo phụ âm bản"
+            className="h-4 w-auto object-contain"
+          />
+        </div>
+
+        <div className="mb-4 h-px w-full bg-gradient-to-r from-transparent via-background to-transparent"></div>
+
+        <nav className="flex min-h-0 flex-1 flex-col px-3 pb-4">
+          <div className="min-h-0 flex-1 space-y-1">
+            <div className="mb-2 px-4 text-[10px] font-bold uppercase tracking-widest text-muted opacity-60">
               Academic / ACA
             </div>
+            {nav.map((item) => {
+              const active =
+                item.href === "/aca"
+                  ? pathname === "/aca"
+                  : pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={[
+                    "group flex items-center gap-3 rounded-xl px-4 py-3 transition-all duration-300",
+                    active
+                      ? "bg-primary text-white shadow-premium"
+                      : "text-muted hover:bg-primary-soft/70 hover:text-foreground",
+                  ].join(" ")}
+                >
+                  <div
+                    className={[
+                      "flex h-8 w-8 items-center justify-center rounded-lg shadow-sm transition-all duration-300",
+                      active
+                        ? "bg-white/15 text-white"
+                        : "bg-white text-primary group-hover:bg-primary-soft group-hover:text-primary",
+                    ].join(" ")}
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? "2.5" : "2"}>
+                      <path d="M4 5h16v4H4zM4 11h16v8H4z" />
+                    </svg>
+                  </div>
+                  <div className="min-w-0">
+                    <div className={`truncate text-xs font-bold transition-colors ${active ? "text-white" : "text-muted"}`}>
+                      {item.label}
+                    </div>
+                    <div className={`truncate text-[10px] ${active ? "text-white/80" : "text-zinc-500"}`}>{item.desc}</div>
+                  </div>
+                  {active ? <div className="ml-auto h-1 w-1 animate-pulse rounded-full bg-white" /> : null}
+                </Link>
+              );
+            })}
           </div>
-        </div>
-      </div>
 
-      <nav className="flex flex-1 flex-col gap-0.5 p-3">
-        {nav.map((item) => {
-          const active =
-            item.href === "/aca"
-              ? pathname === "/aca"
-              : pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={[
-                "rounded-lg px-3 py-2.5 transition-colors",
-                active
-                  ? "bg-[#efeaff]"
-                  : "hover:bg-zinc-50",
-              ].join(" ")}
-            >
-              <div
-                className={`text-sm font-semibold ${active ? "text-[#4b3fb3]" : "text-zinc-900"}`}
-              >
-                {item.label}
-              </div>
-              <div className="text-[10px] text-zinc-500">{item.desc}</div>
-            </Link>
-          );
-        })}
-      </nav>
-
-      <div className="border-t border-zinc-100 p-4">
-        <p className="text-[11px] leading-relaxed text-zinc-500">
-          Observability-first — ít thao tác, nhiều tín hiệu.
-        </p>
+          <div className="shrink-0 space-y-1 border-t border-zinc-100 pt-4">
+            <div className="mb-2 px-4 text-[10px] font-bold uppercase tracking-widest text-muted opacity-60">
+              Ghi chú
+            </div>
+            <p className="px-4 text-[11px] leading-relaxed text-zinc-500">
+              Observability-first — ít thao tác, nhiều tín hiệu.
+            </p>
+          </div>
+        </nav>
       </div>
     </aside>
   );

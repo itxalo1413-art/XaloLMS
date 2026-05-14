@@ -7,6 +7,7 @@ import {
   MOCK_TEST_UPDATE_EVENT,
 } from "@/lib/mockTestRequests";
 import { MOCK_TEST_TEACHER_OPTIONS } from "@/lib/mockTestTeacherNames";
+import { NativeSelectChevron } from "@/components/student/ui";
 
 const PREVIEW_TEACHER_STORAGE_KEY = "lms_aca_mock_test_preview_teacher_v1";
 
@@ -103,22 +104,22 @@ export function MockTestTeacherSchedulePreview() {
       <div className="mt-4">
         <label
           htmlFor="aca-mock-test-preview-teacher"
-          className="text-[10px] font-bold uppercase tracking-wider text-zinc-500"
+          className="text-[10px] font-bold uppercase   text-zinc-500"
         >
           Giáo viên test
         </label>
-        <select
+        <NativeSelectChevron
           id="aca-mock-test-preview-teacher"
           value={previewTeacher}
           onChange={(e) => onTeacherChange(e.target.value)}
-          className="mt-2 block w-full max-w-md rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm font-medium outline-none focus:border-[#6a5acd] sm:w-auto sm:min-w-[260px]"
+          className="mt-2 block h-11 w-full max-w-md rounded-2xl border border-zinc-200 bg-white text-sm font-bold text-foreground shadow-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/10 sm:w-auto sm:min-w-[260px]"
         >
           {MOCK_TEST_TEACHER_OPTIONS.map((t) => (
             <option key={t} value={t}>
               {t}
             </option>
           ))}
-        </select>
+        </NativeSelectChevron>
       </div>
 
       {assigned.length === 0 ? (

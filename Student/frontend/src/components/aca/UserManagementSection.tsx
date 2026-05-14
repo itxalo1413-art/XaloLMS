@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { userRows, type Role, type UserRow, roleLabel } from "./mockData";
+import { NativeSelectChevron } from "@/components/student/ui";
 
 export function UserManagementSection() {
   const [rows, setRows] = useState<UserRow[]>(() => [...userRows]);
@@ -45,16 +46,16 @@ export function UserManagementSection() {
             className="mt-2 w-full rounded-xl border border-zinc-200 px-4 py-2.5 text-sm outline-none focus:border-[#6a5acd]"
           />
         </div>
-        <select
+        <NativeSelectChevron
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value as typeof roleFilter)}
-          className="rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:border-[#6a5acd] md:w-48"
+          className="h-11 rounded-2xl border border-zinc-200 bg-white text-sm font-bold text-foreground shadow-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/10 md:w-48"
         >
           <option value="all">Mọi vai trò</option>
           <option value="HS">Học sinh</option>
           <option value="GV">Giáo viên</option>
           <option value="ACA">ACA</option>
-        </select>
+        </NativeSelectChevron>
         <button
           type="button"
           onClick={() =>
@@ -68,7 +69,7 @@ export function UserManagementSection() {
 
       <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-zinc-100 bg-zinc-50/90 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+          <thead className="border-b border-zinc-100 bg-zinc-50/90 text-[10px] font-bold uppercase   text-zinc-500">
             <tr>
               <th className="px-4 py-3">Họ tên</th>
               <th className="hidden px-4 py-3 md:table-cell">Email</th>

@@ -25,7 +25,7 @@ function BaseIcon({ title, children, ...props }: IconProps) {
 
 export function IconDashboard(props: IconProps) {
   return (
-    <BaseIcon title="Dashboard" {...props}>
+    <BaseIcon title="Thông tin học viên" {...props}>
       <path d="M4 13.5V6.5a2 2 0 0 1 2-2h4.5v9H4Z" />
       <path d="M13.5 4.5H18a2 2 0 0 1 2 2v7h-6.5V4.5Z" />
       <path d="M4 16.5h6.5V20H6a2 2 0 0 1-2-2v-1.5Z" />
@@ -36,7 +36,7 @@ export function IconDashboard(props: IconProps) {
 
 export function IconDocs(props: IconProps) {
   return (
-    <BaseIcon title="Tài liệu thêm" {...props}>
+    <BaseIcon title="Kho tài liệu" {...props}>
       <path d="M7 4h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />
       <path d="M8.5 8h7" />
       <path d="M8.5 11h7" />
@@ -51,6 +51,16 @@ export function IconInfo(props: IconProps) {
       <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" />
       <path d="M12 10.5v6" />
       <path d="M12 7.5h.01" />
+    </BaseIcon>
+  );
+}
+
+export function IconSupport(props: IconProps) {
+  return (
+    <BaseIcon title="Hỗ trợ tự học" {...props}>
+      <path d="M7 10a5 5 0 0 1 10 0c0 3-2 4-3 5H10c-1-1-3-2-3-5Z" />
+      <path d="M10 18h4" />
+      <path d="M10.5 21h3" />
     </BaseIcon>
   );
 }

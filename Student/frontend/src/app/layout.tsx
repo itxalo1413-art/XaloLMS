@@ -15,6 +15,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Student Dashboard",
   description: "Student learning dashboard",
+  icons: {
+    icon: "/Logo_XLE.svg",
+    shortcut: "/Logo_XLE.svg",
+    apple: "/Logo_XLE.svg",
+  },
 };
 
 export default function RootLayout({

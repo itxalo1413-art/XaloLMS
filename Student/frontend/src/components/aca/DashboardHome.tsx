@@ -26,7 +26,7 @@ export function DashboardHome() {
             key={card.k}
             className="rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-sm"
           >
-            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <div className="text-[10px] font-bold uppercase   text-zinc-500">
               {card.k}
             </div>
             <div className={`mt-2 text-2xl font-black ${card.tint}`}>{card.v}</div>

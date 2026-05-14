@@ -9,6 +9,7 @@ import {
 } from "@/lib/mockTestRequests";
 import { MOCK_TEST_TEACHER_OPTIONS } from "@/lib/mockTestTeacherNames";
 import { MockTestTeacherSchedulePreview } from "./MockTestTeacherSchedulePreview";
+import { NativeSelectChevron } from "@/components/student/ui";
 
 const months = [
   "Tháng 1",
@@ -158,21 +159,21 @@ export function MockTestApprovalSection() {
                   <label className="text-[10px] font-bold uppercase text-zinc-500">
                     Giáo viên test
                   </label>
-                  <select
+                  <NativeSelectChevron
                     value={
                       teacherById[r.id] ?? MOCK_TEST_TEACHER_OPTIONS[0]
                     }
                     onChange={(e) =>
                       setTeacherById((m) => ({ ...m, [r.id]: e.target.value }))
                     }
-                    className="mt-2 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-[#6a5acd]"
+                    className="mt-2 h-11 rounded-2xl border border-zinc-200 bg-white text-sm font-bold text-foreground shadow-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
                   >
                     {MOCK_TEST_TEACHER_OPTIONS.map((t) => (
                       <option key={t} value={t}>
                         {t}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelectChevron>
                 </div>
                 <div className="flex flex-wrap items-end gap-2 lg:justify-end">
                   <button

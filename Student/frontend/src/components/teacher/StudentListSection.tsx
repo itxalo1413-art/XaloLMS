@@ -7,6 +7,7 @@ import {
   students,
   statusLabel,
 } from "@/components/teacher/mockData";
+import { NativeSelectChevron } from "@/components/student/ui";
 
 const groups = Array.from(new Set(students.map((s) => s.group)));
 
@@ -29,7 +30,7 @@ export function StudentListSection() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-sm md:flex-row md:items-end md:justify-between">
         <div className="flex-1">
-          <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+          <label className="text-[10px] font-bold uppercase   text-zinc-500">
             Tìm theo tên
           </label>
           <input
@@ -41,13 +42,13 @@ export function StudentListSection() {
         </div>
         <div className="grid w-full gap-3 sm:grid-cols-2 md:w-auto md:min-w-[320px]">
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <label className="text-[10px] font-bold uppercase   text-zinc-500">
               Nhóm / lớp
             </label>
-            <select
+            <NativeSelectChevron
               value={group}
               onChange={(e) => setGroup(e.target.value)}
-              className="mt-2 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:border-[#6a5acd]"
+              className="mt-2 h-11 rounded-2xl border border-zinc-200 bg-white text-sm font-bold text-foreground shadow-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
             >
               <option value="all">Tất cả</option>
               {groups.map((g) => (
@@ -55,30 +56,30 @@ export function StudentListSection() {
                   {g}
                 </option>
               ))}
-            </select>
+            </NativeSelectChevron>
           </div>
           <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+            <label className="text-[10px] font-bold uppercase   text-zinc-500">
               Trạng thái
             </label>
-            <select
+            <NativeSelectChevron
               value={status}
               onChange={(e) =>
                 setStatus(e.target.value as typeof status)
               }
-              className="mt-2 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-sm outline-none focus:border-[#6a5acd]"
+              className="mt-2 h-11 rounded-2xl border border-zinc-200 bg-white text-sm font-bold text-foreground shadow-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
             >
               <option value="all">Tất cả</option>
               <option value="active">Đang học</option>
               <option value="follow_up">Cần theo dõi</option>
               <option value="paused">Tạm dừng</option>
-            </select>
+            </NativeSelectChevron>
           </div>
         </div>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm">
-        <div className="grid grid-cols-[1fr_140px_140px_120px] gap-2 border-b border-zinc-100 bg-zinc-50/80 px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-zinc-500 md:grid-cols-[1.2fr_1fr_140px_140px_120px]">
+        <div className="grid grid-cols-[1fr_140px_140px_120px] gap-2 border-b border-zinc-100 bg-zinc-50/80 px-4 py-3 text-[10px] font-bold uppercase   text-zinc-500 md:grid-cols-[1.2fr_1fr_140px_140px_120px]">
           <span>Học sinh</span>
           <span className="hidden md:block">Nhóm</span>
           <span>Tóm tắt</span>
