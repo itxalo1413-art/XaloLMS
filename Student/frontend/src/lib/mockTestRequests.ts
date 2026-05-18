@@ -88,6 +88,7 @@ export function createPendingRequest(input: {
   day: number;
   month: number;
   year: number;
+  examTime?: string;
 }): MockTestRequest {
   const id = `mt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   return {

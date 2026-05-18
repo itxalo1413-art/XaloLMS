@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { StudentLayout } from "@/app/StudentLayout";
 import {
@@ -21,15 +21,15 @@ export default function DocumentViewerPage() {
     [documentId],
   );
 
-  const initialProgress = useMemo(() => {
-    if (!doc) return null;
-    return getDocumentProgress(doc.id, doc);
-  }, [doc]);
+  const [status, setStatus] = useState<ReadingStatus>(doc?.defaultStatus ?? "not_started");
+  const [position, setPosition] = useState(doc?.defaultPosition ?? "Trang 1");
 
-  const [status, setStatus] = useState<ReadingStatus>(
-    initialProgress?.status ?? "not_started",
-  );
-  const [position, setPosition] = useState(initialProgress?.position ?? "Trang 1");
+  useEffect(() => {
+    if (!doc) return;
+    const progress = getDocumentProgress(doc.id, doc);
+    setStatus(progress.status);
+    setPosition(progress.position);
+  }, [doc]);
 
   if (!doc) {
     return (

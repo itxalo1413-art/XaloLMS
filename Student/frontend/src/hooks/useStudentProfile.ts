@@ -3,6 +3,7 @@
 import * as React from "react";
 import { fileToDataUrl } from "@/lib/fileToDataUrl";
 import {
+  DEFAULT_STUDENT_PROFILE,
   loadStudentProfileFromStorage,
   saveStudentProfileToStorage,
   type StudentProfile,
@@ -15,11 +16,17 @@ import {
 
 export function useStudentProfile() {
   const [profileOpen, setProfileOpen] = React.useState(false);
-  const [profile, setProfile] = React.useState<StudentProfile>(() => loadStudentProfileFromStorage());
-  const [draft, setDraft] = React.useState<StudentProfile>(() => loadStudentProfileFromStorage());
+  const [profile, setProfile] = React.useState<StudentProfile>(DEFAULT_STUDENT_PROFILE);
+  const [draft, setDraft] = React.useState<StudentProfile>(DEFAULT_STUDENT_PROFILE);
   const [profileSaving, setProfileSaving] = React.useState(false);
   const [avatarUploading, setAvatarUploading] = React.useState(false);
   const [profileStatus, setProfileStatus] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const local = loadStudentProfileFromStorage();
+    setProfile(local);
+    setDraft(local);
+  }, []);
 
   React.useEffect(() => {
     let alive = true;
@@ -81,14 +88,14 @@ export function useStudentProfile() {
     try {
       const remote = await uploadStudentAvatar(file);
       setDraft((prev) => ({ ...prev, avatarUrl: remote.avatarUrl }));
-      setProfileStatus("Ảnh đã upload lên backend, bấm Lưu hồ sơ để xác nhận.");
+      setProfileStatus("File đã upload lên backend, bấm Lưu hồ sơ để xác nhận.");
     } catch {
       try {
         const localDataUrl = await fileToDataUrl(file);
         setDraft((prev) => ({ ...prev, avatarUrl: localDataUrl }));
         setProfileStatus("Upload backend lỗi, đang preview bằng dữ liệu local.");
       } catch {
-        setProfileStatus("Không đọc được file ảnh.");
+        setProfileStatus("Không đọc được file.");
       }
     } finally {
       setAvatarUploading(false);

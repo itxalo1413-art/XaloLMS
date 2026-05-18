@@ -14,20 +14,21 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <section
-      className={[
-        "rounded-2xl bg-white shadow-soft border border-primary/10 overflow-hidden",
-        className,
-      ].join(" ")}
-    >
-      <div className="flex items-center justify-between gap-3 px-6 py-5">
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-4 bg-gradient-to-b from-primary to-secondary rounded-full"></div>
-          <div className="text-xs font-black text-foreground uppercase">{title}</div>
-        </div>
-        {right ? <div className="text-[10px] font-bold text-muted uppercase">{right}</div> : null}
+    <section className={["relative pt-8", className].join(" ")}>
+      {/* Folder Tab Shape */}
+      <div className="absolute top-0 left-0 h-10 w-fit min-w-[140px] px-6 bg-white border-t border-l border-r border-primary/15 rounded-t-[20px] shadow-[-2px_-4px_12px_rgba(0,0,0,0.03)] flex items-center z-0">
+        <div className="w-1.5 h-3.5 bg-gradient-to-b from-primary to-secondary rounded-full mr-2.5"></div>
+        <div className="text-[11px] font-black text-foreground uppercase tracking-wider whitespace-nowrap">{title}</div>
       </div>
-      <div className="px-6 pb-6 pt-2">{children}</div>
+      
+      {/* Folder Body */}
+      <div className="relative z-10 h-full flex flex-col rounded-2xl rounded-tl-none bg-white shadow-soft border border-primary/10 overflow-hidden">
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-primary/5 shrink-0">
+          <div className="text-[10px] font-black text-muted uppercase opacity-0 select-none pointer-events-none">{title}</div>
+          {right ? <div className="text-[10px] font-bold text-muted uppercase">{right}</div> : null}
+        </div>
+        <div className="px-6 pb-6 pt-4 flex-1">{children}</div>
+      </div>
     </section>
   );
 }

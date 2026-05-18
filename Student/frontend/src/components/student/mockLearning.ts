@@ -134,11 +134,13 @@ export function getDocumentProgress(documentId: string, defaults: MockDocument) 
   };
 }
 
-export function getRecentlyViewedDocuments(limit = 5) {
-  const map = getProgressMap();
+export function getRecentlyViewedDocuments(
+  limit = 5,
+  progressMap: Record<string, DocumentProgress> = getProgressMap(),
+) {
   return mockDocuments
     .map((doc) => {
-      const progress = map[doc.id];
+      const progress = progressMap[doc.id];
       return {
         ...doc,
         status: progress?.status ?? doc.defaultStatus,

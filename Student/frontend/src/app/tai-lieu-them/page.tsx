@@ -2,10 +2,10 @@
 
 import { StudentLayout } from "@/app/StudentLayout";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   contentTypeLabel,
-  getProgressMap,
+  getRecentlyViewedDocuments,
   mockDocuments,
   statusLabel,
 } from "@/components/student/mockLearning";
@@ -65,7 +65,12 @@ export default function TaiLieuThemPage() {
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [sortBy, setSortBy] = useState("relevance");
-  const progressMap = getProgressMap();
+
+  const [recentlyViewed, setRecentlyViewed] = useState(() => getRecentlyViewedDocuments(4, {}));
+
+  useEffect(() => {
+    setRecentlyViewed(getRecentlyViewedDocuments(4));
+  }, []);
 
   const suggestedDocuments = useMemo(() => {
     return mockDocuments.slice(0, 3);
@@ -106,30 +111,11 @@ export default function TaiLieuThemPage() {
           <p className="text-muted text-sm mt-1 font-medium">Tìm kiếm, gợi ý và truy cập nhanh tài liệu học tập mọi lúc.</p>
         </header>
 
-        {/* Section moved to self-study */}
-        <section className="mt-[18px]">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-1.5 h-6 bg-primary rounded-full"></div>
-            <h3 className="text-sm font-black text-muted uppercase  0.2em]">Hỗ trợ tự học</h3>
-          </div>
-          <div className="rounded-2xl border border-primary/25 bg-primary-soft/20 p-5 mb-8">
-            <p className="text-sm font-semibold text-zinc-800">
-              Lớp luyện đề tập trung và đăng ký mock test đã chuyển sang tab <strong>Hỗ trợ tự học</strong>.
-            </p>
-            <Link
-              href="/ho-tro-tu-hoc"
-              className="mt-3 inline-flex rounded-xl bg-primary px-4 py-2 text-xs font-bold uppercase tracking-wide text-white hover:bg-primary/90"
-            >
-              Mở tab hỗ trợ tự học
-            </Link>
-          </div>
-        </section>
-
-        {/* Section: WELCOME PACKAGE */}
-        <section className="mt-12">
+                {/* Section: WELCOME PACKAGE */}
+                <section className="mt-12">
            <div className="flex items-center gap-2 mb-6">
             <div className="w-1.5 h-6 bg-secondary rounded-full"></div>
-            <h3 className="text-sm font-black text-muted uppercase  0.2em]">Welcome Package</h3>
+            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-muted">Welcome Package</h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -197,11 +183,66 @@ export default function TaiLieuThemPage() {
           </div>
         </section>
 
+        <section className="mt-10">
+          <div className="mb-6 flex items-center gap-2">
+            <div className="h-6 w-1.5 rounded-full bg-secondary"></div>
+            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-muted">Đã xem gần đây</h3>
+          </div>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {recentlyViewed.map((item) => (
+              <Link
+                key={item.id}
+                href={`/tai-lieu-them/xem/${item.id}`}
+                className="group block rounded-2xl bg-white p-5 shadow-soft transition-all duration-300 hover:shadow-hover"
+              >
+                <article>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-extrabold text-foreground transition-colors group-hover:text-primary">
+                        {item.title}
+                      </div>
+                      <div className="mt-1.5 flex items-center gap-2 text-xs font-medium text-muted">
+                        <span className="rounded bg-background px-1.5 py-0.5">{contentTypeLabel(item.type)}</span>
+                        <span>•</span>
+                        <span>{item.subject}</span>
+                      </div>
+                    </div>
+                    <span
+                      className={[
+                        "inline-flex shrink-0 items-center rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-wide",
+                        item.status === "completed"
+                          ? "bg-success/10 text-success"
+                          : item.status === "in_progress"
+                            ? "bg-warning/10 text-warning"
+                            : "bg-background text-muted",
+                      ].join(" ")}
+                    >
+                      {statusLabel(item.status)}
+                    </span>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between border-t border-background pt-4">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-muted">
+                      Vị trí đọc: <span className="ml-1 text-foreground">{item.position}</span>
+                    </div>
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-background text-muted transition-all group-hover:bg-primary group-hover:text-white">
+                      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                        <path d="M5 12h14M12 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+                </article>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+
+
         {/* Search & Filter */}
         <section className="mt-12">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-1.5 h-6 bg-info rounded-full"></div>
-            <h3 className="text-sm font-black text-muted uppercase  0.2em]">Kho tài liệu</h3>
+            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-muted">Kho tài liệu</h3>
           </div>
 
           <div className="bg-white p-8 rounded-2xl shadow-soft space-y-8">
@@ -267,7 +308,7 @@ export default function TaiLieuThemPage() {
         <section className="mt-12">
           <div className="flex items-center gap-2 mb-6">
             <div className="w-1.5 h-6 bg-primary rounded-full"></div>
-            <h3 className="text-sm font-black text-muted uppercase  0.2em]">Sách tặng thêm</h3>
+            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-muted">Sách tặng thêm</h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -14,18 +14,118 @@ import {
   saveMockTestRequests,
   type MockTestRequest,
 } from "@/lib/mockTestRequests";
+import { isSameCalendarDay, useClientToday } from "@/hooks/useClientToday";
 
 const courseOverview = {
   course: "Offline Momentum",
-  startDate: "Chặng 1: 21/04/2026 • Chặng 2: 11/06/2026 (dự kiến)",
-  schedule: "T357, 19h45-21h30",
+  phases: [
+    { name: "Chặng 1", date: "21/04/2026" },
+    { name: "Chặng 2", date: "11/06/2026 (dự kiến)" }
+  ],
+  schedule: [
+    "Thứ 3: 19h45 - 21h30",
+    "Thứ 5: 19h45 - 21h30",
+    "Thứ 7: 19h45 - 21h30"
+  ],
   instructor: "Nghiêm Doãn Quỳnh Châu",
   room: "Phòng 3.1",
   zoomPassword: "—",
 };
 
+function CourseOverviewSection() {
+  const basics = [
+    {
+      label: "Khoá học",
+      value: courseOverview.course,
+      icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253",
+    },
+    {
+      label: "Giảng viên",
+      value: courseOverview.instructor,
+      icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
+    },
+    {
+      label: "Phòng học",
+      value: courseOverview.room,
+      icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
+    },
+  ] as const;
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {basics.map((item) => (
+          <div
+            key={item.label}
+            className="flex h-full gap-3 rounded-2xl border border-primary/10 bg-background/60 p-4"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-primary shadow-sm">
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d={item.icon} />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-black uppercase tracking-widest text-muted">{item.label}</div>
+              <div className="mt-1.5 text-sm font-bold leading-snug text-foreground">{item.value}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="flex h-full gap-3 rounded-2xl border border-primary/10 bg-background/60 p-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-primary shadow-sm">
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-black uppercase tracking-widest text-muted">Lịch học</div>
+            <ul className="mt-2 space-y-1.5">
+              {courseOverview.schedule.map((slot) => (
+                <li key={slot} className="text-sm font-bold text-foreground">
+                  {slot}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className="flex h-full gap-3 rounded-2xl border border-primary/10 bg-background/60 p-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-primary shadow-sm">
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-black uppercase tracking-widest text-muted">Ngày khai giảng</div>
+            <ul className="mt-2 space-y-1.5">
+              {courseOverview.phases.map((p) => (
+                <li key={p.name} className="text-sm font-bold text-foreground">
+                  {p.name === "Chặng 1" ? (
+                    <Link
+                      href="#rlp-section"
+                      className="text-primary hover:underline decoration-2 underline-offset-4"
+                    >
+                      {p.name}
+                    </Link>
+                  ) : (
+                    <span>{p.name}</span>
+                  )}
+                  <span className="text-muted"> · </span>
+                  <span>{p.date}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const importantLinks = [
-  { id: "rlp", label: "RLP", value: "2026RLP_OFF - M T/T/S - 19452130 - 210426" },
+  { id: "rlp", label: "RLP", value: "Chặng 1: Speaking - Reading" },
   { id: "lesson", label: "THƯ MỤC BÀI GIẢNG", value: "Writing - Listening (21/04/2026)" },
   { id: "homework", label: "THƯ MỤC BÀI TẬP", value: "HW Dương Ngọc Khôi Nguyên" },
   { id: "survey", label: "KHẢO SÁT HỌC VIÊN", value: "—" },
@@ -33,7 +133,6 @@ const importantLinks = [
 
 const sessions = [
   {
-    code: "R1.1",
     no: 1,
     date: "02/10/2025",
     skill: "Speaking",
@@ -42,7 +141,6 @@ const sessions = [
     teacherNote: "Đã nắm được đủ cấu trúc trả lời Part 1, mở rộng ví linh hoạt được.",
   },
   {
-    code: "R1.2",
     no: 2,
     date: "04/10/2025",
     skill: "Speaking",
@@ -50,7 +148,6 @@ const sessions = [
     teacherNote: "Hiểu yêu cầu Part 2, thiếu từ vựng cụ thể, cần luyện thêm chèn story.",
   },
   {
-    code: "R1.3",
     no: 3,
     date: "09/10/2025",
     skill: "Reading",
@@ -58,7 +155,6 @@ const sessions = [
     teacherNote: "Nắm cách định vị đáp án Completion, làm được từ khóa T/F/NG.",
   },
   {
-    code: "R1.4",
     no: 4,
     date: "11/10/2025",
     skill: "Speaking",
@@ -66,7 +162,6 @@ const sessions = [
     teacherNote: "Cần chú ý hạ giọng khi phát âm, đã biết ở cuối câu hay cụm từ.",
   },
   {
-    code: "R1.5",
     no: 5,
     date: "16/10/2025",
     skill: "Speaking",
@@ -74,7 +169,6 @@ const sessions = [
     teacherNote: "Nắm được cách kéo dài để suy nghĩ idea cho Part 3.",
   },
   {
-    code: "R1.6",
     no: 6,
     date: "18/10/2025",
     skill: "Reading",
@@ -82,7 +176,6 @@ const sessions = [
     teacherNote: "Hiểu cách đọc dày để áp dụng vào bài Matching headings.",
   },
   {
-    code: "R1.7",
     no: 7,
     date: "18/10/2025",
     skill: "Speaking",
@@ -90,7 +183,6 @@ const sessions = [
     teacherNote: "Hiểu ứng dụng cleft sentence, cần luyện thêm để thành nhuần nhuyễn.",
   },
   {
-    code: "R1.8",
     no: 8,
     date: "21/10/2025",
     skill: "Speaking",
@@ -98,7 +190,6 @@ const sessions = [
     teacherNote: "Nắm mẫu câu tạo ngữ căn bản, cần luyện phát âm nguyên âm đôi.",
   },
   {
-    code: "R1.9",
     no: 9,
     date: "23/10/2025",
     skill: "Reading",
@@ -106,7 +197,6 @@ const sessions = [
     teacherNote: "Xử lý tốt dạng multiple choice đoạn học thuật.",
   },
   {
-    code: "R1.10",
     no: 10,
     date: "25/10/2025",
     skill: "Speaking",
@@ -114,7 +204,6 @@ const sessions = [
     teacherNote: "Diễn đạt hẹp hơn, nắm thành phần câu cơ bản.",
   },
   {
-    code: "R1.11",
     no: 11,
     date: "28/10/2025",
     skill: "Speaking",
@@ -122,7 +211,6 @@ const sessions = [
     teacherNote: "Luyện cụm động từ danh từ, đa phần hình thành cụm danh từ cơ bản.",
   },
   {
-    code: "R1.12",
     no: 12,
     date: "30/10/2025",
     skill: "Reading",
@@ -131,12 +219,15 @@ const sessions = [
   },
 ];
 
+const practiceClassDays = [3, 10, 17, 24];
+
 const months = [
   "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", 
   "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"
 ];
 
 export default function CourseInfoPage() {
+  const clientToday = useClientToday();
   const [requests, setRequests] = useState<MockTestRequest[]>([]);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
@@ -247,7 +338,18 @@ export default function CourseInfoPage() {
         ]
       : [];
 
-    return [...courseEvent, ...approvedEvents];
+    const isPracticeDay = viewDate.getMonth() === 3 && practiceClassDays.includes(selectedDay);
+    const practiceEvent = isPracticeDay
+      ? [
+          {
+            type: "practice" as const,
+            label: "Lớp luyện đề tập trung",
+            detail: "19h45 - 21h30 · Sửa đề và chữa bài",
+          },
+        ]
+      : [];
+
+    return [...courseEvent, ...practiceEvent, ...approvedEvents];
   }, [approvedTests, selectedDay, viewDate]);
 
   return (
@@ -261,30 +363,12 @@ export default function CourseInfoPage() {
 
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
           
-          <div className="lg:col-span-8 space-y-10">
+          <div className="lg:col-span-8 flex flex-col gap-10">
             <Panel title="Tổng quan khoá học">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                {[
-                  { label: "Khoá học", value: courseOverview.course, icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
-                  { label: "Lịch học", value: courseOverview.schedule, icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" },
-                  { label: "Giảng viên", value: courseOverview.instructor, icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" },
-                  { label: "Phòng học", value: courseOverview.room, icon: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" },
-                  { label: "Ngày khai giảng", value: courseOverview.startDate, span: true, icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" },
-                ].map((item, i) => (
-                  <div key={i} className={`flex gap-4 items-start ${item.span ? 'sm:col-span-2' : ''}`}>
-                    <div className="w-10 h-10 rounded-xl bg-background flex items-center justify-center text-primary">
-                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d={item.icon} /></svg>
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-muted uppercase tracking-widest">{item.label}</span>
-                      <span className="text-sm font-bold text-foreground mt-1">{item.value}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <CourseOverviewSection />
             </Panel>
 
-            <Panel title="Hỗ trợ tự học">
+            <Panel title="Hỗ trợ tự học" className="flex-1">
               <div className="rounded-2xl border border-primary/25 bg-primary-soft/20 p-5">
                 <p className="text-sm font-semibold text-zinc-800">
                   Các mục đăng ký Mock Test, chấm chữa Writing và lớp luyện đề đã được chuyển sang tab mới.
@@ -303,8 +387,8 @@ export default function CourseInfoPage() {
 
           </div>
 
-          <div className="lg:col-span-4 space-y-10">
-            <Panel title="Thời khoá biểu">
+          <div className="lg:col-span-4 flex flex-col">
+            <Panel title="Thời khoá biểu" className="flex-1">
               <div className="space-y-8">
                 <div className="flex items-center justify-between p-4 bg-background rounded-2xl shadow-inner">
                   <button onClick={() => changeMonth(-1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-muted hover:text-primary transition-all"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path d="M15 19l-7-7 7-7" /></svg></button>
@@ -326,10 +410,16 @@ export default function CourseInfoPage() {
                         t.month === viewDate.getMonth() &&
                         t.year === viewDate.getFullYear(),
                     );
-                    const isToday = new Date().getDate() === day && new Date().getMonth() === viewDate.getMonth() && new Date().getFullYear() === viewDate.getFullYear();
+                    const isToday = isSameCalendarDay(
+                      clientToday,
+                      day,
+                      viewDate.getMonth(),
+                      viewDate.getFullYear(),
+                    );
                     const isCourseDay = viewDate.getMonth() === 3 && [21, 23, 25, 28, 30].includes(day);
+                    const isPracticeDay = viewDate.getMonth() === 3 && practiceClassDays.includes(day);
 
-                    const isHighlighted = isCourseDay || isApprovedMock || isToday;
+                    const isHighlighted = isCourseDay || isPracticeDay || isApprovedMock || isToday;
                     const isSelected = selectedDay === day;
                     return (
                       <button
@@ -346,7 +436,7 @@ export default function CourseInfoPage() {
                         } ${
                           isToday
                             ? 'bg-primary text-white shadow-premium scale-110 z-10'
-                            : isCourseDay
+                            : isCourseDay || isPracticeDay
                               ? 'bg-primary-soft text-primary shadow-sm'
                               : isApprovedMock
                                 ? 'bg-secondary-soft text-secondary shadow-sm'
@@ -355,7 +445,7 @@ export default function CourseInfoPage() {
                       >
                         {day}
                         {isApprovedMock && !isToday && <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-secondary rounded-full ring-2 ring-white"></div>}
-                        {isCourseDay && !isToday && <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full"></div>}
+                        {(isCourseDay || isPracticeDay) && !isToday && <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full"></div>}
                       </button>
                     );
                   })}
@@ -436,8 +526,8 @@ export default function CourseInfoPage() {
             </Panel>
           </div>
 
-          <div className="lg:col-span-12">
-            <Panel title="Liên kết quan trọng">
+          <div className="lg:col-span-12 scroll-mt-24" id="rlp-section">
+            <Panel title="RLP - Resonant Lesson Plan">
               <div className="space-y-4">
                 {importantLinks.map((link) => (
                   <div
@@ -461,7 +551,7 @@ export default function CourseInfoPage() {
                           <table className="min-w-[980px] w-full border-separate border-spacing-0">
                             <thead>
                               <tr className="text-left">
-                                {["CODE", "SESSION", "SKILL", "NỘI DUNG", "NGÀY", "GHI CHÚ GV"].map((h) => (
+                                {["SKILL", "NỘI DUNG", "NGÀY", "TIẾN ĐỘ LỚP HỌC", "FILE BÀI HỌC", "HOMEWORK"].map((h) => (
                                   <th
                                     key={h}
                                     className="sticky top-0 z-10 bg-background px-3 py-3 text-[10px] font-black uppercase tracking-widest text-muted border-b border-primary/10"
@@ -473,13 +563,7 @@ export default function CourseInfoPage() {
                             </thead>
                             <tbody>
                               {sessions.map((row) => (
-                                <tr key={row.code} className="align-top hover:bg-white/80 transition-colors">
-                                  <td className="px-3 py-3 text-[11px] font-bold text-muted border-b border-primary/10 whitespace-nowrap">
-                                    {row.code}
-                                  </td>
-                                  <td className="px-3 py-3 text-[11px] font-bold text-foreground border-b border-primary/10 whitespace-nowrap">
-                                    {row.no}
-                                  </td>
+                                <tr key={row.no} className="align-top hover:bg-white/80 transition-colors">
                                   <td className="px-3 py-3 border-b border-primary/10 whitespace-nowrap">
                                     <span
                                       className={[
@@ -500,6 +584,16 @@ export default function CourseInfoPage() {
                                   </td>
                                   <td className="px-3 py-3 text-[12px] font-medium text-muted border-b border-primary/10 min-w-[260px]">
                                     {row.teacherNote}
+                                  </td>
+                                  <td className="px-3 py-3 border-b border-primary/10 whitespace-nowrap">
+                                    <button className="text-primary hover:text-primary-dark transition-colors">
+                                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                                    </button>
+                                  </td>
+                                  <td className="px-3 py-3 border-b border-primary/10 whitespace-nowrap">
+                                    <button className="text-secondary hover:text-secondary-dark transition-colors">
+                                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                                    </button>
                                   </td>
                                 </tr>
                               ))}

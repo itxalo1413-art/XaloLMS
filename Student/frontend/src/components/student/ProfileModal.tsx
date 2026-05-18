@@ -3,6 +3,22 @@
 import * as React from "react";
 import { type StudentProfile } from "@/lib/studentProfile";
 
+const SAMPLE_AVATARS = [
+  "/profile/Screenshot 2026-05-15 at 14.48.19.png",
+  "/profile/Screenshot 2026-05-15 at 14.48.25.png",
+  "/profile/Screenshot 2026-05-15 at 14.48.32.png",
+  "/profile/Screenshot 2026-05-15 at 14.48.38.png",
+  "/profile/Screenshot 2026-05-15 at 14.48.45.png",
+  "/profile/Screenshot 2026-05-15 at 14.48.51.png",
+] as const;
+
+function isImageAvatarUrl(url: string) {
+  if (!url) return false;
+  if (url.startsWith("data:image/")) return true;
+  if (url.startsWith("data:")) return false;
+  return /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(url);
+}
+
 type ProfileModalProps = {
   open: boolean;
   draft: StudentProfile;
@@ -26,6 +42,29 @@ export function ProfileModal({
   uploadPending = false,
   statusMessage = null,
 }: ProfileModalProps) {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [attachedFileName, setAttachedFileName] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (open) setAttachedFileName(null);
+  }, [open]);
+
+  const onPickFile = (file: File | null) => {
+    if (!file) return;
+    setAttachedFileName(file.name);
+    void onUploadAvatar(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const onPickSample = (url: string) => {
+    setAttachedFileName(null);
+    onChangeDraft("avatarUrl", url);
+  };
+
+  const previewFileName =
+    attachedFileName ??
+    (draft.avatarUrl && !isImageAvatarUrl(draft.avatarUrl) ? "File đã đính kèm" : null);
+
   if (!open) return null;
 
   return (
@@ -40,7 +79,7 @@ export function ProfileModal({
         <div className="mb-4 flex items-start justify-between">
           <div>
             <div className="text-lg font-black text-foreground">Hồ sơ học viên</div>
-            <div className="text-xs font-medium text-muted mt-1">
+            <div className="mt-1 text-xs font-medium text-muted">
               Dữ liệu đang lưu tạm ở localStorage, có thể nối API sau.
             </div>
           </div>
@@ -56,32 +95,92 @@ export function ProfileModal({
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="md:col-span-2 flex items-center gap-4 rounded-xl border border-primary/10 bg-background/60 p-3">
-            <div className="h-16 w-16 overflow-hidden rounded-2xl border border-primary/20 bg-white">
-              {draft.avatarUrl ? (
-                <img src={draft.avatarUrl} alt="Avatar preview" className="h-full w-full object-cover" />
-              ) : (
-                <div className="h-full w-full flex items-center justify-center text-primary text-xl font-black">
-                  {draft.name.slice(0, 1)}
-                </div>
-              )}
-            </div>
-            <div className="flex-1">
-              <div className="text-[10px] font-black uppercase tracking-widest text-muted mb-1">
-                Ảnh đại diện
+          <div className="md:col-span-2 space-y-4 rounded-xl border border-primary/10 bg-background/60 p-4">
+            <div className="flex items-start gap-4">
+              <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-primary/20 bg-white">
+                {draft.avatarUrl && isImageAvatarUrl(draft.avatarUrl) ? (
+                  <img src={draft.avatarUrl} alt="Avatar preview" className="h-full w-full object-cover" />
+                ) : draft.avatarUrl || previewFileName ? (
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-primary/5 p-2 text-center">
+                    <svg className="h-7 w-7 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+                      <path d="M14 3v6h6" />
+                    </svg>
+                    <span className="line-clamp-2 text-[9px] font-bold leading-tight text-foreground">
+                      {previewFileName ?? "File đã chọn"}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-xl font-black text-primary">
+                    {draft.name.slice(0, 1)}
+                  </div>
+                )}
               </div>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => void onUploadAvatar(e.target.files?.[0] ?? null)}
-                disabled={uploadPending || saving}
-                className="block w-full text-xs text-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-white hover:file:bg-primary/90"
-              />
-              {uploadPending ? (
-                <div className="mt-1 text-[10px] font-semibold text-muted">
-                  Đang tải ảnh lên server...
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] font-black uppercase tracking-widest text-muted">
+                  Ảnh hoặc file đính kèm
                 </div>
-              ) : null}
+                <p className="mt-1 text-xs font-medium text-muted">
+                  Chọn ảnh mẫu bên dưới hoặc tải file từ máy (ảnh, PDF, Word, …).
+                </p>
+                {previewFileName ? (
+                  <p className="mt-2 truncate text-xs font-bold text-foreground">
+                    Đã chọn: {previewFileName}
+                  </p>
+                ) : null}
+                {uploadPending ? (
+                  <p className="mt-2 text-[10px] font-semibold text-muted">Đang tải file lên server...</p>
+                ) : null}
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-2 text-[10px] font-black uppercase tracking-widest text-muted">
+                Ảnh đại diện mẫu
+              </div>
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                {SAMPLE_AVATARS.map((url, idx) => (
+                  <button
+                    key={url}
+                    type="button"
+                    disabled={uploadPending || saving}
+                    onClick={() => onPickSample(url)}
+                    className={`aspect-square overflow-hidden rounded-xl border-2 transition-all hover:scale-105 disabled:opacity-50 ${
+                      draft.avatarUrl === url
+                        ? "border-primary ring-2 ring-primary/20"
+                        : "border-zinc-100 hover:border-primary/40"
+                    }`}
+                  >
+                    <img src={url} alt={`Mẫu ${idx + 1}`} className="h-full w-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="border-t border-zinc-100 pt-4">
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                disabled={uploadPending || saving}
+                onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
+              />
+              <button
+                type="button"
+                disabled={uploadPending || saving}
+                onClick={() => fileInputRef.current?.click()}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-primary/30 bg-primary/5 px-4 py-3 text-xs font-bold text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                {uploadPending ? "Đang tải..." : "Tải ảnh hoặc file lên"}
+              </button>
+              <p className="mt-2 text-[10px] font-medium text-muted">
+                Hỗ trợ ảnh, PDF, Word và các định dạng khác.
+              </p>
             </div>
           </div>
 

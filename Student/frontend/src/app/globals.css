@@ -17,6 +17,12 @@
   --shadow-premium: 0 16px 32px rgba(97, 81, 190, 0.16);
   
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+
+  @keyframes bounce-slow {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+  --animate-bounce-slow: bounce-slow 3s ease-in-out infinite;
 }
 
 :root {
@@ -49,4 +55,9 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #cbd5e0;
+}
+
+/* Hide native date picker icon */
+input::-webkit-calendar-picker-indicator {
+  display: none;
 }

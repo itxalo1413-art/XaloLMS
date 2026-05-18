@@ -40,6 +40,7 @@ export const DEFAULT_STUDENT_PROFILE: StudentProfile = {
 };
 
 export function loadStudentProfileFromStorage(): StudentProfile {
+  if (typeof window === "undefined") return DEFAULT_STUDENT_PROFILE;
   try {
     const raw = localStorage.getItem(STUDENT_PROFILE_STORAGE_KEY);
     if (!raw) return DEFAULT_STUDENT_PROFILE;
