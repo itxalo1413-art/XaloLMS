@@ -259,13 +259,17 @@ export default function CourseInfoPage() {
                                       <span className="text-[11px] font-medium text-muted">—</span>
                                     )}
                                   </td>
-                                  <td className={`${cell} text-center`}>
+                                  <td
+                                    className={`${cell} text-center ${
+                                      past ? "bg-zinc-100/90" : ""
+                                    }`}
+                                  >
                                     <Link
                                       href="#schedule-section"
                                       onClick={() => openScheduleForSession(row.date)}
-                                      className={`inline-block text-[11px] font-semibold tabular-nums underline-offset-2 hover:underline ${
+                                      className={`inline-block rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums underline-offset-2 hover:underline ${
                                         past
-                                          ? "text-zinc-400"
+                                          ? "text-zinc-400 decoration-zinc-300 hover:text-zinc-500"
                                           : future
                                             ? "text-primary"
                                             : "text-foreground"
