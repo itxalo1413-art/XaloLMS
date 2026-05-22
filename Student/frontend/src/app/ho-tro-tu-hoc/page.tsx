@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { StudentLayout } from "@/app/StudentLayout";
 import {
   ExamLinkCell,
@@ -62,7 +62,6 @@ type PageDialog =
 
 export default function HoTroTuHocPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const schedule = useStudentSchedule();
   const { month, year, months, myRequests, pendingTests, daysInMonth } = schedule;
   const [regSkill] = useState("Speaking Mock Test");
@@ -106,11 +105,12 @@ export default function HoTroTuHocPage() {
   }, [refreshWritingSubmissions, bumpPracticeSlots]);
 
   useEffect(() => {
-    if (searchParams.get("resetPractice") !== "1") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("resetPractice") !== "1") return;
     resetPracticeClassTestState(student.id);
     bumpPracticeSlots();
     router.replace("/ho-tro-tu-hoc");
-  }, [searchParams, student.id, bumpPracticeSlots, router]);
+  }, [student.id, bumpPracticeSlots, router]);
 
   const handleResetPracticeTest = () => {
     resetPracticeClassTestState(student.id);

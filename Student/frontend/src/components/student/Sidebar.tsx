@@ -31,7 +31,11 @@ export function Sidebar({ onOpenProfile }: { onOpenProfile?: () => void }) {
     <aside className="fixed left-0 top-0 z-50 hidden h-screen w-72 p-4 transition-all duration-300 md:block">
       <div className="h-full bg-white rounded-2xl shadow-soft flex flex-col overflow-hidden">
         {/* Logo Section */}
-        <div className="px-6 py-6 flex items-center gap-3">
+        <Link
+          href="/"
+          aria-label="Về trang chủ"
+          className="mx-6 my-6 flex items-center gap-3 rounded-xl transition-opacity hover:opacity-80"
+        >
           <img
             src="/Logo_XLE.svg"
             alt="Logo XLE"
@@ -42,7 +46,7 @@ export function Sidebar({ onOpenProfile }: { onOpenProfile?: () => void }) {
             alt="Logo phụ âm bản"
             className="h-4 w-auto object-contain"
           />
-        </div>
+        </Link>
 
         <div className="h-px w-full bg-gradient-to-r from-transparent via-background to-transparent mb-4"></div>
 

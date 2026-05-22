@@ -59,7 +59,12 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
           />
           <aside className="relative h-full w-[84%] max-w-[320px] bg-white p-4 shadow-2xl">
             <div className="mb-4 flex items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3">
-              <div className="flex min-w-0 flex-1 items-center gap-2" aria-label="Xalo English">
+              <Link
+                href="/"
+                aria-label="Về trang chủ"
+                onClick={() => setMenuOpen(false)}
+                className="flex min-w-0 flex-1 items-center gap-2 rounded-lg transition-opacity hover:opacity-80"
+              >
                 <img
                   src="/Logo_XLE.svg"
                   alt=""
@@ -74,7 +79,7 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
                   className="h-4 w-auto max-w-[min(11rem,100%)] shrink object-contain"
                   role="presentation"
                 />
-              </div>
+              </Link>
               <button
                 type="button"
                 onClick={() => setMenuOpen(false)}
