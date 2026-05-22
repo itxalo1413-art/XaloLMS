@@ -15,6 +15,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.StudentProfileController = void 0;
 const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
+const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
+const roles_decorator_1 = require("../auth/roles.decorator");
+const roles_guard_1 = require("../auth/roles.guard");
+const avatar_image_util_1 = require("./avatar-image.util");
 const update_student_profile_dto_1 = require("./dto/update-student-profile.dto");
 const student_profile_service_1 = require("./student-profile.service");
 let StudentProfileController = class StudentProfileController {
@@ -22,46 +26,51 @@ let StudentProfileController = class StudentProfileController {
     constructor(studentProfileService) {
         this.studentProfileService = studentProfileService;
     }
-    getProfile() {
-        return this.studentProfileService.getProfile();
+    getProfile(req) {
+        return this.studentProfileService.getProfile(req.user.sub);
     }
-    updateProfile(payload) {
-        return this.studentProfileService.updateProfile(payload);
+    updateProfile(req, payload) {
+        return this.studentProfileService.updateProfile(req.user.sub, payload);
     }
-    uploadAvatar(file) {
+    uploadAvatar(req, file) {
         if (!file) {
             throw new common_1.BadRequestException('Missing avatar file.');
         }
-        if (!file.mimetype?.startsWith('image/')) {
-            throw new common_1.BadRequestException('Avatar must be an image file.');
+        if (!(0, avatar_image_util_1.isAllowedAvatarImageMime)(file.mimetype)) {
+            throw new common_1.BadRequestException('Chỉ chấp nhận ảnh: JPEG, PNG, GIF, WebP, SVG.');
         }
-        return this.studentProfileService.updateAvatar(file);
+        return this.studentProfileService.updateAvatar(req.user.sub, file);
     }
 };
 exports.StudentProfileController = StudentProfileController;
 __decorate([
     (0, common_1.Get)(),
+    __param(0, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], StudentProfileController.prototype, "getProfile", null);
 __decorate([
     (0, common_1.Patch)(),
-    __param(0, (0, common_1.Body)()),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [update_student_profile_dto_1.UpdateStudentProfileDto]),
+    __metadata("design:paramtypes", [Object, update_student_profile_dto_1.UpdateStudentProfileDto]),
     __metadata("design:returntype", void 0)
 ], StudentProfileController.prototype, "updateProfile", null);
 __decorate([
     (0, common_1.Post)('avatar'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('avatar')),
-    __param(0, (0, common_1.UploadedFile)()),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.UploadedFile)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", void 0)
 ], StudentProfileController.prototype, "uploadAvatar", null);
 exports.StudentProfileController = StudentProfileController = __decorate([
     (0, common_1.Controller)('student/profile'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)('HS'),
     __metadata("design:paramtypes", [student_profile_service_1.StudentProfileService])
 ], StudentProfileController);
 //# sourceMappingURL=student-profile.controller.js.map

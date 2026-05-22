@@ -1,13 +1,12 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
 export type StudentProfileStoreDocument = HydratedDocument<StudentProfileStore>;
 
-/** Một bản ghi singleton (key cố định) cho API profile demo hiện tại. */
-@Schema({ collection: 'student_profiles' })
+@Schema({ collection: 'student_profiles', timestamps: true })
 export class StudentProfileStore {
-  @Prop({ type: String, required: true, unique: true, default: 'default' })
-  singletonKey: string;
+  @Prop({ type: Types.ObjectId, required: true, unique: true, index: true })
+  userId: Types.ObjectId;
 
   @Prop({ type: Object, required: true, default: {} })
   profileData: Record<string, unknown>;

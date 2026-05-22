@@ -16,8 +16,10 @@ exports.StudentProfileService = void 0;
 const common_1 = require("@nestjs/common");
 const mongoose_1 = require("@nestjs/mongoose");
 const mongoose_2 = require("mongoose");
-const student_profile_study_options_1 = require("./student-profile-study-options");
+const users_service_1 = require("../users/users.service");
+const avatar_image_util_1 = require("./avatar-image.util");
 const student_profile_store_schema_1 = require("./schemas/student-profile-store.schema");
+const student_profile_study_options_1 = require("./student-profile-study-options");
 const student_profile_types_1 = require("./student-profile.types");
 const STUDY_FIELDS = [
     'method',
@@ -27,11 +29,12 @@ const STUDY_FIELDS = [
     'previousBand',
     'focusSkills',
 ];
-const SINGLETON_KEY = 'default';
 let StudentProfileService = class StudentProfileService {
     store;
-    constructor(store) {
+    users;
+    constructor(store, users) {
         this.store = store;
+        this.users = users;
     }
     mergeWithDefaults(stored) {
         return {
@@ -39,14 +42,43 @@ let StudentProfileService = class StudentProfileService {
             ...(stored ?? {}),
         };
     }
-    async getProfile() {
+    async defaultForUser(userId) {
+        const base = { ...student_profile_types_1.DEFAULT_STUDENT_PROFILE };
+        try {
+            const user = await this.users.getPublicById(userId);
+            base.name = user.name;
+            base.email = user.email;
+        }
+        catch {
+        }
+        return base;
+    }
+    async getProfile(userId) {
+        if (!mongoose_2.Types.ObjectId.isValid(userId)) {
+            return this.defaultForUser(userId);
+        }
         const doc = await this.store
-            .findOne({ singletonKey: SINGLETON_KEY })
+            .findOne({ userId: new mongoose_2.Types.ObjectId(userId) })
             .lean()
             .exec();
-        return this.mergeWithDefaults(doc?.profileData);
+        if (!doc?.profileData) {
+            return this.defaultForUser(userId);
+        }
+        return this.mergeWithDefaults(doc.profileData);
     }
-    async updateProfile(payload) {
+    async persist(userId, next) {
+        if (!mongoose_2.Types.ObjectId.isValid(userId)) {
+            throw new common_1.BadRequestException('userId không hợp lệ');
+        }
+        await this.store
+            .findOneAndUpdate({ userId: new mongoose_2.Types.ObjectId(userId) }, {
+            $set: { profileData: { ...next } },
+            $setOnInsert: { userId: new mongoose_2.Types.ObjectId(userId) },
+        }, { upsert: true, new: true })
+            .exec();
+        return next;
+    }
+    async updateProfile(userId, payload) {
         for (const field of STUDY_FIELDS) {
             const raw = payload[field];
             if (raw === undefined || raw === null)
@@ -55,41 +87,33 @@ let StudentProfileService = class StudentProfileService {
                 throw new common_1.BadRequestException(`Giá trị không hợp lệ cho trường: ${field}`);
             }
         }
-        const current = await this.getProfile();
+        const current = await this.getProfile(userId);
         const next = {
             ...current,
             ...payload,
         };
-        await this.store
-            .findOneAndUpdate({ singletonKey: SINGLETON_KEY }, {
-            $set: { profileData: { ...next } },
-            $setOnInsert: { singletonKey: SINGLETON_KEY },
-        }, { upsert: true, new: true })
-            .exec();
-        return next;
+        return this.persist(userId, next);
     }
-    async updateAvatar(file) {
-        const mime = file.mimetype || 'image/png';
+    async updateAvatar(userId, file) {
+        const mime = file.mimetype || '';
+        if (!(0, avatar_image_util_1.isAllowedAvatarImageMime)(mime)) {
+            throw new common_1.BadRequestException('Chỉ chấp nhận ảnh: JPEG, PNG, GIF, WebP, SVG.');
+        }
         const base64 = file.buffer.toString('base64');
-        const avatarUrl = `data:${mime};base64,${base64}`;
-        const current = await this.getProfile();
+        const avatarUrl = `data:${mime.split(';')[0]};base64,${base64}`;
+        const current = await this.getProfile(userId);
         const next = {
             ...current,
             avatarUrl,
         };
-        await this.store
-            .findOneAndUpdate({ singletonKey: SINGLETON_KEY }, {
-            $set: { profileData: { ...next } },
-            $setOnInsert: { singletonKey: SINGLETON_KEY },
-        }, { upsert: true, new: true })
-            .exec();
-        return next;
+        return this.persist(userId, next);
     }
 };
 exports.StudentProfileService = StudentProfileService;
 exports.StudentProfileService = StudentProfileService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(student_profile_store_schema_1.StudentProfileStore.name)),
-    __metadata("design:paramtypes", [mongoose_2.Model])
+    __metadata("design:paramtypes", [mongoose_2.Model,
+        users_service_1.UsersService])
 ], StudentProfileService);
 //# sourceMappingURL=student-profile.service.js.map

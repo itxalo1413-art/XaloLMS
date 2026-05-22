@@ -18,6 +18,10 @@ export type MockTestRequest = {
   examTime?: string;
   examTeacher?: string;
   reviewedAt?: string;
+  /** Band điểm sau khi chấm (demo / API). */
+  score?: string;
+  /** Link đề / tài liệu buổi test. */
+  examLink?: string;
 };
 
 export const MOCK_TEST_STORAGE_KEY = "lms_mock_test_requests_v1";

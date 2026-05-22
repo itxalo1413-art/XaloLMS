@@ -46,6 +46,7 @@ export class UsersService implements OnModuleInit {
       )
       .exec();
     await this.ensureSeedAca();
+    await this.ensureSeedStudent();
   }
 
   private normalizeEmail(email: string): string {
@@ -76,6 +77,24 @@ export class UsersService implements OnModuleInit {
       email,
       name: process.env.ACA_SEED_NAME ?? 'Quản trị ACA',
       role: 'ACA',
+      status: 'ACTIVE',
+      passwordHash,
+    });
+  }
+
+  async ensureSeedStudent(): Promise<void> {
+    const email = this.normalizeEmail(
+      process.env.STUDENT_SEED_EMAIL ?? 'nguyenduong939705@gmail.com',
+    );
+    const existing = await this.userModel.findOne({ email }).exec();
+    if (existing) return;
+
+    const password = process.env.STUDENT_SEED_PASSWORD ?? 'Student@123!';
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    await this.userModel.create({
+      email,
+      name: process.env.STUDENT_SEED_NAME ?? 'Dương Ngọc Khôi Nguyên',
+      role: 'HS',
       status: 'ACTIVE',
       passwordHash,
     });

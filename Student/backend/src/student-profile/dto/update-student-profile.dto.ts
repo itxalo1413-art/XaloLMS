@@ -10,5 +10,5 @@ export class UpdateStudentProfileDto {
   classEnvironment?: string;
   ieltsMeaning?: string;
   previousBand?: string;
-  focusSkills?: string;
+  focusSkills?: string | string[];
 }

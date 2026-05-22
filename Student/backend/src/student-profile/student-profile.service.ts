@@ -1,15 +1,18 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
+import { UsersService } from '../users/users.service';
+import { isAllowedAvatarImageMime } from './avatar-image.util';
 import { UpdateStudentProfileDto } from './dto/update-student-profile.dto';
-import {
-  isAllowedStudyValue,
-  type StudySelectionField,
-} from './student-profile-study-options';
 import {
   StudentProfileStore,
   type StudentProfileStoreDocument,
 } from './schemas/student-profile-store.schema';
+import {
+  isAllowedStudyValue,
+  type StudySelectionField,
+} from './student-profile-study-options';
+import { normalizeFocusSkills, parseFocusSkillsPayload } from './focus-skills.util';
 import {
   DEFAULT_STUDENT_PROFILE,
   type StudentProfile,
@@ -24,36 +27,79 @@ const STUDY_FIELDS: StudySelectionField[] = [
   'focusSkills',
 ];
 
-const SINGLETON_KEY = 'default';
-
 @Injectable()
 export class StudentProfileService {
   constructor(
     @InjectModel(StudentProfileStore.name)
     private readonly store: Model<StudentProfileStoreDocument>,
+    private readonly users: UsersService,
   ) {}
 
   private mergeWithDefaults(
     stored: Record<string, unknown> | undefined,
   ): StudentProfile {
-    return {
+    const merged = {
       ...DEFAULT_STUDENT_PROFILE,
       ...(stored ?? {}),
-    };
+    } as StudentProfile;
+    merged.focusSkills = normalizeFocusSkills(
+      stored?.focusSkills ?? merged.focusSkills,
+    );
+    if (merged.focusSkills.length === 0) {
+      merged.focusSkills = [...DEFAULT_STUDENT_PROFILE.focusSkills];
+    }
+    return merged;
   }
 
-  async getProfile(): Promise<StudentProfile> {
+  private async defaultForUser(userId: string): Promise<StudentProfile> {
+    const base = { ...DEFAULT_STUDENT_PROFILE };
+    try {
+      const user = await this.users.getPublicById(userId);
+      base.name = user.name;
+      base.email = user.email;
+    } catch {
+      // keep defaults
+    }
+    return base;
+  }
+
+  async getProfile(userId: string): Promise<StudentProfile> {
+    if (!Types.ObjectId.isValid(userId)) {
+      return this.defaultForUser(userId);
+    }
     const doc = await this.store
-      .findOne({ singletonKey: SINGLETON_KEY })
+      .findOne({ userId: new Types.ObjectId(userId) })
       .lean()
       .exec();
-    return this.mergeWithDefaults(doc?.profileData);
+    if (!doc?.profileData) {
+      return this.defaultForUser(userId);
+    }
+    return this.mergeWithDefaults(doc.profileData);
+  }
+
+  private async persist(userId: string, next: StudentProfile): Promise<StudentProfile> {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new BadRequestException('userId không hợp lệ');
+    }
+    await this.store
+      .findOneAndUpdate(
+        { userId: new Types.ObjectId(userId) },
+        {
+          $set: { profileData: { ...next } },
+          $setOnInsert: { userId: new Types.ObjectId(userId) },
+        },
+        { upsert: true, new: true },
+      )
+      .exec();
+    return next;
   }
 
   async updateProfile(
+    userId: string,
     payload: UpdateStudentProfileDto,
   ): Promise<StudentProfile> {
     for (const field of STUDY_FIELDS) {
+      if (field === 'focusSkills') continue;
       const raw = payload[field];
       if (raw === undefined || raw === null) continue;
       if (typeof raw !== 'string' || !isAllowedStudyValue(field, raw)) {
@@ -62,43 +108,41 @@ export class StudentProfileService {
         );
       }
     }
-    const current = await this.getProfile();
+    const focusSkillsUpdate = parseFocusSkillsPayload(payload.focusSkills);
+    if (payload.focusSkills !== undefined && focusSkillsUpdate === undefined) {
+      throw new BadRequestException(
+        'Giá trị không hợp lệ cho trường: focusSkills',
+      );
+    }
+    const current = await this.getProfile(userId);
+    const { focusSkills: _fs, ...rest } = payload;
     const next = {
       ...current,
-      ...payload,
+      ...rest,
+      ...(focusSkillsUpdate !== undefined
+        ? { focusSkills: focusSkillsUpdate }
+        : {}),
     } as StudentProfile;
-    await this.store
-      .findOneAndUpdate(
-        { singletonKey: SINGLETON_KEY },
-        {
-          $set: { profileData: { ...next } },
-          $setOnInsert: { singletonKey: SINGLETON_KEY },
-        },
-        { upsert: true, new: true },
-      )
-      .exec();
-    return next;
+    return this.persist(userId, next);
   }
 
-  async updateAvatar(file: Express.Multer.File): Promise<StudentProfile> {
-    const mime = file.mimetype || 'image/png';
+  async updateAvatar(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<StudentProfile> {
+    const mime = file.mimetype || '';
+    if (!isAllowedAvatarImageMime(mime)) {
+      throw new BadRequestException(
+        'Chỉ chấp nhận ảnh: JPEG, PNG, GIF, WebP, SVG.',
+      );
+    }
     const base64 = file.buffer.toString('base64');
-    const avatarUrl = `data:${mime};base64,${base64}`;
-    const current = await this.getProfile();
+    const avatarUrl = `data:${mime.split(';')[0]};base64,${base64}`;
+    const current = await this.getProfile(userId);
     const next: StudentProfile = {
       ...current,
       avatarUrl,
     };
-    await this.store
-      .findOneAndUpdate(
-        { singletonKey: SINGLETON_KEY },
-        {
-          $set: { profileData: { ...next } },
-          $setOnInsert: { singletonKey: SINGLETON_KEY },
-        },
-        { upsert: true, new: true },
-      )
-      .exec();
-    return next;
+    return this.persist(userId, next);
   }
 }

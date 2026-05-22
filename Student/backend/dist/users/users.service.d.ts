@@ -18,6 +18,7 @@ export declare class UsersService implements OnModuleInit {
     private normalizeEmail;
     private toPublic;
     ensureSeedAca(): Promise<void>;
+    ensureSeedStudent(): Promise<void>;
     findByEmail(email: string): Promise<UserDocument | null>;
     findPublicById(id: string): Promise<PublicUser | undefined>;
     listPublic(params?: {

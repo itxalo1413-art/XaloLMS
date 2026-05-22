@@ -86,7 +86,11 @@ let AcaContentService = class AcaContentService {
         const s = slug.trim().toLowerCase();
         if (!s)
             return;
-        const cat = await this.categoryModel.findOne({ slug: s }).select('_id').lean().exec();
+        const cat = await this.categoryModel
+            .findOne({ slug: s })
+            .select('_id')
+            .lean()
+            .exec();
         if (!cat) {
             throw new common_1.BadRequestException(`Không có danh mục với slug: ${s}`);
         }

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 const items = [
   { href: "/aca", label: "Dash" },
-  { href: "/aca/quan-ly/noi-dung", label: "Nội dung" },
+  { href: "/aca/quan-ly/lop-luyen-de", label: "Luyện đề" },
   { href: "/aca/quan-ly/mock-test", label: "Mock" },
   { href: "/aca/phan-tich", label: "Phân tích" },
 ];
@@ -15,7 +15,7 @@ export function AcaMobileNav() {
 
   return (
     <nav className="fixed inset-x-0 top-0 z-50 flex h-14 items-center border-b border-primary/15 bg-white/95 px-2 backdrop-blur-md md:hidden">
-      <ul className="grid w-full grid-cols-4 gap-2">
+      <ul className="grid w-full grid-cols-4 gap-1">
         {items.map((item) => {
           const active =
             item.href === "/aca"

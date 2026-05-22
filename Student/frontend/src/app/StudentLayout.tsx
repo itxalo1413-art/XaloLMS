@@ -6,9 +6,10 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/student/Sidebar";
 import { Topbar } from "@/components/student/Topbar";
 import { ProfileModal } from "@/components/student/ProfileModal";
+import { StudentAuthProvider } from "@/contexts/StudentAuthContext";
 import { useStudentProfile } from "@/hooks/useStudentProfile";
 
-export function StudentLayout({ children }: { children: React.ReactNode }) {
+function StudentLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const { profile, openProfile, profileModalProps } = useStudentProfile();
@@ -58,10 +59,7 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
           />
           <aside className="relative h-full w-[84%] max-w-[320px] bg-white p-4 shadow-2xl">
             <div className="mb-4 flex items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3">
-              <div
-                className="flex min-w-0 flex-1 items-center gap-2"
-                aria-label="Xalo English"
-              >
+              <div className="flex min-w-0 flex-1 items-center gap-2" aria-label="Xalo English">
                 <img
                   src="/Logo_XLE.svg"
                   alt=""
@@ -118,3 +116,10 @@ export function StudentLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
+export function StudentLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <StudentAuthProvider>
+      <StudentLayoutInner>{children}</StudentLayoutInner>
+    </StudentAuthProvider>
+  );
+}

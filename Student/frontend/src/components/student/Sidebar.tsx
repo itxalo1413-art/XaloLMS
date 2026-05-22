@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useStudentAuth } from "@/contexts/StudentAuthContext";
 import { IconDashboard, IconDocs, IconInfo, IconSupport } from "./icons";
 
 type NavItem = {
@@ -24,6 +25,7 @@ function isActivePath(pathname: string, href: string) {
 
 export function Sidebar({ onOpenProfile }: { onOpenProfile?: () => void }) {
   const pathname = usePathname();
+  const { logout } = useStudentAuth();
 
   return (
     <aside className="fixed left-0 top-0 z-50 hidden h-screen w-72 p-4 transition-all duration-300 md:block">
@@ -101,6 +103,7 @@ export function Sidebar({ onOpenProfile }: { onOpenProfile?: () => void }) {
             </button> */}
             <button
               type="button"
+              onClick={logout}
               className="group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-muted transition-all duration-200 hover:bg-background hover:text-foreground"
             >
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-muted transition-all group-hover:text-foreground">

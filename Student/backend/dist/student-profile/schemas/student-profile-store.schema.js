@@ -11,21 +11,22 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StudentProfileStoreSchema = exports.StudentProfileStore = void 0;
 const mongoose_1 = require("@nestjs/mongoose");
+const mongoose_2 = require("mongoose");
 let StudentProfileStore = class StudentProfileStore {
-    singletonKey;
+    userId;
     profileData;
 };
 exports.StudentProfileStore = StudentProfileStore;
 __decorate([
-    (0, mongoose_1.Prop)({ type: String, required: true, unique: true, default: 'default' }),
-    __metadata("design:type", String)
-], StudentProfileStore.prototype, "singletonKey", void 0);
+    (0, mongoose_1.Prop)({ type: mongoose_2.Types.ObjectId, required: true, unique: true, index: true }),
+    __metadata("design:type", mongoose_2.Types.ObjectId)
+], StudentProfileStore.prototype, "userId", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ type: Object, required: true, default: {} }),
     __metadata("design:type", Object)
 ], StudentProfileStore.prototype, "profileData", void 0);
 exports.StudentProfileStore = StudentProfileStore = __decorate([
-    (0, mongoose_1.Schema)({ collection: 'student_profiles' })
+    (0, mongoose_1.Schema)({ collection: 'student_profiles', timestamps: true })
 ], StudentProfileStore);
 exports.StudentProfileStoreSchema = mongoose_1.SchemaFactory.createForClass(StudentProfileStore);
 //# sourceMappingURL=student-profile-store.schema.js.map

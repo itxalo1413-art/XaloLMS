@@ -20,14 +20,16 @@ export function Panel({
         <div className="w-1.5 h-3.5 bg-gradient-to-b from-primary to-secondary rounded-full mr-2.5"></div>
         <div className="text-[11px] font-black text-foreground uppercase tracking-wider whitespace-nowrap">{title}</div>
       </div>
-      
+
       {/* Folder Body */}
-      <div className="relative z-10 h-full flex flex-col rounded-2xl rounded-tl-none bg-white shadow-soft border border-primary/10 overflow-hidden">
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-primary/5 shrink-0">
-          <div className="text-[10px] font-black text-muted uppercase opacity-0 select-none pointer-events-none">{title}</div>
-          {right ? <div className="text-[10px] font-bold text-muted uppercase">{right}</div> : null}
+      <div className="relative z-10 flex h-full flex-col overflow-hidden rounded-2xl rounded-tl-none border border-primary/10 bg-white shadow-soft">
+        <div className="flex shrink-0 items-center justify-between gap-1.5 border-b border-primary/5 px-3 py-2">
+          <div className="pointer-events-none select-none text-[10px] font-black uppercase text-muted opacity-0">
+            {title}
+          </div>
+          {right ? <div className="text-[10px] font-bold uppercase text-muted">{right}</div> : null}
         </div>
-        <div className="px-6 pb-6 pt-4 flex-1">{children}</div>
+        <div className="flex-1 px-3 pb-3 pt-2">{children}</div>
       </div>
     </section>
   );

@@ -1,92 +1,169 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { StudentLayout } from "@/app/StudentLayout";
-import { NativeSelectChevron, Panel, Select } from "@/components/student/ui";
+import {
+  ExamLinkCell,
+  SelfStudyResultsTable,
+  StatusBadge,
+} from "@/components/student/SelfStudyResultsTable";
+import { StudentSchedulePanel } from "@/components/student/StudentSchedulePanel";
+import { PracticeClassPanel } from "@/components/student/PracticeClassPanel";
+import { StudentDialog } from "@/components/student/StudentDialog";
+import { NativeSelectChevron, Panel } from "@/components/student/ui";
+import { useStudentSchedule } from "@/hooks/useStudentSchedule";
+import { formatBandScore } from "@/lib/formatBandScore";
+import { getDaysInMonth } from "@/lib/courseSchedule";
+import type { MockTestRequest } from "@/lib/mockTestRequests";
 import {
   createPendingRequest,
-  DEMO_STUDENT,
   hasDuplicateSlot,
   loadMockTestRequests,
-  MOCK_TEST_UPDATE_EVENT,
   removeMockTestRequest,
   saveMockTestRequests,
-  type MockTestRequest,
 } from "@/lib/mockTestRequests";
-import { isSameCalendarDay, useClientToday } from "@/hooks/useClientToday";
+import {
+  formatIsoDateTimeVi,
+  formatMockTestDateTime,
+  getDemoSpeakingMockTests,
+  isSpeakingMockTest,
+  mockTestStatusLabel,
+  mockTestStatusTone,
+  sortMockTestsByDateDesc,
+  speakingResultExamLink,
+  speakingResultScore,
+  writingStatusLabel,
+  writingStatusTone,
+} from "@/lib/selfStudyFormat";
+import { getStudentIdentity } from "@/lib/studentIdentity";
+import {
+  getPracticeSlotById,
+  getPracticeSlotsForStudent,
+  PRACTICE_CLASS_SKILL,
+  PRACTICE_CLASS_UPDATE_EVENT,
+  registerPracticeSlot,
+  resetPracticeClassTestState,
+  type PracticeSlotId,
+} from "@/lib/practiceClass";
+import {
+  createWritingSubmission,
+  loadWritingSubmissions,
+  loadWritingSubmissionsForStudent,
+  saveWritingSubmissions,
+  WRITING_SUBMISSIONS_EVENT,
+  type WritingSubmission,
+} from "@/lib/writingSubmissions";
 
-const months = [
-  "Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6",
-  "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12",
-];
-
-const practiceClassDays = [3, 10, 17, 24];
-const mainCourseDays = [21, 23, 25, 28, 30];
+type PageDialog =
+  | { kind: "confirm-practice"; slotId: PracticeSlotId }
+  | { kind: "success-practice" }
+  | { kind: "duplicate-mock" };
 
 export default function HoTroTuHocPage() {
-  const clientToday = useClientToday();
-  const [requests, setRequests] = useState<MockTestRequest[]>([]);
-  const [viewDate, setViewDate] = useState(new Date(2026, 3, 1));
-  const [regSkill, setRegSkill] = useState("Speaking Mock Test");
-  const [regMonth, setRegMonth] = useState(viewDate.getMonth());
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const schedule = useStudentSchedule();
+  const { month, year, months, myRequests, pendingTests, daysInMonth } = schedule;
+  const [regSkill] = useState("Speaking Mock Test");
+  const [regMonth, setRegMonth] = useState(month);
   const [regDay, setRegDay] = useState(1);
   const [regTime, setRegTime] = useState("09:00");
-  const [selectedHour, setSelectedHour] = useState("19");
-  const [selectedMinute, setSelectedMinute] = useState("45");
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
   const [writingLink, setWritingLink] = useState("");
-  const [submittedWriting, setSubmittedWriting] = useState<{link: string, date: string, status: string} | null>(null);
+  const [writingSubmissions, setWritingSubmissions] = useState<WritingSubmission[]>([]);
+  const [practiceSlotVersion, setPracticeSlotVersion] = useState(0);
+  const [dialog, setDialog] = useState<PageDialog | null>(null);
 
-  const syncRequests = useCallback(() => {
-    setRequests(loadMockTestRequests());
+  const student = getStudentIdentity();
+
+  const bumpPracticeSlots = useCallback(() => {
+    setPracticeSlotVersion((v) => v + 1);
   }, []);
 
+  const registeredPracticeSlotIds = useMemo(
+    () => new Set(getPracticeSlotsForStudent(student.id).map((r) => r.slotId)),
+    [student.id, practiceSlotVersion],
+  );
+
+  const refreshWritingSubmissions = useCallback(() => {
+    setWritingSubmissions(loadWritingSubmissionsForStudent(student.id));
+  }, [student.id]);
+
   useEffect(() => {
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (!cancelled) syncRequests();
-    });
-    window.addEventListener(MOCK_TEST_UPDATE_EVENT, syncRequests);
-    window.addEventListener("storage", syncRequests);
+    setRegMonth(month);
+  }, [month]);
+
+  useEffect(() => {
+    refreshWritingSubmissions();
+    bumpPracticeSlots();
+    window.addEventListener(WRITING_SUBMISSIONS_EVENT, refreshWritingSubmissions);
+    window.addEventListener(PRACTICE_CLASS_UPDATE_EVENT, bumpPracticeSlots);
     return () => {
-      cancelled = true;
-      window.removeEventListener(MOCK_TEST_UPDATE_EVENT, syncRequests);
-      window.removeEventListener("storage", syncRequests);
+      window.removeEventListener(WRITING_SUBMISSIONS_EVENT, refreshWritingSubmissions);
+      window.removeEventListener(PRACTICE_CLASS_UPDATE_EVENT, bumpPracticeSlots);
     };
-  }, [syncRequests]);
+  }, [refreshWritingSubmissions, bumpPracticeSlots]);
 
-  const myRequests = useMemo(
-    () => requests.filter((r) => r.studentId === DEMO_STUDENT.id),
-    [requests],
-  );
-  const approvedTests = useMemo(
-    () => myRequests.filter((r) => r.status === "approved"),
-    [myRequests],
-  );
-  const pendingTests = useMemo(
-    () => myRequests.filter((r) => r.status === "pending"),
-    [myRequests],
-  );
+  useEffect(() => {
+    if (searchParams.get("resetPractice") !== "1") return;
+    resetPracticeClassTestState(student.id);
+    bumpPracticeSlots();
+    router.replace("/ho-tro-tu-hoc");
+  }, [searchParams, student.id, bumpPracticeSlots, router]);
 
-  const getDaysInMonth = (month: number, year: number) =>
-    new Date(year, month + 1, 0).getDate();
-  const getFirstDayOfMonth = (month: number, year: number) =>
-    new Date(year, month, 1).getDay();
+  const handleResetPracticeTest = () => {
+    resetPracticeClassTestState(student.id);
+    bumpPracticeSlots();
+    setDialog(null);
+  };
 
-  const daysInMonth = getDaysInMonth(viewDate.getMonth(), viewDate.getFullYear());
-  const firstDay = getFirstDayOfMonth(viewDate.getMonth(), viewDate.getFullYear());
-  const prevMonthPadding = (firstDay + 6) % 7;
+  const handleRegisterPracticeSlot = (slotId: PracticeSlotId) => {
+    if (!getPracticeSlotById(slotId)) return;
+    setDialog({ kind: "confirm-practice", slotId });
+  };
+
+  const confirmPracticeRegistration = () => {
+    if (dialog?.kind !== "confirm-practice") return;
+    const slot = getPracticeSlotById(dialog.slotId);
+    if (!slot) {
+      setDialog(null);
+      return;
+    }
+    registerPracticeSlot(student.id, dialog.slotId);
+    const now = new Date();
+    const row = createPendingRequest({
+      studentId: student.id,
+      studentName: student.name,
+      skill: `${PRACTICE_CLASS_SKILL} · ${slot.title}`,
+      day: now.getDate(),
+      month: now.getMonth(),
+      year: now.getFullYear(),
+      examTime: `${slot.dayLabel} ${slot.time}`,
+    });
+    saveMockTestRequests([...loadMockTestRequests(), row]);
+    bumpPracticeSlots();
+    setDialog({ kind: "success-practice" });
+  };
+
+  const pendingPracticeSlot =
+    dialog?.kind === "confirm-practice" ? getPracticeSlotById(dialog.slotId) : null;
+
+  const speakingMockRows = useMemo(() => {
+    const rows = sortMockTestsByDateDesc(
+      myRequests.filter((r) => isSpeakingMockTest(r.skill)),
+    );
+    return rows.length > 0 ? rows : getDemoSpeakingMockTests(student.id, student.name);
+  }, [myRequests, student.id, student.name]);
 
   const registerMockTest = () => {
-    const year = viewDate.getFullYear();
-    if (hasDuplicateSlot(DEMO_STUDENT.id, regSkill, regDay, regMonth, year)) {
-      alert("Bạn đã có đăng ký cho kỹ năng và ngày này.");
+    if (hasDuplicateSlot(student.id, regSkill, regDay, regMonth, year)) {
+      setDialog({ kind: "duplicate-mock" });
       return;
     }
     const row = createPendingRequest({
-      studentId: DEMO_STUDENT.id,
-      studentName: DEMO_STUDENT.name,
+      studentId: student.id,
+      studentName: student.name,
       skill: regSkill,
       day: regDay,
       month: regMonth,
@@ -102,38 +179,6 @@ export default function HoTroTuHocPage() {
     removeMockTestRequest(id);
   };
 
-  const changeMonth = (offset: number) => {
-    const newDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + offset, 1);
-    setViewDate(newDate);
-    setRegMonth(newDate.getMonth());
-    setSelectedDay(null);
-  };
-
-  const selectedDayEvents = useMemo(() => {
-    if (!selectedDay) return [];
-    const mockEvents = approvedTests
-      .filter(
-        (t) =>
-          t.day === selectedDay &&
-          t.month === viewDate.getMonth() &&
-          t.year === viewDate.getFullYear(),
-      )
-      .map((t) => ({
-        type: "mock" as const,
-        label: t.skill,
-        detail: `Giờ ${t.examTime ?? "—"} · ${t.examTeacher ?? "GV —"}`,
-      }));
-    const practiceEvents =
-      viewDate.getMonth() === 3 && practiceClassDays.includes(selectedDay)
-        ? [{ type: "practice" as const, label: "Lớp luyện đề tập trung", detail: "19h45 - 21h30 · Sửa đề và chữa bài" }]
-        : [];
-    const courseEvents =
-      viewDate.getMonth() === 3 && mainCourseDays.includes(selectedDay)
-        ? [{ type: "course" as const, label: "Lớp chính khóa", detail: "19h45 - 21h30 · Offline Momentum" }]
-        : [];
-    return [...mockEvents, ...practiceEvents, ...courseEvents];
-  }, [approvedTests, selectedDay, viewDate]);
-
   return (
     <StudentLayout>
       <div className="space-y-10 pb-20">
@@ -144,23 +189,13 @@ export default function HoTroTuHocPage() {
           </p>
         </header>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        <div className="grid grid-cols-1 items-stretch gap-10 lg:grid-cols-12">
           
           {/* Left Column: Interactions & Content */}
-          <div className="lg:col-span-8 flex flex-col gap-10">
-            <Panel title="Đăng ký Mock Test Speaking">
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 bg-background p-6 rounded-3xl shadow-inner">
-                <div className="flex flex-col gap-2 sm:col-span-1">
-                  <label className="text-[10px] font-black text-muted uppercase tracking-widest">Kỹ năng</label>
-                  <NativeSelectChevron
-                    value={regSkill}
-                    onChange={(e) => setRegSkill(e.target.value)}
-                    className="h-11 rounded-xl bg-white text-xs font-bold text-foreground shadow-sm focus:ring-2 focus:ring-primary/10"
-                  >
-                    <option>Speaking Mock Test</option>
-                    <option>Writing Mock Test</option>
-                  </NativeSelectChevron>
-                </div>
+          <div className="lg:col-span-8 flex min-h-0 flex-col gap-10">
+            <Panel title="Đăng ký Mock Test Speaking" className="shrink-0">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-background p-6 rounded-3xl shadow-inner">
+                
                 <div className="flex flex-col gap-2">
                   <label className="text-[10px] font-black text-muted uppercase tracking-widest">Tháng</label>
                   <NativeSelectChevron
@@ -182,7 +217,7 @@ export default function HoTroTuHocPage() {
                     onChange={(e) => setRegDay(parseInt(e.target.value, 10))}
                     className="h-11 rounded-xl bg-white text-xs font-bold text-foreground shadow-sm focus:ring-2 focus:ring-primary/10"
                   >
-                    {Array.from({ length: getDaysInMonth(regMonth, viewDate.getFullYear()) }).map((_, i) => (
+                    {Array.from({ length: getDaysInMonth(regMonth, year) }).map((_, i) => (
                       <option key={i + 1} value={i + 1}>
                         Ngày {i + 1}
                       </option>
@@ -209,12 +244,14 @@ export default function HoTroTuHocPage() {
               </div>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                {pendingTests.map((test) => (
+                {pendingTests
+                  .filter((t) => isSpeakingMockTest(t.skill))
+                  .map((test) => (
                   <div key={test.id} className="rounded-2xl border border-warning/30 bg-warning/5 p-4 flex justify-between items-start">
                     <div>
                       <div className="text-sm font-extrabold text-foreground">{test.skill}</div>
                       <div className="text-[10px] font-bold text-muted uppercase mt-1">
-                        Ngày {test.day} {months[test.month]}, {test.year} · Giờ {test.examTime}
+                        {formatMockTestDateTime(test)}
                       </div>
                       <div className="mt-1 text-[10px] font-bold text-warning uppercase">Chờ ACA duyệt</div>
                     </div>
@@ -224,11 +261,59 @@ export default function HoTroTuHocPage() {
                   </div>
                 ))}
               </div>
+
+              <SelfStudyResultsTable<MockTestRequest>
+                title="Bảng kết quả Mock Test Speaking"
+                emptyMessage="Chưa có lần test nào. Đăng ký buổi test phía trên."
+                equalColumns
+                getRowKey={(row) => row.id}
+                rows={speakingMockRows}
+                columns={[
+                  {
+                    key: "datetime",
+                    label: "Ngày giờ test",
+                    align: "center",
+                    render: (row) => (
+                      <span className="font-semibold tabular-nums text-foreground">
+                        {formatMockTestDateTime(row)}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "status",
+                    label: "Trạng thái",
+                    align: "center",
+                    render: (row) => (
+                      <StatusBadge
+                        label={mockTestStatusLabel(row.status)}
+                        tone={mockTestStatusTone(row.status)}
+                      />
+                    ),
+                  },
+                  {
+                    key: "score",
+                    label: "Điểm",
+                    align: "center",
+                    render: (row) => (
+                      <span className="text-sm font-black tabular-nums text-primary">
+                        {speakingResultScore(row) === "—"
+                          ? "—"
+                          : formatBandScore(speakingResultScore(row))}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: "link",
+                    label: "Link đề",
+                    align: "center",
+                    render: (row) => <ExamLinkCell href={speakingResultExamLink(row)} />,
+                  },
+                ]}
+              />
             </Panel>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-              <Panel title="Chấm - Chữa Writing" className="h-full">
-                <div className="space-y-4">
+            <Panel title="Chấm - Chữa Writing" className="flex w-full flex-1 flex-col">
+                <div className="flex min-h-0 flex-1 flex-col gap-4">
                   <div className="flex flex-col gap-2">
                     <label className="text-[10px] font-black text-muted uppercase tracking-widest">Link bài làm (Google Docs)</label>
                     <div className="flex gap-2">
@@ -239,293 +324,110 @@ export default function HoTroTuHocPage() {
                         placeholder="Dán link Google Docs vào đây..."
                         className="flex-1 h-11 rounded-xl border border-zinc-200 bg-background px-4 text-xs font-medium focus:ring-2 focus:ring-primary/10 outline-none transition-all"
                       />
-                      <button 
+                      <button
+                        type="button"
                         onClick={() => {
-                          if(!writingLink) return;
-                          setSubmittedWriting({ link: writingLink, date: new Date().toLocaleDateString('vi-VN'), status: 'Chờ chấm' });
+                          if (!writingLink.trim()) return;
+                          const row = createWritingSubmission({
+                            studentId: student.id,
+                            examLink: writingLink.trim(),
+                          });
+                          saveWritingSubmissions([row, ...loadWritingSubmissions()]);
                           setWritingLink("");
                         }}
-                        className="px-4 h-11 bg-secondary text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-secondary/90 transition-all"
+                        className="h-11 rounded-xl bg-secondary px-4 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-secondary/90"
                       >
                         Gửi bài
                       </button>
                     </div>
                   </div>
 
-                  {submittedWriting && (
-                    <div className="mt-4 p-4 rounded-2xl bg-background border border-secondary/10">
-                      <div className="flex justify-between items-center">
-                        <div className="text-[11px] font-bold text-foreground truncate max-w-[200px]">{submittedWriting.link}</div>
-                        <span className="px-2 py-0.5 rounded-full bg-secondary/10 text-secondary text-[9px] font-black uppercase">{submittedWriting.status}</span>
-                      </div>
-                      <div className="mt-1 text-[10px] text-muted font-medium">Gửi ngày: {submittedWriting.date}</div>
-                    </div>
-                  )}
-
-                  <div className="mt-6 pt-6 border-t border-zinc-100">
-                    <div className="text-[10px] font-black text-muted uppercase tracking-widest mb-4">Kết quả chấm gần nhất</div>
-                    <div className="rounded-2xl border-2 border-secondary/20 bg-secondary/5 p-4 flex items-center justify-between">
-                      <div>
-                        <div className="text-xs font-bold text-foreground">Task 2: Education System</div>
-                        <div className="text-[10px] text-muted mt-1">Chấm ngày 10/05/2026</div>
-                      </div>
-                      <div className="text-2xl font-black text-secondary">6.5</div>
-                    </div>
-                  </div>
+                  <SelfStudyResultsTable<WritingSubmission>
+                    title="Bảng kết quả chấm Writing"
+                    emptyMessage="Chưa có bài nộp. Gửi link bài làm phía trên."
+                    getRowKey={(row) => row.id}
+                    rows={writingSubmissions}
+                    columns={[
+                      {
+                        key: "datetime",
+                        label: "Ngày giờ test",
+                        align: "center",
+                        width: "w-[128px]",
+                        render: (row) => (
+                          <span className="font-semibold tabular-nums text-foreground">
+                            {formatIsoDateTimeVi(row.testDateTime)}
+                          </span>
+                        ),
+                      },
+                      {
+                        key: "status",
+                        label: "Trạng thái",
+                        align: "center",
+                        width: "w-[96px]",
+                        render: (row) => (
+                          <StatusBadge
+                            label={writingStatusLabel(row.status)}
+                            tone={writingStatusTone(row.status)}
+                          />
+                        ),
+                      },
+                      {
+                        key: "score",
+                        label: "Điểm",
+                        align: "center",
+                        width: "w-[64px]",
+                        render: (row) => (
+                          <span className="text-sm font-black tabular-nums text-secondary">
+                            {row.score ? formatBandScore(row.score) : "—"}
+                          </span>
+                        ),
+                      },
+                      {
+                        key: "link",
+                        label: "Link đề",
+                        align: "center",
+                        width: "w-[88px]",
+                        render: (row) => (
+                          <a
+                            href={row.examLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-block max-w-full truncate font-semibold text-primary underline-offset-2 hover:underline"
+                          >
+                            Bài làm
+                          </a>
+                        ),
+                      },
+                      {
+                        key: "graded",
+                        label: "Ngày chấm",
+                        align: "center",
+                        width: "w-[128px]",
+                        render: (row) => (
+                          <span className="font-semibold tabular-nums text-muted">
+                            {row.gradedAt ? formatIsoDateTimeVi(row.gradedAt) : "—"}
+                          </span>
+                        ),
+                      },
+                    ]}
+                  />
                 </div>
-              </Panel>
-
-              <Panel title="Bảng điểm hỗ trợ tự học" className="h-full">
-                <div className="grid grid-cols-2 gap-4">
-                  {[
-                    { label: "Mock Test Speaking", score: "7.0", date: "05/05/2026", color: "text-primary", bg: "bg-primary/5" },
-                    { label: "Mock Test Writing", score: "6.0", date: "02/05/2026", color: "text-info", bg: "bg-info/5" },
-                    { label: "Writing Correction 1", score: "6.5", date: "10/05/2026", color: "text-secondary", bg: "bg-secondary/5" },
-                    { label: "Writing Correction 2", score: "—", date: "Pending", color: "text-muted", bg: "bg-background" },
-                  ].map((item, idx) => (
-                    <div key={idx} className={`p-4 rounded-2xl ${item.bg} border border-zinc-100 flex flex-col justify-between h-32`}>
-                      <div>
-                        <div className="text-[9px] font-black text-muted uppercase tracking-widest">{item.label}</div>
-                        <div className="text-[10px] text-muted mt-1 font-medium">{item.date}</div>
-                      </div>
-                      <div className={`text-3xl font-black ${item.color}`}>{item.score}</div>
-                    </div>
-                  ))}
-                </div>
-              </Panel>
-            </div>
+            </Panel>
           </div>
 
           {/* Right Column: Schedule */}
-          <div className="lg:col-span-4 flex flex-col">
-            <Panel title="Thời khóa biểu tự học" className="h-full">
-              <div className="space-y-8">
-                <div className="flex items-center justify-between p-4 bg-background rounded-2xl shadow-inner">
-                  <button onClick={() => changeMonth(-1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-muted hover:text-primary transition-all">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path d="M15 19l-7-7 7-7" /></svg>
-                  </button>
-                  <h3 className="text-xs font-black text-foreground uppercase tracking-widest">{months[viewDate.getMonth()]} {viewDate.getFullYear()}</h3>
-                  <button onClick={() => changeMonth(1)} className="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm text-muted hover:text-primary transition-all">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="3"><path d="M9 5l7 7-7 7" /></svg>
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-7 gap-2 mb-4">
-                  {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(day => (<div key={day} className="text-center text-[10px] font-black text-muted uppercase tracking-widest">{day}</div>))}
-                </div>
-
-                <div className="grid grid-cols-7 gap-2">
-                  {Array.from({ length: prevMonthPadding }).map((_, i) => (<div key={`pad-${i}`} className="h-8"></div>))}
-                  {Array.from({ length: daysInMonth }).map((_, i) => {
-                    const day = i + 1;
-                    const isApprovedMock = approvedTests.some(
-                      (t) =>
-                        t.day === day &&
-                        t.month === viewDate.getMonth() &&
-                        t.year === viewDate.getFullYear(),
-                    );
-                    const isToday = isSameCalendarDay(
-                      clientToday,
-                      day,
-                      viewDate.getMonth(),
-                      viewDate.getFullYear(),
-                    );
-                    const isPracticeDay = viewDate.getMonth() === 3 && practiceClassDays.includes(day);
-                    const isCourseDay = viewDate.getMonth() === 3 && mainCourseDays.includes(day);
-
-                    const isHighlighted = isPracticeDay || isCourseDay || isApprovedMock || isToday;
-                    const isSelected = selectedDay === day;
-                    return (
-                      <button
-                        type="button"
-                        key={day}
-                        onClick={() => {
-                          if (!isHighlighted) return;
-                          setSelectedDay((prev) => (prev === day ? null : day));
-                        }}
-                        className={`h-8 w-full flex items-center justify-center text-[11px] font-bold rounded-lg relative transition-all ${
-                          isSelected ? "ring-2 ring-primary/35" : ""
-                        } ${
-                          isToday
-                            ? 'bg-primary text-white shadow-premium scale-110 z-10'
-                            : isPracticeDay || isCourseDay
-                              ? 'bg-primary-soft text-primary shadow-sm'
-                              : isApprovedMock
-                                ? 'bg-secondary-soft text-secondary shadow-sm'
-                                : 'text-foreground/50'
-                        } ${isHighlighted ? "cursor-pointer" : "cursor-default"}`}
-                      >
-                        {day}
-                        {isApprovedMock && !isToday && <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-secondary rounded-full ring-2 ring-white"></div>}
-                        {(isPracticeDay || isCourseDay) && !isToday && <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full"></div>}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="pt-6 border-t border-background space-y-6">
-                  <h4 className="text-[10px] font-black text-muted uppercase tracking-widest flex items-center gap-2">
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                    Sự kiện & Nhắc hẹn
-                  </h4>
-                  <div className="rounded-xl border border-primary/10 bg-background/60 p-3">
-                    <div className="text-[10px] font-black text-muted uppercase tracking-widest">
-                      {selectedDay
-                        ? `Sự kiện ngày ${selectedDay} ${months[viewDate.getMonth()]}`
-                        : "Chọn ngày highlight để xem sự kiện"}
-                    </div>
-                    <div className="mt-2 space-y-2">
-                      {selectedDay ? (
-                        selectedDayEvents.length > 0 ? (
-                          selectedDayEvents.map((event, idx) => (
-                            <div key={`${event.type}-${idx}`} className="rounded-lg bg-white p-3">
-                              <div className="text-xs font-bold text-foreground">{event.label}</div>
-                              <div className="mt-1 text-[11px] text-muted">{event.detail}</div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="text-[11px] text-muted">
-                            Không có sự kiện được duyệt trong ngày này.
-                          </div>
-                        )
-                      ) : null}
-                    </div>
-                  </div>
-                  <div className="space-y-4">
-                    {approvedTests
-                      .filter(
-                        (t) =>
-                          t.month === viewDate.getMonth() &&
-                          t.year === viewDate.getFullYear(),
-                      )
-                      .map((test) => (
-                        <div key={test.id} className="flex items-center gap-4 p-4 bg-background rounded-2xl hover:bg-white hover:shadow-soft transition-all group">
-                          <div className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-white transition-all"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></div>
-                          <div>
-                            <div className="text-xs font-black text-foreground">{test.skill}</div>
-                            <div className="text-[10px] font-bold text-muted uppercase mt-1">Ngày {test.day} {months[test.month]} {test.year}</div>
-                            <div className="text-[10px] font-semibold text-secondary mt-0.5">
-                              Giờ {test.examTime ?? "—"} · {test.examTeacher ?? "GV —"}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    {approvedTests.filter(
-                      (t) =>
-                        t.month === viewDate.getMonth() &&
-                        t.year === viewDate.getFullYear(),
-                    ).length === 0 && pendingTests.filter(
-                      (t) =>
-                        t.month === viewDate.getMonth() &&
-                        t.year === viewDate.getFullYear(),
-                    ).length === 0 && (
-                      <div className="text-[10px] text-muted italic bg-background/50 p-4 rounded-xl text-center">Không có mock test đã duyệt trong tháng này. Yêu cầu đang chờ sẽ không hiện ở lịch.</div>
-                    )}
-                    {approvedTests.filter(
-                      (t) =>
-                        t.month === viewDate.getMonth() &&
-                        t.year === viewDate.getFullYear(),
-                    ).length === 0 && pendingTests.filter(
-                      (t) =>
-                        t.month === viewDate.getMonth() &&
-                        t.year === viewDate.getFullYear(),
-                    ).length > 0 && (
-                      <div className="text-[10px] font-medium text-warning bg-warning/10 p-3 rounded-xl border border-warning/20">Bạn có ca chờ ACA duyệt trong tháng này — chưa hiển thị trên lịch.</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </Panel>
+          <div className="lg:col-span-4 flex min-h-0 flex-col">
+            <StudentSchedulePanel schedule={schedule} title="Thời khoá biểu" className="h-full min-h-0" />
           </div>
         </div>
 
         <div className="mt-10 flex w-full flex-col gap-10">
-            <Panel title="Đăng ký Lớp luyện đề tập trung" className="w-full">
-              <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 bg-background p-6 rounded-3xl shadow-inner">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black text-muted uppercase tracking-widest px-1">Tháng</label>
-                  <Select
-                    value={regMonth.toString()}
-                    onChange={(v) => setRegMonth(parseInt(v))}
-                    options={months.map((m, i) => ({ value: i.toString(), label: m }))}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black text-muted uppercase tracking-widest px-1">Ngày</label>
-                  <Select
-                    value={regDay.toString()}
-                    onChange={(v) => setRegDay(parseInt(v))}
-                    options={Array.from({ length: daysInMonth }, (_, i) => ({
-                      value: (i + 1).toString(),
-                      label: `Ngày ${i + 1}`,
-                    }))}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black text-muted uppercase tracking-widest px-1">Giờ</label>
-                  <Select
-                    value={selectedHour}
-                    onChange={(v) => setSelectedHour(v)}
-                    options={Array.from({ length: 24 }, (_, i) => ({
-                      value: i.toString().padStart(2, "0"),
-                      label: i.toString().padStart(2, "0") + " h",
-                    }))}
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black text-muted uppercase tracking-widest px-1">Phút</label>
-                  <Select
-                    value={selectedMinute}
-                    onChange={(v) => setSelectedMinute(v)}
-                    options={["00", "15", "30", "45"].map((m) => ({
-                      value: m,
-                      label: m + " m",
-                    }))}
-                  />
-                </div>
-                <div className="flex items-end">
-                  <button 
-                    onClick={() => {
-                      const practiceRequests = myRequests.filter(r => r.skill === "Lớp luyện đề tập trung");
-                      
-                      const sameWeekRequests = practiceRequests.filter(r => 
-                        r.month === regMonth && 
-                        Math.abs(r.day - regDay) <= 6
-                      );
-
-                      if (sameWeekRequests.length >= 2) {
-                        alert("Bạn chỉ được đăng ký tối đa 2 buổi luyện đề mỗi tuần. Vui lòng chọn tuần khác hoặc liên hệ ACA.");
-                        return;
-                      }
-
-                      const fullTime = `${selectedHour}:${selectedMinute}`;
-                      const confirmReg = confirm(`Xác nhận đăng ký Lớp luyện đề tập trung ngày ${regDay}/${regMonth + 1} lúc ${fullTime}?`);
-                      if (confirmReg) {
-                         const row = createPendingRequest({
-                           studentId: DEMO_STUDENT.id,
-                           studentName: DEMO_STUDENT.name,
-                           skill: "Lớp luyện đề tập trung",
-                           day: regDay,
-                           month: regMonth,
-                           year: viewDate.getFullYear(),
-                           examTime: fullTime
-                         });
-                         saveMockTestRequests([...loadMockTestRequests(), row]);
-                         alert("Đăng ký thành công! Vui lòng chờ ACA duyệt.");
-                      }
-                    }}
-                    className="w-full h-11 rounded-2xl bg-primary text-[11px] font-black uppercase tracking-widest text-white hover:bg-primary/90 shadow-premium transition-all"
-                  >
-                    Đăng ký ngay
-                  </button>
-                </div>
-              </div>
-              <div className="mt-4 px-2">
-                <p className="text-[10px] text-muted font-medium italic">
-                  * Lưu ý: Mỗi học viên chỉ được đăng ký tối đa 02 buổi luyện đề/tuần để đảm bảo chất lượng giảng dạy.
-                </p>
-              </div>
-            </Panel>
+            <PracticeClassPanel
+              registeredSlotIds={registeredPracticeSlotIds}
+              onRegisterSlot={handleRegisterPracticeSlot}
+              onResetTest={handleResetPracticeTest}
+            />
+            {registeredPracticeSlotIds.size > 0 ? (
             <Panel title="Lớp luyện đề — Mock Test Scores" className="w-full">
               <div className="overflow-x-auto rounded-2xl border border-primary/10 bg-white">
                 <table className="w-full border-separate border-spacing-0">
@@ -559,8 +461,51 @@ export default function HoTroTuHocPage() {
                 </table>
               </div>
             </Panel>
+            ) : null}
         </div>
       </div>
+
+      <StudentDialog
+        open={dialog?.kind === "confirm-practice" && Boolean(pendingPracticeSlot)}
+        variant="confirm"
+        tone="info"
+        title="Xác nhận đăng ký buổi học"
+        cancelLabel="Huỷ"
+        confirmLabel="Đăng ký"
+        onClose={() => setDialog(null)}
+        onConfirm={confirmPracticeRegistration}
+      >
+        {pendingPracticeSlot ? (
+          <div className="rounded-xl border border-primary/10 bg-background/60 p-3 text-sm">
+            <div className="font-black text-foreground">
+              [{pendingPracticeSlot.dayLabel}]
+              {pendingPracticeSlot.dateNote ? ` ${pendingPracticeSlot.dateNote}` : ""}{" "}
+              {pendingPracticeSlot.time}
+            </div>
+            <div className="mt-1 font-bold text-foreground">{pendingPracticeSlot.title}</div>
+            <p className="mt-2 text-[12px] font-medium leading-relaxed text-muted">
+              Buổi này sẽ hiển thị trên <span className="font-bold text-foreground">Thời khoá biểu</span>{" "}
+              (mọi {pendingPracticeSlot.dayLabel} trong tháng đang xem).
+            </p>
+          </div>
+        ) : null}
+      </StudentDialog>
+
+      <StudentDialog
+        open={dialog?.kind === "success-practice"}
+        tone="success"
+        title="Đăng ký thành công"
+        message="Buổi học đã được thêm vào Thời khoá biểu. Chọn các ngày tương ứng trên lịch để xem chi tiết."
+        onClose={() => setDialog(null)}
+      />
+
+      <StudentDialog
+        open={dialog?.kind === "duplicate-mock"}
+        tone="warning"
+        title="Không thể đăng ký"
+        message="Bạn đã có đăng ký cho kỹ năng và ngày này. Vui lòng chọn ngày hoặc kỹ năng khác."
+        onClose={() => setDialog(null)}
+      />
     </StudentLayout>
   );
 }

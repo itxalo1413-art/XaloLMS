@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AuthGuardsModule } from '../auth/auth-guards.module';
+import { UsersModule } from '../users/users.module';
 import {
   StudentProfileStore,
   StudentProfileStoreSchema,
@@ -12,6 +14,8 @@ import { StudentProfileService } from './student-profile.service';
     MongooseModule.forFeature([
       { name: StudentProfileStore.name, schema: StudentProfileStoreSchema },
     ]),
+    AuthGuardsModule,
+    UsersModule,
   ],
   controllers: [StudentProfileController],
   providers: [StudentProfileService],

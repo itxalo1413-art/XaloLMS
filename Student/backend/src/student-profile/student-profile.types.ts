@@ -19,7 +19,7 @@ export type StudentProfile = {
   classEnvironment: (typeof STUDY_CLASS_ENVIRONMENT_OPTIONS)[number];
   ieltsMeaning: (typeof STUDY_IELTS_MEANING_OPTIONS)[number];
   previousBand: (typeof STUDY_PREVIOUS_BAND_OPTIONS)[number];
-  focusSkills: (typeof STUDY_FOCUS_SKILL_OPTIONS)[number];
+  focusSkills: (typeof STUDY_FOCUS_SKILL_OPTIONS)[number][];
 };
 
 export const DEFAULT_STUDENT_PROFILE: StudentProfile = {
@@ -34,5 +34,5 @@ export const DEFAULT_STUDENT_PROFILE: StudentProfile = {
   classEnvironment: STUDY_CLASS_ENVIRONMENT_OPTIONS[0],
   ieltsMeaning: STUDY_IELTS_MEANING_OPTIONS[0],
   previousBand: STUDY_PREVIOUS_BAND_OPTIONS[0],
-  focusSkills: STUDY_FOCUS_SKILL_OPTIONS[0],
+  focusSkills: [STUDY_FOCUS_SKILL_OPTIONS[0]],
 };

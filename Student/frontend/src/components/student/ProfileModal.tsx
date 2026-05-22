@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { AVATAR_IMAGE_ACCEPT, isAllowedAvatarImageFile } from "@/lib/avatarImage";
 import { type StudentProfile } from "@/lib/studentProfile";
 
 const SAMPLE_AVATARS = [
@@ -51,6 +52,11 @@ export function ProfileModal({
 
   const onPickFile = (file: File | null) => {
     if (!file) return;
+    if (!isAllowedAvatarImageFile(file)) {
+      window.alert("Chỉ chấp nhận ảnh: JPG, PNG, GIF, WebP, SVG.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
     setAttachedFileName(file.name);
     void onUploadAvatar(file);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -80,7 +86,7 @@ export function ProfileModal({
           <div>
             <div className="text-lg font-black text-foreground">Hồ sơ học viên</div>
             <div className="mt-1 text-xs font-medium text-muted">
-              Dữ liệu đang lưu tạm ở localStorage, có thể nối API sau.
+              Hồ sơ được lưu trên server theo tài khoản đăng nhập.
             </div>
           </div>
           <button
@@ -118,10 +124,10 @@ export function ProfileModal({
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-[10px] font-black uppercase tracking-widest text-muted">
-                  Ảnh hoặc file đính kèm
+                  Ảnh đại diện
                 </div>
                 <p className="mt-1 text-xs font-medium text-muted">
-                  Chọn ảnh mẫu bên dưới hoặc tải file từ máy (ảnh, PDF, Word, …).
+                  Chọn ảnh mẫu bên dưới hoặc tải ảnh từ máy (JPG, PNG, GIF, WebP, SVG).
                 </p>
                 {previewFileName ? (
                   <p className="mt-2 truncate text-xs font-bold text-foreground">
@@ -161,6 +167,7 @@ export function ProfileModal({
               <input
                 ref={fileInputRef}
                 type="file"
+                accept={AVATAR_IMAGE_ACCEPT}
                 className="hidden"
                 disabled={uploadPending || saving}
                 onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
@@ -176,10 +183,10 @@ export function ProfileModal({
                   <polyline points="17 8 12 3 7 8" />
                   <line x1="12" y1="3" x2="12" y2="15" />
                 </svg>
-                {uploadPending ? "Đang tải..." : "Tải ảnh hoặc file lên"}
+                {uploadPending ? "Đang tải..." : "Tải ảnh từ máy"}
               </button>
               <p className="mt-2 text-[10px] font-medium text-muted">
-                Hỗ trợ ảnh, PDF, Word và các định dạng khác.
+                JPG, PNG, GIF, WebP hoặc SVG — tối đa theo giới hạn của trình duyệt.
               </p>
             </div>
           </div>

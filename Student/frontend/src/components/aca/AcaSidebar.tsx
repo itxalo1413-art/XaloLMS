@@ -7,6 +7,7 @@ const nav = [
   { href: "/aca", label: "Dashboard", desc: "Tổng quan" },
   { href: "/aca/quan-ly/noi-dung", label: "Quản lý nội dung", desc: "Duyệt & metadata" },
   { href: "/aca/quan-ly/mock-test", label: "Mock Test", desc: "Duyệt lịch & GV" },
+  { href: "/aca/quan-ly/lop-luyen-de", label: "Lớp luyện đề", desc: "Lịch tuần" },
   { href: "/aca/quan-ly/nguoi-dung", label: "Người dùng", desc: "Tài khoản & quyền" },
   { href: "/aca/phan-tich", label: "Phân tích", desc: "Báo cáo & lọc" },
   { href: "/aca/he-thong", label: "Hệ thống", desc: "Danh mục & kiểm soát" },

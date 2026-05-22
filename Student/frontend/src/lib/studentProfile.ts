@@ -1,6 +1,6 @@
+import { normalizeFocusSkills, type FocusSkill } from "@/lib/focusSkills";
 import {
   STUDY_CLASS_ENVIRONMENT_OPTIONS,
-  STUDY_FOCUS_SKILL_OPTIONS,
   STUDY_IELTS_MEANING_OPTIONS,
   STUDY_METHOD_OPTIONS,
   STUDY_PREVIOUS_BAND_OPTIONS,
@@ -19,7 +19,7 @@ export type StudentProfile = {
   classEnvironment: (typeof STUDY_CLASS_ENVIRONMENT_OPTIONS)[number];
   ieltsMeaning: (typeof STUDY_IELTS_MEANING_OPTIONS)[number];
   previousBand: (typeof STUDY_PREVIOUS_BAND_OPTIONS)[number];
-  focusSkills: (typeof STUDY_FOCUS_SKILL_OPTIONS)[number];
+  focusSkills: FocusSkill[];
 };
 
 export const STUDENT_PROFILE_STORAGE_KEY = "xalo.student.profile.v1";
@@ -36,7 +36,7 @@ export const DEFAULT_STUDENT_PROFILE: StudentProfile = {
   classEnvironment: STUDY_CLASS_ENVIRONMENT_OPTIONS[0],
   ieltsMeaning: STUDY_IELTS_MEANING_OPTIONS[0],
   previousBand: STUDY_PREVIOUS_BAND_OPTIONS[0],
-  focusSkills: STUDY_FOCUS_SKILL_OPTIONS[0],
+  focusSkills: ["Listening"],
 };
 
 export function loadStudentProfileFromStorage(): StudentProfile {
@@ -45,7 +45,9 @@ export function loadStudentProfileFromStorage(): StudentProfile {
     const raw = localStorage.getItem(STUDENT_PROFILE_STORAGE_KEY);
     if (!raw) return DEFAULT_STUDENT_PROFILE;
     const parsed = JSON.parse(raw) as Partial<StudentProfile>;
-    return { ...DEFAULT_STUDENT_PROFILE, ...parsed };
+    const merged = { ...DEFAULT_STUDENT_PROFILE, ...parsed };
+    merged.focusSkills = normalizeFocusSkills(parsed.focusSkills ?? merged.focusSkills);
+    return merged;
   } catch {
     return DEFAULT_STUDENT_PROFILE;
   }
