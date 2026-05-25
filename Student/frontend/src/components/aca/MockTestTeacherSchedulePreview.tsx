@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   loadMockTestRequests,
-  type MockTestRequest,
   MOCK_TEST_UPDATE_EVENT,
+  refreshMockTestRequestsForAca,
+  type MockTestRequest,
 } from "@/lib/mockTestRequests";
 import { MOCK_TEST_TEACHER_OPTIONS } from "@/lib/mockTestTeacherNames";
 import { NativeSelectChevron } from "@/components/student/ui";
@@ -47,7 +48,9 @@ export function MockTestTeacherSchedulePreview() {
   );
 
   const sync = useCallback(() => {
-    setRows(loadMockTestRequests());
+    void refreshMockTestRequestsForAca().then(() => {
+      setRows(loadMockTestRequests());
+    });
   }, []);
 
   useEffect(() => {

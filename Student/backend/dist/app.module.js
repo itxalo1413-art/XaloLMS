@@ -14,6 +14,9 @@ const app_service_1 = require("./app.service");
 const aca_module_1 = require("./aca/aca.module");
 const auth_module_1 = require("./auth/auth.module");
 const database_module_1 = require("./database/database.module");
+const cloudinary_module_1 = require("./cloudinary/cloudinary.module");
+const mock_test_module_1 = require("./mock-test/mock-test.module");
+const practice_class_module_1 = require("./practice-class/practice-class.module");
 const student_profile_module_1 = require("./student-profile/student-profile.module");
 const users_module_1 = require("./users/users.module");
 let AppModule = class AppModule {
@@ -23,11 +26,14 @@ exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
             config_1.ConfigModule.forRoot({ isGlobal: true }),
+            cloudinary_module_1.CloudinaryModule,
             database_module_1.DatabaseModule,
             users_module_1.UsersModule,
             auth_module_1.AuthModule,
             aca_module_1.AcaModule,
             student_profile_module_1.StudentProfileModule,
+            practice_class_module_1.PracticeClassModule,
+            mock_test_module_1.MockTestModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

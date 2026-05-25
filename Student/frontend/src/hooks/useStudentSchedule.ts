@@ -17,10 +17,13 @@ import {
   hasRegisteredPracticeOnCalendarDay,
   PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT,
   PRACTICE_CLASS_UPDATE_EVENT,
+  refreshPracticeRegistrations,
+  refreshPracticeScheduleForStudent,
 } from "@/lib/practiceClass";
 import {
   loadMockTestRequests,
   MOCK_TEST_UPDATE_EVENT,
+  refreshMockTestRequestsForStudent,
   type MockTestRequest,
 } from "@/lib/mockTestRequests";
 import {
@@ -39,12 +42,17 @@ export function useStudentSchedule() {
   const [practiceSlotVersion, setPracticeSlotVersion] = useState(0);
 
   const syncRequests = useCallback(() => {
-    setRequests(loadMockTestRequests());
-  }, []);
+    void refreshMockTestRequestsForStudent(student.id).then((rows) => {
+      setRequests(rows);
+    });
+  }, [student.id]);
 
   const syncPracticeSlots = useCallback(() => {
-    setPracticeSlotVersion((v) => v + 1);
-  }, []);
+    void Promise.all([
+      refreshPracticeScheduleForStudent(),
+      refreshPracticeRegistrations(student.id),
+    ]).finally(() => setPracticeSlotVersion((v) => v + 1));
+  }, [student.id]);
 
   useEffect(() => {
     let cancelled = false;

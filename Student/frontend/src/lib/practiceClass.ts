@@ -1,6 +1,20 @@
-/** Lớp luyện đề tập trung — lịch tuần do ACA cập nhật (demo localStorage). */
+/** Lớp luyện đề tập trung — lịch tuần (API) + fallback localStorage khi chưa đăng nhập. */
 
-import { loadMockTestRequests, saveMockTestRequests } from "@/lib/mockTestRequests";
+import {
+  applyMockTestCache,
+  loadMockTestRequests,
+  MOCK_TEST_UPDATE_EVENT,
+} from "@/lib/mockTestRequests";
+import {
+  canUsePracticeClassApi,
+  fetchPracticeRegistrations,
+  fetchPracticeScheduleForAca,
+  fetchPracticeScheduleForStudent,
+  registerPracticeSlotApi,
+  savePracticeScheduleForAca,
+  unregisterPracticeSlotApi,
+  type PracticeScheduleResponse,
+} from "@/lib/practiceClassApi";
 
 export const PRACTICE_CLASS_SKILL = "Lớp luyện đề tập trung";
 
@@ -18,7 +32,6 @@ export type PracticeClassSlot = {
   title: string;
   detail: string;
   platform: string;
-  /** Ngày cụ thể trong tuần (vd. 18/05) — ACA cập nhật mỗi tuần */
   dateNote?: string;
 };
 
@@ -55,9 +68,6 @@ const DEFAULT_PRACTICE_CLASS_WEEKLY_SCHEDULE: PracticeClassSlot[] = [
   },
 ];
 
-/** @deprecated Dùng `getPracticeWeeklySchedule()` */
-export const PRACTICE_CLASS_WEEKLY_SCHEDULE = DEFAULT_PRACTICE_CLASS_WEEKLY_SCHEDULE;
-
 export type PracticeSlotScheduleOverride = {
   dayLabel: string;
   time: string;
@@ -83,17 +93,41 @@ const SCHEDULE_KEY = "xalo.aca.practiceClassWeeklySchedule.v1";
 export const PRACTICE_CLASS_UPDATE_EVENT = "xalo-practice-class-updated";
 export const PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT = "xalo-practice-class-schedule-updated";
 
+let scheduleCache: PracticeClassSlot[] = DEFAULT_PRACTICE_CLASS_WEEKLY_SCHEDULE.map((s) => ({
+  ...s,
+}));
+let weekRangeLabelCache = "";
+let scheduleUpdatedAtCache: string | null = null;
+let registrationsCache: PracticeSlotRegistration[] = [];
+
 function dispatchPracticeEvents() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new Event(PRACTICE_CLASS_UPDATE_EVENT));
   window.dispatchEvent(new Event(PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT));
 }
 
+export function applyPracticeScheduleCache(res: PracticeScheduleResponse) {
+  scheduleCache = res.slots;
+  weekRangeLabelCache = res.weekRangeLabel?.trim() ?? "";
+  scheduleUpdatedAtCache = res.updatedAt;
+}
+
+export function applyPracticeRegistrationsCache(
+  studentId: string,
+  rows: { slotId: PracticeSlotId; registeredAt: string }[],
+) {
+  registrationsCache = rows.map((r) => ({
+    studentId,
+    slotId: r.slotId,
+    registeredAt: r.registeredAt,
+  }));
+}
+
 export function getDefaultPracticeWeeklySchedule(): PracticeClassSlot[] {
   return DEFAULT_PRACTICE_CLASS_WEEKLY_SCHEDULE.map((s) => ({ ...s }));
 }
 
-export function loadPracticeScheduleStore(): PracticeClassScheduleStore | null {
+function loadPracticeScheduleStoreLocal(): PracticeClassScheduleStore | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(SCHEDULE_KEY);
@@ -106,9 +140,9 @@ export function loadPracticeScheduleStore(): PracticeClassScheduleStore | null {
   }
 }
 
-export function getPracticeWeeklySchedule(): PracticeClassSlot[] {
-  const store = loadPracticeScheduleStore();
-  return DEFAULT_PRACTICE_CLASS_WEEKLY_SCHEDULE.map((base) => {
+function mergeScheduleFromLocalStore(): PracticeScheduleResponse {
+  const store = loadPracticeScheduleStoreLocal();
+  const slots = DEFAULT_PRACTICE_CLASS_WEEKLY_SCHEDULE.map((base) => {
     const override = store?.slots[base.id];
     if (!override) return { ...base };
     return {
@@ -118,18 +152,67 @@ export function getPracticeWeeklySchedule(): PracticeClassSlot[] {
       dateNote: override.dateNote?.trim() || undefined,
     };
   });
+  return {
+    weekRangeLabel: store?.weekRangeLabel?.trim() ?? "",
+    updatedAt: store?.updatedAt ?? null,
+    slots,
+  };
+}
+
+export function getPracticeWeeklySchedule(): PracticeClassSlot[] {
+  return scheduleCache;
 }
 
 export function getPracticeWeekRangeLabel(): string | null {
-  const label = loadPracticeScheduleStore()?.weekRangeLabel?.trim();
+  const label = weekRangeLabelCache.trim();
   return label || null;
 }
 
-export function savePracticeScheduleFromAca(
+export function getPracticeScheduleUpdatedAt(): string | null {
+  return scheduleUpdatedAtCache;
+}
+
+export async function refreshPracticeScheduleForStudent(): Promise<PracticeScheduleResponse> {
+  if (canUsePracticeClassApi()) {
+    try {
+      const res = await fetchPracticeScheduleForStudent();
+      applyPracticeScheduleCache(res);
+      dispatchPracticeEvents();
+      return res;
+    } catch {
+      // fall through to local
+    }
+  }
+  const local = mergeScheduleFromLocalStore();
+  applyPracticeScheduleCache(local);
+  return local;
+}
+
+export async function refreshPracticeScheduleForAca(): Promise<PracticeScheduleResponse> {
+  if (canUsePracticeClassApi()) {
+    const res = await fetchPracticeScheduleForAca();
+    applyPracticeScheduleCache(res);
+    dispatchPracticeEvents();
+    return res;
+  }
+  const local = mergeScheduleFromLocalStore();
+  applyPracticeScheduleCache(local);
+  return local;
+}
+
+export async function savePracticeScheduleFromAca(
   weekRangeLabel: string,
   slotDrafts: Record<PracticeSlotId, PracticeSlotScheduleOverride>,
-): void {
-  if (typeof window === "undefined") return;
+): Promise<PracticeScheduleResponse> {
+  if (canUsePracticeClassApi()) {
+    const res = await savePracticeScheduleForAca(weekRangeLabel, slotDrafts);
+    applyPracticeScheduleCache(res);
+    dispatchPracticeEvents();
+    return res;
+  }
+  if (typeof window === "undefined") {
+    return mergeScheduleFromLocalStore();
+  }
   const slots = {} as Record<PracticeSlotId, PracticeSlotScheduleOverride>;
   for (const id of PRACTICE_SLOT_IDS) {
     const d = slotDrafts[id];
@@ -146,10 +229,13 @@ export function savePracticeScheduleFromAca(
     slots,
   };
   localStorage.setItem(SCHEDULE_KEY, JSON.stringify(store));
+  const merged = mergeScheduleFromLocalStore();
+  applyPracticeScheduleCache(merged);
   dispatchPracticeEvents();
+  return merged;
 }
 
-export function loadPracticeSlotRegistrations(): PracticeSlotRegistration[] {
+function loadPracticeSlotRegistrationsLocal(): PracticeSlotRegistration[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(REGISTRATIONS_KEY);
@@ -161,8 +247,27 @@ export function loadPracticeSlotRegistrations(): PracticeSlotRegistration[] {
   }
 }
 
+export async function refreshPracticeRegistrations(
+  studentId: string,
+): Promise<PracticeSlotRegistration[]> {
+  if (canUsePracticeClassApi()) {
+    try {
+      const { registrations } = await fetchPracticeRegistrations();
+      applyPracticeRegistrationsCache(studentId, registrations);
+      dispatchPracticeEvents();
+      return registrationsCache;
+    } catch {
+      // fall through
+    }
+  }
+  registrationsCache = loadPracticeSlotRegistrationsLocal().filter(
+    (r) => r.studentId === studentId,
+  );
+  return registrationsCache;
+}
+
 export function getPracticeSlotsForStudent(studentId: string): PracticeSlotRegistration[] {
-  return loadPracticeSlotRegistrations().filter((r) => r.studentId === studentId);
+  return registrationsCache.filter((r) => r.studentId === studentId);
 }
 
 export function isPracticeSlotRegistered(
@@ -172,45 +277,87 @@ export function isPracticeSlotRegistered(
   return getPracticeSlotsForStudent(studentId).some((r) => r.slotId === slotId);
 }
 
-/** Xóa đăng ký buổi luyện đề (demo / test). */
 export function clearPracticeClassRegistrations(studentId?: string): void {
   if (typeof window === "undefined") return;
   if (studentId) {
-    const next = loadPracticeSlotRegistrations().filter((r) => r.studentId !== studentId);
-    localStorage.setItem(REGISTRATIONS_KEY, JSON.stringify(next));
+    const all = loadPracticeSlotRegistrationsLocal().filter((r) => r.studentId !== studentId);
+    localStorage.setItem(REGISTRATIONS_KEY, JSON.stringify(all));
+    registrationsCache = registrationsCache.filter((r) => r.studentId !== studentId);
   } else {
     localStorage.removeItem(REGISTRATIONS_KEY);
+    registrationsCache = [];
   }
   localStorage.removeItem(LEGACY_REGISTRATION_KEY);
   dispatchPracticeEvents();
 }
 
-/** Reset đăng ký lớp luyện đề + yêu cầu mock test phát sinh khi đăng ký (test). */
 export function resetPracticeClassTestState(studentId: string): void {
   if (typeof window === "undefined") return;
   clearPracticeClassRegistrations(studentId);
   const next = loadMockTestRequests().filter(
     (r) => r.studentId !== studentId || !r.skill.startsWith(PRACTICE_CLASS_SKILL),
   );
-  saveMockTestRequests(next);
+  applyMockTestCache(next);
+  try {
+    localStorage.setItem("lms_mock_test_requests_v1", JSON.stringify(next));
+  } catch {
+    // ignore
+  }
+  window.dispatchEvent(new Event(MOCK_TEST_UPDATE_EVENT));
 }
 
-export function registerPracticeSlot(studentId: string, slotId: PracticeSlotId): void {
-  if (typeof window === "undefined") return;
+function registerPracticeSlotLocal(studentId: string, slotId: PracticeSlotId): void {
   if (isPracticeSlotRegistered(studentId, slotId)) return;
-  const next = [
-    ...loadPracticeSlotRegistrations(),
-    { studentId, slotId, registeredAt: new Date().toISOString() },
-  ];
+  const row: PracticeSlotRegistration = {
+    studentId,
+    slotId,
+    registeredAt: new Date().toISOString(),
+  };
+  const next = [...loadPracticeSlotRegistrationsLocal(), row];
   localStorage.setItem(REGISTRATIONS_KEY, JSON.stringify(next));
-  window.dispatchEvent(new Event(PRACTICE_CLASS_UPDATE_EVENT));
+  registrationsCache = [...registrationsCache.filter((r) => r.studentId !== studentId), ...next.filter((r) => r.studentId === studentId)];
+  dispatchPracticeEvents();
+}
+
+function unregisterPracticeSlotLocal(studentId: string, slotId: PracticeSlotId): void {
+  const next = loadPracticeSlotRegistrationsLocal().filter(
+    (r) => !(r.studentId === studentId && r.slotId === slotId),
+  );
+  localStorage.setItem(REGISTRATIONS_KEY, JSON.stringify(next));
+  registrationsCache = registrationsCache.filter(
+    (r) => !(r.studentId === studentId && r.slotId === slotId),
+  );
+  dispatchPracticeEvents();
+}
+
+export async function registerPracticeSlot(
+  studentId: string,
+  slotId: PracticeSlotId,
+): Promise<void> {
+  if (canUsePracticeClassApi()) {
+    await registerPracticeSlotApi(slotId);
+    await refreshPracticeRegistrations(studentId);
+    return;
+  }
+  registerPracticeSlotLocal(studentId, slotId);
+}
+
+export async function unregisterPracticeSlot(
+  studentId: string,
+  slotId: PracticeSlotId,
+): Promise<void> {
+  if (canUsePracticeClassApi()) {
+    await unregisterPracticeSlotApi(slotId);
+    await refreshPracticeRegistrations(studentId);
+    return;
+  }
+  unregisterPracticeSlotLocal(studentId, slotId);
 }
 
 export function getPracticeSlotById(slotId: PracticeSlotId): PracticeClassSlot | undefined {
   return getPracticeWeeklySchedule().find((s) => s.id === slotId);
 }
 
-/** Các buổi luyện đề đã đăng ký rơi vào ngày `day` trong tháng đang xem. */
 export function getRegisteredPracticeSlotsOnCalendarDay(
   studentId: string,
   day: number,
@@ -231,4 +378,14 @@ export function hasRegisteredPracticeOnCalendarDay(
   year: number,
 ): boolean {
   return getRegisteredPracticeSlotsOnCalendarDay(studentId, day, month, year).length > 0;
+}
+
+/** Khởi tạo cache từ local (SSR / lần đầu). */
+export function initPracticeClassCacheFromLocal(): void {
+  applyPracticeScheduleCache(mergeScheduleFromLocalStore());
+  registrationsCache = loadPracticeSlotRegistrationsLocal();
+}
+
+if (typeof window !== "undefined") {
+  initPracticeClassCacheFromLocal();
 }

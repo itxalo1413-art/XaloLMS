@@ -17,11 +17,9 @@ import { formatBandScore } from "@/lib/formatBandScore";
 import { getDaysInMonth } from "@/lib/courseSchedule";
 import type { MockTestRequest } from "@/lib/mockTestRequests";
 import {
-  createPendingRequest,
+  createMockTestRequest,
   hasDuplicateSlot,
-  loadMockTestRequests,
   removeMockTestRequest,
-  saveMockTestRequests,
 } from "@/lib/mockTestRequests";
 import {
   formatIsoDateTimeVi,
@@ -42,8 +40,10 @@ import {
   getPracticeSlotsForStudent,
   PRACTICE_CLASS_SKILL,
   PRACTICE_CLASS_UPDATE_EVENT,
+  refreshPracticeRegistrations,
   registerPracticeSlot,
   resetPracticeClassTestState,
+  unregisterPracticeSlot,
   type PracticeSlotId,
 } from "@/lib/practiceClass";
 import {
@@ -58,7 +58,8 @@ import {
 type PageDialog =
   | { kind: "confirm-practice"; slotId: PracticeSlotId }
   | { kind: "success-practice" }
-  | { kind: "duplicate-mock" };
+  | { kind: "duplicate-mock" }
+  | { kind: "alert"; message: string };
 
 export default function HoTroTuHocPage() {
   const router = useRouter();
@@ -77,8 +78,10 @@ export default function HoTroTuHocPage() {
   const student = getStudentIdentity();
 
   const bumpPracticeSlots = useCallback(() => {
-    setPracticeSlotVersion((v) => v + 1);
-  }, []);
+    void refreshPracticeRegistrations(student.id).finally(() =>
+      setPracticeSlotVersion((v) => v + 1),
+    );
+  }, [student.id]);
 
   const registeredPracticeSlotIds = useMemo(
     () => new Set(getPracticeSlotsForStudent(student.id).map((r) => r.slotId)),
@@ -123,27 +126,47 @@ export default function HoTroTuHocPage() {
     setDialog({ kind: "confirm-practice", slotId });
   };
 
-  const confirmPracticeRegistration = () => {
+  const confirmPracticeRegistration = async () => {
     if (dialog?.kind !== "confirm-practice") return;
     const slot = getPracticeSlotById(dialog.slotId);
     if (!slot) {
       setDialog(null);
       return;
     }
-    registerPracticeSlot(student.id, dialog.slotId);
-    const now = new Date();
-    const row = createPendingRequest({
-      studentId: student.id,
-      studentName: student.name,
-      skill: `${PRACTICE_CLASS_SKILL} · ${slot.title}`,
-      day: now.getDate(),
-      month: now.getMonth(),
-      year: now.getFullYear(),
-      examTime: `${slot.dayLabel} ${slot.time}`,
-    });
-    saveMockTestRequests([...loadMockTestRequests(), row]);
-    bumpPracticeSlots();
-    setDialog({ kind: "success-practice" });
+    try {
+      await registerPracticeSlot(student.id, dialog.slotId);
+      const now = new Date();
+      await createMockTestRequest({
+        studentId: student.id,
+        studentName: student.name,
+        skill: `${PRACTICE_CLASS_SKILL} · ${slot.title}`,
+        day: now.getDate(),
+        month: now.getMonth(),
+        year: now.getFullYear(),
+        examTime: `${slot.dayLabel} ${slot.time}`,
+      });
+      bumpPracticeSlots();
+      setDialog({ kind: "success-practice" });
+    } catch (err) {
+      setDialog({
+        kind: "alert",
+        message:
+          err instanceof Error ? err.message : "Không đăng ký được. Thử lại sau.",
+      });
+    }
+  };
+
+  const handleUnregisterPracticeSlot = async (slotId: PracticeSlotId) => {
+    try {
+      await unregisterPracticeSlot(student.id, slotId);
+      bumpPracticeSlots();
+    } catch (err) {
+      setDialog({
+        kind: "alert",
+        message:
+          err instanceof Error ? err.message : "Không huỷ đăng ký được. Thử lại sau.",
+      });
+    }
   };
 
   const pendingPracticeSlot =
@@ -156,27 +179,40 @@ export default function HoTroTuHocPage() {
     return rows.length > 0 ? rows : getDemoSpeakingMockTests(student.id, student.name);
   }, [myRequests, student.id, student.name]);
 
-  const registerMockTest = () => {
+  const registerMockTest = async () => {
     if (hasDuplicateSlot(student.id, regSkill, regDay, regMonth, year)) {
       setDialog({ kind: "duplicate-mock" });
       return;
     }
-    const row = createPendingRequest({
-      studentId: student.id,
-      studentName: student.name,
-      skill: regSkill,
-      day: regDay,
-      month: regMonth,
-      year,
-      examTime: regTime,
-    });
-    saveMockTestRequests([...loadMockTestRequests(), row]);
+    try {
+      await createMockTestRequest({
+        studentId: student.id,
+        studentName: student.name,
+        skill: regSkill,
+        day: regDay,
+        month: regMonth,
+        year,
+        examTime: regTime,
+      });
+    } catch (err) {
+      setDialog({
+        kind: "alert",
+        message:
+          err instanceof Error ? err.message : "Không đăng ký được mock test.",
+      });
+    }
   };
 
-  const cancelPendingRequest = (id: string) => {
-    const row = loadMockTestRequests().find((t) => t.id === id);
-    if (row?.status !== "pending") return;
-    removeMockTestRequest(id);
+  const cancelPendingRequest = async (id: string) => {
+    try {
+      await removeMockTestRequest(id, student.id);
+    } catch (err) {
+      setDialog({
+        kind: "alert",
+        message:
+          err instanceof Error ? err.message : "Không huỷ được yêu cầu.",
+      });
+    }
   };
 
   return (
@@ -237,7 +273,7 @@ export default function HoTroTuHocPage() {
                   </NativeSelectChevron>
                 </div>
                 <div className="flex items-end sm:col-span-4">
-                  <button onClick={registerMockTest} className="w-full h-11 bg-primary text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all">
+                  <button type="button" onClick={() => void registerMockTest()} className="w-full h-11 bg-primary text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all">
                     Đăng ký
                   </button>
                 </div>
@@ -255,7 +291,7 @@ export default function HoTroTuHocPage() {
                       </div>
                       <div className="mt-1 text-[10px] font-bold text-warning uppercase">Chờ ACA duyệt</div>
                     </div>
-                    <button onClick={() => cancelPendingRequest(test.id)} className="text-[10px] font-black uppercase text-secondary hover:underline">
+                    <button type="button" onClick={() => void cancelPendingRequest(test.id)} className="text-[10px] font-black uppercase text-secondary hover:underline">
                       Hủy
                     </button>
                   </div>
@@ -425,6 +461,7 @@ export default function HoTroTuHocPage() {
             <PracticeClassPanel
               registeredSlotIds={registeredPracticeSlotIds}
               onRegisterSlot={handleRegisterPracticeSlot}
+              onUnregisterSlot={handleUnregisterPracticeSlot}
               onResetTest={handleResetPracticeTest}
             />
             {registeredPracticeSlotIds.size > 0 ? (
@@ -504,6 +541,14 @@ export default function HoTroTuHocPage() {
         tone="warning"
         title="Không thể đăng ký"
         message="Bạn đã có đăng ký cho kỹ năng và ngày này. Vui lòng chọn ngày hoặc kỹ năng khác."
+        onClose={() => setDialog(null)}
+      />
+
+      <StudentDialog
+        open={dialog?.kind === "alert"}
+        tone="warning"
+        title="Thông báo"
+        message={dialog?.kind === "alert" ? dialog.message : ""}
         onClose={() => setDialog(null)}
       />
     </StudentLayout>

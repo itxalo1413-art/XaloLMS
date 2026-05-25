@@ -7,12 +7,14 @@ import { PRACTICE_CLASS_DESCRIPTION, type PracticeSlotId } from "@/lib/practiceC
 type PracticeClassPanelProps = {
   registeredSlotIds: Set<PracticeSlotId>;
   onRegisterSlot: (slotId: PracticeSlotId) => void;
+  onUnregisterSlot?: (slotId: PracticeSlotId) => void;
   onResetTest?: () => void;
 };
 
 export function PracticeClassPanel({
   registeredSlotIds,
   onRegisterSlot,
+  onUnregisterSlot,
   onResetTest,
 }: PracticeClassPanelProps) {
   const { slots, weekRangeLabel } = usePracticeWeeklySchedule();
@@ -74,9 +76,20 @@ export function PracticeClassPanel({
                   </div>
                   <div className="shrink-0 sm:pt-1">
                     {registered ? (
-                      <span className="inline-flex rounded-full bg-success/10 px-3 py-1.5 text-[10px] font-black uppercase text-success">
-                        Đã đăng ký · trên lịch
-                      </span>
+                      <div className="flex flex-col items-stretch gap-2 sm:items-end">
+                        <span className="inline-flex rounded-full bg-success/10 px-3 py-1.5 text-[10px] font-black uppercase text-success">
+                          Đã đăng ký · trên lịch
+                        </span>
+                        {onUnregisterSlot ? (
+                          <button
+                            type="button"
+                            onClick={() => onUnregisterSlot(slot.id)}
+                            className="text-[10px] font-bold uppercase tracking-wide text-muted underline-offset-2 hover:text-danger hover:underline"
+                          >
+                            Huỷ đăng ký
+                          </button>
+                        ) : null}
+                      </div>
                     ) : (
                       <button
                         type="button"

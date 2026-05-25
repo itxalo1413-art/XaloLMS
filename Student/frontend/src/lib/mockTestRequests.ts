@@ -1,7 +1,16 @@
 /**
- * Demo: chia sẻ yêu cầu Mock Test giữa Student và ACA qua localStorage.
- * Production: thay bằng API.
+ * Mock Test — API + fallback localStorage khi chưa đăng nhập.
  */
+
+import {
+  approveMockTestApi,
+  canUseMockTestApi,
+  cancelMockTestApi,
+  createMockTestApi,
+  fetchMockTestsForAca,
+  fetchMockTestsForStudent,
+  rejectMockTestApi,
+} from "@/lib/mockTestApi";
 
 export type MockTestRequestStatus = "pending" | "approved" | "rejected";
 
@@ -18,9 +27,7 @@ export type MockTestRequest = {
   examTime?: string;
   examTeacher?: string;
   reviewedAt?: string;
-  /** Band điểm sau khi chấm (demo / API). */
   score?: string;
-  /** Link đề / tài liệu buổi test. */
   examLink?: string;
 };
 
@@ -32,6 +39,13 @@ export const DEMO_STUDENT = {
   name: "Dương Ngọc Khôi Nguyên",
 };
 
+let requestsCache: MockTestRequest[] = [];
+
+function dispatchMockTestUpdate() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(MOCK_TEST_UPDATE_EVENT));
+}
+
 function parse(raw: string | null): MockTestRequest[] {
   if (!raw) return [];
   try {
@@ -42,15 +56,59 @@ function parse(raw: string | null): MockTestRequest[] {
   }
 }
 
-export function loadMockTestRequests(): MockTestRequest[] {
+function loadLocal(): MockTestRequest[] {
   if (typeof window === "undefined") return [];
   return parse(window.localStorage.getItem(MOCK_TEST_STORAGE_KEY));
 }
 
-export function saveMockTestRequests(rows: MockTestRequest[]) {
+function saveLocal(rows: MockTestRequest[]) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(MOCK_TEST_STORAGE_KEY, JSON.stringify(rows));
-  window.dispatchEvent(new Event(MOCK_TEST_UPDATE_EVENT));
+  requestsCache = rows;
+  dispatchMockTestUpdate();
+}
+
+export function applyMockTestCache(rows: MockTestRequest[]) {
+  requestsCache = rows;
+}
+
+export function loadMockTestRequests(): MockTestRequest[] {
+  return requestsCache;
+}
+
+export async function refreshMockTestRequestsForStudent(
+  studentId: string,
+): Promise<MockTestRequest[]> {
+  if (canUseMockTestApi()) {
+    try {
+      const rows = await fetchMockTestsForStudent();
+      applyMockTestCache(rows);
+      dispatchMockTestUpdate();
+      return rows;
+    } catch {
+      // fall through
+    }
+  }
+  const local = loadLocal().filter((r) => r.studentId === studentId);
+  applyMockTestCache(loadLocal());
+  return local;
+}
+
+export async function refreshMockTestRequestsForAca(): Promise<MockTestRequest[]> {
+  if (canUseMockTestApi()) {
+    const rows = await fetchMockTestsForAca("all");
+    applyMockTestCache(rows);
+    dispatchMockTestUpdate();
+    return rows;
+  }
+  const local = loadLocal();
+  applyMockTestCache(local);
+  return local;
+}
+
+/** @deprecated Dùng cache sau refresh — giữ tên cho tương thích */
+export function saveMockTestRequests(rows: MockTestRequest[]) {
+  saveLocal(rows);
 }
 
 export function upsertMockTestRequest(row: MockTestRequest) {
@@ -58,11 +116,16 @@ export function upsertMockTestRequest(row: MockTestRequest) {
   const i = all.findIndex((r) => r.id === row.id);
   if (i === -1) all.push(row);
   else all[i] = row;
-  saveMockTestRequests(all);
+  saveLocal(all);
 }
 
-export function removeMockTestRequest(id: string) {
-  saveMockTestRequests(loadMockTestRequests().filter((r) => r.id !== id));
+export async function removeMockTestRequest(id: string, studentId?: string): Promise<void> {
+  if (canUseMockTestApi()) {
+    await cancelMockTestApi(id);
+    if (studentId) await refreshMockTestRequestsForStudent(studentId);
+    return;
+  }
+  saveLocal(loadLocal().filter((r) => r.id !== id));
 }
 
 export function hasDuplicateSlot(
@@ -101,4 +164,74 @@ export function createPendingRequest(input: {
     status: "pending",
     requestedAt: new Date().toISOString(),
   };
+}
+
+export async function createMockTestRequest(input: {
+  studentId: string;
+  studentName: string;
+  skill: string;
+  day: number;
+  month: number;
+  year: number;
+  examTime?: string;
+}): Promise<MockTestRequest> {
+  if (canUseMockTestApi()) {
+    const row = await createMockTestApi({
+      skill: input.skill,
+      day: input.day,
+      month: input.month,
+      year: input.year,
+      examTime: input.examTime,
+    });
+    await refreshMockTestRequestsForStudent(input.studentId);
+    return row;
+  }
+  const row = createPendingRequest(input);
+  saveLocal([...loadLocal(), row]);
+  return row;
+}
+
+export async function approveMockTestRequest(
+  id: string,
+  payload: { examTime: string; examTeacher: string },
+): Promise<void> {
+  if (canUseMockTestApi()) {
+    await approveMockTestApi(id, payload);
+    await refreshMockTestRequestsForAca();
+    return;
+  }
+  const next = loadLocal().map((x) =>
+    x.id === id
+      ? {
+          ...x,
+          status: "approved" as const,
+          examTime: payload.examTime,
+          examTeacher: payload.examTeacher,
+          reviewedAt: new Date().toISOString(),
+        }
+      : x,
+  );
+  saveLocal(next);
+}
+
+export async function rejectMockTestRequest(id: string): Promise<void> {
+  if (canUseMockTestApi()) {
+    await rejectMockTestApi(id);
+    await refreshMockTestRequestsForAca();
+    return;
+  }
+  const next = loadLocal().map((x) =>
+    x.id === id
+      ? {
+          ...x,
+          status: "rejected" as const,
+          reviewedAt: new Date().toISOString(),
+        }
+      : x,
+  );
+  saveLocal(next);
+}
+
+if (typeof window !== "undefined") {
+  applyMockTestCache(loadLocal());
 }

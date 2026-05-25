@@ -11,6 +11,6 @@ export type StudentProfile = {
     classEnvironment: (typeof STUDY_CLASS_ENVIRONMENT_OPTIONS)[number];
     ieltsMeaning: (typeof STUDY_IELTS_MEANING_OPTIONS)[number];
     previousBand: (typeof STUDY_PREVIOUS_BAND_OPTIONS)[number];
-    focusSkills: (typeof STUDY_FOCUS_SKILL_OPTIONS)[number];
+    focusSkills: (typeof STUDY_FOCUS_SKILL_OPTIONS)[number][];
 };
 export declare const DEFAULT_STUDENT_PROFILE: StudentProfile;

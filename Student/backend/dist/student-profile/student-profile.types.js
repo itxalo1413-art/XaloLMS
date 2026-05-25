@@ -14,6 +14,6 @@ exports.DEFAULT_STUDENT_PROFILE = {
     classEnvironment: student_profile_study_options_1.STUDY_CLASS_ENVIRONMENT_OPTIONS[0],
     ieltsMeaning: student_profile_study_options_1.STUDY_IELTS_MEANING_OPTIONS[0],
     previousBand: student_profile_study_options_1.STUDY_PREVIOUS_BAND_OPTIONS[0],
-    focusSkills: student_profile_study_options_1.STUDY_FOCUS_SKILL_OPTIONS[0],
+    focusSkills: [student_profile_study_options_1.STUDY_FOCUS_SKILL_OPTIONS[0]],
 };
 //# sourceMappingURL=student-profile.types.js.map

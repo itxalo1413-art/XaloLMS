@@ -5,7 +5,7 @@ import {
   getPracticeWeekRangeLabel,
   getPracticeWeeklySchedule,
   PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT,
-  type PracticeClassSlot,
+  refreshPracticeScheduleForStudent,
 } from "@/lib/practiceClass";
 
 export function usePracticeWeeklySchedule() {
@@ -15,20 +15,21 @@ export function usePracticeWeeklySchedule() {
 
   useEffect(() => {
     let cancelled = false;
-    queueMicrotask(() => {
+    void refreshPracticeScheduleForStudent().then(() => {
       if (!cancelled) bump();
     });
-    window.addEventListener(PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT, bump);
-    window.addEventListener("storage", bump);
+    const onUpdate = () => {
+      void refreshPracticeScheduleForStudent().then(() => bump());
+    };
+    window.addEventListener(PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT, onUpdate);
     return () => {
       cancelled = true;
-      window.removeEventListener(PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT, bump);
-      window.removeEventListener("storage", bump);
+      window.removeEventListener(PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT, onUpdate);
     };
   }, [bump]);
 
   const slots = useMemo(() => getPracticeWeeklySchedule(), [version]);
   const weekRangeLabel = useMemo(() => getPracticeWeekRangeLabel(), [version]);
 
-  return { slots, weekRangeLabel };
+  return { slots, weekRangeLabel, refresh: bump };
 }

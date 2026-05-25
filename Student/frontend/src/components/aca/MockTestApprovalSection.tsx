@@ -1,11 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { canUseMockTestApi } from "@/lib/mockTestApi";
 import {
+  approveMockTestRequest,
   loadMockTestRequests,
-  saveMockTestRequests,
-  type MockTestRequest,
   MOCK_TEST_UPDATE_EVENT,
+  refreshMockTestRequestsForAca,
+  rejectMockTestRequest,
+  type MockTestRequest,
 } from "@/lib/mockTestRequests";
 import { MOCK_TEST_TEACHER_OPTIONS } from "@/lib/mockTestTeacherNames";
 import { MockTestTeacherSchedulePreview } from "./MockTestTeacherSchedulePreview";
@@ -30,22 +33,31 @@ export function MockTestApprovalSection() {
   const [rows, setRows] = useState<MockTestRequest[]>([]);
   const [timeById, setTimeById] = useState<Record<string, string>>({});
   const [teacherById, setTeacherById] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const sync = useCallback(() => {
-    setRows(loadMockTestRequests());
+  const sync = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await refreshMockTestRequestsForAca();
+      setRows(data);
+    } catch (err) {
+      setRows(loadMockTestRequests());
+      setError(err instanceof Error ? err.message : "Không tải được danh sách.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (!cancelled) sync();
-    });
-    window.addEventListener(MOCK_TEST_UPDATE_EVENT, sync);
-    window.addEventListener("storage", sync);
+    void sync();
+    const onUpdate = () => void sync();
+    window.addEventListener(MOCK_TEST_UPDATE_EVENT, onUpdate);
+    window.addEventListener("storage", onUpdate);
     return () => {
-      cancelled = true;
-      window.removeEventListener(MOCK_TEST_UPDATE_EVENT, sync);
-      window.removeEventListener("storage", sync);
+      window.removeEventListener(MOCK_TEST_UPDATE_EVENT, onUpdate);
+      window.removeEventListener("storage", onUpdate);
     };
   }, [sync]);
 
@@ -62,40 +74,26 @@ export function MockTestApprovalSection() {
     [rows],
   );
 
-  const approve = (r: MockTestRequest) => {
-    const examTime =
-      timeById[r.id]?.trim() || r.examTime || "09:00";
+  const approve = async (r: MockTestRequest) => {
+    const examTime = timeById[r.id]?.trim() || r.examTime || "09:00";
     const examTeacher =
-      teacherById[r.id]?.trim() ||
-      r.examTeacher ||
-      MOCK_TEST_TEACHER_OPTIONS[0];
-
-    const next = loadMockTestRequests().map((x) =>
-      x.id === r.id
-        ? {
-            ...x,
-            status: "approved" as const,
-            examTime,
-            examTeacher,
-            reviewedAt: new Date().toISOString(),
-          }
-        : x,
-    );
-    saveMockTestRequests(next);
+      teacherById[r.id]?.trim() || r.examTeacher || MOCK_TEST_TEACHER_OPTIONS[0];
+    try {
+      await approveMockTestRequest(r.id, { examTime, examTeacher });
+      await sync();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Duyệt thất bại.");
+    }
   };
 
-  const reject = (r: MockTestRequest) => {
+  const reject = async (r: MockTestRequest) => {
     if (!confirm(`Từ chối yêu cầu Mock Test của ${r.studentName}?`)) return;
-    const next = loadMockTestRequests().map((x) =>
-      x.id === r.id
-        ? {
-            ...x,
-            status: "rejected" as const,
-            reviewedAt: new Date().toISOString(),
-          }
-        : x,
-    );
-    saveMockTestRequests(next);
+    try {
+      await rejectMockTestRequest(r.id);
+      await sync();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Từ chối thất bại.");
+    }
   };
 
   const dateLabel = (r: MockTestRequest) =>
@@ -109,11 +107,26 @@ export function MockTestApprovalSection() {
           Xác nhận <strong>giờ thi</strong> và <strong>giáo viên test</strong> trước khi chấp
           nhận. Sau khi duyệt, lịch mới hiển thị trên lịch học viên.
         </p>
+        {!canUseMockTestApi() ? (
+          <p className="mt-2 text-xs font-bold text-amber-900">
+            Đăng nhập ACA tại /login để duyệt trên server. Hiện dùng dữ liệu local trình duyệt.
+          </p>
+        ) : null}
       </section>
+
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      ) : null}
 
       <MockTestTeacherSchedulePreview />
 
-      {pending.length === 0 ? (
+      {loading ? (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-10 text-center text-sm text-zinc-500 shadow-sm">
+          Đang tải yêu cầu...
+        </div>
+      ) : pending.length === 0 ? (
         <div className="rounded-2xl border border-zinc-200 bg-white p-10 text-center text-sm text-zinc-500 shadow-sm">
           Hiện không có yêu cầu Mock Test nào chờ duyệt.
         </div>
@@ -126,15 +139,11 @@ export function MockTestApprovalSection() {
             >
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <div className="text-sm font-bold text-zinc-900">
-                    {r.studentName}
-                  </div>
+                  <div className="text-sm font-bold text-zinc-900">{r.studentName}</div>
                   <div className="mt-1 text-xs text-zinc-500">
                     {r.skill} · {dateLabel(r)}
                   </div>
-                  <div className="mt-1 text-[10px] font-mono text-zinc-400">
-                    ID: {r.id}
-                  </div>
+                  <div className="mt-1 text-[10px] font-mono text-zinc-400">ID: {r.id}</div>
                 </div>
                 <span className="rounded-full bg-amber-100 px-3 py-1 text-[10px] font-bold uppercase text-amber-900">
                   Chờ duyệt
@@ -160,9 +169,7 @@ export function MockTestApprovalSection() {
                     Giáo viên test
                   </label>
                   <NativeSelectChevron
-                    value={
-                      teacherById[r.id] ?? MOCK_TEST_TEACHER_OPTIONS[0]
-                    }
+                    value={teacherById[r.id] ?? MOCK_TEST_TEACHER_OPTIONS[0]}
                     onChange={(e) =>
                       setTeacherById((m) => ({ ...m, [r.id]: e.target.value }))
                     }
@@ -178,14 +185,14 @@ export function MockTestApprovalSection() {
                 <div className="flex flex-wrap items-end gap-2 lg:justify-end">
                   <button
                     type="button"
-                    onClick={() => reject(r)}
+                    onClick={() => void reject(r)}
                     className="rounded-xl border border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
                   >
                     Từ chối
                   </button>
                   <button
                     type="button"
-                    onClick={() => approve(r)}
+                    onClick={() => void approve(r)}
                     className="rounded-xl bg-[#6a5acd] px-5 py-2 text-sm font-semibold text-white hover:bg-[#5b4ec0]"
                   >
                     Duyệt & gửi lịch
@@ -199,9 +206,7 @@ export function MockTestApprovalSection() {
 
       <section>
         <h2 className="text-sm font-bold text-zinc-900">Đã xử lý gần đây</h2>
-        <p className="mt-1 text-xs text-zinc-500">
-          Các yêu cầu đã duyệt / từ chối (demo — lưu cục bộ).
-        </p>
+        <p className="mt-1 text-xs text-zinc-500">Các yêu cầu đã duyệt / từ chối.</p>
         <div className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-zinc-100 bg-zinc-50 text-[10px] font-bold uppercase text-zinc-500">
@@ -215,9 +220,7 @@ export function MockTestApprovalSection() {
             <tbody className="divide-y divide-zinc-100">
               {done.slice(0, 12).map((r) => (
                 <tr key={r.id} className="hover:bg-[#efeaff]/30">
-                  <td className="px-4 py-3 font-semibold text-zinc-900">
-                    {r.studentName}
-                  </td>
+                  <td className="px-4 py-3 font-semibold text-zinc-900">{r.studentName}</td>
                   <td className="px-4 py-3 text-zinc-600">
                     {r.skill}
                     <br />
@@ -248,9 +251,7 @@ export function MockTestApprovalSection() {
             </tbody>
           </table>
           {done.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-zinc-500">
-              Chưa có lịch sử.
-            </div>
+            <div className="px-4 py-8 text-center text-sm text-zinc-500">Chưa có lịch sử.</div>
           ) : null}
         </div>
       </section>

@@ -1,3 +1,4 @@
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { Model } from 'mongoose';
 import { UsersService } from '../users/users.service';
 import { UpdateStudentProfileDto } from './dto/update-student-profile.dto';
@@ -6,7 +7,9 @@ import { type StudentProfile } from './student-profile.types';
 export declare class StudentProfileService {
     private readonly store;
     private readonly users;
-    constructor(store: Model<StudentProfileStoreDocument>, users: UsersService);
+    private readonly cloudinary;
+    private readonly logger;
+    constructor(store: Model<StudentProfileStoreDocument>, users: UsersService, cloudinary: CloudinaryService);
     private mergeWithDefaults;
     private defaultForUser;
     getProfile(userId: string): Promise<StudentProfile>;

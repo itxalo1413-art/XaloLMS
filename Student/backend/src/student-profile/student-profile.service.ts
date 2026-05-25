@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { UsersService } from '../users/users.service';
@@ -29,10 +30,13 @@ const STUDY_FIELDS: StudySelectionField[] = [
 
 @Injectable()
 export class StudentProfileService {
+  private readonly logger = new Logger(StudentProfileService.name);
+
   constructor(
     @InjectModel(StudentProfileStore.name)
     private readonly store: Model<StudentProfileStoreDocument>,
     private readonly users: UsersService,
+    private readonly cloudinary: CloudinaryService,
   ) {}
 
   private mergeWithDefaults(
@@ -136,8 +140,21 @@ export class StudentProfileService {
         'Chỉ chấp nhận ảnh: JPEG, PNG, GIF, WebP, SVG.',
       );
     }
-    const base64 = file.buffer.toString('base64');
-    const avatarUrl = `data:${mime.split(';')[0]};base64,${base64}`;
+    let avatarUrl: string;
+    if (this.cloudinary.isConfigured()) {
+      try {
+        avatarUrl = await this.cloudinary.uploadAvatar(userId, file);
+      } catch (err) {
+        this.logger.warn(
+          `Cloudinary upload failed, fallback base64: ${err instanceof Error ? err.message : err}`,
+        );
+        const base64 = file.buffer.toString('base64');
+        avatarUrl = `data:${mime.split(';')[0]};base64,${base64}`;
+      }
+    } else {
+      const base64 = file.buffer.toString('base64');
+      avatarUrl = `data:${mime.split(';')[0]};base64,${base64}`;
+    }
     const current = await this.getProfile(userId);
     const next: StudentProfile = {
       ...current,
