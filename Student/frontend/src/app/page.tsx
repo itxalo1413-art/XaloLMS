@@ -364,11 +364,11 @@ export default function Home() {
                         Điểm đầu vào từng kỹ năng
                       </div>
                       <div className="mb-3 grid grid-cols-1 gap-4 md:grid-cols-2 md:items-stretch">
-                        <div className="flex min-h-[7.5rem] flex-col justify-center rounded-2xl bg-background p-4 md:h-full">
-                          <div className="text-[10px] font-black uppercase tracking-widest text-muted">
+                        <div className="flex min-h-[7.5rem] flex-col justify-center items-center rounded-2xl bg-background p-4 md:h-full">
+                          <div className="text-[14px] font-black uppercase tracking-widest text-muted">
                             Điểm đầu vào
                           </div>
-                          <div className="mt-1 text-sm font-bold text-foreground">
+                          <div className="mt-1 text-md font-bold text-foreground text-warning">
                             {formatBandScore(student.scores.overall)} Overall
                           </div>
                         </div>

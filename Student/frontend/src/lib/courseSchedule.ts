@@ -28,11 +28,11 @@ export const HOMEWORK_STATUS_LABEL: Record<HomeworkStatus, string> = {
   not_assigned: "Chưa giao",
 };
 
-export const HOMEWORK_STATUS_CLASS: Record<HomeworkStatus, string> = {
-  submitted: "bg-success/10 text-success",
-  in_progress: "bg-primary/10 text-primary",
-  overdue: "bg-danger/10 text-danger",
-  not_assigned: "bg-zinc-100 text-muted",
+export const HOMEWORK_STATUS_TEXT_CLASS: Record<HomeworkStatus, string> = {
+  submitted: "text-success",
+  in_progress: "text-primary",
+  overdue: "text-danger",
+  not_assigned: "text-muted",
 };
 
 function parseSessionDate(dateStr: string): { day: number; month: number; year: number } | null {

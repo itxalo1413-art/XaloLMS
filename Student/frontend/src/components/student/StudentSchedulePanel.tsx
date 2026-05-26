@@ -72,28 +72,7 @@ export function StudentSchedulePanel({
             ))}
           </div>
 
-          <div className="mb-3 flex flex-wrap gap-3 text-[10px] font-semibold text-muted">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded bg-primary-soft ring-1 ring-primary/20" />
-              Buổi sắp tới
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded bg-success/20 ring-1 ring-success/30" />
-              Đã đi học
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded bg-danger/15 ring-1 ring-danger/25" />
-              Vắng học
-            </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded bg-primary-soft ring-1 ring-primary/20" />
-            Lớp luyện đề (đã đăng ký)
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded bg-secondary-soft ring-1 ring-secondary/30" />
-            Mock test đã duyệt
-          </span>
-          </div>
+          
 
           <div className="grid grid-cols-7 gap-2">
             {Array.from({ length: prevMonthPadding }).map((_, i) => (
@@ -128,25 +107,44 @@ export function StudentSchedulePanel({
                       ? "z-10 scale-110 bg-primary text-white shadow-premium"
                       : sessionsOnDay.length > 0
                         ? sessionStyle
-                        : isPracticeDay
-                          ? "bg-primary-soft text-primary shadow-sm"
-                          : isApprovedMock
-                            ? "bg-secondary-soft text-secondary shadow-sm"
-                            : "text-foreground/50"
+                        : isPracticeDay || isApprovedMock
+                          ? "bg-info/15 text-info shadow-sm ring-1 ring-info/20"
+                          : "text-foreground/50"
                   } ${isHighlighted ? "cursor-pointer" : "cursor-default"}`}
                 >
                   {day}
-                  {isApprovedMock && !isToday && sessionsOnDay.length === 0 && (
-                    <div className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-secondary ring-2 ring-white" />
-                  )}
-                  {isPracticeDay && sessionsOnDay.length === 0 && !isToday && (
-                    <div className="absolute -bottom-0.5 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-primary" />
+                  {(isApprovedMock || isPracticeDay) &&
+                    !isToday &&
+                    sessionsOnDay.length === 0 && (
+                    <div className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-info ring-2 ring-white" />
                   )}
                 </button>
               );
             })}
           </div>
 
+          <div className="mb-3 flex flex-wrap gap-3 text-[10px] font-semibold text-muted">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded bg-primary-soft ring-1 ring-primary/20" />
+              Buổi sắp tới
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded bg-success/20 ring-1 ring-success/30" />
+              Đã đi học
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded bg-danger/15 ring-1 ring-danger/25" />
+              Vắng học
+            </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded bg-info/15 ring-1 ring-info/25" />
+            Lớp luyện đề (đã đăng ký)
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-3 w-3 rounded bg-info/15 ring-1 ring-info/25" />
+            Mock test đã duyệt (đã đăng ký)
+          </span>
+          </div>
           <div className="space-y-6 border-t border-background pt-6">
             <h4 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted">
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

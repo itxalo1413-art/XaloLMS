@@ -6,7 +6,7 @@ import { Panel } from "@/components/student/ui";
 import { useStudentSchedule } from "@/hooks/useStudentSchedule";
 import {
   COURSE_RLP_SESSIONS,
-  HOMEWORK_STATUS_CLASS,
+  HOMEWORK_STATUS_TEXT_CLASS,
   HOMEWORK_STATUS_LABEL,
   isSessionPast,
 } from "@/lib/courseSchedule";
@@ -129,7 +129,7 @@ const importantLinks = [
 
 export default function CourseInfoPage() {
   const schedule = useStudentSchedule();
-  const { clientToday, openScheduleForSession } = schedule;
+  const { clientToday } = schedule;
 
 
   return (
@@ -191,34 +191,32 @@ export default function CourseInfoPage() {
                     {link.id === "rlp" ? (
                       <div className="mt-4 rounded-xl border border-primary/10 bg-background/40 p-3">
                         <div className="overflow-x-auto">
-                          <table className="w-full min-w-[1100px] table-fixed border-separate border-spacing-0">
+                          <table className="w-full min-w-[1060px] table-fixed border-separate border-spacing-0">
                             <colgroup>
                               <col className="w-[92px]" />
                               <col />
-                              <col className="w-[88px]" />
+                              <col className="w-[52px]" />
+                              <col className="w-[200px]" />
                               <col className="w-[96px]" />
+                              <col className="w-[108px]" />
                               <col className="w-[96px]" />
                               <col className="w-[112px]" />
-                              <col className="w-[200px]" />
-                              <col className="w-[52px]" />
-                              <col className="w-[52px]" />
                             </colgroup>
                             <thead>
                               <tr>
                                 {[
-                                  { label: "SKILL", align: "text-center" },
-                                  { label: "NỘI DUNG", align: "text-left" },
-                                  { label: "ĐI HỌC", align: "text-center" },
-                                  { label: "NGÀY", align: "text-center" },
-                                  { label: "DEADLINE", align: "text-center" },
-                                  { label: "TRẠNG THÁI BÀI", align: "text-center" },
-                                  { label: "TIẾN ĐỘ LỚP HỌC", align: "text-left" },
-                                  { label: "FILE BÀI HỌC", align: "text-center" },
-                                  { label: "HOMEWORK", align: "text-center" },
+                                  { label: "Skill", align: "text-center", nowrap: false },
+                                  { label: "Nội dung", align: "text-left", nowrap: false },
+                                  { label: "File bài học", align: "text-center", nowrap: false },
+                                  { label: "Tiến độ", align: "text-left", nowrap: false },
+                                  { label: "Điểm danh", align: "text-center", nowrap: false },
+                                  { label: "Homework", align: "text-center", nowrap: true },
+                                  { label: "Deadline", align: "text-center", nowrap: true },
+                                  { label: "Trạng thái", align: "text-center", nowrap: false },
                                 ].map((col) => (
                                   <th
                                     key={col.label}
-                                    className={`sticky top-0 z-10 border-b border-primary/10 bg-background px-3 py-2.5 align-middle text-[10px] font-black uppercase tracking-widest text-muted ${col.align}`}
+                                    className={`sticky top-0 z-10 border-b border-primary/10 bg-background px-3 py-2.5 align-middle text-[10px] font-black uppercase tracking-widest text-muted ${col.align} ${col.nowrap ? "whitespace-nowrap" : ""}`}
                                   >
                                     {col.label}
                                   </th>
@@ -228,7 +226,6 @@ export default function CourseInfoPage() {
                             <tbody>
                               {COURSE_RLP_SESSIONS.map((row) => {
                                 const past = isSessionPast(row, clientToday);
-                                const future = schedule.isSessionFuture(row);
                                 const cell =
                                   "border-b border-primary/10 px-3 py-2.5 align-middle";
                                 return (
@@ -249,6 +246,18 @@ export default function CourseInfoPage() {
                                     {row.contents}
                                   </td>
                                   <td className={`${cell} text-center`}>
+                                    <button
+                                      type="button"
+                                      className="inline-flex text-primary transition-colors hover:text-primary/80"
+                                      aria-label="Mở file bài học"
+                                    >
+                                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                                    </button>
+                                  </td>
+                                  <td className={`${cell} text-left text-[12px] font-medium leading-snug text-muted`}>
+                                    {row.teacherNote}
+                                  </td>
+                                  <td className={`${cell} text-center`}>
                                     {past ? (
                                       row.attendance === "present" ? (
                                         <span className="text-[11px] font-bold text-success">Đi học</span>
@@ -259,24 +268,14 @@ export default function CourseInfoPage() {
                                       <span className="text-[11px] font-medium text-muted">—</span>
                                     )}
                                   </td>
-                                  <td
-                                    className={`${cell} text-center ${
-                                      past ? "bg-zinc-100/90" : ""
-                                    }`}
-                                  >
-                                    <Link
-                                      href="#schedule-section"
-                                      onClick={() => openScheduleForSession(row.date)}
-                                      className={`inline-block rounded-md px-1.5 py-0.5 text-[11px] font-semibold tabular-nums underline-offset-2 hover:underline ${
-                                        past
-                                          ? "text-zinc-400 decoration-zinc-300 hover:text-zinc-500"
-                                          : future
-                                            ? "text-primary"
-                                            : "text-foreground"
-                                      }`}
+                                  <td className={`${cell} text-center`}>
+                                    <button
+                                      type="button"
+                                      className="inline-flex text-secondary transition-colors hover:text-secondary/80"
+                                      aria-label="Mở homework"
                                     >
-                                      {row.date}
-                                    </Link>
+                                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+                                    </button>
                                   </td>
                                   <td
                                     className={`${cell} text-center text-[11px] font-semibold tabular-nums ${
@@ -287,29 +286,10 @@ export default function CourseInfoPage() {
                                   </td>
                                   <td className={`${cell} text-center`}>
                                     <span
-                                      className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${HOMEWORK_STATUS_CLASS[row.homeworkStatus]}`}
+                                      className={`text-[11px] font-bold ${HOMEWORK_STATUS_TEXT_CLASS[row.homeworkStatus]}`}
                                     >
                                       {HOMEWORK_STATUS_LABEL[row.homeworkStatus]}
                                     </span>
-                                  </td>
-                                  <td className={`${cell} text-left text-[12px] font-medium leading-snug text-muted`}>
-                                    {row.teacherNote}
-                                  </td>
-                                  <td className={`${cell} text-center`}>
-                                    <button
-                                      type="button"
-                                      className="inline-flex text-primary transition-colors hover:text-primary/80"
-                                    >
-                                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
-                                    </button>
-                                  </td>
-                                  <td className={`${cell} text-center`}>
-                                    <button
-                                      type="button"
-                                      className="inline-flex text-secondary transition-colors hover:text-secondary/80"
-                                    >
-                                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
-                                    </button>
                                   </td>
                                 </tr>
                               );

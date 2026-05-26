@@ -39,10 +39,13 @@ import {
   getPracticeSlotById,
   getPracticeSlotsForStudent,
   PRACTICE_CLASS_SKILL,
+  PRACTICE_CLASS_DESCRIPTION,
   PRACTICE_CLASS_UPDATE_EVENT,
+  isPracticeClassJoined,
   refreshPracticeRegistrations,
   registerPracticeSlot,
   resetPracticeClassTestState,
+  setPracticeClassJoined,
   unregisterPracticeSlot,
   type PracticeSlotId,
 } from "@/lib/practiceClass";
@@ -73,6 +76,7 @@ export default function HoTroTuHocPage() {
   const [writingLink, setWritingLink] = useState("");
   const [writingSubmissions, setWritingSubmissions] = useState<WritingSubmission[]>([]);
   const [practiceSlotVersion, setPracticeSlotVersion] = useState(0);
+  const [practiceJoined, setPracticeJoined] = useState(false);
   const [dialog, setDialog] = useState<PageDialog | null>(null);
 
   const student = getStudentIdentity();
@@ -87,6 +91,17 @@ export default function HoTroTuHocPage() {
     () => new Set(getPracticeSlotsForStudent(student.id).map((r) => r.slotId)),
     [student.id, practiceSlotVersion],
   );
+
+  const syncPracticeJoined = useCallback(() => {
+    const joined =
+      getPracticeSlotsForStudent(student.id).length > 0 ||
+      isPracticeClassJoined(student.id);
+    setPracticeJoined(joined);
+  }, [student.id]);
+
+  useEffect(() => {
+    syncPracticeJoined();
+  }, [syncPracticeJoined, practiceSlotVersion]);
 
   const refreshWritingSubmissions = useCallback(() => {
     setWritingSubmissions(loadWritingSubmissionsForStudent(student.id));
@@ -111,14 +126,22 @@ export default function HoTroTuHocPage() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("resetPractice") !== "1") return;
     resetPracticeClassTestState(student.id);
+    setPracticeJoined(false);
     bumpPracticeSlots();
     router.replace("/ho-tro-tu-hoc");
   }, [student.id, bumpPracticeSlots, router]);
 
   const handleResetPracticeTest = () => {
     resetPracticeClassTestState(student.id);
+    setPracticeJoined(false);
     bumpPracticeSlots();
     setDialog(null);
+  };
+
+  const joinPracticeClass = () => {
+    setPracticeClassJoined(student.id, true);
+    setPracticeJoined(true);
+    bumpPracticeSlots();
   };
 
   const handleRegisterPracticeSlot = (slotId: PracticeSlotId) => {
@@ -230,53 +253,58 @@ export default function HoTroTuHocPage() {
           {/* Left Column: Interactions & Content */}
           <div className="lg:col-span-8 flex min-h-0 flex-col gap-10">
             <Panel title="Đăng ký Mock Test Speaking" className="shrink-0">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-background p-6 rounded-3xl shadow-inner">
-                
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black text-muted uppercase tracking-widest">Tháng</label>
-                  <NativeSelectChevron
-                    value={regMonth}
-                    onChange={(e) => setRegMonth(parseInt(e.target.value, 10))}
-                    className="h-11 rounded-xl bg-white text-xs font-bold text-foreground shadow-sm focus:ring-2 focus:ring-primary/10"
-                  >
-                    {months.map((m, i) => (
-                      <option key={m} value={i}>
-                        {m}
-                      </option>
-                    ))}
-                  </NativeSelectChevron>
+              <div className="flex flex-col gap-3 rounded-3xl bg-background p-6 shadow-inner sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-3 sm:gap-y-3">
+                <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-3">
+                  <div className="flex min-w-0 flex-col gap-2">
+                    <label className="text-[10px] font-black text-muted uppercase tracking-widest">Tháng</label>
+                    <NativeSelectChevron
+                      value={regMonth}
+                      onChange={(e) => setRegMonth(parseInt(e.target.value, 10))}
+                      className="h-11 w-full rounded-xl bg-white text-xs font-bold text-foreground shadow-sm focus:ring-2 focus:ring-primary/10"
+                    >
+                      {months.map((m, i) => (
+                        <option key={m} value={i}>
+                          {m}
+                        </option>
+                      ))}
+                    </NativeSelectChevron>
+                  </div>
+                  <div className="flex min-w-0 flex-col gap-2">
+                    <label className="text-[10px] font-black text-muted uppercase tracking-widest">Ngày</label>
+                    <NativeSelectChevron
+                      value={regDay}
+                      onChange={(e) => setRegDay(parseInt(e.target.value, 10))}
+                      className="h-11 w-full rounded-xl bg-white text-xs font-bold text-foreground shadow-sm focus:ring-2 focus:ring-primary/10"
+                    >
+                      {Array.from({ length: getDaysInMonth(regMonth, year) }).map((_, i) => (
+                        <option key={i + 1} value={i + 1}>
+                          Ngày {i + 1}
+                        </option>
+                      ))}
+                    </NativeSelectChevron>
+                  </div>
+                  <div className="flex min-w-0 flex-col gap-2">
+                    <label className="text-[10px] font-black text-muted uppercase tracking-widest">Giờ</label>
+                    <NativeSelectChevron
+                      value={regTime}
+                      onChange={(e) => setRegTime(e.target.value)}
+                      className="h-11 w-full rounded-xl bg-white text-xs font-bold text-foreground shadow-sm focus:ring-2 focus:ring-primary/10"
+                    >
+                      {["09:00", "09:30", "10:00", "10:30", "14:00", "14:30", "15:00", "15:30", "16:00", "19:45"].map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </NativeSelectChevron>
+                  </div>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black text-muted uppercase tracking-widest">Ngày</label>
-                  <NativeSelectChevron
-                    value={regDay}
-                    onChange={(e) => setRegDay(parseInt(e.target.value, 10))}
-                    className="h-11 rounded-xl bg-white text-xs font-bold text-foreground shadow-sm focus:ring-2 focus:ring-primary/10"
-                  >
-                    {Array.from({ length: getDaysInMonth(regMonth, year) }).map((_, i) => (
-                      <option key={i + 1} value={i + 1}>
-                        Ngày {i + 1}
-                      </option>
-                    ))}
-                  </NativeSelectChevron>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-black text-muted uppercase tracking-widest">Giờ</label>
-                  <NativeSelectChevron
-                    value={regTime}
-                    onChange={(e) => setRegTime(e.target.value)}
-                    className="h-11 rounded-xl bg-white text-xs font-bold text-foreground shadow-sm focus:ring-2 focus:ring-primary/10"
-                  >
-                    {["09:00", "09:30", "10:00", "10:30", "14:00", "14:30", "15:00", "15:30", "16:00", "19:45"].map(t => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </NativeSelectChevron>
-                </div>
-                <div className="flex items-end sm:col-span-4">
-                  <button type="button" onClick={() => void registerMockTest()} className="w-full h-11 bg-primary text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-primary/90 transition-all">
-                    Đăng ký
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => void registerMockTest()}
+                  className="h-11 w-fit shrink-0 self-start rounded-xl bg-primary px-5 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-primary/90 sm:self-auto sm:px-4"
+                >
+                  Đăng ký
+                </button>
               </div>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -371,7 +399,7 @@ export default function HoTroTuHocPage() {
                           saveWritingSubmissions([row, ...loadWritingSubmissions()]);
                           setWritingLink("");
                         }}
-                        className="h-11 rounded-xl bg-secondary px-4 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-secondary/90"
+                        className="h-11 rounded-xl bg-primary px-4 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-secondary/90"
                       >
                         Gửi bài
                       </button>
@@ -420,9 +448,9 @@ export default function HoTroTuHocPage() {
                       },
                       {
                         key: "link",
-                        label: "Link đề",
+                        label: "Link bài chấm",
                         align: "center",
-                        width: "w-[88px]",
+                        width: "w-[110px]",
                         render: (row) => (
                           <a
                             href={row.examLink}
@@ -458,47 +486,66 @@ export default function HoTroTuHocPage() {
         </div>
 
         <div className="mt-10 flex w-full flex-col gap-10">
-            <PracticeClassPanel
-              registeredSlotIds={registeredPracticeSlotIds}
-              onRegisterSlot={handleRegisterPracticeSlot}
-              onUnregisterSlot={handleUnregisterPracticeSlot}
-              onResetTest={handleResetPracticeTest}
-            />
-            {registeredPracticeSlotIds.size > 0 ? (
-            <Panel title="Lớp luyện đề — Mock Test Scores" className="w-full">
-              <div className="overflow-x-auto rounded-2xl border border-primary/10 bg-white">
-                <table className="w-full border-separate border-spacing-0">
-                  <thead>
-                    <tr className="bg-background/50">
-                      {["TEST", "HỌC VIÊN", "LISTENING", "READING", "WRITING", "SPEAKING"].map((h) => (
-                        <th key={h} className="px-4 py-3 text-left text-[10px] font-black text-muted uppercase tracking-widest border-b border-primary/5">
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-primary/5">
-                    {[
-                      { test: "LĐ16", name: "Dương Ngọc Khôi Nguyên", l: "—", r: "—", w: "—", s: "—" },
-                      { test: "LĐ17", name: "Dương Ngọc Khôi Nguyên", l: "6.0", r: "5.5", w: "4.5", s: "—" },
-                      { test: "LĐ18", name: "Dương Ngọc Khôi Nguyên", l: "—", r: "—", w: "—", s: "—" },
-                      { test: "LĐ19", name: "Dương Ngọc Khôi Nguyên", l: "—", r: "—", w: "—", s: "—" },
-                      { test: "LĐ20", name: "Dương Ngọc Khôi Nguyên", l: "—", r: "—", w: "—", s: "—" },
-                    ].map((row, idx) => (
-                      <tr key={idx} className="hover:bg-background/30 transition-colors">
-                        <td className="px-4 py-4 text-xs font-bold text-foreground">{row.test}</td>
-                        <td className="px-4 py-4 text-xs font-bold text-muted">{row.name}</td>
-                        <td className="px-4 py-4 text-xs font-black text-foreground">{row.l}</td>
-                        <td className="px-4 py-4 text-xs font-black text-foreground">{row.r}</td>
-                        <td className="px-4 py-4 text-xs font-black text-foreground">{row.w}</td>
-                        <td className="px-4 py-4 text-xs font-black text-foreground">{row.s}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {!practiceJoined ? (
+            <Panel title="Lớp luyện đề tập trung" className="w-full">
+              <div className="flex flex-col gap-4 rounded-3xl bg-background p-6 shadow-inner sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+                <p className="min-w-0 flex-1 text-sm font-medium leading-relaxed text-muted">
+                  {PRACTICE_CLASS_DESCRIPTION}
+                </p>
+                <button
+                  type="button"
+                  onClick={joinPracticeClass}
+                  className="h-11 w-full min-w-[140px] shrink-0 rounded-xl bg-primary px-8 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-primary/90 sm:w-[168px] sm:self-center"
+                >
+                  Đăng ký
+                </button>
               </div>
             </Panel>
-            ) : null}
+          ) : (
+            <>
+              <PracticeClassPanel
+                registeredSlotIds={registeredPracticeSlotIds}
+                onRegisterSlot={handleRegisterPracticeSlot}
+                onUnregisterSlot={handleUnregisterPracticeSlot}
+                onResetTest={handleResetPracticeTest}
+              />
+              {registeredPracticeSlotIds.size > 0 ? (
+                <Panel title="Lớp luyện đề — Mock Test Scores" className="w-full">
+                  <div className="overflow-x-auto rounded-2xl border border-primary/10 bg-white">
+                    <table className="w-full border-separate border-spacing-0">
+                      <thead>
+                        <tr className="bg-background/50">
+                          {["TEST", "HỌC VIÊN", "LISTENING", "READING", "WRITING", "SPEAKING"].map((h) => (
+                            <th key={h} className="px-4 py-3 text-left text-[10px] font-black text-muted uppercase tracking-widest border-b border-primary/5">
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-primary/5">
+                        {[
+                          { test: "LĐ16", name: "Dương Ngọc Khôi Nguyên", l: "—", r: "—", w: "—", s: "—" },
+                          { test: "LĐ17", name: "Dương Ngọc Khôi Nguyên", l: "6.0", r: "5.5", w: "4.5", s: "—" },
+                          { test: "LĐ18", name: "Dương Ngọc Khôi Nguyên", l: "—", r: "—", w: "—", s: "—" },
+                          { test: "LĐ19", name: "Dương Ngọc Khôi Nguyên", l: "—", r: "—", w: "—", s: "—" },
+                          { test: "LĐ20", name: "Dương Ngọc Khôi Nguyên", l: "—", r: "—", w: "—", s: "—" },
+                        ].map((row, idx) => (
+                          <tr key={idx} className="hover:bg-background/30 transition-colors">
+                            <td className="px-4 py-4 text-xs font-bold text-foreground">{row.test}</td>
+                            <td className="px-4 py-4 text-xs font-bold text-muted">{row.name}</td>
+                            <td className="px-4 py-4 text-xs font-black text-foreground">{row.l}</td>
+                            <td className="px-4 py-4 text-xs font-black text-foreground">{row.r}</td>
+                            <td className="px-4 py-4 text-xs font-black text-foreground">{row.w}</td>
+                            <td className="px-4 py-4 text-xs font-black text-foreground">{row.s}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Panel>
+              ) : null}
+            </>
+          )}
         </div>
       </div>
 

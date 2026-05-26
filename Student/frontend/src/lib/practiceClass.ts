@@ -100,10 +100,57 @@ let weekRangeLabelCache = "";
 let scheduleUpdatedAtCache: string | null = null;
 let registrationsCache: PracticeSlotRegistration[] = [];
 
+const JOINED_KEY = "xalo.student.practiceClassJoined.v1";
+
 function dispatchPracticeEvents() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new Event(PRACTICE_CLASS_UPDATE_EVENT));
   window.dispatchEvent(new Event(PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT));
+}
+
+export function isPracticeClassJoined(studentId: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = localStorage.getItem(JOINED_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw) as Record<string, boolean>;
+    return Boolean(data?.[studentId]);
+  } catch {
+    return false;
+  }
+}
+
+export function setPracticeClassJoined(studentId: string, joined: boolean): void {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = localStorage.getItem(JOINED_KEY);
+    const data = (raw ? (JSON.parse(raw) as Record<string, boolean>) : {}) ?? {};
+    const next = { ...data, [studentId]: joined };
+    localStorage.setItem(JOINED_KEY, JSON.stringify(next));
+  } catch {
+    // ignore
+  }
+  dispatchPracticeEvents();
+}
+
+export function clearPracticeClassJoined(studentId?: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (!studentId) {
+      localStorage.removeItem(JOINED_KEY);
+      dispatchPracticeEvents();
+      return;
+    }
+    const raw = localStorage.getItem(JOINED_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw) as Record<string, boolean>;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { [studentId]: _removed, ...rest } = data ?? {};
+    localStorage.setItem(JOINED_KEY, JSON.stringify(rest));
+  } catch {
+    // ignore
+  }
+  dispatchPracticeEvents();
 }
 
 export function applyPracticeScheduleCache(res: PracticeScheduleResponse) {
@@ -293,6 +340,7 @@ export function clearPracticeClassRegistrations(studentId?: string): void {
 
 export function resetPracticeClassTestState(studentId: string): void {
   if (typeof window === "undefined") return;
+  clearPracticeClassJoined(studentId);
   clearPracticeClassRegistrations(studentId);
   const next = loadMockTestRequests().filter(
     (r) => r.studentId !== studentId || !r.skill.startsWith(PRACTICE_CLASS_SKILL),
@@ -308,6 +356,7 @@ export function resetPracticeClassTestState(studentId: string): void {
 
 function registerPracticeSlotLocal(studentId: string, slotId: PracticeSlotId): void {
   if (isPracticeSlotRegistered(studentId, slotId)) return;
+  setPracticeClassJoined(studentId, true);
   const row: PracticeSlotRegistration = {
     studentId,
     slotId,
