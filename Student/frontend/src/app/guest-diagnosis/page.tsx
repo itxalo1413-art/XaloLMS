@@ -40,9 +40,9 @@ export default function GuestDiagnosisPage() {
         <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
           <Link href="/guest-diagnosis" className="flex items-center gap-3 transition-opacity hover:opacity-90">
             <img
-              src="/Logo chính - Dương bản.jpg"
+              src="/Logo_XLE.svg"
               alt="Logo Xa Lộ English"
-              className="h-10 w-10 shrink-0 rounded-2xl object-contain shadow-premium"
+              className="h-10 w-10 shrink-0 object-contain"
             />
             <div>
               <img
@@ -50,7 +50,7 @@ export default function GuestDiagnosisPage() {
                 alt="Xalo English"
                 className="h-5 w-auto object-contain"
               />
-              <span className="mt-0.5 block text-[10px] font-bold uppercase tracking-widest text-primary">
+              <span className="mt-2 block text-[10px] font-bold uppercase tracking-widest text-primary">
                 Diagnostic Portal
               </span>
             </div>
@@ -570,7 +570,7 @@ export default function GuestDiagnosisPage() {
                       {[
                         "Khắc phục triệt để lỗi S-V Agreement (11 lỗi) và lỗi Noun Phrase (5 lỗi) bằng chuyên đề bổ trợ.",
                         "Luyện tập riêng các dạng bài yếu (Map, Diagram Labelling, Matching Headings) với kho đề thi thực tế.",
-                        "Tăng độ trôi chảy (Fluency) và từ vựng nâng cao qua mô hình học 1 kèm 1 với giáo viên 8.5+.",
+                        "Tăng độ trôi chảy (Fluency) và từ vựng nâng cao qua mô hình học 1 kèm 1 với giáo viên 8.0+.",
                       ].map((item, idx) => (
                         <li key={idx} className="flex items-start gap-2 text-xs font-semibold text-zinc-700">
                           <span className="w-4 h-4 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">✓</span>
