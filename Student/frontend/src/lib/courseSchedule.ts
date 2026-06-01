@@ -12,6 +12,8 @@ export type RlpSession = {
   deadline: string;
   homeworkStatus: HomeworkStatus;
   attendance: Attendance;
+  /** Link Google Drive / tài liệu buổi học */
+  lessonFileUrl?: string;
 };
 
 export const SCHEDULE_MONTH_LABELS = [
@@ -67,7 +69,7 @@ export function isSessionFuture(session: RlpSession, today: ClientToday | null):
   return sessionDay > todayDay;
 }
 
-export const COURSE_RLP_SESSIONS: RlpSession[] = [
+export const DEFAULT_COURSE_RLP_SESSIONS: RlpSession[] = [
   {
     no: 1,
     date: "02/10/2025",
@@ -271,15 +273,28 @@ export const COURSE_RLP_SESSIONS: RlpSession[] = [
   },
 ];
 
+/** @deprecated Use getCourseRlpSessions() from rlpSessionStore */
+export const COURSE_RLP_SESSIONS = DEFAULT_COURSE_RLP_SESSIONS;
+
+let activeRlpSessions: RlpSession[] = DEFAULT_COURSE_RLP_SESSIONS;
+
+export function setActiveRlpSessions(sessions: RlpSession[]) {
+  activeRlpSessions = sessions.length > 0 ? sessions : DEFAULT_COURSE_RLP_SESSIONS;
+}
+
+export function getActiveRlpSessions(): RlpSession[] {
+  return activeRlpSessions;
+}
+
 export function findSessionOnDay(day: number, month: number, year: number): RlpSession | undefined {
-  return COURSE_RLP_SESSIONS.find((s) => {
+  return activeRlpSessions.find((s) => {
     const p = parseSessionDate(s.date);
     return p && p.day === day && p.month === month && p.year === year;
   });
 }
 
 export function findSessionsOnDay(day: number, month: number, year: number): RlpSession[] {
-  return COURSE_RLP_SESSIONS.filter((s) => {
+  return activeRlpSessions.filter((s) => {
     const p = parseSessionDate(s.date);
     return p && p.day === day && p.month === month && p.year === year;
   });

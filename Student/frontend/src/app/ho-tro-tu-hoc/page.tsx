@@ -50,10 +50,8 @@ import {
   type PracticeSlotId,
 } from "@/lib/practiceClass";
 import {
-  createWritingSubmission,
-  loadWritingSubmissions,
-  loadWritingSubmissionsForStudent,
-  saveWritingSubmissions,
+  submitWritingSubmission,
+  refreshWritingSubmissionsForStudent,
   WRITING_SUBMISSIONS_EVENT,
   type WritingSubmission,
 } from "@/lib/writingSubmissions";
@@ -104,7 +102,7 @@ export default function HoTroTuHocPage() {
   }, [syncPracticeJoined, practiceSlotVersion]);
 
   const refreshWritingSubmissions = useCallback(() => {
-    setWritingSubmissions(loadWritingSubmissionsForStudent(student.id));
+    void refreshWritingSubmissionsForStudent(student.id).then(setWritingSubmissions);
   }, [student.id]);
 
   useEffect(() => {
@@ -392,12 +390,24 @@ export default function HoTroTuHocPage() {
                         type="button"
                         onClick={() => {
                           if (!writingLink.trim()) return;
-                          const row = createWritingSubmission({
+                          void submitWritingSubmission({
                             studentId: student.id,
+                            studentName: student.name,
                             examLink: writingLink.trim(),
-                          });
-                          saveWritingSubmissions([row, ...loadWritingSubmissions()]);
-                          setWritingLink("");
+                          })
+                            .then(() => {
+                              setWritingLink("");
+                              refreshWritingSubmissions();
+                            })
+                            .catch((err) => {
+                              setDialog({
+                                kind: "alert",
+                                message:
+                                  err instanceof Error
+                                    ? err.message
+                                    : "Không gửi được bài Writing.",
+                              });
+                            });
                         }}
                         className="h-11 rounded-xl bg-primary px-4 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-secondary/90"
                       >

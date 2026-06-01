@@ -1,18 +1,22 @@
 /** Lớp luyện đề tập trung — lịch tuần (API) + fallback localStorage khi chưa đăng nhập. */
 
+import { students } from "@/components/teacher/mockData";
 import {
   applyMockTestCache,
+  DEMO_STUDENT,
   loadMockTestRequests,
   MOCK_TEST_UPDATE_EVENT,
 } from "@/lib/mockTestRequests";
 import {
   canUsePracticeClassApi,
   fetchPracticeRegistrations,
+  fetchPracticeRegistrationsForAca,
   fetchPracticeScheduleForAca,
   fetchPracticeScheduleForStudent,
   registerPracticeSlotApi,
   savePracticeScheduleForAca,
   unregisterPracticeSlotApi,
+  type PracticeRegistrationAcaRow,
   type PracticeScheduleResponse,
 } from "@/lib/practiceClassApi";
 
@@ -85,6 +89,8 @@ export type PracticeSlotRegistration = {
   slotId: PracticeSlotId;
   registeredAt: string;
 };
+
+export type { PracticeRegistrationAcaRow };
 
 const REGISTRATIONS_KEY = "xalo.student.practiceClassSlots.v1";
 const LEGACY_REGISTRATION_KEY = "xalo.student.practiceClassRegistration.v1";
@@ -282,6 +288,13 @@ export async function savePracticeScheduleFromAca(
   return merged;
 }
 
+function resolveStudentNameForAca(studentId: string): string {
+  const fromMock = students.find((s) => s.id === studentId);
+  if (fromMock) return fromMock.name;
+  if (studentId === DEMO_STUDENT.id) return DEMO_STUDENT.name;
+  return studentId;
+}
+
 function loadPracticeSlotRegistrationsLocal(): PracticeSlotRegistration[] {
   if (typeof window === "undefined") return [];
   try {
@@ -292,6 +305,34 @@ function loadPracticeSlotRegistrationsLocal(): PracticeSlotRegistration[] {
   } catch {
     return [];
   }
+}
+
+export async function refreshAllPracticeRegistrationsForAca(): Promise<
+  PracticeRegistrationAcaRow[]
+> {
+  if (canUsePracticeClassApi()) {
+    try {
+      return await fetchPracticeRegistrationsForAca();
+    } catch {
+      // fall through
+    }
+  }
+  return loadPracticeSlotRegistrationsLocal()
+    .map((row) => {
+      const slot = getPracticeSlotById(row.slotId);
+      return {
+        studentId: row.studentId,
+        studentName: resolveStudentNameForAca(row.studentId),
+        slotId: row.slotId,
+        slotTitle: slot?.title ?? row.slotId,
+        slotSchedule: slot ? `${slot.dayLabel} · ${slot.time}` : "—",
+        registeredAt: row.registeredAt,
+      };
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.registeredAt).getTime() - new Date(a.registeredAt).getTime(),
+    );
 }
 
 export async function refreshPracticeRegistrations(

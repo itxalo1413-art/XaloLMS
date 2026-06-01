@@ -89,3 +89,21 @@ export async function unregisterPracticeSlotApi(slotId: PracticeSlotId): Promise
   );
   await parseJson(response);
 }
+
+export type PracticeRegistrationAcaRow = {
+  studentId: string;
+  studentName: string;
+  slotId: PracticeSlotId;
+  slotTitle: string;
+  slotSchedule: string;
+  registeredAt: string;
+};
+
+export async function fetchPracticeRegistrationsForAca(): Promise<
+  PracticeRegistrationAcaRow[]
+> {
+  const response = await apiFetch("/api/aca/practice-class/registrations", {
+    method: "GET",
+  });
+  return parseJson(response);
+}

@@ -9,8 +9,11 @@ import {
   createMockTestApi,
   fetchMockTestsForAca,
   fetchMockTestsForStudent,
+  fetchMockTestsForTeacher,
+  recordMockTestResultApi,
   rejectMockTestApi,
 } from "@/lib/mockTestApi";
+import { isSpeakingMockTest } from "@/lib/selfStudyFormat";
 
 export type MockTestRequestStatus = "pending" | "approved" | "rejected";
 
@@ -212,6 +215,67 @@ export async function approveMockTestRequest(
       : x,
   );
   saveLocal(next);
+}
+
+export async function refreshMockTestRequestsForTeacher(
+  teacherName: string,
+): Promise<MockTestRequest[]> {
+  if (canUseMockTestApi()) {
+    try {
+      const rows = await fetchMockTestsForTeacher(teacherName);
+      const byId = new Map(rows.map((r) => [r.id, r]));
+      const merged = loadLocal().map((r) => byId.get(r.id) ?? r);
+      for (const r of rows) {
+        if (!merged.some((m) => m.id === r.id)) merged.push(r);
+      }
+      saveLocal(merged);
+      return rows;
+    } catch {
+      // fall through
+    }
+  }
+  const local = loadLocal().filter(
+    (r) =>
+      r.status === "approved" &&
+      (r.examTeacher ?? "").trim() === teacherName.trim() &&
+      isSpeakingMockTest(r.skill),
+  );
+  return local;
+}
+
+export async function submitMockTestSpeakingResult(
+  id: string,
+  teacherName: string,
+  payload: { score: string; examLink: string },
+): Promise<MockTestRequest> {
+  const score = payload.score.trim();
+  const examLink = payload.examLink.trim();
+  if (!score) throw new Error("Vui lòng nhập điểm");
+  if (!examLink) throw new Error("Vui lòng nhập link bài chấm");
+
+  if (canUseMockTestApi()) {
+    const row = await recordMockTestResultApi(id, {
+      score,
+      examLink,
+      teacherName,
+    });
+    upsertMockTestRequest(row);
+    dispatchMockTestUpdate();
+    return row;
+  }
+
+  const existing = loadMockTestRequests().find((r) => r.id === id);
+  if (!existing) throw new Error("Không tìm thấy ca mock test");
+  if ((existing.examTeacher ?? "").trim() !== teacherName.trim()) {
+    throw new Error("Ca không thuộc giáo viên này");
+  }
+  const updated: MockTestRequest = {
+    ...existing,
+    score,
+    examLink,
+  };
+  upsertMockTestRequest(updated);
+  return updated;
 }
 
 export async function rejectMockTestRequest(id: string): Promise<void> {

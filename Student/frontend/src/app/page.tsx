@@ -539,11 +539,6 @@ export default function Home() {
             <section id="bcb-archive">
               <Panel 
                 title="Bảng Chẩn Bệnh Chi Tiết (BCB)"
-                right={
-                  <span className="text-[10px] font-black text-primary px-3 py-1 bg-primary/10 rounded-full border border-primary/10">
-                    Mã Hồ Sơ: XL_KN_2006
-                  </span>
-                }
               >
                 {/* Visual Overall Health Row */}
                 <div className="mb-8 rounded-3xl border border-zinc-100 bg-gradient-to-br from-zinc-50 to-white p-6 shadow-soft">
@@ -809,10 +804,7 @@ export default function Home() {
                                           <div className="font-semibold text-foreground bg-zinc-50 p-2 rounded-xl border border-zinc-100">{d.value}</div>
                                         </div>
                                       ))}
-                                      <div className="mt-4 p-3 rounded-xl bg-primary/5 text-[11px] font-bold text-primary flex items-center gap-2">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                                        Mục tiêu lên Band 8: Tăng độ chính xác khi dùng cấu trúc phức và collocations hiếm.
-                                      </div>
+
                                     </div>
                                   )}
                                 </div>

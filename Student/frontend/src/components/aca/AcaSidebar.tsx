@@ -8,6 +8,8 @@ const nav = [
   { href: "/aca/quan-ly/noi-dung", label: "Quản lý nội dung", desc: "Duyệt & metadata" },
   { href: "/aca/quan-ly/mock-test", label: "Mock Test", desc: "Duyệt lịch & GV" },
   { href: "/aca/quan-ly/lop-luyen-de", label: "Lớp luyện đề", desc: "Lịch tuần" },
+  { href: "/aca/quan-ly/chan-doan-khach", label: "Chẩn đoán khách", desc: "Lead tư vấn" },
+  { href: "/aca/quan-ly/khoa-hoc", label: "Thông tin khóa", desc: "Metadata khóa" },
   { href: "/aca/quan-ly/nguoi-dung", label: "Người dùng", desc: "Tài khoản & quyền" },
   { href: "/aca/phan-tich", label: "Phân tích", desc: "Báo cáo & lọc" },
   { href: "/aca/he-thong", label: "Hệ thống", desc: "Danh mục & kiểm soát" },
@@ -81,11 +83,19 @@ export function AcaSidebar() {
 
           <div className="shrink-0 space-y-1 border-t border-zinc-100 pt-4">
             <div className="mb-2 px-4 text-[10px] font-bold uppercase tracking-widest text-muted opacity-60">
-              Ghi chú
+              Tài khoản
             </div>
-            <p className="px-4 text-[11px] leading-relaxed text-zinc-500">
-              Observability-first — ít thao tác, nhiều tín hiệu.
-            </p>
+            <Link
+              href="/aca/profile"
+              className={[
+                "group flex items-center gap-3 rounded-xl px-4 py-3 transition-all duration-300",
+                pathname.startsWith("/aca/profile")
+                  ? "bg-primary text-white shadow-premium"
+                  : "text-muted hover:bg-primary-soft/70 hover:text-foreground",
+              ].join(" ")}
+            >
+              <span className="text-xs font-bold">Hồ sơ ACA</span>
+            </Link>
           </div>
         </nav>
       </div>

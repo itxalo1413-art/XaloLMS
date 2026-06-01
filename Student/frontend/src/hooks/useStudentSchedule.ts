@@ -32,6 +32,10 @@ import {
   saveScheduleViewState,
 } from "@/lib/scheduleViewState";
 import { getStudentIdentity } from "@/lib/studentIdentity";
+import {
+  refreshRlpSessions,
+  RLP_SESSIONS_UPDATE_EVENT,
+} from "@/lib/rlpSessionStore";
 import { useClientToday } from "@/hooks/useClientToday";
 
 export function useStudentSchedule() {
@@ -40,6 +44,7 @@ export function useStudentSchedule() {
   const [requests, setRequests] = useState<MockTestRequest[]>([]);
   const student = getStudentIdentity();
   const [practiceSlotVersion, setPracticeSlotVersion] = useState(0);
+  const [rlpVersion, setRlpVersion] = useState(0);
 
   const syncRequests = useCallback(() => {
     void refreshMockTestRequestsForStudent(student.id).then((rows) => {
@@ -54,26 +59,33 @@ export function useStudentSchedule() {
     ]).finally(() => setPracticeSlotVersion((v) => v + 1));
   }, [student.id]);
 
+  const syncRlp = useCallback(() => {
+    void refreshRlpSessions().finally(() => setRlpVersion((v) => v + 1));
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     queueMicrotask(() => {
       if (!cancelled) {
         syncRequests();
         syncPracticeSlots();
+        syncRlp();
       }
     });
     window.addEventListener(MOCK_TEST_UPDATE_EVENT, syncRequests);
     window.addEventListener(PRACTICE_CLASS_UPDATE_EVENT, syncPracticeSlots);
     window.addEventListener(PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT, syncPracticeSlots);
+    window.addEventListener(RLP_SESSIONS_UPDATE_EVENT, syncRlp);
     window.addEventListener("storage", syncRequests);
     return () => {
       cancelled = true;
       window.removeEventListener(MOCK_TEST_UPDATE_EVENT, syncRequests);
       window.removeEventListener(PRACTICE_CLASS_UPDATE_EVENT, syncPracticeSlots);
       window.removeEventListener(PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT, syncPracticeSlots);
+      window.removeEventListener(RLP_SESSIONS_UPDATE_EVENT, syncRlp);
       window.removeEventListener("storage", syncRequests);
     };
-  }, [syncRequests, syncPracticeSlots]);
+  }, [syncRequests, syncPracticeSlots, syncRlp]);
 
   useEffect(() => {
     saveScheduleViewState(viewState);
@@ -175,7 +187,7 @@ export function useStudentSchedule() {
     });
 
     return [...rlpEvents, ...practiceEvents, ...approvedEvents];
-  }, [approvedTests, month, selectedDay, student.id, year]);
+  }, [approvedTests, month, rlpVersion, selectedDay, student.id, year]);
 
   return {
     clientToday,

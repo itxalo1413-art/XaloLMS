@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { formatBandScore } from "@/lib/formatBandScore";
+import { submitGuestDiagnosisLead } from "@/lib/guestDiagnosisLeads";
 
 // Mock data of the guest candidate
 const guestCandidate = {
@@ -30,6 +31,7 @@ export default function GuestDiagnosisPage() {
   // Booking Form State
   const [bookingName, setBookingName] = useState(guestCandidate.name);
   const [bookingPhone, setBookingPhone] = useState(guestCandidate.phone);
+  const [bookingAim, setBookingAim] = useState("7.5 IELTS");
   const [bookingSubmitted, setBookingSubmitted] = useState(false);
 
   return (
@@ -583,6 +585,11 @@ export default function GuestDiagnosisPage() {
                   <form 
                     onSubmit={(e) => {
                       e.preventDefault();
+                      submitGuestDiagnosisLead({
+                        name: bookingName,
+                        phone: bookingPhone,
+                        aim: bookingAim,
+                      });
                       setBookingSubmitted(true);
                     }}
                     className="lg:col-span-5 p-6 rounded-2xl bg-zinc-50 border border-zinc-100 space-y-4"
@@ -608,12 +615,27 @@ export default function GuestDiagnosisPage() {
                       />
                     </div>
                     <div>
-                      <label className="text-[10px] font-black text-muted uppercase tracking-widest block mb-2">Mục tiêu điểm mong muốn</label>
-                      <select className="h-11 w-full rounded-xl border border-zinc-200 bg-white px-4 text-xs font-bold text-foreground outline-none transition-all focus:border-primary/40">
-                        <option>7.5 IELTS (Lộ trình đề xuất)</option>
-                        <option>8.0 IELTS</option>
-                        <option>7.0 IELTS</option>
-                      </select>
+                      <label className="mb-2 block text-[10px] font-black uppercase tracking-widest text-muted">Mục tiêu điểm mong muốn</label>
+                      <div className="group relative">
+                        <select
+                          value={bookingAim}
+                          onChange={(e) => setBookingAim(e.target.value)}
+                          className="h-11 w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-white pl-4 pr-10 text-xs font-bold text-foreground outline-none transition-all focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+                        >
+                          <option>5.0 IELTS</option>
+                          <option>5.5 IELTS</option>
+                          <option>6.0 IELTS</option>
+                          <option>6.5 IELTS</option>
+                          <option>7.0 IELTS</option>
+                          <option>7.5 IELTS</option>
+                          <option>8.0 IELTS</option>
+                        </select>
+                        <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted">
+                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden>
+                            <polyline points="6 9 12 15 18 9" />
+                          </svg>
+                        </div>
+                      </div>
                     </div>
                     <button 
                       type="submit" 

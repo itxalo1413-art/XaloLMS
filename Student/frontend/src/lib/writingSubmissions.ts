@@ -1,13 +1,21 @@
 /**
- * Demo: lịch sử nộp bài Writing — localStorage. Production: thay bằng API.
+ * Nộp bài Writing — API + fallback localStorage khi chưa đăng nhập.
  */
+
+import {
+  canUseWritingSubmissionApi,
+  createWritingSubmissionApi,
+  fetchWritingSubmissionsForStudent,
+  fetchWritingSubmissionsForTeacher,
+  gradeWritingSubmissionApi,
+} from "@/lib/writingSubmissionApi";
 
 export type WritingSubmissionStatus = "pending" | "grading" | "graded";
 
 export type WritingSubmission = {
   id: string;
   studentId: string;
-  /** Ngày giờ làm bài / buổi test */
+  studentName?: string;
   testDateTime: string;
   submittedAt: string;
   status: WritingSubmissionStatus;
@@ -19,6 +27,13 @@ export type WritingSubmission = {
 export const WRITING_SUBMISSIONS_KEY = "xalo.student.writingSubmissions.v1";
 export const WRITING_SUBMISSIONS_EVENT = "xalo-writing-submissions-updated";
 
+let submissionsCache: WritingSubmission[] = [];
+
+function dispatchWritingUpdate() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(WRITING_SUBMISSIONS_EVENT));
+}
+
 function parse(raw: string | null): WritingSubmission[] {
   if (!raw) return [];
   try {
@@ -29,19 +44,33 @@ function parse(raw: string | null): WritingSubmission[] {
   }
 }
 
-export function loadWritingSubmissions(): WritingSubmission[] {
+function loadLocal(): WritingSubmission[] {
   if (typeof window === "undefined") return [];
   return parse(window.localStorage.getItem(WRITING_SUBMISSIONS_KEY));
 }
 
-export function saveWritingSubmissions(rows: WritingSubmission[]) {
+function saveLocal(rows: WritingSubmission[]) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(WRITING_SUBMISSIONS_KEY, JSON.stringify(rows));
-  window.dispatchEvent(new Event(WRITING_SUBMISSIONS_EVENT));
+  submissionsCache = rows;
+  dispatchWritingUpdate();
+}
+
+export function applyWritingSubmissionsCache(rows: WritingSubmission[]) {
+  submissionsCache = rows;
+}
+
+export function loadWritingSubmissions(): WritingSubmission[] {
+  return submissionsCache.length > 0 ? submissionsCache : loadLocal();
+}
+
+export function saveWritingSubmissions(rows: WritingSubmission[]) {
+  saveLocal(rows);
 }
 
 export function createWritingSubmission(input: {
   studentId: string;
+  studentName?: string;
   examLink: string;
   testDateTime?: string;
 }): WritingSubmission {
@@ -49,11 +78,116 @@ export function createWritingSubmission(input: {
   return {
     id: `wr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     studentId: input.studentId,
+    studentName: input.studentName,
     examLink: input.examLink,
     testDateTime: input.testDateTime ?? now.toISOString(),
     submittedAt: now.toISOString(),
     status: "pending",
   };
+}
+
+export async function refreshWritingSubmissionsForStudent(
+  studentId: string,
+): Promise<WritingSubmission[]> {
+  if (canUseWritingSubmissionApi()) {
+    try {
+      const rows = await fetchWritingSubmissionsForStudent();
+      const others = loadLocal().filter((r) => r.studentId !== studentId);
+      const merged = [...rows, ...others];
+      applyWritingSubmissionsCache(merged);
+      saveLocal(merged);
+      return rows;
+    } catch {
+      // fall through
+    }
+  }
+  const local = loadLocal().filter((r) => r.studentId === studentId);
+  const merged =
+    local.length > 0 ? local : getDefaultWritingSubmissions(studentId);
+  applyWritingSubmissionsCache(merged);
+  return merged;
+}
+
+export async function refreshWritingSubmissionsForTeacher(
+  status?: WritingSubmissionStatus | "all",
+): Promise<WritingSubmission[]> {
+  if (canUseWritingSubmissionApi()) {
+    try {
+      const rows = await fetchWritingSubmissionsForTeacher(status);
+      applyWritingSubmissionsCache(rows);
+      saveLocal(rows);
+      return rows;
+    } catch {
+      // fall through
+    }
+  }
+  const local = loadLocal();
+  const filtered =
+    status && status !== "all"
+      ? local.filter((r) => r.status === status)
+      : local;
+  applyWritingSubmissionsCache(filtered);
+  return filtered;
+}
+
+export async function submitWritingSubmission(input: {
+  studentId: string;
+  studentName?: string;
+  examLink: string;
+  testDateTime?: string;
+}): Promise<WritingSubmission> {
+  if (canUseWritingSubmissionApi()) {
+    const remote = await createWritingSubmissionApi({
+      examLink: input.examLink,
+      testDateTime: input.testDateTime,
+    });
+    const next = [
+      remote,
+      ...loadLocal().filter((r) => r.id !== remote.id),
+    ];
+    saveLocal(next);
+    return remote;
+  }
+
+  const row = createWritingSubmission(input);
+  saveLocal([row, ...loadLocal()]);
+  return row;
+}
+
+export async function gradeWritingSubmission(
+  id: string,
+  payload: {
+    status: WritingSubmissionStatus;
+    score?: string;
+    examLink?: string;
+  },
+): Promise<WritingSubmission> {
+  if (canUseWritingSubmissionApi()) {
+    const remote = await gradeWritingSubmissionApi(id, payload);
+    const exists = loadLocal().some((r) => r.id === id);
+    const next = exists
+      ? loadLocal().map((r) => (r.id === id ? remote : r))
+      : [remote, ...loadLocal()];
+    saveLocal(next);
+    return remote;
+  }
+
+  const now = new Date().toISOString();
+  let updated: WritingSubmission | null = null;
+  const next = loadLocal().map((r) => {
+    if (r.id !== id) return r;
+    updated = {
+      ...r,
+      status: payload.status,
+      score: payload.score?.trim() || r.score,
+      examLink: payload.examLink?.trim() || r.examLink,
+      gradedAt: payload.status === "graded" ? now : r.gradedAt,
+    };
+    return updated;
+  });
+  if (!updated) throw new Error("Không tìm thấy bài nộp");
+  saveLocal(next);
+  return updated;
 }
 
 export function loadWritingSubmissionsForStudent(studentId: string): WritingSubmission[] {
@@ -71,6 +205,7 @@ function getDefaultWritingSubmissions(studentId: string): WritingSubmission[] {
     {
       id: "wr-demo-1",
       studentId,
+      studentName: "Dương Ngọc Khôi Nguyên",
       testDateTime: "2026-05-02T09:00:00.000Z",
       submittedAt: "2026-05-02T10:15:00.000Z",
       status: "graded",
@@ -81,6 +216,7 @@ function getDefaultWritingSubmissions(studentId: string): WritingSubmission[] {
     {
       id: "wr-demo-2",
       studentId,
+      studentName: "Dương Ngọc Khôi Nguyên",
       testDateTime: "2026-05-08T14:00:00.000Z",
       submittedAt: "2026-05-08T15:30:00.000Z",
       status: "graded",

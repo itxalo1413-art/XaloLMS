@@ -7,8 +7,8 @@ export default function MockTestSchedulePage() {
   return (
     <TeacherLayout>
       <TeacherTopbar
-        title="Lịch Mock Test"
-        subtitle={`${LOGGED_IN_TEACHER_NAME} · Các ca được xếp cho bạn sau khi ACA duyệt đăng ký của học viên.`}
+        title="Mock Test Speaking"
+        subtitle={`${LOGGED_IN_TEACHER_NAME} · Xem ca đã duyệt và nhập điểm + link bài chấm cho học viên.`}
       />
       <main className="mx-auto max-w-6xl px-6 py-6 pb-16 md:px-8">
         <MockTestScheduleSection />

@@ -5,7 +5,10 @@ import { usePathname } from "next/navigation";
 
 const items = [
   { href: "/teacher", label: "Danh sách học sinh" },
-  { href: "/teacher/mock-test", label: "Lịch Mock Test" },
+  { href: "/teacher/writing", label: "Chấm Writing" },
+  { href: "/teacher/mock-test", label: "Mock Test Speaking" },
+  { href: "/teacher/rlp", label: "Cập nhật RLP" },
+  { href: "/teacher/khoa-hoc", label: "Thông tin khóa" },
 ];
 
 export function TeacherSidebar() {
@@ -75,17 +78,29 @@ export function TeacherSidebar() {
             <div className="mb-2 px-4 text-[10px] font-bold uppercase tracking-widest text-muted opacity-60">
               Tài khoản
             </div>
-            <button
-              type="button"
-              className="group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-muted transition-all duration-200 hover:bg-background hover:text-foreground"
+            <Link
+              href="/teacher/profile"
+              className={[
+                "group flex items-center gap-3 rounded-xl px-4 py-3 transition-all duration-200",
+                pathname.startsWith("/teacher/profile")
+                  ? "bg-primary text-white shadow-premium"
+                  : "text-muted hover:bg-background hover:text-foreground",
+              ].join(" ")}
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-muted transition-all group-hover:text-foreground">
+              <div
+                className={[
+                  "flex h-8 w-8 items-center justify-center rounded-lg transition-all",
+                  pathname.startsWith("/teacher/profile")
+                    ? "bg-white/15 text-white"
+                    : "bg-white text-muted group-hover:text-foreground",
+                ].join(" ")}
+              >
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" />
                 </svg>
               </div>
-              <span className="text-xs font-bold">Đăng xuất</span>
-            </button>
+              <span className="text-xs font-bold">Hồ sơ GV</span>
+            </Link>
           </div>
         </nav>
       </div>
