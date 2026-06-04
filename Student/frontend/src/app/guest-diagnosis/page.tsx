@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { PageDecorations } from "@/components/shared/PageDecorations";
 import { BcbGrammarTable } from "@/components/diagnosis/BcbGrammarTable";
 import { BcbQuestionTypeTable } from "@/components/diagnosis/BcbQuestionTypeTable";
 import { SkillDiagIntro } from "@/components/diagnosis/SkillDiagIntro";
@@ -85,10 +86,11 @@ export default function GuestDiagnosisPage() {
   const [bookingSubmitted, setBookingSubmitted] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#fafcf7] text-[#2f2b46] font-sans antialiased">
-      
+    <div className="relative min-h-screen bg-transparent font-sans text-[#2f2b46] antialiased">
+      <PageDecorations seed="/guest-diagnosis" />
+
       {/* Premium Top Navbar */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-zinc-100 shadow-sm">
+      <header className="sticky top-0 z-50 border-b border-zinc-100 bg-white/80 shadow-sm backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
           <Link href="/guest-diagnosis" className="flex items-center gap-3 transition-opacity hover:opacity-90">
             <img
@@ -117,7 +119,7 @@ export default function GuestDiagnosisPage() {
       </header>
 
       {/* Hero Welcome & Identity Block */}
-      <main className="mx-auto max-w-7xl px-4 py-8 md:px-8 space-y-10">
+      <main className="relative z-10 mx-auto max-w-7xl space-y-10 px-4 py-8 md:px-8">
         
         {/* Banner Khách */}
         <div className="p-6 md:p-8 rounded-[32px] bg-gradient-to-br from-primary to-primary-soft text-white relative overflow-hidden shadow-premium">
@@ -142,24 +144,29 @@ export default function GuestDiagnosisPage() {
         </div>
 
         {/* Scoreboard Cards Grid */}
-        <section className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div className="p-5 rounded-3xl border border-primary/20 bg-primary/5 text-center flex flex-col justify-center items-center relative overflow-hidden">
-            <div className="text-[10px] font-black text-primary uppercase tracking-widest mb-1.5">Overall Band</div>
-            <div className="text-4xl font-black text-primary tabular-nums">
+        <section className="grid grid-cols-1 gap-4 md:grid-cols-5">
+          <div className="relative flex flex-col items-center justify-center overflow-hidden rounded-3xl border-2 border-primary/40 bg-white/95 p-5 text-center shadow-soft backdrop-blur-sm">
+            <div className="mb-1.5 text-[11px] font-black uppercase tracking-widest text-primary">Overall Band</div>
+            <div className="text-5xl font-black tabular-nums text-primary">
               {formatBandScore(guestCandidate.scores.overall)}
             </div>
-            <span className="text-[9.5px] font-black text-zinc-500 uppercase tracking-wide mt-1.5">Người dùng Khá</span>
+            <span className="mt-1.5 text-[10px] font-black uppercase tracking-wide text-foreground/70">
+              Người dùng Khá
+            </span>
           </div>
 
           {[
-            { label: "Listening", val: guestCandidate.scores.listening, style: "text-warning bg-warning/5 border-warning/15" },
-            { label: "Reading", val: guestCandidate.scores.reading, style: "text-warning bg-warning/5 border-warning/15" },
-            { label: "Writing", val: guestCandidate.scores.writing, style: "text-warning bg-warning/5 border-warning/15" },
-            { label: "Speaking", val: guestCandidate.scores.speaking, style: "text-warning bg-warning/5 border-warning/15" },
+            { label: "Listening", val: guestCandidate.scores.listening },
+            { label: "Reading", val: guestCandidate.scores.reading },
+            { label: "Writing", val: guestCandidate.scores.writing },
+            { label: "Speaking", val: guestCandidate.scores.speaking },
           ].map((s) => (
-            <div key={s.label} className={`p-5 rounded-3xl border ${s.style} text-center flex flex-col justify-center items-center`}>
-              <div className="text-[10px] font-black uppercase tracking-widest mb-1">{s.label}</div>
-              <div className="text-3xl font-black tabular-nums">{formatBandScore(s.val)}</div>
+            <div
+              key={s.label}
+              className="flex flex-col items-center justify-center rounded-3xl border-2 border-warning/40 bg-white/95 p-5 text-center shadow-soft backdrop-blur-sm"
+            >
+              <div className="mb-1 text-[11px] font-black uppercase tracking-widest text-warning">{s.label}</div>
+              <div className="text-4xl font-black tabular-nums text-warning">{formatBandScore(s.val)}</div>
             </div>
           ))}
         </section>

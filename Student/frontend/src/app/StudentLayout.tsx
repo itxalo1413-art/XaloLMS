@@ -3,44 +3,17 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { PageDecorations, DECOR_IMAGES } from "@/components/shared/PageDecorations";
 import { Sidebar } from "@/components/student/Sidebar";
 import { Topbar } from "@/components/student/Topbar";
 import { ProfileModal } from "@/components/student/ProfileModal";
 import { StudentAuthProvider } from "@/contexts/StudentAuthContext";
 import { useStudentProfile } from "@/hooks/useStudentProfile";
 
-const DECOR_IMAGES = [
-  "/el1.png",
-  "/el2.png",
-  "/el3.png",
-  "/el4.png",
-  "/el5.png",
-  "/el6.png",
-  "/el7.png",
-  "/el8.png",
-] as const;
 const LOGIN_QUOTE_POPUP_KEY = "xalo.showLoginQuotePopup";
 // true  => mỗi lần reload/layout mount đều hiện popup quote
 // false => chỉ hiện 1 lần ngay sau login (logic hiện tại)
 const ALWAYS_SHOW_LOGIN_QUOTE = true;
-
-const DECOR_SLOTS = [
-  "-top-2 left-[6px] w-12 md:w-16 opacity-35",
-  "top-20 right-[8px] w-12 md:w-16 opacity-35",
-  "top-[36%] right-[4px] w-10 md:w-14 opacity-30",
-  "top-[56%] left-[8px] w-10 md:w-14 opacity-30",
-  "bottom-20 right-[6px] w-12 md:w-16 opacity-35",
-  "bottom-10 left-[10px] w-10 md:w-14 opacity-30",
-] as const;
-
-function hashString(input: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < input.length; i += 1) {
-    h ^= input.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
 
 function StudentLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -48,13 +21,6 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
   const { profile, openProfile, profileModalProps } = useStudentProfile();
   const [showLoginQuote, setShowLoginQuote] = React.useState(false);
   const [quoteElementImage, setQuoteElementImage] = React.useState<string>(DECOR_IMAGES[0]);
-  const decorItems = React.useMemo(() => {
-    const seed = hashString(pathname || "/");
-    return DECOR_SLOTS.map((slot, idx) => {
-      const image = DECOR_IMAGES[(seed + idx * 3) % DECOR_IMAGES.length];
-      return { slot, image, key: `${idx}-${image}` };
-    });
-  }, [pathname]);
 
   const pageTitle =
     pathname === "/"
@@ -105,17 +71,7 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
             avatarUrl={profile.avatarUrl}
           />
           <main className="flat-card-scope relative mx-auto w-full max-w-7xl flex-1 px-4 pb-8 pt-[18px] md:px-8">
-            <div className="pointer-events-none fixed inset-0 z-0 hidden md:block">
-              {decorItems.map((item) => (
-                <img
-                  key={item.key}
-                  src={item.image}
-                  alt=""
-                  role="presentation"
-                  className={`absolute select-none object-contain ${item.slot}`}
-                />
-              ))}
-            </div>
+            <PageDecorations seed={pathname || "/"} />
             <div className="relative z-10">{children}</div>
           </main>
         </div>
