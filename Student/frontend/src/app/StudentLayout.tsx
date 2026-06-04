@@ -9,10 +9,52 @@ import { ProfileModal } from "@/components/student/ProfileModal";
 import { StudentAuthProvider } from "@/contexts/StudentAuthContext";
 import { useStudentProfile } from "@/hooks/useStudentProfile";
 
+const DECOR_IMAGES = [
+  "/el1.png",
+  "/el2.png",
+  "/el3.png",
+  "/el4.png",
+  "/el5.png",
+  "/el6.png",
+  "/el7.png",
+  "/el8.png",
+] as const;
+const LOGIN_QUOTE_POPUP_KEY = "xalo.showLoginQuotePopup";
+// true  => mỗi lần reload/layout mount đều hiện popup quote
+// false => chỉ hiện 1 lần ngay sau login (logic hiện tại)
+const ALWAYS_SHOW_LOGIN_QUOTE = true;
+
+const DECOR_SLOTS = [
+  "-top-2 left-[6px] w-12 md:w-16 opacity-35",
+  "top-20 right-[8px] w-12 md:w-16 opacity-35",
+  "top-[36%] right-[4px] w-10 md:w-14 opacity-30",
+  "top-[56%] left-[8px] w-10 md:w-14 opacity-30",
+  "bottom-20 right-[6px] w-12 md:w-16 opacity-35",
+  "bottom-10 left-[10px] w-10 md:w-14 opacity-30",
+] as const;
+
+function hashString(input: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i += 1) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
 function StudentLayoutInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const { profile, openProfile, profileModalProps } = useStudentProfile();
+  const [showLoginQuote, setShowLoginQuote] = React.useState(false);
+  const [quoteElementImage, setQuoteElementImage] = React.useState<string>(DECOR_IMAGES[0]);
+  const decorItems = React.useMemo(() => {
+    const seed = hashString(pathname || "/");
+    return DECOR_SLOTS.map((slot, idx) => {
+      const image = DECOR_IMAGES[(seed + idx * 3) % DECOR_IMAGES.length];
+      return { slot, image, key: `${idx}-${image}` };
+    });
+  }, [pathname]);
 
   const pageTitle =
     pathname === "/"
@@ -32,8 +74,26 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
     { href: "/tai-lieu-them", label: "Kho tài liệu" },
   ];
 
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (ALWAYS_SHOW_LOGIN_QUOTE) {
+      setShowLoginQuote(true);
+      return;
+    }
+    const shouldShow = window.sessionStorage.getItem(LOGIN_QUOTE_POPUP_KEY) === "1";
+    if (!shouldShow) return;
+    setShowLoginQuote(true);
+    window.sessionStorage.removeItem(LOGIN_QUOTE_POPUP_KEY);
+  }, []);
+
+  React.useEffect(() => {
+    if (!showLoginQuote) return;
+    const random = DECOR_IMAGES[Math.floor(Math.random() * DECOR_IMAGES.length)];
+    setQuoteElementImage(random);
+  }, [showLoginQuote]);
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-transparent">
       <div className="flex min-h-screen w-full">
         <Sidebar onOpenProfile={openProfile} />
         <div className="flex h-screen min-w-0 flex-1 flex-col overflow-y-auto md:pl-72">
@@ -44,8 +104,19 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
             profileName={profile.name}
             avatarUrl={profile.avatarUrl}
           />
-          <main className="mx-auto w-full max-w-7xl flex-1 px-4 pb-8 pt-[18px] md:px-8">
-            {children}
+          <main className="flat-card-scope relative mx-auto w-full max-w-7xl flex-1 px-4 pb-8 pt-[18px] md:px-8">
+            <div className="pointer-events-none fixed inset-0 z-0 hidden md:block">
+              {decorItems.map((item) => (
+                <img
+                  key={item.key}
+                  src={item.image}
+                  alt=""
+                  role="presentation"
+                  className={`absolute select-none object-contain ${item.slot}`}
+                />
+              ))}
+            </div>
+            <div className="relative z-10">{children}</div>
           </main>
         </div>
       </div>
@@ -114,6 +185,52 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
               })}
             </nav>
           </aside>
+        </div>
+      ) : null}
+      {showLoginQuote ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <button
+            type="button"
+            aria-label="Đóng quote"
+            onClick={() => setShowLoginQuote(false)}
+            className="absolute inset-0 bg-black/35 backdrop-blur-[2px]"
+          />
+          <div
+            className="relative w-full max-w-2xl border border-primary/25 bg-transparent shadow-2xl"
+            style={{
+              backgroundImage: "url('/bg.png')",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          >
+            <div className="flex items-start justify-between border-b border-primary/15 px-6 py-4">
+              <div className="flex flex-col items-end gap-1">
+                <img
+                  src={quoteElementImage}
+                  alt=""
+                  role="presentation"
+                  className="h-10 w-10 object-contain"
+                />
+              </div>
+            </div>
+            <div className="space-y-5 px-6 py-6">
+              <p className="text-lg font-bold leading-relaxed text-foreground">
+                “Mỗi ngày tiến bộ 1% vẫn là tiến bộ. Học đều, luyện đúng trọng tâm, điểm số sẽ đi lên.”
+              </p>
+              <p className="text-sm font-semibold text-muted">
+                Hôm nay bạn bắt đầu từ việc nhỏ: chọn 1 nhiệm vụ trong tab Hỗ trợ tự học và hoàn thành nó.
+              </p>
+            </div>
+            <div className="border-t border-primary/15 px-6 py-4 text-right">
+              <button
+                type="button"
+                onClick={() => setShowLoginQuote(false)}
+                className="border border-primary/25 bg-white px-4 py-2 text-xs font-black uppercase tracking-widest text-primary hover:bg-primary/5"
+              >
+                Bắt đầu học
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
       <ProfileModal {...profileModalProps} />

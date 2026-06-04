@@ -21,6 +21,7 @@ export declare class UsersService implements OnModuleInit {
     ensureSeedStudent(): Promise<void>;
     findByEmail(email: string): Promise<UserDocument | null>;
     findPublicById(id: string): Promise<PublicUser | undefined>;
+    findNamesByIds(ids: string[]): Promise<Map<string, string>>;
     listPublic(params?: {
         role?: string;
         q?: string;

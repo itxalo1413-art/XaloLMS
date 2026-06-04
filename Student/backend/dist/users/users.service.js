@@ -120,6 +120,21 @@ let UsersService = class UsersService {
             return undefined;
         return this.toPublic(doc);
     }
+    async findNamesByIds(ids) {
+        const valid = [...new Set(ids.filter((id) => mongoose_2.Types.ObjectId.isValid(id)))];
+        const map = new Map();
+        if (valid.length === 0)
+            return map;
+        const rows = await this.userModel
+            .find({ _id: { $in: valid.map((id) => new mongoose_2.Types.ObjectId(id)) } })
+            .select({ name: 1 })
+            .lean()
+            .exec();
+        for (const row of rows) {
+            map.set(row._id.toString(), row.name);
+        }
+        return map;
+    }
     async listPublic(params) {
         const page = Math.max(1, params?.page ?? 1);
         const limit = Math.min(100, Math.max(1, params?.limit ?? 20));

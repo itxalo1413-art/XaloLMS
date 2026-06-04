@@ -111,6 +111,21 @@ export class UsersService implements OnModuleInit {
     return this.toPublic(doc);
   }
 
+  async findNamesByIds(ids: string[]): Promise<Map<string, string>> {
+    const valid = [...new Set(ids.filter((id) => Types.ObjectId.isValid(id)))];
+    const map = new Map<string, string>();
+    if (valid.length === 0) return map;
+    const rows = await this.userModel
+      .find({ _id: { $in: valid.map((id) => new Types.ObjectId(id)) } })
+      .select({ name: 1 })
+      .lean<{ _id: Types.ObjectId; name: string }[]>()
+      .exec();
+    for (const row of rows) {
+      map.set(row._id.toString(), row.name);
+    }
+    return map;
+  }
+
   async listPublic(params?: {
     role?: string;
     q?: string;

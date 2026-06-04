@@ -25,8 +25,34 @@ export const PRACTICE_CLASS_SKILL = "Lớp luyện đề tập trung";
 export const PRACTICE_CLASS_DESCRIPTION =
   "Lớp Luyện đề có nội dung học tập tập trung hoàn toàn vào chữa đề actual test và đề mà giáo viên đánh giá là tiệm cận với xu hướng ra đề hiện tại.";
 
+/** Hiển thị trên tab đăng ký lớp luyện đề (Hỗ trợ tự học) */
+export const PRACTICE_CLASS_WEEKLY_REREGISTER_WARNING =
+  "Lưu ý: Bạn phải đăng ký lại lịch lớp luyện đề mỗi tuần tại tab này. Đăng ký tuần trước không được giữ sang tuần mới.";
+
 export const PRACTICE_SLOT_IDS = ["sun-lrw", "tue-lrw", "sat-speaking"] as const;
 export type PracticeSlotId = (typeof PRACTICE_SLOT_IDS)[number];
+
+export type PracticeMeetingAccess = {
+  meetingId: string;
+  password: string;
+  joinUrl: string;
+};
+
+/** Phòng Zoom chung cho mọi buổi luyện đề trên Zoom — không đổi theo từng slot. */
+export const PRACTICE_CLASS_ZOOM_ROOM: PracticeMeetingAccess = {
+  meetingId: "842 1963 4521",
+  password: "XaloLrw26",
+  joinUrl: "https://zoom.us/j/84219634521?pwd=example-lrw",
+};
+
+export function isPracticeZoomPlatform(platform: string): boolean {
+  return platform.toLowerCase().includes("zoom");
+}
+
+export function resolvePracticeMeetingAccess(slot: PracticeClassSlot): PracticeMeetingAccess {
+  if (isPracticeZoomPlatform(slot.platform)) return PRACTICE_CLASS_ZOOM_ROOM;
+  return slot.meeting;
+}
 
 export type PracticeClassSlot = {
   id: PracticeSlotId;
@@ -37,6 +63,7 @@ export type PracticeClassSlot = {
   detail: string;
   platform: string;
   dateNote?: string;
+  meeting: PracticeMeetingAccess;
 };
 
 const DEFAULT_PRACTICE_CLASS_WEEKLY_SCHEDULE: PracticeClassSlot[] = [
@@ -49,6 +76,11 @@ const DEFAULT_PRACTICE_CLASS_WEEKLY_SCHEDULE: PracticeClassSlot[] = [
     detail:
       "Tham gia bằng link Google Meet, làm bài trên Google Docs, có nhân viên canh thời gian làm bài và các bạn học viên khác tham gia.",
     platform: "Google Meet",
+    meeting: {
+      meetingId: "meet-lrw-sun",
+      password: "Không cần mật khẩu",
+      joinUrl: "https://meet.google.com/abc-defg-hij",
+    },
   },
   {
     id: "tue-lrw",
@@ -59,6 +91,7 @@ const DEFAULT_PRACTICE_CLASS_WEEKLY_SCHEDULE: PracticeClassSlot[] = [
     detail:
       "Tham gia bằng Zoom, học với Giáo viên, tập trung chữa đề Writing và các thắc mắc về Listening – Reading.",
     platform: "Zoom",
+    meeting: PRACTICE_CLASS_ZOOM_ROOM,
   },
   {
     id: "sat-speaking",
@@ -69,6 +102,7 @@ const DEFAULT_PRACTICE_CLASS_WEEKLY_SCHEDULE: PracticeClassSlot[] = [
     detail:
       "Tham gia bằng Zoom, học với Giáo viên, phân tích bộ đề Speaking 3 part, được cung cấp từ vựng/phương pháp tiếp cận và luyện tập trực tiếp với Giáo viên.",
     platform: "Zoom",
+    meeting: PRACTICE_CLASS_ZOOM_ROOM,
   },
 ];
 
@@ -95,6 +129,7 @@ export type { PracticeRegistrationAcaRow };
 const REGISTRATIONS_KEY = "xalo.student.practiceClassSlots.v1";
 const LEGACY_REGISTRATION_KEY = "xalo.student.practiceClassRegistration.v1";
 const SCHEDULE_KEY = "xalo.aca.practiceClassWeeklySchedule.v1";
+const WEEKLY_RESET_MARKER_KEY = "xalo.student.practiceClassWeeklyResetMarker.v1";
 
 export const PRACTICE_CLASS_UPDATE_EVENT = "xalo-practice-class-updated";
 export const PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT = "xalo-practice-class-schedule-updated";
@@ -107,11 +142,85 @@ let scheduleUpdatedAtCache: string | null = null;
 let registrationsCache: PracticeSlotRegistration[] = [];
 
 const JOINED_KEY = "xalo.student.practiceClassJoined.v1";
+const MOCK_TEST_STORAGE_KEY = "lms_mock_test_requests_v1";
+const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+let weeklyResetTimer: number | null = null;
 
 function dispatchPracticeEvents() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new Event(PRACTICE_CLASS_UPDATE_EVENT));
   window.dispatchEvent(new Event(PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT));
+}
+
+/**
+ * Mốc reset tuần: 23:00 Chủ nhật (theo giờ máy người dùng).
+ * Trả về timestamp của mốc gần nhất <= now.
+ */
+function getLatestWeeklyResetMarker(now: Date): number {
+  const marker = new Date(now);
+  marker.setHours(23, 0, 0, 0);
+  const day = marker.getDay(); // 0 = Sunday
+  marker.setDate(marker.getDate() - day);
+  if (now.getTime() < marker.getTime()) {
+    marker.setDate(marker.getDate() - 7);
+  }
+  return marker.getTime();
+}
+
+function getNextWeeklyResetAt(now: Date): Date {
+  const latest = new Date(getLatestWeeklyResetMarker(now));
+  return new Date(latest.getTime() + ONE_WEEK_MS);
+}
+
+function applyWeeklyPracticeResetLocal(markerTs: number): void {
+  if (typeof window === "undefined") return;
+
+  localStorage.removeItem(REGISTRATIONS_KEY);
+  localStorage.removeItem(LEGACY_REGISTRATION_KEY);
+  localStorage.removeItem(JOINED_KEY);
+  registrationsCache = [];
+
+  // Dọn mock-test được tạo từ đăng ký lớp luyện đề.
+  const kept = loadMockTestRequests().filter(
+    (r) => !r.skill.startsWith(PRACTICE_CLASS_SKILL),
+  );
+  applyMockTestCache(kept);
+  try {
+    localStorage.setItem(MOCK_TEST_STORAGE_KEY, JSON.stringify(kept));
+    localStorage.setItem(WEEKLY_RESET_MARKER_KEY, String(markerTs));
+  } catch {
+    // ignore
+  }
+  window.dispatchEvent(new Event(MOCK_TEST_UPDATE_EVENT));
+  dispatchPracticeEvents();
+}
+
+function ensureWeeklyPracticeReset(now = new Date()): void {
+  if (typeof window === "undefined") return;
+  const latestMarker = getLatestWeeklyResetMarker(now);
+  let storedMarker = 0;
+  try {
+    storedMarker = Number(localStorage.getItem(WEEKLY_RESET_MARKER_KEY) ?? "0");
+  } catch {
+    storedMarker = 0;
+  }
+  if (latestMarker > storedMarker) {
+    applyWeeklyPracticeResetLocal(latestMarker);
+  }
+}
+
+function scheduleWeeklyPracticeReset(): void {
+  if (typeof window === "undefined") return;
+  if (weeklyResetTimer !== null) {
+    window.clearTimeout(weeklyResetTimer);
+  }
+  const now = new Date();
+  const next = getNextWeeklyResetAt(now);
+  const delay = Math.max(1000, next.getTime() - now.getTime() + 1000);
+  weeklyResetTimer = window.setTimeout(() => {
+    ensureWeeklyPracticeReset(new Date());
+    scheduleWeeklyPracticeReset();
+  }, delay);
 }
 
 export function isPracticeClassJoined(studentId: string): boolean {
@@ -159,8 +268,26 @@ export function clearPracticeClassJoined(studentId?: string): void {
   dispatchPracticeEvents();
 }
 
+function normalizePracticeSlot(slot: PracticeClassSlot): PracticeClassSlot {
+  const base = DEFAULT_PRACTICE_CLASS_WEEKLY_SCHEDULE.find((s) => s.id === slot.id);
+  const fallback = base?.meeting ?? {
+    meetingId: "—",
+    password: "—",
+    joinUrl: "—",
+  };
+  const merged: PracticeClassSlot = {
+    ...base,
+    ...slot,
+    meeting: slot.meeting ?? fallback,
+  };
+  return {
+    ...merged,
+    meeting: resolvePracticeMeetingAccess(merged),
+  };
+}
+
 export function applyPracticeScheduleCache(res: PracticeScheduleResponse) {
-  scheduleCache = res.slots;
+  scheduleCache = res.slots.map(normalizePracticeSlot);
   weekRangeLabelCache = res.weekRangeLabel?.trim() ?? "";
   scheduleUpdatedAtCache = res.updatedAt;
 }
@@ -472,10 +599,12 @@ export function hasRegisteredPracticeOnCalendarDay(
 
 /** Khởi tạo cache từ local (SSR / lần đầu). */
 export function initPracticeClassCacheFromLocal(): void {
+  ensureWeeklyPracticeReset();
   applyPracticeScheduleCache(mergeScheduleFromLocalStore());
   registrationsCache = loadPracticeSlotRegistrationsLocal();
 }
 
 if (typeof window !== "undefined") {
   initPracticeClassCacheFromLocal();
+  scheduleWeeklyPracticeReset();
 }

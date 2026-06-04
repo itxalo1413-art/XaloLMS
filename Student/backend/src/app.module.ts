@@ -10,6 +10,8 @@ import { MockTestModule } from './mock-test/mock-test.module';
 import { PracticeClassModule } from './practice-class/practice-class.module';
 import { StudentProfileModule } from './student-profile/student-profile.module';
 import { UsersModule } from './users/users.module';
+import { RlpModule } from './rlp/rlp.module';
+import { WritingSubmissionModule } from './writing-submission/writing-submission.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { UsersModule } from './users/users.module';
     StudentProfileModule,
     PracticeClassModule,
     MockTestModule,
+    WritingSubmissionModule,
+    RlpModule,
   ],
   controllers: [AppController],
   providers: [AppService],

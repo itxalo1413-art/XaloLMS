@@ -1,6 +1,7 @@
 import { Model } from 'mongoose';
 import { UsersService } from '../users/users.service';
 import { CreateMockTestDto } from './dto/create-mock-test.dto';
+import { RecordMockTestResultDto } from './dto/record-mock-test-result.dto';
 import { ReviewMockTestDto } from './dto/review-mock-test.dto';
 import { type MockTestStatus } from './mock-test.constants';
 import { type MockTestRequestDocument } from './schemas/mock-test-request.schema';
@@ -25,6 +26,7 @@ export declare class MockTestService {
     private readonly users;
     constructor(model: Model<MockTestRequestDocument>, users: UsersService);
     private toPublic;
+    private isSpeakingMockTest;
     private findByIdOrThrow;
     private hasDuplicateSlot;
     listForStudent(studentId: string): Promise<MockTestRequestPublic[]>;
@@ -32,5 +34,7 @@ export declare class MockTestService {
     createForStudent(studentId: string, payload: CreateMockTestDto): Promise<MockTestRequestPublic>;
     cancelPending(studentId: string, id: string): Promise<void>;
     approve(id: string, payload: ReviewMockTestDto): Promise<MockTestRequestPublic>;
+    listForTeacher(teacherName: string): Promise<MockTestRequestPublic[]>;
+    recordResult(id: string, teacherName: string, payload: RecordMockTestResultDto): Promise<MockTestRequestPublic>;
     reject(id: string): Promise<MockTestRequestPublic>;
 }

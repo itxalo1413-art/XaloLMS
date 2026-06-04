@@ -55,7 +55,7 @@ export function CourseMetadataEditorSection({ portalLabel }: Props) {
           />
         </label>
         <label className="block">
-          <span className="text-xs font-bold uppercase tracking-wider text-muted">Giảng viên</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-muted">Giáo viên</span>
           <input
             value={form.instructor}
             onChange={(e) => setForm((f) => ({ ...f, instructor: e.target.value }))}

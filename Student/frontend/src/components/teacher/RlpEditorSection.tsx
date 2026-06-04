@@ -32,6 +32,18 @@ type Draft = {
   lessonFileUrl: string;
 };
 
+function resolveLessonFileToken(url: string) {
+  const clean = url.split("#")[0]?.split("?")[0]?.toLowerCase() ?? "";
+  if (clean.endsWith(".pdf")) return { label: "PDF", tone: "bg-danger/10 text-danger" };
+  if (clean.endsWith(".doc") || clean.endsWith(".docx"))
+    return { label: "DOC", tone: "bg-primary/10 text-primary" };
+  if (clean.endsWith(".ppt") || clean.endsWith(".pptx") || clean.endsWith(".key"))
+    return { label: "SLD", tone: "bg-warning/10 text-warning" };
+  if (clean.endsWith(".xls") || clean.endsWith(".xlsx"))
+    return { label: "XLS", tone: "bg-success/10 text-success" };
+  return { label: "LINK", tone: "bg-zinc-100 text-zinc-700" };
+}
+
 function draftFromRow(row: RlpSession): Draft {
   return {
     attendance: row.attendance,
@@ -188,9 +200,17 @@ export function RlpEditorSection() {
                           href={row.lessonFileUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="font-semibold text-primary hover:underline"
+                          className="inline-flex items-center gap-2 hover:opacity-80"
                         >
-                          Đã gắn link
+                          <span
+                            className={[
+                              "inline-flex min-w-[38px] justify-center rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-wide",
+                              resolveLessonFileToken(row.lessonFileUrl).tone,
+                            ].join(" ")}
+                          >
+                            {resolveLessonFileToken(row.lessonFileUrl).label}
+                          </span>
+                          <span className="font-semibold text-primary">Mở file</span>
                         </a>
                       ) : (
                         "—"

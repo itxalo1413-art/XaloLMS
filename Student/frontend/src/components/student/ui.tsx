@@ -16,7 +16,15 @@ export function Panel({
   return (
     <section className={["relative pt-8", className].join(" ")}>
       {/* Folder Tab Shape */}
-      <div className="absolute top-0 left-0 h-10 w-fit min-w-[140px] px-6 bg-white border-t border-l border-r border-primary/15 rounded-t-[20px] shadow-[-2px_-4px_12px_rgba(0,0,0,0.03)] flex items-center z-0">
+      <div
+        className="absolute top-0 left-[10px] z-0 flex h-10 min-w-[240px] items-center bg-white px-7 shadow-[-2px_-4px_12px_rgba(0,0,0,0.03)]"
+        style={{
+          clipPath: "polygon(20px 0, calc(100% - 20px) 0, 100% 100%, 0 100%)",
+          borderTop: "1px solid color-mix(in srgb, var(--primary) 15%, transparent)",
+          borderLeft: "1px solid color-mix(in srgb, var(--primary) 15%, transparent)",
+          borderRight: "1px solid color-mix(in srgb, var(--primary) 15%, transparent)",
+        }}
+      >
         <div className="w-1.5 h-3.5 bg-gradient-to-b from-primary to-secondary rounded-full mr-2.5"></div>
         <div className="text-[11px] font-black text-foreground uppercase tracking-wider whitespace-nowrap">{title}</div>
       </div>

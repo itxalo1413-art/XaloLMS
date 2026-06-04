@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthGuardsModule } from '../auth/auth-guards.module';
+import { UsersModule } from '../users/users.module';
 import { AcaPracticeClassController } from './aca-practice-class.controller';
 import { PracticeClassService } from './practice-class.service';
 import {
@@ -23,6 +24,7 @@ import { StudentPracticeClassController } from './student-practice-class.control
       },
     ]),
     AuthGuardsModule,
+    UsersModule,
   ],
   controllers: [AcaPracticeClassController, StudentPracticeClassController],
   providers: [PracticeClassService],

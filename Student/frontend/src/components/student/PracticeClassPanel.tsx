@@ -1,8 +1,14 @@
-"use client";
-
-import { Panel } from "@/components/student/ui";
+import { PracticeZoomRoomBlock } from "@/components/student/PracticeMeetingAccessBlock";
+import { PracticeClassWeeklyWarning } from "@/components/student/PracticeClassWeeklyWarning";
 import { usePracticeWeeklySchedule } from "@/hooks/usePracticeWeeklySchedule";
-import { PRACTICE_CLASS_DESCRIPTION, type PracticeSlotId } from "@/lib/practiceClass";
+import { Panel } from "@/components/student/ui";
+import {
+  PRACTICE_CLASS_DESCRIPTION,
+  PRACTICE_CLASS_WEEKLY_REREGISTER_WARNING,
+  type PracticeSlotId,
+} from "@/lib/practiceClass";
+
+export { PracticeClassWeeklyWarning } from "@/components/student/PracticeClassWeeklyWarning";
 
 type PracticeClassPanelProps = {
   registeredSlotIds: Set<PracticeSlotId>;
@@ -20,7 +26,7 @@ export function PracticeClassPanel({
   const { slots, weekRangeLabel } = usePracticeWeeklySchedule();
 
   return (
-    <Panel title="Lớp luyện đề tập trung" className="w-full">
+    <Panel title="Đăng ký lớp luyện đề" className="w-full">
       <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
         <div className="text-[10px] font-black uppercase tracking-widest text-primary">
           Giới thiệu lớp
@@ -29,6 +35,8 @@ export function PracticeClassPanel({
           {PRACTICE_CLASS_DESCRIPTION}
         </p>
       </div>
+
+      <PracticeClassWeeklyWarning />
 
       <div className="mt-5">
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
@@ -40,9 +48,14 @@ export function PracticeClassPanel({
           ) : null}
         </div>
         <p className="mb-3 text-[11px] font-medium text-muted">
-          Đăng ký từng buổi bên dưới — buổi nào đã đăng ký sẽ hiển thị trên Thời khoá biểu. Lịch
-          do ACA cập nhật mỗi tuần.
+          Đăng ký từng buổi bên dưới — buổi đã đăng ký sẽ hiển thị trên Thời khoá biểu.
         </p>
+        <div className="mb-4">
+          <p className="mb-2 text-[11px] font-semibold text-muted">
+            Các buổi trên Zoom dùng chung một phòng (ID và mật khẩu cố định):
+          </p>
+          <PracticeZoomRoomBlock compact credentialsOnly />
+        </div>
         <ul className="space-y-3">
           {slots.map((slot) => {
             const registered = registeredSlotIds.has(slot.id);
@@ -106,7 +119,10 @@ export function PracticeClassPanel({
           })}
         </ul>
         {onResetTest ? (
-          <div className="mt-4 flex justify-end border-t border-primary/5 pt-4">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-primary/5 pt-4">
+            <p className="text-[11px] font-bold text-danger">
+              {PRACTICE_CLASS_WEEKLY_REREGISTER_WARNING}
+            </p>
             <button
               type="button"
               onClick={onResetTest}

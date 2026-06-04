@@ -16,15 +16,18 @@ exports.PracticeClassService = void 0;
 const common_1 = require("@nestjs/common");
 const mongoose_1 = require("@nestjs/mongoose");
 const mongoose_2 = require("mongoose");
+const users_service_1 = require("../users/users.service");
 const practice_class_constants_1 = require("./practice-class.constants");
 const practice_class_registration_schema_1 = require("./schemas/practice-class-registration.schema");
 const practice_class_schedule_schema_1 = require("./schemas/practice-class-schedule.schema");
 let PracticeClassService = class PracticeClassService {
     scheduleModel;
     registrationModel;
-    constructor(scheduleModel, registrationModel) {
+    usersService;
+    constructor(scheduleModel, registrationModel, usersService) {
         this.scheduleModel = scheduleModel;
         this.registrationModel = registrationModel;
+        this.usersService = usersService;
     }
     mergeSlot(base, override) {
         if (!override)
@@ -119,6 +122,28 @@ let PracticeClassService = class PracticeClassService {
             registeredAt: doc.createdAt?.toISOString() ?? new Date().toISOString(),
         };
     }
+    async listAllRegistrationsForAca() {
+        const [rows, schedule] = await Promise.all([
+            this.registrationModel.find().sort({ createdAt: -1 }).lean().exec(),
+            this.getSchedule(),
+        ]);
+        const userIds = [...new Set(rows.map((row) => row.userId.toString()))];
+        const names = await this.usersService.findNamesByIds(userIds);
+        const slotById = Object.fromEntries(schedule.slots.map((slot) => [slot.id, slot]));
+        return rows.map((row) => {
+            const slot = slotById[row.slotId];
+            const studentId = row.userId.toString();
+            return {
+                studentId,
+                studentName: names.get(studentId) ?? studentId,
+                slotId: row.slotId,
+                slotTitle: slot?.title ?? row.slotId,
+                slotSchedule: slot ? `${slot.dayLabel} · ${slot.time}` : '—',
+                registeredAt: row.createdAt?.toISOString() ??
+                    new Date(0).toISOString(),
+            };
+        });
+    }
     async unregisterSlot(userId, slotId) {
         if (!mongoose_2.Types.ObjectId.isValid(userId)) {
             throw new common_1.BadRequestException('userId không hợp lệ');
@@ -143,6 +168,7 @@ exports.PracticeClassService = PracticeClassService = __decorate([
     __param(0, (0, mongoose_1.InjectModel)(practice_class_schedule_schema_1.PracticeClassSchedule.name)),
     __param(1, (0, mongoose_1.InjectModel)(practice_class_registration_schema_1.PracticeClassRegistration.name)),
     __metadata("design:paramtypes", [mongoose_2.Model,
-        mongoose_2.Model])
+        mongoose_2.Model,
+        users_service_1.UsersService])
 ], PracticeClassService);
 //# sourceMappingURL=practice-class.service.js.map

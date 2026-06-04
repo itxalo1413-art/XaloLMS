@@ -5,4 +5,5 @@ export declare class AcaPracticeClassController {
     constructor(practiceClass: PracticeClassService);
     getSchedule(): Promise<import("./practice-class.service").PracticeSchedulePublic>;
     updateSchedule(body: UpdatePracticeScheduleDto): Promise<import("./practice-class.service").PracticeSchedulePublic>;
+    listRegistrations(): Promise<import("./practice-class.service").PracticeRegistrationAcaPublic[]>;
 }

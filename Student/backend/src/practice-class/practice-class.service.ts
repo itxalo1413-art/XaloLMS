@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { UsersService } from '../users/users.service';
 import { UpdatePracticeScheduleDto } from './dto/update-practice-schedule.dto';
 import {
   isPracticeSlotId,
@@ -40,6 +41,15 @@ export type PracticeRegistrationPublic = {
   registeredAt: string;
 };
 
+export type PracticeRegistrationAcaPublic = {
+  studentId: string;
+  studentName: string;
+  slotId: PracticeSlotId;
+  slotTitle: string;
+  slotSchedule: string;
+  registeredAt: string;
+};
+
 @Injectable()
 export class PracticeClassService {
   constructor(
@@ -47,6 +57,7 @@ export class PracticeClassService {
     private readonly scheduleModel: Model<PracticeClassScheduleDocument>,
     @InjectModel(PracticeClassRegistration.name)
     private readonly registrationModel: Model<PracticeClassRegistrationDocument>,
+    private readonly usersService: UsersService,
   ) {}
 
   private mergeSlot(
@@ -170,6 +181,31 @@ export class PracticeClassService {
       slotId: doc.slotId as PracticeSlotId,
       registeredAt: doc.createdAt?.toISOString() ?? new Date().toISOString(),
     };
+  }
+
+  async listAllRegistrationsForAca(): Promise<PracticeRegistrationAcaPublic[]> {
+    const [rows, schedule] = await Promise.all([
+      this.registrationModel.find().sort({ createdAt: -1 }).lean().exec(),
+      this.getSchedule(),
+    ]);
+    const userIds = [...new Set(rows.map((row) => row.userId.toString()))];
+    const names = await this.usersService.findNamesByIds(userIds);
+    const slotById = Object.fromEntries(schedule.slots.map((slot) => [slot.id, slot]));
+
+    return rows.map((row) => {
+      const slot = slotById[row.slotId as PracticeSlotId];
+      const studentId = row.userId.toString();
+      return {
+        studentId,
+        studentName: names.get(studentId) ?? studentId,
+        slotId: row.slotId as PracticeSlotId,
+        slotTitle: slot?.title ?? row.slotId,
+        slotSchedule: slot ? `${slot.dayLabel} · ${slot.time}` : '—',
+        registeredAt:
+          (row as { createdAt?: Date }).createdAt?.toISOString() ??
+          new Date(0).toISOString(),
+      };
+    });
   }
 
   async unregisterSlot(userId: string, slotId: string): Promise<void> {

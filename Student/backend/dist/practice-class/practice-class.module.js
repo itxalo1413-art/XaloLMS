@@ -10,6 +10,7 @@ exports.PracticeClassModule = void 0;
 const common_1 = require("@nestjs/common");
 const mongoose_1 = require("@nestjs/mongoose");
 const auth_guards_module_1 = require("../auth/auth-guards.module");
+const users_module_1 = require("../users/users.module");
 const aca_practice_class_controller_1 = require("./aca-practice-class.controller");
 const practice_class_service_1 = require("./practice-class.service");
 const practice_class_registration_schema_1 = require("./schemas/practice-class-registration.schema");
@@ -29,6 +30,7 @@ exports.PracticeClassModule = PracticeClassModule = __decorate([
                 },
             ]),
             auth_guards_module_1.AuthGuardsModule,
+            users_module_1.UsersModule,
         ],
         controllers: [aca_practice_class_controller_1.AcaPracticeClassController, student_practice_class_controller_1.StudentPracticeClassController],
         providers: [practice_class_service_1.PracticeClassService],

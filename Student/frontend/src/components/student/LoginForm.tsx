@@ -12,6 +12,8 @@ import {
   setAuthToken,
 } from "@/lib/auth";
 
+const LOGIN_QUOTE_POPUP_KEY = "xalo.showLoginQuotePopup";
+
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -20,6 +22,9 @@ export function LoginForm() {
     if (!isAuthDisabled()) return;
     const demo = getAuthBypassUser();
     cacheAuthUser(demo);
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(LOGIN_QUOTE_POPUP_KEY, "1");
+    }
     router.replace("/");
   }, [router]);
   const roleError = searchParams.get("error") === "role";
@@ -40,6 +45,9 @@ export function LoginForm() {
       const result = await login(email.trim(), password);
       setAuthToken(result.access_token);
       cacheAuthUser(result.user);
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem(LOGIN_QUOTE_POPUP_KEY, "1");
+      }
       if (result.user.role !== "HS") {
         router.replace(homePathForRole(result.user.role));
         return;

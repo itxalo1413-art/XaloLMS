@@ -207,7 +207,7 @@ export function StudentSchedulePanel({
               {approvedTests.filter((t) => t.month === month && t.year === year).length === 0 &&
                 pendingTests.filter((t) => t.month === month && t.year === year).length > 0 && (
                   <div className="rounded-xl border border-warning/20 bg-warning/10 p-3 text-[10px] font-medium text-warning">
-                    Bạn có ca chờ ACA duyệt trong tháng này — chưa hiển thị trên lịch.
+                    Bạn có ca chờ duyệt trong tháng này — chưa hiển thị trên lịch.
                   </div>
                 )}
             </div>

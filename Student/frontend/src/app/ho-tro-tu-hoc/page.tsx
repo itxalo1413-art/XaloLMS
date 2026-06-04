@@ -9,7 +9,11 @@ import {
   StatusBadge,
 } from "@/components/student/SelfStudyResultsTable";
 import { StudentSchedulePanel } from "@/components/student/StudentSchedulePanel";
-import { PracticeClassPanel } from "@/components/student/PracticeClassPanel";
+import {
+  PracticeClassPanel,
+  PracticeClassWeeklyWarning,
+} from "@/components/student/PracticeClassPanel";
+import { PracticeMeetingAccessBlock } from "@/components/student/PracticeMeetingAccessBlock";
 import { StudentDialog } from "@/components/student/StudentDialog";
 import { NativeSelectChevron, Panel } from "@/components/student/ui";
 import { useStudentSchedule } from "@/hooks/useStudentSchedule";
@@ -40,6 +44,7 @@ import {
   getPracticeSlotsForStudent,
   PRACTICE_CLASS_SKILL,
   PRACTICE_CLASS_DESCRIPTION,
+  PRACTICE_CLASS_WEEKLY_REREGISTER_WARNING,
   PRACTICE_CLASS_UPDATE_EVENT,
   isPracticeClassJoined,
   refreshPracticeRegistrations,
@@ -58,7 +63,7 @@ import {
 
 type PageDialog =
   | { kind: "confirm-practice"; slotId: PracticeSlotId }
-  | { kind: "success-practice" }
+  | { kind: "success-practice"; slotId: PracticeSlotId }
   | { kind: "duplicate-mock" }
   | { kind: "alert"; message: string };
 
@@ -167,7 +172,7 @@ export default function HoTroTuHocPage() {
         examTime: `${slot.dayLabel} ${slot.time}`,
       });
       bumpPracticeSlots();
-      setDialog({ kind: "success-practice" });
+      setDialog({ kind: "success-practice", slotId: dialog.slotId });
     } catch (err) {
       setDialog({
         kind: "alert",
@@ -193,12 +198,34 @@ export default function HoTroTuHocPage() {
   const pendingPracticeSlot =
     dialog?.kind === "confirm-practice" ? getPracticeSlotById(dialog.slotId) : null;
 
+  const successPracticeSlot =
+    dialog?.kind === "success-practice" ? getPracticeSlotById(dialog.slotId) : null;
+
   const speakingMockRows = useMemo(() => {
     const rows = sortMockTestsByDateDesc(
       myRequests.filter((r) => isSpeakingMockTest(r.skill)),
     );
     return rows.length > 0 ? rows : getDemoSpeakingMockTests(student.id, student.name);
   }, [myRequests, student.id, student.name]);
+
+  const practiceHistoryRows = useMemo(
+    () => [
+      { test: "LĐ16", name: "Dương Ngọc Khôi Nguyên", l: "—", r: "—", w: "—", s: "—" },
+      { test: "LĐ17", name: "Dương Ngọc Khôi Nguyên", l: "6.0", r: "5.5", w: "4.5", s: "—" },
+      { test: "LĐ18", name: "Dương Ngọc Khôi Nguyên", l: "—", r: "—", w: "—", s: "—" },
+      { test: "LĐ19", name: "Dương Ngọc Khôi Nguyên", l: "—", r: "—", w: "—", s: "—" },
+      { test: "LĐ20", name: "Dương Ngọc Khôi Nguyên", l: "—", r: "—", w: "—", s: "—" },
+    ],
+    [],
+  );
+
+  const practiceHistoryWithScoreRows = useMemo(
+    () =>
+      practiceHistoryRows.filter(
+        (row) => row.l !== "—" || row.r !== "—" || row.w !== "—" || row.s !== "—",
+      ),
+    [practiceHistoryRows],
+  );
 
   const registerMockTest = async () => {
     if (hasDuplicateSlot(student.id, regSkill, regDay, regMonth, year)) {
@@ -315,7 +342,7 @@ export default function HoTroTuHocPage() {
                       <div className="text-[10px] font-bold text-muted uppercase mt-1">
                         {formatMockTestDateTime(test)}
                       </div>
-                      <div className="mt-1 text-[10px] font-bold text-warning uppercase">Chờ ACA duyệt</div>
+                      <div className="mt-1 text-[10px] font-bold text-warning uppercase">Chờ duyệt</div>
                     </div>
                     <button type="button" onClick={() => void cancelPendingRequest(test.id)} className="text-[10px] font-black uppercase text-secondary hover:underline">
                       Hủy
@@ -424,7 +451,7 @@ export default function HoTroTuHocPage() {
                     columns={[
                       {
                         key: "datetime",
-                        label: "Ngày giờ test",
+                        label: "Ngày giờ nộp",
                         align: "center",
                         width: "w-[128px]",
                         render: (row) => (
@@ -497,7 +524,10 @@ export default function HoTroTuHocPage() {
 
         <div className="mt-10 flex w-full flex-col gap-10">
           {!practiceJoined ? (
-            <Panel title="Lớp luyện đề tập trung" className="w-full">
+            <Panel title="Đăng ký lớp luyện đề" className="w-full">
+              <div className="mb-4">
+                <PracticeClassWeeklyWarning />
+              </div>
               <div className="flex flex-col gap-4 rounded-3xl bg-background p-6 shadow-inner sm:flex-row sm:items-center sm:justify-between sm:gap-6">
                 <p className="min-w-0 flex-1 text-sm font-medium leading-relaxed text-muted">
                   {PRACTICE_CLASS_DESCRIPTION}
@@ -533,22 +563,27 @@ export default function HoTroTuHocPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-primary/5">
-                        {[
-                          { test: "LĐ16", name: "Dương Ngọc Khôi Nguyên", l: "—", r: "—", w: "—", s: "—" },
-                          { test: "LĐ17", name: "Dương Ngọc Khôi Nguyên", l: "6.0", r: "5.5", w: "4.5", s: "—" },
-                          { test: "LĐ18", name: "Dương Ngọc Khôi Nguyên", l: "—", r: "—", w: "—", s: "—" },
-                          { test: "LĐ19", name: "Dương Ngọc Khôi Nguyên", l: "—", r: "—", w: "—", s: "—" },
-                          { test: "LĐ20", name: "Dương Ngọc Khôi Nguyên", l: "—", r: "—", w: "—", s: "—" },
-                        ].map((row, idx) => (
-                          <tr key={idx} className="hover:bg-background/30 transition-colors">
-                            <td className="px-4 py-4 text-xs font-bold text-foreground">{row.test}</td>
-                            <td className="px-4 py-4 text-xs font-bold text-muted">{row.name}</td>
-                            <td className="px-4 py-4 text-xs font-black text-foreground">{row.l}</td>
-                            <td className="px-4 py-4 text-xs font-black text-foreground">{row.r}</td>
-                            <td className="px-4 py-4 text-xs font-black text-foreground">{row.w}</td>
-                            <td className="px-4 py-4 text-xs font-black text-foreground">{row.s}</td>
+                        {practiceHistoryWithScoreRows.length > 0 ? (
+                          practiceHistoryWithScoreRows.map((row, idx) => (
+                            <tr key={`${row.test}-${idx}`} className="hover:bg-background/30 transition-colors">
+                              <td className="px-4 py-4 text-xs font-bold text-foreground">{row.test}</td>
+                              <td className="px-4 py-4 text-xs font-bold text-muted">{row.name}</td>
+                              <td className="px-4 py-4 text-xs font-black text-foreground">{row.l}</td>
+                              <td className="px-4 py-4 text-xs font-black text-foreground">{row.r}</td>
+                              <td className="px-4 py-4 text-xs font-black text-foreground">{row.w}</td>
+                              <td className="px-4 py-4 text-xs font-black text-foreground">{row.s}</td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr className="hover:bg-background/30 transition-colors">
+                            <td className="px-4 py-4 text-xs font-bold text-muted">—</td>
+                            <td className="px-4 py-4 text-xs font-bold text-muted">—</td>
+                            <td className="px-4 py-4 text-xs font-black text-muted">—</td>
+                            <td className="px-4 py-4 text-xs font-black text-muted">—</td>
+                            <td className="px-4 py-4 text-xs font-black text-muted">—</td>
+                            <td className="px-4 py-4 text-xs font-black text-muted">—</td>
                           </tr>
-                        ))}
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -581,17 +616,32 @@ export default function HoTroTuHocPage() {
               Buổi này sẽ hiển thị trên <span className="font-bold text-foreground">Thời khoá biểu</span>{" "}
               (mọi {pendingPracticeSlot.dayLabel} trong tháng đang xem).
             </p>
+            <p className="mt-2 text-[11px] font-semibold leading-relaxed text-warning">
+              {PRACTICE_CLASS_WEEKLY_REREGISTER_WARNING}
+            </p>
+            <div className="mt-3">
+              <PracticeMeetingAccessBlock slot={pendingPracticeSlot} compact />
+            </div>
           </div>
         ) : null}
       </StudentDialog>
 
       <StudentDialog
-        open={dialog?.kind === "success-practice"}
+        open={dialog?.kind === "success-practice" && Boolean(successPracticeSlot)}
         tone="success"
         title="Đăng ký thành công"
-        message="Buổi học đã được thêm vào Thời khoá biểu. Chọn các ngày tương ứng trên lịch để xem chi tiết."
         onClose={() => setDialog(null)}
-      />
+      >
+        {successPracticeSlot ? (
+          <div className="space-y-3">
+            <p className="text-sm font-medium leading-relaxed text-muted">
+              Buổi học đã được thêm vào <span className="font-bold text-foreground">Thời khoá biểu</span>.
+              Dùng thông tin bên dưới để vào phòng:
+            </p>
+            <PracticeMeetingAccessBlock slot={successPracticeSlot} />
+          </div>
+        ) : null}
+      </StudentDialog>
 
       <StudentDialog
         open={dialog?.kind === "duplicate-mock"}

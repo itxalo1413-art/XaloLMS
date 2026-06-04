@@ -15,6 +15,7 @@ const aca_mock_test_controller_1 = require("./aca-mock-test.controller");
 const mock_test_service_1 = require("./mock-test.service");
 const mock_test_request_schema_1 = require("./schemas/mock-test-request.schema");
 const student_mock_test_controller_1 = require("./student-mock-test.controller");
+const teacher_mock_test_controller_1 = require("./teacher-mock-test.controller");
 let MockTestModule = class MockTestModule {
 };
 exports.MockTestModule = MockTestModule;
@@ -27,7 +28,11 @@ exports.MockTestModule = MockTestModule = __decorate([
             auth_guards_module_1.AuthGuardsModule,
             users_module_1.UsersModule,
         ],
-        controllers: [student_mock_test_controller_1.StudentMockTestController, aca_mock_test_controller_1.AcaMockTestController],
+        controllers: [
+            student_mock_test_controller_1.StudentMockTestController,
+            aca_mock_test_controller_1.AcaMockTestController,
+            teacher_mock_test_controller_1.TeacherMockTestController,
+        ],
         providers: [mock_test_service_1.MockTestService],
         exports: [mock_test_service_1.MockTestService],
     })

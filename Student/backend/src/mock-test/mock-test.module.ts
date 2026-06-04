@@ -9,6 +9,7 @@ import {
   MockTestRequestSchema,
 } from './schemas/mock-test-request.schema';
 import { StudentMockTestController } from './student-mock-test.controller';
+import { TeacherMockTestController } from './teacher-mock-test.controller';
 
 @Module({
   imports: [
@@ -18,7 +19,11 @@ import { StudentMockTestController } from './student-mock-test.controller';
     AuthGuardsModule,
     UsersModule,
   ],
-  controllers: [StudentMockTestController, AcaMockTestController],
+  controllers: [
+    StudentMockTestController,
+    AcaMockTestController,
+    TeacherMockTestController,
+  ],
   providers: [MockTestService],
   exports: [MockTestService],
 })

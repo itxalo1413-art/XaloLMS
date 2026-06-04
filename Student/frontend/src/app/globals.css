@@ -16,7 +16,7 @@
   --shadow-hover: 0 12px 24px rgba(64, 46, 128, 0.14), 0 4px 8px rgba(0, 0, 0, 0.06);
   --shadow-premium: 0 16px 32px rgba(97, 81, 190, 0.16);
   
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-noto-serif), Georgia, "Times New Roman", serif;
 
   @keyframes bounce-slow {
     0%, 100% { transform: translateY(0); }
@@ -35,7 +35,12 @@
 }
 
 body {
-  background: linear-gradient(180deg, #f6f8f4 0%, var(--background) 22%, var(--background) 100%);
+  background-color: var(--background);
+  background-image: url("/bg.png");
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-size: cover;
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;

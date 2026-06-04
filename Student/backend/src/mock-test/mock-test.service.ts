@@ -8,6 +8,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { UsersService } from '../users/users.service';
 import { CreateMockTestDto } from './dto/create-mock-test.dto';
+import { RecordMockTestResultDto } from './dto/record-mock-test-result.dto';
 import { ReviewMockTestDto } from './dto/review-mock-test.dto';
 import { isMockTestStatus, type MockTestStatus } from './mock-test.constants';
 import {
@@ -66,6 +67,11 @@ export class MockTestService {
       score: doc.score,
       examLink: doc.examLink,
     };
+  }
+
+  private isSpeakingMockTest(skill: string): boolean {
+    const s = skill.toLowerCase();
+    return s.includes('speaking') && !s.includes('luyện');
   }
 
   private async findByIdOrThrow(id: string): Promise<MockTestLean> {
@@ -203,6 +209,59 @@ export class MockTestService {
             status: 'approved',
             examTime,
             examTeacher,
+          },
+        },
+        { new: true },
+      )
+      .lean()
+      .exec();
+    return this.toPublic(updated as MockTestLean);
+  }
+
+  async listForTeacher(teacherName: string): Promise<MockTestRequestPublic[]> {
+    const teacher = teacherName.trim();
+    if (!teacher) return [];
+    const rows = await this.model
+      .find({
+        status: 'approved',
+        examTeacher: teacher,
+      })
+      .sort({ year: 1, month: 1, day: 1, createdAt: -1 })
+      .lean()
+      .exec();
+    return (rows as MockTestLean[])
+      .filter((r) => this.isSpeakingMockTest(r.skill))
+      .map((r) => this.toPublic(r));
+  }
+
+  async recordResult(
+    id: string,
+    teacherName: string,
+    payload: RecordMockTestResultDto,
+  ): Promise<MockTestRequestPublic> {
+    const doc = await this.findByIdOrThrow(id);
+    if (doc.status !== 'approved') {
+      throw new BadRequestException('Chỉ nhập kết quả cho ca đã duyệt');
+    }
+    const teacher = teacherName.trim();
+    if (!teacher || (doc.examTeacher ?? '').trim() !== teacher) {
+      throw new BadRequestException('Ca mock test không thuộc giáo viên này');
+    }
+    if (!this.isSpeakingMockTest(doc.skill)) {
+      throw new BadRequestException('Chỉ nhập kết quả Mock Test Speaking');
+    }
+    const score = payload.score?.trim();
+    if (!score) {
+      throw new BadRequestException('Thiếu điểm');
+    }
+    const examLink = payload.examLink?.trim() || doc.examLink;
+    const updated = await this.model
+      .findByIdAndUpdate(
+        doc._id,
+        {
+          $set: {
+            score,
+            examLink,
           },
         },
         { new: true },

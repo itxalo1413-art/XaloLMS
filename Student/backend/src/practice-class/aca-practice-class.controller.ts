@@ -20,4 +20,9 @@ export class AcaPracticeClassController {
   updateSchedule(@Body() body: UpdatePracticeScheduleDto) {
     return this.practiceClass.updateSchedule(body ?? {});
   }
+
+  @Get('registrations')
+  listRegistrations() {
+    return this.practiceClass.listAllRegistrationsForAca();
+  }
 }

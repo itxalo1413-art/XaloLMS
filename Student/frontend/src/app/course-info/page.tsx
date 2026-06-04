@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { StudentLayout } from "@/app/StudentLayout";
 import { StudentSchedulePanel } from "@/components/student/StudentSchedulePanel";
 import { Panel } from "@/components/student/ui";
@@ -22,20 +22,51 @@ import {
   RLP_SESSIONS_UPDATE_EVENT,
 } from "@/lib/rlpSessionStore";
 import Link from "next/link";
+import { InstructorProfileDialog } from "@/components/student/InstructorProfileDialog";
+import {
+  PORTAL_PROFILE_UPDATE_EVENT,
+  resolveInstructorPublicProfile,
+} from "@/lib/courseInstructorProfile";
+
+function resolveLessonFileToken(url: string) {
+  const clean = url.split("#")[0]?.split("?")[0]?.toLowerCase() ?? "";
+  if (clean.endsWith(".pdf")) return { label: "PDF", tone: "bg-danger/10 text-danger" };
+  if (clean.endsWith(".doc") || clean.endsWith(".docx"))
+    return { label: "DOC", tone: "bg-primary/10 text-primary" };
+  if (clean.endsWith(".ppt") || clean.endsWith(".pptx") || clean.endsWith(".key"))
+    return { label: "SLD", tone: "bg-warning/10 text-warning" };
+  if (clean.endsWith(".xls") || clean.endsWith(".xlsx"))
+    return { label: "XLS", tone: "bg-success/10 text-success" };
+  return { label: "LINK", tone: "bg-zinc-100 text-zinc-700" };
+}
 
 function CourseOverviewSection() {
   const [meta, setMeta] = useState(() => getCourseMetadata());
+  const [instructorDialogOpen, setInstructorDialogOpen] = useState(false);
+  const [instructorProfile, setInstructorProfile] = useState(() =>
+    resolveInstructorPublicProfile(getCourseMetadata().instructor),
+  );
+
+  const refreshInstructorProfile = useCallback((instructorName: string) => {
+    setInstructorProfile(resolveInstructorPublicProfile(instructorName));
+  }, []);
 
   useEffect(() => {
     setMeta(refreshCourseMetadata());
-    const onUpdate = () => setMeta(getCourseMetadata());
+    const onUpdate = () => {
+      const next = getCourseMetadata();
+      setMeta(next);
+      refreshInstructorProfile(next.instructor);
+    };
     window.addEventListener(COURSE_METADATA_UPDATE_EVENT, onUpdate);
+    window.addEventListener(PORTAL_PROFILE_UPDATE_EVENT, onUpdate);
     window.addEventListener("storage", onUpdate);
     return () => {
       window.removeEventListener(COURSE_METADATA_UPDATE_EVENT, onUpdate);
+      window.removeEventListener(PORTAL_PROFILE_UPDATE_EVENT, onUpdate);
       window.removeEventListener("storage", onUpdate);
     };
-  }, []);
+  }, [refreshInstructorProfile]);
 
   const basics = [
     {
@@ -44,7 +75,7 @@ function CourseOverviewSection() {
       icon: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253",
     },
     {
-      label: "Giảng viên",
+      label: "Giáo viên",
       value: meta.instructor,
       icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
     },
@@ -58,23 +89,56 @@ function CourseOverviewSection() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {basics.map((item) => (
-          <div
-            key={item.label}
-            className="flex h-full gap-3 rounded-2xl border border-primary/10 bg-background/60 p-4"
-          >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-primary shadow-sm">
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d={item.icon} />
-              </svg>
+        {basics.map((item) => {
+          const inner = (
+            <>
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-primary shadow-sm">
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d={item.icon} />
+                </svg>
+              </div>
+              <div className="min-w-0 text-left">
+                <div className="text-[10px] font-black uppercase tracking-widest text-muted">{item.label}</div>
+                <div className="mt-1.5 text-sm font-bold leading-snug text-foreground">{item.value}</div>
+                {item.label === "Giáo viên" ? (
+                  <div className="mt-1 text-[10px] font-bold text-primary"></div>
+                ) : null}
+              </div>
+            </>
+          );
+
+          if (item.label === "Giáo viên") {
+            return (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => {
+                  refreshInstructorProfile(meta.instructor);
+                  setInstructorDialogOpen(true);
+                }}
+                className="flex h-full w-full gap-3 rounded-2xl border border-primary/10 bg-background/60 p-4 text-left transition-colors hover:border-primary/25 hover:bg-primary-soft/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+              >
+                {inner}
+              </button>
+            );
+          }
+
+          return (
+            <div
+              key={item.label}
+              className="flex h-full gap-3 rounded-2xl border border-primary/10 bg-background/60 p-4"
+            >
+              {inner}
             </div>
-            <div className="min-w-0">
-              <div className="text-[10px] font-black uppercase tracking-widest text-muted">{item.label}</div>
-              <div className="mt-1.5 text-sm font-bold leading-snug text-foreground">{item.value}</div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+
+      <InstructorProfileDialog
+        open={instructorDialogOpen}
+        profile={instructorProfile}
+        onClose={() => setInstructorDialogOpen(false)}
+      />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex h-full gap-3 rounded-2xl border border-primary/10 bg-background/60 p-4">
@@ -289,10 +353,17 @@ export default function CourseInfoPage() {
                                         href={row.lessonFileUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex text-primary transition-colors hover:text-primary/80"
+                                        className="inline-flex items-center justify-center transition-opacity hover:opacity-80"
                                         aria-label="Mở file bài học"
                                       >
-                                        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                                        <span
+                                          className={[
+                                            "inline-flex min-w-[38px] justify-center rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-wide",
+                                            resolveLessonFileToken(row.lessonFileUrl).tone,
+                                          ].join(" ")}
+                                        >
+                                          {resolveLessonFileToken(row.lessonFileUrl).label}
+                                        </span>
                                       </a>
                                     ) : (
                                       <span className="text-[11px] font-medium text-muted">—</span>

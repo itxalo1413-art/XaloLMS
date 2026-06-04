@@ -2,8 +2,46 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { BcbGrammarTable } from "@/components/diagnosis/BcbGrammarTable";
+import { BcbQuestionTypeTable } from "@/components/diagnosis/BcbQuestionTypeTable";
+import { SkillDiagIntro } from "@/components/diagnosis/SkillDiagIntro";
+import { SpeakingCriteriaPanel } from "@/components/diagnosis/SpeakingCriteriaPanel";
+import { WritingDiagIntro } from "@/components/diagnosis/WritingDiagIntro";
+import { WritingScoreFormulaNote } from "@/components/diagnosis/WritingScoreFormulaNote";
+import { WritingTask1CriteriaPanel } from "@/components/diagnosis/WritingTask1CriteriaPanel";
+import { WritingTask2CriteriaPanel } from "@/components/diagnosis/WritingTask2CriteriaPanel";
+import {
+  GUEST_BCB_GRAMMAR,
+  GUEST_BCB_LISTENING,
+  GUEST_BCB_READING,
+} from "@/lib/guestBcbDiagnosis";
 import { formatBandScore } from "@/lib/formatBandScore";
 import { submitGuestDiagnosisLead } from "@/lib/guestDiagnosisLeads";
+import { resolveWritingBands } from "@/lib/writingScore";
+import type { SpeakingCriterionScores } from "@/lib/speakingBandDescriptors";
+
+const guestWritingCriteria = {
+  task1: {
+    taskAchievement: 7,
+    coherenceCohesion: 7,
+    lexicalResource: 7,
+    grammaticalRange: 7,
+  },
+  task2: {
+    taskResponse: 7,
+    coherenceCohesion: 7,
+    lexicalResource: 7,
+    grammaticalRange: 7,
+  },
+};
+
+const guestWritingBands = resolveWritingBands(guestWritingCriteria);
+const guestSpeakingCriteria: SpeakingCriterionScores = {
+  fluencyCoherence: 5.5,
+  lexicalResource: 4.0,
+  grammaticalRangeAccuracy: 4.0,
+  pronunciation: 5.5,
+};
 
 // Mock data of the guest candidate
 const guestCandidate = {
@@ -14,18 +52,30 @@ const guestCandidate = {
   scores: {
     listening: 7.0,
     reading: 5.5,
-    writing: 7.0,
+    writing: guestWritingBands.writingOverall,
     speaking: 4.5,
     overall: 6.0,
   },
+  ...guestWritingCriteria,
+  writingBands: guestWritingBands,
+  writingSummary: {
+    task1:
+      "Bạn đưa ra được thông tin khái quát (Overview) và mô tả các đặc điểm chính của biểu đồ khá rõ. Dùng được tương đối đa dạng từ nối, vốn từ tương đối rộng bao gồm cả từ ít thông dụng một cách khá chính xác.",
+    task2:
+      "Bạn đưa ra được thông tin khái quát (Overview) và quan điểm cá nhân rõ ràng. Dùng được tương đối đa dạng từ nối, vốn từ tương đối rộng bao gồm cả từ ít thông dụng một cách khá chính xác.",
+  },
+  writingLinks: {
+    task1: "https://docs.google.com/document/d/example-guest-writing-task1",
+    task2: "https://docs.google.com/document/d/example-guest-writing-task2",
+  },
+  listeningLink: "https://docs.google.com/document/d/example-guest-listening-test",
+  readingLink: "https://docs.google.com/document/d/example-guest-reading-test",
   aim: "7.5",
 };
 
 export default function GuestDiagnosisPage() {
   const [activeDiagTab, setActiveDiagTab] = useState<"listening" | "reading" | "writing" | "speaking" | "grammar">("listening");
-  const [expandedRubric, setExpandedRubric] = useState<string | null>(null);
   const [grammarFilter, setGrammarFilter] = useState<"all" | "red" | "yellow">("all");
-  const [expandedGrammarId, setExpandedGrammarId] = useState<string | null>(null);
   const [writingTaskMode, setWritingTaskMode] = useState<"task1" | "task2">("task1");
 
   // Booking Form State
@@ -157,6 +207,7 @@ export default function GuestDiagnosisPage() {
                 { id: "reading", label: "Reading", score: "5.5" },
                 { id: "writing", label: "Writing", score: "7.0" },
                 { id: "speaking", label: "Speaking", score: "4.5" },
+                { id: "grammar", label: "Ngữ pháp", score: null },
               ].map((tab) => {
                 const active = activeDiagTab === tab.id;
                 return (
@@ -186,285 +237,59 @@ export default function GuestDiagnosisPage() {
             {/* TAB CONTENT: LISTENING */}
             {activeDiagTab === "listening" && (
               <div className="space-y-6 animate-in fade-in duration-200">
-                <div className="p-5 rounded-2xl border border-zinc-100 bg-zinc-50/50">
-                  <div className="text-[10px] font-black text-muted uppercase tracking-widest">Đặc trưng Band 7.0</div>
-                  <p className="text-xs font-medium text-foreground leading-relaxed mt-2">
-                    Bạn ở band này có thể hiểu được phần lớn từ vựng trong nhiều chủ đề, bao gồm các thuật ngữ học thuật trong tiếng Anh, kể cả khi bài nói có tốc độ nhanh và phức tạp. Bạn có thể hiểu được thông tin, thái độ, ý kiến, mục đích của người nói kể cả khi chúng không được đề cập trực tiếp.
-                  </p>
-                </div>
+                <SkillDiagIntro
+                  bandLabel="Đặc trưng Band 7.0"
+                  summary="Bạn ở band này có thể hiểu được phần lớn từ vựng trong nhiều chủ đề, bao gồm các thuật ngữ học thuật trong tiếng Anh, kể cả khi bài nói có tốc độ nhanh và phức tạp. Bạn có thể hiểu được thông tin, thái độ, ý kiến, mục đích của người nói kể cả khi chúng không được đề cập trực tiếp."
+                  submissionLink={guestCandidate.listeningLink}
+                  linkLabel="Xem bài Listening"
+                />
 
-                <div>
-                  <div className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Dạng bài cần cải thiện (Tỷ lệ sai {">"} 50%)</div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {[
-                      {
-                        title: "Plan, Map, Diagram Labelling",
-                        tag: "DL_AD_00_001",
-                        diag: "Chưa hiểu được hoặc theo kịp ngôn ngữ chỉ phương hướng (đi thẳng, rẽ trái, ở phía đối diện, etc.). Thiếu từ vựng chỉ phương hướng hoặc chưa sử dụng thành thạo.",
-                        mistake: "Bị lạc hướng ở Audio Part 2 (đoạn rẽ ở ngã tư thứ hai) dẫn đến sai liên tiếp 3 câu.",
-                      },
-                      {
-                        title: "Form, Note, Summary Completion",
-                        tag: "DL_AC_00_001",
-                        diag: "Chưa quen đọc thông tin trong bảng (Table) hoặc lưu đồ (Flow Chart), dẫn đến việc lúng túng hoặc điền sai câu trả lời.",
-                        mistake: "Điền sai chính tả (Spelling) câu 12 'restaurant' thay vì 'resort'.",
-                      },
-                      {
-                        title: "Multiple Choice & Matching",
-                        tag: "DL_MC_00_001",
-                        diag: "Dễ bị bẫy bởi các thông tin nhiễu (distractors) do nghe bắt từ đơn lẻ thay vì nghe hiểu toàn bộ ngữ cảnh.",
-                        mistake: "Chọn đáp án A ngay khi nghe thấy từ khóa trùng khớp, bỏ qua từ 'but' phủ định ngay sau đó.",
-                      },
-                      {
-                        title: "Short-answer Questions",
-                        tag: "DL_SQ_00_002",
-                        diag: "Hiểu sai hoặc chưa hiểu câu hỏi do không quen với cấu trúc ngữ pháp câu hỏi phức tạp.",
-                        mistake: "Hiểu nhầm đối tượng thực hiện hành động trong câu hỏi số 8.",
-                      }
-                    ].map((w, idx) => (
-                      <div key={idx} className="p-5 rounded-2xl border border-secondary/10 bg-secondary/5 flex flex-col justify-between">
-                        <div>
-                          <div className="flex items-center justify-between gap-2">
-                            <h5 className="text-xs font-black text-secondary uppercase">{w.title}</h5>
-                            <span className="text-[9px] font-bold text-secondary bg-white px-2 py-0.5 rounded-lg border border-secondary/15">{w.tag}</span>
-                          </div>
-                          <p className="text-xs font-semibold text-foreground mt-2 leading-relaxed">{w.diag}</p>
-                          <div className="mt-3 p-3 rounded-xl bg-white border border-secondary/5 text-[11px] text-muted-foreground italic leading-normal">
-                            <strong className="text-secondary font-bold not-italic">Lỗi thực tế: </strong>{w.mistake}
-                          </div>
-                        </div>
-                        <Link href="#tu-van" className="mt-4 block text-center py-2 bg-secondary text-white rounded-xl text-xs font-bold transition-all hover:bg-secondary/90 shadow-sm">
-                          Đăng Ký Khắc Phục Dạng Bài Yếu
-                        </Link>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <BcbQuestionTypeTable rows={GUEST_BCB_LISTENING} showWeakCta />
               </div>
             )}
 
             {/* TAB CONTENT: READING */}
             {activeDiagTab === "reading" && (
               <div className="space-y-6 animate-in fade-in duration-200">
-                <div className="p-5 rounded-2xl border border-zinc-100 bg-zinc-50/50">
-                  <div className="text-[10px] font-black text-muted uppercase tracking-widest">Đặc trưng Band 5.5</div>
-                  <p className="text-xs font-medium text-foreground leading-relaxed mt-2">
-                    Bạn có khả năng xử lý các văn bản học thuật và bài viết nêu quan điểm cá nhân ở mức cơ bản. Bạn hiểu được từ vựng khi các ý tưởng đơn giản, nhưng dễ bị bối rối trước cấu trúc câu phức tạp và có xu hướng đọc dịch từng từ khiến tốc độ đọc bị chậm.
-                  </p>
-                </div>
+                <SkillDiagIntro
+                  bandLabel="Đặc trưng Band 5.5"
+                  summary="Bạn có khả năng xử lý các văn bản học thuật và bài viết nêu quan điểm cá nhân ở mức cơ bản. Bạn hiểu được từ vựng khi các ý tưởng đơn giản, nhưng dễ bị bối rối trước cấu trúc câu phức tạp và có xu hướng đọc dịch từng từ khiến tốc độ đọc bị chậm."
+                  submissionLink={guestCandidate.readingLink}
+                  linkLabel="Xem bài Reading"
+                />
 
-                <div>
-                  <div className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Dạng bài cần cải thiện (Tỷ lệ sai {">"} 50%)</div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {[
-                      {
-                        title: "Matching Features",
-                        tag: "DR_MF_00_001",
-                        diag: "Không tìm được dữ kiện để trả lời câu hỏi. Có thể do bỏ lỡ các tên riêng/các thông tin liên quan đến tên riêng trong bài hoặc không nhận biết được các đại từ nhân xưng được dùng để nhắc đến đối tượng nào.",
-                        mistake: "Lẫn lộn giữa hai ý kiến của hai nhà khoa học ở đoạn C do không để ý đại từ 'she' chỉ về ai.",
-                      },
-                      {
-                        title: "Matching Headings",
-                        tag: "DR_MH_00_001",
-                        diag: "Không nắm / tóm tắt được ý chính mà đoạn văn đang muốn nói đến. Dễ bị đánh lừa bởi các từ khóa lặp lại ở câu đầu nhưng chủ đề đoạn nằm ở giữa.",
-                        mistake: "Chọn nhầm Heading của đoạn B do đoạn này thay đổi luận điểm đột ngột ở giữa đoạn.",
-                      }
-                    ].map((w, idx) => (
-                      <div key={idx} className="p-5 rounded-2xl border border-secondary/10 bg-secondary/5 flex flex-col justify-between">
-                        <div>
-                          <div className="flex items-center justify-between gap-2">
-                            <h5 className="text-xs font-black text-secondary uppercase">{w.title}</h5>
-                            <span className="text-[9px] font-bold text-secondary bg-white px-2 py-0.5 rounded-lg border border-secondary/15">{w.tag}</span>
-                          </div>
-                          <p className="text-xs font-semibold text-foreground mt-2 leading-relaxed">{w.diag}</p>
-                          <div className="mt-3 p-3 rounded-xl bg-white border border-secondary/5 text-[11px] text-muted-foreground italic leading-normal">
-                            <strong className="text-secondary font-bold not-italic">Lỗi thực tế: </strong>{w.mistake}
-                          </div>
-                        </div>
-                        <Link href="#tu-van" className="mt-4 block text-center py-2 bg-secondary text-white rounded-xl text-xs font-bold transition-all hover:bg-secondary/90 shadow-sm">
-                          Đăng Ký Khắc Phục Dạng Bài Yếu
-                        </Link>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <BcbQuestionTypeTable rows={GUEST_BCB_READING} showWeakCta />
               </div>
             )}
 
             {/* TAB CONTENT: WRITING */}
             {activeDiagTab === "writing" && (
               <div className="space-y-6 animate-in fade-in duration-200">
-                <div className="p-5 rounded-2xl border border-zinc-100 bg-zinc-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <div className="text-[10px] font-black text-muted uppercase tracking-widest">Đặc trưng Writing Band 7.0</div>
-                    <p className="text-xs font-medium text-foreground leading-relaxed mt-2 max-w-2xl">
-                      Bạn đưa ra được thông tin khái quát (Overview) và quan điểm cá nhân rõ ràng. Dùng được tương đối đa dạng từ nối, vốn từ tương đối rộng bao gồm cả từ ít thông dụng một cách khá chính xác.
-                    </p>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button 
-                      onClick={() => setWritingTaskMode("task1")}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        writingTaskMode === "task1" ? "bg-primary text-white shadow-sm" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
-                      }`}
-                    >
-                      Task 1 (7.0)
-                    </button>
-                    <button 
-                      onClick={() => setWritingTaskMode("task2")}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        writingTaskMode === "task2" ? "bg-primary text-white shadow-sm" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
-                      }`}
-                    >
-                      Task 2 (7.0)
-                    </button>
-                  </div>
-                </div>
+                <WritingDiagIntro
+                  taskMode={writingTaskMode}
+                  onTaskModeChange={setWritingTaskMode}
+                  task1Band={guestCandidate.writingBands.task1Band}
+                  task2Band={guestCandidate.writingBands.task2Band}
+                  summary={guestCandidate.writingSummary[writingTaskMode]}
+                  submissionLink={guestCandidate.writingLinks[writingTaskMode]}
+                />
 
                 <div>
                   <div className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">
                     Chi tiết tiêu chí chấm điểm - {writingTaskMode === "task1" ? "Writing Task 1" : "Writing Task 2"}
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {writingTaskMode === "task1" ? (
-                      <>
-                        {[
-                          {
-                            id: "w1_ta",
-                            name: "Task Achievement (TA)",
-                            score: "7.0",
-                            details: [
-                              { label: "1. Làm theo yêu cầu", value: "4+: Đúng yêu cầu đề bài." },
-                              { label: "2. Số lượng ý", value: "5+: Đủ các ý chính." },
-                              { label: "3. Chất lượng ý", value: "7: Miêu tả ý chính trọn vẹn." },
-                              { label: "4. Hình thức (Format)", value: "6+: Format phù hợp." },
-                              { label: "5. Overview", value: "7+: Overview rõ và tả đúng ý nổi bật nhất." },
-                            ]
-                          },
-                          {
-                            id: "w1_cc",
-                            name: "Coherence & Cohesion (CC)",
-                            score: "7.0",
-                            details: [
-                              { label: "1. Tổ chức & Sắp xếp", value: "6+: Hiểu được logic bài. Thấy được chủ ý mỗi đoạn." },
-                              { label: "2. Từ nối & Reference", value: "7: Reference đúng. Dùng khá đúng và đa dạng từ nối." },
-                            ]
-                          },
-                          {
-                            id: "w1_lr",
-                            name: "Lexical Resource (LR)",
-                            score: "7.0",
-                            details: [
-                              { label: "1. Số lượng & Độ đa dạng", value: "7+: Dùng từ vựng phong phú để không phải lặp từ." },
-                              { label: "2. Mức độ đúng & Phù hợp", value: "7: Khá phù hợp. Dùng được collocations." },
-                            ]
-                          },
-                          {
-                            id: "w1_gr",
-                            name: "Grammatical Range & Accuracy (GR)",
-                            score: "7.0",
-                            details: [
-                              { label: "1. Độ đa dạng & Phức tạp", value: "7+: Dùng đúng nhiều cấu trúc ngữ pháp khác nhau." },
-                              { label: "2. Mức độ đúng", value: "7: Dùng ngữ pháp phù hợp. Đôi khi sai punctuation." },
-                            ]
-                          }
-                        ].map((criterion) => {
-                          const expanded = expandedRubric === criterion.id;
-                          return (
-                            <div key={criterion.id} className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-soft transition-all hover:shadow-hover">
-                              <div className="flex items-center justify-between cursor-pointer" onClick={() => setExpandedRubric(expanded ? null : criterion.id)}>
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-sm">{criterion.score}</div>
-                                  <h5 className="text-sm font-bold text-foreground">{criterion.name}</h5>
-                                </div>
-                                <svg className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${expanded ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><polyline points="6 9 12 15 18 9" /></svg>
-                              </div>
-                              
-                              {expanded && (
-                                <div className="mt-4 pt-4 border-t border-zinc-50 space-y-3 animate-in slide-in-from-top-2 duration-200">
-                                  {criterion.details.map((d, idx) => (
-                                    <div key={idx} className="text-xs">
-                                      <div className="font-bold text-zinc-500 mb-1">{d.label}</div>
-                                      <div className="font-semibold text-foreground bg-zinc-50 p-2 rounded-xl border border-zinc-100">{d.value}</div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </>
-                    ) : (
-                      <>
-                        {[
-                          {
-                            id: "w2_tr",
-                            name: "Task Response (TR)",
-                            score: "7.0",
-                            details: [
-                              { label: "1. Thỏa mãn yêu cầu đề", value: "6+: Thỏa mãn tất cả các yêu cầu đề bài." },
-                              { label: "2. Số lượng ý", value: "6+: Viết đủ ý." },
-                              { label: "3. Chất lượng ý", value: "7: Ý được triển khai đủ, nhưng đôi khi luận điểm chưa sắc sảo." },
-                              { label: "4. Định dạng", value: "6+: Format phù hợp." },
-                              { label: "5. Quan điểm (Position)", value: "7+: Có quan điểm xuyên suốt, có câu giới thiệu rõ." }
-                            ]
-                          },
-                          {
-                            id: "w2_cc",
-                            name: "Coherence & Cohesion (CC)",
-                            score: "7.0",
-                            details: [
-                              { label: "1. Tổ chức đoạn văn", value: "6+: Mỗi đoạn xoay quanh một chủ đề rõ ràng." },
-                              { label: "2. Từ nối & Reference", value: "7: Dùng từ nối đa dạng nhưng đôi khi còn hơi lạm dụng." }
-                            ]
-                          },
-                          {
-                            id: "w2_lr",
-                            name: "Lexical Resource (LR)",
-                            score: "7.0",
-                            details: [
-                              { label: "1. Vốn từ vựng", value: "7+: Dùng từ phong phú, có khả năng paraphrase tốt." },
-                              { label: "2. Độ đúng ngữ cảnh", value: "7: Lựa chọn từ vựng đúng ngữ cảnh, thỉnh thoảng lỗi spelling nhẹ." }
-                            ]
-                          },
-                          {
-                            id: "w2_gr",
-                            name: "Grammatical Range & Accuracy (GR)",
-                            score: "7.0",
-                            details: [
-                              { label: "1. Cấu trúc câu phức", value: "7+: Áp dụng linh hoạt nhiều mẫu câu phức." },
-                              { label: "2. Tần suất lỗi", value: "7: Dùng ngữ pháp phù hợp, thỉnh thoảng có vài lỗi nhỏ." }
-                            ]
-                          }
-                        ].map((criterion) => {
-                          const expanded = expandedRubric === criterion.id;
-                          return (
-                            <div key={criterion.id} className="rounded-2xl border border-zinc-100 bg-white p-5 shadow-soft transition-all hover:shadow-hover">
-                              <div className="flex items-center justify-between cursor-pointer" onClick={() => setExpandedRubric(expanded ? null : criterion.id)}>
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-sm">{criterion.score}</div>
-                                  <h5 className="text-sm font-bold text-foreground">{criterion.name}</h5>
-                                </div>
-                                <svg className={`w-4 h-4 text-zinc-400 transition-transform duration-200 ${expanded ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><polyline points="6 9 12 15 18 9" /></svg>
-                              </div>
-                              
-                              {expanded && (
-                                <div className="mt-4 pt-4 border-t border-zinc-50 space-y-3 animate-in slide-in-from-top-2 duration-200">
-                                  {criterion.details.map((d, idx) => (
-                                    <div key={idx} className="text-xs">
-                                      <div className="font-bold text-zinc-500 mb-1">{d.label}</div>
-                                      <div className="font-semibold text-foreground bg-zinc-50 p-2 rounded-xl border border-zinc-100">{d.value}</div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </>
-                    )}
-                  </div>
+                  {writingTaskMode === "task1" ? (
+                    <WritingTask1CriteriaPanel scores={guestCandidate.task1} />
+                  ) : (
+                    <WritingTask2CriteriaPanel scores={guestCandidate.task2} />
+                  )}
                 </div>
+
+                <WritingScoreFormulaNote
+                  task1Band={guestCandidate.writingBands.task1Band}
+                  task2Band={guestCandidate.writingBands.task2Band}
+                  writingOverall={guestCandidate.writingBands.writingOverall}
+                />
               </div>
             )}
 
@@ -477,61 +302,31 @@ export default function GuestDiagnosisPage() {
                     Bạn thường nói với những khoảng dừng đáng kể. Bài nói chậm, hay lặp từ và tự sửa lỗi liên tục. Cấu trúc câu đơn giản chiếm đa số, lỗi ngữ pháp và phát âm thường xuyên xảy ra gây cản trở cho người nghe.
                   </p>
                 </div>
-
-                {/* Speaking Criteria breakdown */}
                 <div>
                   <div className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Chi tiết tiêu chí Speaking</div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {[
-                      {
-                        name: "Fluency & Coherence (FC)",
-                        score: "5.5",
-                        details: [
-                          { l: "Fluency (Độ trôi chảy)", v: "6: Trả lời dài, kỹ, chưa lưu loát lắm. Hay nói chậm, vấp hoặc lặp từ." },
-                          { l: "Coherence (Độ mạch lạc)", v: "5: Lạm dụng hoặc dùng sai từ nối. Không sử dụng đại từ thay thế tốt." }
-                        ]
-                      },
-                      {
-                        name: "Lexical Resource (LR)",
-                        score: "4.0",
-                        details: [
-                          { l: "Vốn từ vựng", v: "4: Chỉ tả được ý cơ bản, rất khó tả các ý không quen." },
-                          { l: "Độ chính xác", v: "4: Hay chọn sai từ ngữ cảnh, hiếm khi paraphrase thành công." }
-                        ]
-                      },
-                      {
-                        name: "Grammar Range & Accuracy (GR)",
-                        score: "4.0",
-                        details: [
-                          { l: "Độ đa dạng câu", v: "4: Dùng đa số câu đơn. Rất hiếm khi kết hợp câu phức." },
-                          { l: "Tần suất lỗi", v: "4: Lỗi ngữ pháp thường xuyên xảy ra và làm cản trở việc hiểu ý." }
-                        ]
-                      },
-                      {
-                        name: "Pronunciation (PRN)",
-                        score: "5.5",
-                        details: [
-                          { l: "Phát âm chung", v: "5: Giữa 4 và 6. Đôi khi nuốt âm cuối, ngữ điệu còn đều đều." }
-                        ]
-                      }
-                    ].map((c, i) => (
-                      <div key={i} className="p-5 rounded-2xl border border-zinc-100 bg-white shadow-soft">
-                        <div className="flex items-center gap-3 mb-4">
-                          <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-black text-sm">{c.score}</div>
-                          <h5 className="text-sm font-bold text-foreground">{c.name}</h5>
-                        </div>
-                        <div className="space-y-3">
-                          {c.details.map((d, idx) => (
-                            <div key={idx} className="text-xs">
-                              <div className="font-bold text-zinc-500 mb-1">{d.l}</div>
-                              <div className="font-semibold text-foreground bg-zinc-50 p-2.5 rounded-xl border border-zinc-100 leading-relaxed">{d.v}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <SpeakingCriteriaPanel scores={guestSpeakingCriteria} />
                 </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT: GRAMMAR */}
+            {activeDiagTab === "grammar" && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div className="p-5 rounded-2xl border border-zinc-100 bg-zinc-50/50">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-muted">
+                    Tổng quan lỗi ngữ pháp (Writing & Speaking)
+                  </div>
+                  <p className="mt-2 text-xs font-medium leading-relaxed text-foreground">
+                    Phát hiện {GUEST_BCB_GRAMMAR.reduce((s, r) => s + r.errorCount, 0)} lỗi ngữ pháp
+                    trên {GUEST_BCB_GRAMMAR.length} chuyên đề. Ưu tiên khắc phục S-V Agreement và Noun Phrase
+                    trước khi luyện dạng bài Listening/Reading.
+                  </p>
+                </div>
+                <BcbGrammarTable
+                  rows={GUEST_BCB_GRAMMAR}
+                  filter={grammarFilter}
+                  onFilterChange={setGrammarFilter}
+                />
               </div>
             )}
 

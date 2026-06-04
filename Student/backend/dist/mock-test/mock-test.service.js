@@ -46,6 +46,10 @@ let MockTestService = class MockTestService {
             examLink: doc.examLink,
         };
     }
+    isSpeakingMockTest(skill) {
+        const s = skill.toLowerCase();
+        return s.includes('speaking') && !s.includes('luyện');
+    }
     async findByIdOrThrow(id) {
         if (!mongoose_2.Types.ObjectId.isValid(id)) {
             throw new common_1.NotFoundException('Không tìm thấy yêu cầu');
@@ -158,6 +162,50 @@ let MockTestService = class MockTestService {
                 status: 'approved',
                 examTime,
                 examTeacher,
+            },
+        }, { new: true })
+            .lean()
+            .exec();
+        return this.toPublic(updated);
+    }
+    async listForTeacher(teacherName) {
+        const teacher = teacherName.trim();
+        if (!teacher)
+            return [];
+        const rows = await this.model
+            .find({
+            status: 'approved',
+            examTeacher: teacher,
+        })
+            .sort({ year: 1, month: 1, day: 1, createdAt: -1 })
+            .lean()
+            .exec();
+        return rows
+            .filter((r) => this.isSpeakingMockTest(r.skill))
+            .map((r) => this.toPublic(r));
+    }
+    async recordResult(id, teacherName, payload) {
+        const doc = await this.findByIdOrThrow(id);
+        if (doc.status !== 'approved') {
+            throw new common_1.BadRequestException('Chỉ nhập kết quả cho ca đã duyệt');
+        }
+        const teacher = teacherName.trim();
+        if (!teacher || (doc.examTeacher ?? '').trim() !== teacher) {
+            throw new common_1.BadRequestException('Ca mock test không thuộc giáo viên này');
+        }
+        if (!this.isSpeakingMockTest(doc.skill)) {
+            throw new common_1.BadRequestException('Chỉ nhập kết quả Mock Test Speaking');
+        }
+        const score = payload.score?.trim();
+        if (!score) {
+            throw new common_1.BadRequestException('Thiếu điểm');
+        }
+        const examLink = payload.examLink?.trim() || doc.examLink;
+        const updated = await this.model
+            .findByIdAndUpdate(doc._id, {
+            $set: {
+                score,
+                examLink,
             },
         }, { new: true })
             .lean()
