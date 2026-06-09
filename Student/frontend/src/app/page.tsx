@@ -416,7 +416,7 @@ export default function Home() {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-primary/10 bg-white p-4">
+                    <div className="rounded-2xl border border-primary/10 bg-card p-4">
                       <div className="mb-3 text-[10px] font-black uppercase tracking-widest text-muted">
                         Điểm đầu vào từng kỹ năng
                       </div>

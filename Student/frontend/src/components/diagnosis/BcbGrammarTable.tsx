@@ -56,7 +56,7 @@ export function BcbGrammarTable({ rows, filter, onFilterChange }: Props) {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-primary/10 bg-white shadow-soft">
+      <div className="overflow-hidden rounded-2xl border border-primary/10 bg-card shadow-soft">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] border-collapse text-left text-sm">
             <thead>

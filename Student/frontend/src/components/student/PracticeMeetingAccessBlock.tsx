@@ -74,7 +74,7 @@ export function MeetingAccessBlock({
   return (
     <div
       className={[
-        "rounded-xl border border-primary/15 bg-white",
+        "rounded-xl border border-primary/15 bg-card",
         compact ? "p-3" : "p-4",
       ].join(" ")}
     >

@@ -52,7 +52,7 @@ export function Sidebar({ onOpenProfile }: { onOpenProfile?: () => void }) {
 
         {/* Navigation: links grow; account block pinned to bottom */}
         <nav className="flex min-h-0 flex-1 flex-col px-3 pb-4">
-          <div className="min-h-0 flex-1 space-y-0.5">
+          <div className="min-h-0 flex-1 space-y-2">
             <div className="mb-2 px-4 text-[10px] font-bold uppercase tracking-widest text-muted opacity-60">
               Học tập
             </div>
@@ -64,46 +64,23 @@ export function Sidebar({ onOpenProfile }: { onOpenProfile?: () => void }) {
                   key={href}
                   href={href}
                   className={[
-                    "group relative mt-2 flex items-center gap-3 overflow-visible rounded-r-2xl rounded-l-md px-4 py-3 transition-all duration-300",
+                    "group flex items-center gap-3 rounded-xl px-4 py-3 transition-all duration-200",
                     active
-                      ? "text-foreground shadow-[0_8px_18px_rgba(97,81,190,0.14)]"
-                      : "text-muted hover:text-foreground",
+                      ? "bg-primary text-white shadow-soft"
+                      : "text-muted hover:bg-background hover:text-foreground",
                   ].join(" ")}
-                  style={{
-                    background: active ? "color-mix(in srgb, white 92%, var(--primary-soft))" : "white",
-                    border: "1px solid color-mix(in srgb, var(--primary) 20%, transparent)",
-                  }}
                 >
-                  <span
-                    className={[
-                      "pointer-events-none absolute -top-2 left-4 h-2.5 w-24 rounded-t-xl border border-b-0 transition-all",
-                      active
-                        ? "border-primary/40 bg-primary/15"
-                        : "border-primary/20 bg-background/80 group-hover:bg-primary/10",
-                    ].join(" ")}
-                    aria-hidden
-                  />
-                  <span
-                    className={[
-                      "pointer-events-none absolute -left-0.5 top-0 bottom-0 w-1 rounded-l-md transition-colors",
-                      active ? "bg-primary" : "bg-primary/25 group-hover:bg-primary/50",
-                    ].join(" ")}
-                    aria-hidden
-                  />
                   <div
                     className={[
-                      "flex h-8 w-8 items-center justify-center rounded-lg shadow-sm transition-all duration-300",
+                      "flex h-8 w-8 items-center justify-center rounded-lg transition-all",
                       active
-                        ? "bg-primary text-white"
-                        : "bg-white text-primary group-hover:bg-primary-soft group-hover:text-primary",
+                        ? "bg-white/20 text-white"
+                        : "bg-white text-primary shadow-sm group-hover:bg-primary-soft",
                     ].join(" ")}
                   >
                     <Icon className="h-4 w-4" strokeWidth={active ? 2.5 : 2} />
                   </div>
-                  <span className={`text-xs font-bold transition-colors ${active ? "text-foreground" : "text-muted"}`}>
-                    {label}
-                  </span>
-                  {active ? <div className="ml-auto h-1.5 w-1.5 animate-pulse rounded-full bg-primary" /> : null}
+                  <span className="text-xs font-bold">{label}</span>
                 </Link>
               );
             })}

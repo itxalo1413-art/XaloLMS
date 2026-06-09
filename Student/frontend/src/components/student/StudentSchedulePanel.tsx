@@ -163,7 +163,7 @@ export function StudentSchedulePanel({
                 {selectedDay ? (
                   selectedDayEvents.length > 0 ? (
                     selectedDayEvents.map((event, idx) => (
-                      <div key={`${event.type}-${idx}`} className="rounded-lg bg-white p-3">
+                      <div key={`${event.type}-${idx}`} className="rounded-lg bg-card p-3">
                         <div className="text-xs font-bold text-foreground">{event.label}</div>
                         <div className="mt-1 text-[11px] text-muted">{event.detail}</div>
                       </div>

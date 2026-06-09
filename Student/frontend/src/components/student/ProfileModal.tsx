@@ -81,7 +81,7 @@ export function ProfileModal({
         onClick={onClose}
         className="absolute inset-0 bg-black/30"
       />
-      <div className="relative w-full max-w-2xl rounded-2xl border border-primary/15 bg-white p-5 shadow-2xl">
+      <div className="relative w-full max-w-2xl rounded-2xl border border-primary/15 bg-card p-5 shadow-2xl">
         <div className="mb-4 flex items-start justify-between">
           <div>
             <div className="text-lg font-black text-foreground">Hồ sơ học viên</div>

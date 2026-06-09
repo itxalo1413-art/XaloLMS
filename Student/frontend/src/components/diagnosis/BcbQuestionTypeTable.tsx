@@ -40,7 +40,7 @@ export function BcbQuestionTypeTable({ rows, showWeakCta = false }: Props) {
         </div>
       </div>
 
-      <div className="hidden overflow-hidden rounded-2xl border border-primary/10 bg-white shadow-soft md:block">
+      <div className="hidden overflow-hidden rounded-2xl border border-primary/10 bg-card shadow-soft md:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[480px] border-collapse text-left text-sm">
             <thead>
@@ -90,7 +90,7 @@ export function BcbQuestionTypeTable({ rows, showWeakCta = false }: Props) {
               key={row.id}
               className={[
                 "rounded-2xl border p-4",
-                weak ? "border-secondary/20 bg-secondary/5" : "border-zinc-100 bg-white shadow-soft",
+                weak ? "border-secondary/20 bg-secondary/5" : "border-zinc-100 bg-card shadow-soft",
               ].join(" ")}
             >
               <div className="flex items-start justify-between gap-2">

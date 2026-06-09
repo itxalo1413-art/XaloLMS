@@ -10,6 +10,7 @@ const nav = [
   { href: "/aca/quan-ly/lop-luyen-de", label: "Lớp luyện đề", desc: "Lịch tuần" },
   { href: "/aca/quan-ly/chan-doan-khach", label: "Chẩn đoán khách", desc: "Lead tư vấn" },
   { href: "/aca/quan-ly/khoa-hoc", label: "Thông tin khóa", desc: "Metadata khóa" },
+  { href: "/aca/quan-ly/note", label: "Note học viên", desc: "Word of the day" },
   { href: "/aca/quan-ly/nguoi-dung", label: "Người dùng", desc: "Tài khoản & quyền" },
   { href: "/aca/phan-tich", label: "Phân tích", desc: "Báo cáo & lọc" },
   { href: "/aca/he-thong", label: "Hệ thống", desc: "Danh mục & kiểm soát" },

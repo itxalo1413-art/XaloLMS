@@ -19,7 +19,7 @@ export function WritingTask1CriteriaPanel({ scores }: Props) {
         return (
           <div
             key={criterion.key}
-            className="rounded-2xl border border-primary/10 bg-white p-5 shadow-soft"
+            className="rounded-2xl border border-primary/10 bg-card p-5 shadow-soft"
           >
             <div className="mb-4 flex items-center gap-3">
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-sm font-black text-primary tabular-nums">

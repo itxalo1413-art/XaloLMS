@@ -70,7 +70,7 @@ export function InstructorProfileDialog({ open, profile, onClose }: Props) {
       />
 
       <div
-        className="relative z-10 flex max-h-[min(85vh,640px)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-primary/10 bg-white shadow-2xl"
+        className="relative z-10 flex max-h-[min(85vh,640px)] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-primary/10 bg-card shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 border-b border-primary/10 bg-background/40 px-5 py-4">

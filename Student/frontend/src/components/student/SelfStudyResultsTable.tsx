@@ -38,7 +38,7 @@ export function SelfStudyResultsTable<T>({
       <div className="mb-3 text-[10px] font-black uppercase tracking-widest text-muted">
         {title}
       </div>
-      <div className="overflow-x-auto rounded-2xl border border-primary/10 bg-white">
+      <div className="overflow-x-auto rounded-2xl border border-primary/10 bg-card">
         <table className="w-full table-fixed border-separate border-spacing-0">
           <colgroup>
             {columns.map((col) => (

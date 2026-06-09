@@ -15,29 +15,44 @@ export function Panel({
 }) {
   return (
     <section className={["relative pt-8", className].join(" ")}>
-      {/* Folder Tab Shape */}
-      <div
-        className="absolute top-0 left-[10px] z-0 flex h-10 min-w-[240px] items-center bg-white px-7 shadow-[-2px_-4px_12px_rgba(0,0,0,0.03)]"
-        style={{
-          clipPath: "polygon(20px 0, calc(100% - 20px) 0, 100% 100%, 0 100%)",
-          borderTop: "1px solid color-mix(in srgb, var(--primary) 15%, transparent)",
-          borderLeft: "1px solid color-mix(in srgb, var(--primary) 15%, transparent)",
-          borderRight: "1px solid color-mix(in srgb, var(--primary) 15%, transparent)",
-        }}
-      >
-        <div className="w-1.5 h-3.5 bg-gradient-to-b from-primary to-secondary rounded-full mr-2.5"></div>
-        <div className="text-[11px] font-black text-foreground uppercase tracking-wider whitespace-nowrap">{title}</div>
+      {/* Folder Tab Shape — Match layout tab style */}
+      <div className="absolute top-0 left-[8px] z-0 h-10 min-w-[240px] w-max max-w-[90%] flex items-center">
+        <svg
+          className="absolute inset-0 w-full h-full"
+          viewBox="0 0 100 40"
+          preserveAspectRatio="none"
+        >
+          <path
+            d="M 0 40 C 10 40 8 0 20 0 L 80 0 C 92 0 90 40 100 40 L 100 41 L 0 41 Z"
+            fill="currentColor"
+            className="text-card"
+          />
+          <path
+            d="M 0 40 C 10 40 8 0 20 0 L 80 0 C 92 0 90 40 100 40"
+            fill="none"
+            stroke="currentColor"
+            className="text-primary/10"
+            strokeWidth="1.5"
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+        <div className="relative z-10 flex w-full items-center pl-14 pr-14">
+          <div className="mr-2.5 h-3.5 w-1.5 rounded-full bg-gradient-to-b from-primary to-secondary shrink-0" />
+          <div className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider text-foreground truncate">
+            {title}
+          </div>
+        </div>
       </div>
 
       {/* Folder Body */}
-      <div className="relative z-10 flex h-full flex-col overflow-hidden rounded-2xl rounded-tl-none border border-primary/10 bg-white shadow-soft">
-        <div className="flex shrink-0 items-center justify-between gap-1.5 border-b border-primary/5 px-3 py-2">
+      <div className="relative z-10 flex h-full flex-col overflow-hidden rounded-2xl rounded-tl-xl rounded-tr-2xl rounded-br-2xl rounded-bl-2xl border border-primary/10 bg-card shadow-soft">
+        <div className="flex shrink-0 items-center justify-between gap-1.5 border-b border-primary/5 px-5 py-3 md:px-6 md:py-4">
           <div className="pointer-events-none select-none text-[10px] font-black uppercase text-muted opacity-0">
             {title}
           </div>
           {right ? <div className="text-[10px] font-bold uppercase text-muted">{right}</div> : null}
         </div>
-        <div className="flex-1 px-3 pb-3 pt-2">{children}</div>
+        <div className="flex-1 p-10 md:p-6 pt-3 md:pt-4">{children}</div>
       </div>
     </section>
   );

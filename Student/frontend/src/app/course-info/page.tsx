@@ -253,13 +253,13 @@ export default function CourseInfoPage() {
                     Nội dung trong tab Hỗ trợ tự học
                   </div>
                   <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                    <div className="rounded-xl border border-primary/10 bg-white px-3 py-2 text-[11px] font-semibold text-foreground">
+                    <div className="rounded-xl border border-primary/10 bg-card px-3 py-2 text-[11px] font-semibold text-foreground">
                       Đăng ký Mock Test Speaking
                     </div>
-                    <div className="rounded-xl border border-primary/10 bg-white px-3 py-2 text-[11px] font-semibold text-foreground">
+                    <div className="rounded-xl border border-primary/10 bg-card px-3 py-2 text-[11px] font-semibold text-foreground">
                       Chấm - chữa Writing
                     </div>
-                    <div className="rounded-xl border border-primary/10 bg-white px-3 py-2 text-[11px] font-semibold text-foreground">
+                    <div className="rounded-xl border border-primary/10 bg-card px-3 py-2 text-[11px] font-semibold text-foreground">
                       Lớp luyện đề tập trung
                     </div>
                   </div>
@@ -277,7 +277,7 @@ export default function CourseInfoPage() {
                 {importantLinks.map((link) => (
                   <div
                     key={link.id}
-                    className="rounded-2xl border border-primary/15 bg-white p-5 shadow-soft"
+                    className="rounded-2xl border border-primary/15 bg-card p-5 shadow-soft"
                   >
                     <div className="text-[10px] font-black uppercase tracking-widest text-primary">
                       {link.label}

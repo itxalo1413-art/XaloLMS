@@ -551,7 +551,7 @@ export default function HoTroTuHocPage() {
               />
               {registeredPracticeSlotIds.size > 0 ? (
                 <Panel title="Lớp luyện đề — Mock Test Scores" className="w-full">
-                  <div className="overflow-x-auto rounded-2xl border border-primary/10 bg-white">
+                  <div className="overflow-x-auto rounded-2xl border border-primary/10 bg-card">
                     <table className="w-full border-separate border-spacing-0">
                       <thead>
                         <tr className="bg-background/50">

@@ -92,7 +92,7 @@ export function StudentDialog({
         className="absolute inset-0 bg-black/35 backdrop-blur-[2px]"
       />
       <div
-        className={`relative w-full max-w-md rounded-2xl border bg-white p-5 shadow-2xl ${styles.ring}`}
+        className={`relative w-full max-w-md rounded-2xl border bg-card p-5 shadow-2xl ${styles.ring}`}
       >
         <div className="flex gap-4">
           <div

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { PageDecorations } from "@/components/shared/PageDecorations";
 import { BcbGrammarTable } from "@/components/diagnosis/BcbGrammarTable";
 import { BcbQuestionTypeTable } from "@/components/diagnosis/BcbQuestionTypeTable";
 import { SkillDiagIntro } from "@/components/diagnosis/SkillDiagIntro";
@@ -86,9 +85,7 @@ export default function GuestDiagnosisPage() {
   const [bookingSubmitted, setBookingSubmitted] = useState(false);
 
   return (
-    <div className="relative min-h-screen bg-transparent font-sans text-[#2f2b46] antialiased">
-      <PageDecorations seed="/guest-diagnosis" />
-
+    <div className="guest-card-scope relative min-h-screen bg-transparent font-sans text-[#2f2b46] antialiased">
       {/* Premium Top Navbar */}
       <header className="sticky top-0 z-50 border-b border-zinc-100 bg-white/80 shadow-sm backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-6 py-4 flex items-center justify-between">
@@ -145,7 +142,7 @@ export default function GuestDiagnosisPage() {
 
         {/* Scoreboard Cards Grid */}
         <section className="grid grid-cols-1 gap-4 md:grid-cols-5">
-          <div className="relative flex flex-col items-center justify-center overflow-hidden rounded-3xl border-2 border-primary/40 bg-white/95 p-5 text-center shadow-soft backdrop-blur-sm">
+          <div className="relative flex flex-col items-center justify-center overflow-hidden rounded-3xl border-2 border-primary/40 bg-card/95 p-5 text-center shadow-soft backdrop-blur-sm">
             <div className="mb-1.5 text-[11px] font-black uppercase tracking-widest text-primary">Overall Band</div>
             <div className="text-5xl font-black tabular-nums text-primary">
               {formatBandScore(guestCandidate.scores.overall)}
@@ -163,7 +160,7 @@ export default function GuestDiagnosisPage() {
           ].map((s) => (
             <div
               key={s.label}
-              className="flex flex-col items-center justify-center rounded-3xl border-2 border-warning/40 bg-white/95 p-5 text-center shadow-soft backdrop-blur-sm"
+              className="flex flex-col items-center justify-center rounded-3xl border-2 border-warning/40 bg-card/95 p-5 text-center shadow-soft backdrop-blur-sm"
             >
               <div className="mb-1 text-[11px] font-black uppercase tracking-widest text-warning">{s.label}</div>
               <div className="text-4xl font-black tabular-nums text-warning">{formatBandScore(s.val)}</div>
@@ -173,12 +170,21 @@ export default function GuestDiagnosisPage() {
 
         {/* Core Diagnosis Panel */}
         <section className="relative">
-          <div className="absolute top-0 left-0 h-10 w-fit min-w-[140px] px-6 bg-white border-t border-l border-r border-primary/15 rounded-t-[20px] shadow-[-2px_-4px_12px_rgba(0,0,0,0.03)] flex items-center z-0">
-            <div className="w-1.5 h-3.5 bg-gradient-to-b from-primary to-secondary rounded-full mr-2.5"></div>
-            <div className="text-[11px] font-black text-foreground uppercase tracking-wider whitespace-nowrap">Bảng Chẩn Bệnh (BCB)</div>
+          <div className="absolute top-0 left-0 z-0 h-10 w-fit min-w-[140px] overflow-hidden rounded-t-2xl shadow-[-2px_-4px_12px_rgba(0,0,0,0.03)]">
+            <div
+              className="flex h-full w-full items-center border border-b-0 border-primary/15 bg-card px-6"
+              style={{
+                clipPath: "polygon(16px 0, calc(100% - 16px) 0, 100% 100%, 0 100%)",
+              }}
+            >
+              <div className="mr-2.5 h-3.5 w-1.5 rounded-full bg-gradient-to-b from-primary to-secondary" />
+              <div className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider text-foreground">
+                Bảng Chẩn Bệnh (BCB)
+              </div>
+            </div>
           </div>
 
-          <div className="relative z-10 flex h-full flex-col overflow-hidden rounded-2xl rounded-tl-none border border-primary/10 bg-white shadow-soft p-6">
+          <div className="relative z-10 flex h-full flex-col overflow-hidden rounded-2xl rounded-tl-none rounded-tr-2xl rounded-br-2xl rounded-bl-2xl border border-primary/10 bg-card shadow-soft p-6">
             
             {/* Visual Overall Health Row */}
             <div className="mb-8 rounded-3xl border border-zinc-100 bg-gradient-to-br from-zinc-50 to-white p-6 shadow-soft">
@@ -344,13 +350,22 @@ export default function GuestDiagnosisPage() {
         <section id="tu-van" className="scroll-mt-24">
           <div className="relative pt-8">
             {/* Folder Tab Shape */}
-            <div className="absolute top-0 left-0 h-10 w-fit min-w-[140px] px-6 bg-white border-t border-l border-r border-primary/15 rounded-t-[20px] shadow-[-2px_-4px_12px_rgba(0,0,0,0.03)] flex items-center z-0">
-              <div className="w-1.5 h-3.5 bg-gradient-to-b from-secondary to-primary rounded-full mr-2.5"></div>
-              <div className="text-[11px] font-black text-foreground uppercase tracking-wider whitespace-nowrap">Đăng Ký Tư Vấn Lộ Trình</div>
+            <div className="absolute top-0 left-0 z-0 h-10 w-fit min-w-[140px] overflow-hidden rounded-t-2xl shadow-[-2px_-4px_12px_rgba(0,0,0,0.03)]">
+              <div
+                className="flex h-full w-full items-center border border-b-0 border-primary/15 bg-card px-6"
+                style={{
+                  clipPath: "polygon(16px 0, calc(100% - 16px) 0, 100% 100%, 0 100%)",
+                }}
+              >
+                <div className="mr-2.5 h-3.5 w-1.5 rounded-full bg-gradient-to-b from-primary to-secondary" />
+                <div className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider text-foreground">
+                  Đăng Ký Tư Vấn Lộ Trình
+                </div>
+              </div>
             </div>
 
             {/* Folder Body */}
-            <div className="relative z-10 rounded-2xl rounded-tl-none border border-primary/10 bg-white p-6 md:p-8 shadow-soft">
+            <div className="relative z-10 rounded-2xl rounded-tl-none rounded-tr-2xl rounded-br-2xl rounded-bl-2xl border border-primary/10 bg-card p-6 shadow-soft md:p-8">
               {bookingSubmitted ? (
                 <div className="py-8 text-center space-y-4 animate-in fade-in duration-200">
                   <div className="w-16 h-16 rounded-full bg-success/15 text-success flex items-center justify-center mx-auto text-2xl">
