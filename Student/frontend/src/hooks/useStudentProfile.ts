@@ -8,10 +8,12 @@ import { isAllowedAvatarImageFile } from "@/lib/avatarImage";
 import { fileToDataUrl } from "@/lib/fileToDataUrl";
 import {
   DEFAULT_STUDENT_PROFILE,
-  loadStudentProfileFromStorage,
-  saveStudentProfileToStorage,
+  getStudentProfile,
+  saveStudentProfile,
+  STUDENT_PROFILE_UPDATE_EVENT,
   type StudentProfile,
 } from "@/lib/studentProfile";
+import { resolveActiveStudentId } from "@/lib/studentRoster";
 import {
   fetchStudentProfile,
   updateStudentProfile,
@@ -45,7 +47,7 @@ export function useStudentProfile() {
         if (!alive) return;
         setProfile(remote);
         setDraft(remote);
-        saveStudentProfileToStorage(remote);
+        saveStudentProfile(remote, resolveActiveStudentId());
         setProfileStatus(null);
       })
       .catch((err) => {
@@ -54,7 +56,7 @@ export function useStudentProfile() {
           handleUnauthorized(router);
           return;
         }
-        const local = loadStudentProfileFromStorage();
+        const local = getStudentProfile(resolveActiveStudentId());
         setProfile((prev) => ({
           ...local,
           name: user.name,
@@ -68,8 +70,25 @@ export function useStudentProfile() {
         setProfileStatus("Không kết nối được backend, đang dùng dữ liệu local.");
       });
 
+    const activeId = resolveActiveStudentId();
+    const onLocalUpdate = (event?: Event) => {
+      if (!alive) return;
+      const detail = (event as CustomEvent<{ studentId?: string }> | undefined)?.detail;
+      if (detail?.studentId && detail.studentId !== activeId) return;
+      const local = getStudentProfile(activeId);
+      setProfile((prev) => ({
+        ...local,
+        name: local.name || user.name,
+        email: local.email || user.email,
+      }));
+    };
+    window.addEventListener(STUDENT_PROFILE_UPDATE_EVENT, onLocalUpdate as EventListener);
+    window.addEventListener("storage", onLocalUpdate);
+
     return () => {
       alive = false;
+      window.removeEventListener(STUDENT_PROFILE_UPDATE_EVENT, onLocalUpdate as EventListener);
+      window.removeEventListener("storage", onLocalUpdate);
     };
   }, [router, user.email, user.name]);
 
@@ -90,7 +109,7 @@ export function useStudentProfile() {
       const remote = await updateStudentProfile(draft);
       setProfile(remote);
       setDraft(remote);
-      saveStudentProfileToStorage(remote);
+      saveStudentProfile(remote, resolveActiveStudentId());
       if (remote.name !== user.name) {
         await refreshUser();
       }
@@ -102,7 +121,7 @@ export function useStudentProfile() {
         return;
       }
       setProfile(draft);
-      saveStudentProfileToStorage(draft);
+      saveStudentProfile(draft, resolveActiveStudentId());
       setProfileStatus("Backend lỗi, đã lưu tạm localStorage.");
       setProfileOpen(false);
     } finally {

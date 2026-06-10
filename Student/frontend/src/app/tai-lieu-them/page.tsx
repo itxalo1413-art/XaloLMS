@@ -6,9 +6,12 @@ import { useEffect, useMemo, useState } from "react";
 import {
   contentTypeLabel,
   getRecentlyViewedDocuments,
-  mockDocuments,
   statusLabel,
 } from "@/components/student/mockLearning";
+import {
+  CONTENT_CATALOG_UPDATE_EVENT,
+  getPublishedCatalogDocuments,
+} from "@/lib/contentCatalog";
 
 const listSachTangThem = [
   "Tổng hợp Grammar Reference (with Exercises)",
@@ -65,20 +68,29 @@ export default function TaiLieuThemPage() {
   const [subjectFilter, setSubjectFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [sortBy, setSortBy] = useState("relevance");
+  const [catalogDocs, setCatalogDocs] = useState(() => getPublishedCatalogDocuments());
 
   const [recentlyViewed, setRecentlyViewed] = useState(() => getRecentlyViewedDocuments(4, {}));
 
   useEffect(() => {
+    const sync = () => setCatalogDocs(getPublishedCatalogDocuments());
+    sync();
     setRecentlyViewed(getRecentlyViewedDocuments(4));
+    window.addEventListener(CONTENT_CATALOG_UPDATE_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(CONTENT_CATALOG_UPDATE_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
   }, []);
 
   const suggestedDocuments = useMemo(() => {
-    return mockDocuments.slice(0, 3);
-  }, []);
+    return catalogDocs.slice(0, 3);
+  }, [catalogDocs]);
 
   const filteredDocuments = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    const rows = mockDocuments.filter((doc) => {
+    const rows = catalogDocs.filter((doc) => {
       const matchQuery =
         normalized.length === 0 ||
         doc.title.toLowerCase().includes(normalized) ||
@@ -94,14 +106,14 @@ export default function TaiLieuThemPage() {
       sorted.sort((a, b) => a.title.localeCompare(b.title));
     }
     return sorted;
-  }, [query, subjectFilter, typeFilter, sortBy]);
+  }, [catalogDocs, query, subjectFilter, typeFilter, sortBy]);
 
   const quickResults = useMemo(() => {
     if (!query.trim()) return [];
     return filteredDocuments.slice(0, 4);
   }, [query, filteredDocuments]);
 
-  const subjects = Array.from(new Set(mockDocuments.map((doc) => doc.subject)));
+  const subjects = Array.from(new Set(catalogDocs.map((doc) => doc.subject)));
 
   return (
     <StudentLayout>

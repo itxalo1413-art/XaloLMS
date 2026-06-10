@@ -13,6 +13,7 @@ import {
   recordMockTestResultApi,
   rejectMockTestApi,
 } from "@/lib/mockTestApi";
+import { DEFAULT_STUDENT_ID } from "@/lib/studentIds";
 import { isSpeakingMockTest } from "@/lib/selfStudyFormat";
 
 export type MockTestRequestStatus = "pending" | "approved" | "rejected";
@@ -38,7 +39,7 @@ export const MOCK_TEST_STORAGE_KEY = "lms_mock_test_requests_v1";
 export const MOCK_TEST_UPDATE_EVENT = "lms-mock-test-updated";
 
 export const DEMO_STUDENT = {
-  id: "student-demo-1",
+  id: DEFAULT_STUDENT_ID,
   name: "Dương Ngọc Khôi Nguyên",
 };
 

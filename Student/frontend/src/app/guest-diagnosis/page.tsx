@@ -10,77 +10,19 @@ import { WritingDiagIntro } from "@/components/diagnosis/WritingDiagIntro";
 import { WritingScoreFormulaNote } from "@/components/diagnosis/WritingScoreFormulaNote";
 import { WritingTask1CriteriaPanel } from "@/components/diagnosis/WritingTask1CriteriaPanel";
 import { WritingTask2CriteriaPanel } from "@/components/diagnosis/WritingTask2CriteriaPanel";
-import {
-  GUEST_BCB_GRAMMAR,
-  GUEST_BCB_LISTENING,
-  GUEST_BCB_READING,
-} from "@/lib/guestBcbDiagnosis";
 import { formatBandScore } from "@/lib/formatBandScore";
 import { submitGuestDiagnosisLead } from "@/lib/guestDiagnosisLeads";
-import { resolveWritingBands } from "@/lib/writingScore";
-import type { SpeakingCriterionScores } from "@/lib/speakingBandDescriptors";
-
-const guestWritingCriteria = {
-  task1: {
-    taskAchievement: 7,
-    coherenceCohesion: 7,
-    lexicalResource: 7,
-    grammaticalRange: 7,
-  },
-  task2: {
-    taskResponse: 7,
-    coherenceCohesion: 7,
-    lexicalResource: 7,
-    grammaticalRange: 7,
-  },
-};
-
-const guestWritingBands = resolveWritingBands(guestWritingCriteria);
-const guestSpeakingCriteria: SpeakingCriterionScores = {
-  fluencyCoherence: 5.5,
-  lexicalResource: 4.0,
-  grammaticalRangeAccuracy: 4.0,
-  pronunciation: 5.5,
-};
-
-// Mock data of the guest candidate
-const guestCandidate = {
-  name: "Dương Ngọc Khôi Nguyên",
-  email: "nguyenduong939705@gmail.com",
-  phone: "0947 188 794",
-  testDate: "26/05/2026",
-  scores: {
-    listening: 7.0,
-    reading: 5.5,
-    writing: guestWritingBands.writingOverall,
-    speaking: 4.5,
-    overall: 6.0,
-  },
-  ...guestWritingCriteria,
-  writingBands: guestWritingBands,
-  writingSummary: {
-    task1:
-      "Bạn đưa ra được thông tin khái quát (Overview) và mô tả các đặc điểm chính của biểu đồ khá rõ. Dùng được tương đối đa dạng từ nối, vốn từ tương đối rộng bao gồm cả từ ít thông dụng một cách khá chính xác.",
-    task2:
-      "Bạn đưa ra được thông tin khái quát (Overview) và quan điểm cá nhân rõ ràng. Dùng được tương đối đa dạng từ nối, vốn từ tương đối rộng bao gồm cả từ ít thông dụng một cách khá chính xác.",
-  },
-  writingLinks: {
-    task1: "https://docs.google.com/document/d/example-guest-writing-task1",
-    task2: "https://docs.google.com/document/d/example-guest-writing-task2",
-  },
-  listeningLink: "https://docs.google.com/document/d/example-guest-listening-test",
-  readingLink: "https://docs.google.com/document/d/example-guest-reading-test",
-  aim: "7.5",
-};
+import { useGuestDiagnosis } from "@/hooks/useGuestDiagnosis";
 
 export default function GuestDiagnosisPage() {
+  const { diagnosis: guest, writingBands } = useGuestDiagnosis();
   const [activeDiagTab, setActiveDiagTab] = useState<"listening" | "reading" | "writing" | "speaking" | "grammar">("listening");
   const [grammarFilter, setGrammarFilter] = useState<"all" | "red" | "yellow">("all");
   const [writingTaskMode, setWritingTaskMode] = useState<"task1" | "task2">("task1");
 
   // Booking Form State
-  const [bookingName, setBookingName] = useState(guestCandidate.name);
-  const [bookingPhone, setBookingPhone] = useState(guestCandidate.phone);
+  const [bookingName, setBookingName] = useState(guest.name);
+  const [bookingPhone, setBookingPhone] = useState(guest.phone);
   const [bookingAim, setBookingAim] = useState("7.5 IELTS");
   const [bookingSubmitted, setBookingSubmitted] = useState(false);
 
@@ -133,7 +75,7 @@ export default function GuestDiagnosisPage() {
                 Kết Quả Đánh Giá Năng Lực IELTS
               </h1>
               <p className="text-sm font-semibold opacity-90 max-w-xl">
-                Hồ sơ thí sinh: <span className="underline font-black">{guestCandidate.name}</span> · Ngày kiểm tra: {guestCandidate.testDate}
+                Hồ sơ thí sinh: <span className="underline font-black">{guest.name}</span> · Ngày kiểm tra: {guest.testDate}
               </p>
             </div>
 
@@ -145,7 +87,7 @@ export default function GuestDiagnosisPage() {
           <div className="relative flex flex-col items-center justify-center overflow-hidden rounded-3xl border-2 border-primary/40 bg-card/95 p-5 text-center shadow-soft backdrop-blur-sm">
             <div className="mb-1.5 text-[11px] font-black uppercase tracking-widest text-primary">Overall Band</div>
             <div className="text-5xl font-black tabular-nums text-primary">
-              {formatBandScore(guestCandidate.scores.overall)}
+              {formatBandScore(guest.scores.overall)}
             </div>
             <span className="mt-1.5 text-[10px] font-black uppercase tracking-wide text-foreground/70">
               Người dùng Khá
@@ -153,10 +95,10 @@ export default function GuestDiagnosisPage() {
           </div>
 
           {[
-            { label: "Listening", val: guestCandidate.scores.listening },
-            { label: "Reading", val: guestCandidate.scores.reading },
-            { label: "Writing", val: guestCandidate.scores.writing },
-            { label: "Speaking", val: guestCandidate.scores.speaking },
+            { label: "Listening", val: guest.scores.listening },
+            { label: "Reading", val: guest.scores.reading },
+            { label: "Writing", val: guest.scores.writing },
+            { label: "Speaking", val: guest.scores.speaking },
           ].map((s) => (
             <div
               key={s.label}
@@ -205,9 +147,9 @@ export default function GuestDiagnosisPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-[10px] font-black uppercase tracking-widest text-muted">Đánh giá tổng quan</div>
-                  <h4 className="text-md mt-0.5 font-bold text-foreground">Người dùng Khá (Competent)</h4>
+                  <h4 className="text-md mt-0.5 font-bold text-foreground">{guest.bcbOverviewTitle}</h4>
                   <p className="mt-1 w-full text-xs font-medium leading-relaxed text-zinc-500">
-                    Sử dụng ngôn ngữ hiệu quả, thỉnh thoảng có lỗi dùng từ chưa phù hợp. Đã bắt đầu hiểu được ngôn ngữ phức tạp nhưng phong độ chưa đều giữa các kỹ năng.
+                    {guest.bcbOverviewSummary}
                   </p>
                 </div>
               </div>
@@ -216,10 +158,10 @@ export default function GuestDiagnosisPage() {
             {/* Tab Navigation */}
             <div className="flex flex-wrap gap-2 mb-6 border-b border-zinc-100 pb-4">
               {[
-                { id: "listening", label: "Listening", score: "7.0" },
-                { id: "reading", label: "Reading", score: "5.5" },
-                { id: "writing", label: "Writing", score: "7.0" },
-                { id: "speaking", label: "Speaking", score: "4.5" },
+                { id: "listening", label: "Listening", score: formatBandScore(guest.scores.listening) },
+                { id: "reading", label: "Reading", score: formatBandScore(guest.scores.reading) },
+                { id: "writing", label: "Writing", score: formatBandScore(guest.scores.writing) },
+                { id: "speaking", label: "Speaking", score: formatBandScore(guest.scores.speaking) },
                 { id: "grammar", label: "Ngữ pháp", score: null },
               ].map((tab) => {
                 const active = activeDiagTab === tab.id;
@@ -251,13 +193,13 @@ export default function GuestDiagnosisPage() {
             {activeDiagTab === "listening" && (
               <div className="space-y-6 animate-in fade-in duration-200">
                 <SkillDiagIntro
-                  bandLabel="Đặc trưng Band 7.0"
-                  summary="Bạn ở band này có thể hiểu được phần lớn từ vựng trong nhiều chủ đề, bao gồm các thuật ngữ học thuật trong tiếng Anh, kể cả khi bài nói có tốc độ nhanh và phức tạp. Bạn có thể hiểu được thông tin, thái độ, ý kiến, mục đích của người nói kể cả khi chúng không được đề cập trực tiếp."
-                  submissionLink={guestCandidate.listeningLink}
+                  bandLabel={`Đặc trưng Band ${formatBandScore(guest.scores.listening)}`}
+                  summary={guest.skillSummaries.listening}
+                  submissionLink={guest.listeningLink}
                   linkLabel="Xem bài Listening"
                 />
 
-                <BcbQuestionTypeTable rows={GUEST_BCB_LISTENING} showWeakCta />
+                <BcbQuestionTypeTable rows={guest.bcbListening} showWeakCta />
               </div>
             )}
 
@@ -265,13 +207,13 @@ export default function GuestDiagnosisPage() {
             {activeDiagTab === "reading" && (
               <div className="space-y-6 animate-in fade-in duration-200">
                 <SkillDiagIntro
-                  bandLabel="Đặc trưng Band 5.5"
-                  summary="Bạn có khả năng xử lý các văn bản học thuật và bài viết nêu quan điểm cá nhân ở mức cơ bản. Bạn hiểu được từ vựng khi các ý tưởng đơn giản, nhưng dễ bị bối rối trước cấu trúc câu phức tạp và có xu hướng đọc dịch từng từ khiến tốc độ đọc bị chậm."
-                  submissionLink={guestCandidate.readingLink}
+                  bandLabel={`Đặc trưng Band ${formatBandScore(guest.scores.reading)}`}
+                  summary={guest.skillSummaries.reading}
+                  submissionLink={guest.readingLink}
                   linkLabel="Xem bài Reading"
                 />
 
-                <BcbQuestionTypeTable rows={GUEST_BCB_READING} showWeakCta />
+                <BcbQuestionTypeTable rows={guest.bcbReading} showWeakCta />
               </div>
             )}
 
@@ -281,10 +223,10 @@ export default function GuestDiagnosisPage() {
                 <WritingDiagIntro
                   taskMode={writingTaskMode}
                   onTaskModeChange={setWritingTaskMode}
-                  task1Band={guestCandidate.writingBands.task1Band}
-                  task2Band={guestCandidate.writingBands.task2Band}
-                  summary={guestCandidate.writingSummary[writingTaskMode]}
-                  submissionLink={guestCandidate.writingLinks[writingTaskMode]}
+                  task1Band={writingBands.task1Band}
+                  task2Band={writingBands.task2Band}
+                  summary={guest.writingSummary[writingTaskMode]}
+                  submissionLink={guest.writingLinks[writingTaskMode]}
                 />
 
                 <div>
@@ -292,16 +234,16 @@ export default function GuestDiagnosisPage() {
                     Chi tiết tiêu chí chấm điểm - {writingTaskMode === "task1" ? "Writing Task 1" : "Writing Task 2"}
                   </div>
                   {writingTaskMode === "task1" ? (
-                    <WritingTask1CriteriaPanel scores={guestCandidate.task1} />
+                    <WritingTask1CriteriaPanel scores={guest.writingCriteria.task1} />
                   ) : (
-                    <WritingTask2CriteriaPanel scores={guestCandidate.task2} />
+                    <WritingTask2CriteriaPanel scores={guest.writingCriteria.task2} />
                   )}
                 </div>
 
                 <WritingScoreFormulaNote
-                  task1Band={guestCandidate.writingBands.task1Band}
-                  task2Band={guestCandidate.writingBands.task2Band}
-                  writingOverall={guestCandidate.writingBands.writingOverall}
+                  task1Band={writingBands.task1Band}
+                  task2Band={writingBands.task2Band}
+                  writingOverall={writingBands.writingOverall}
                 />
               </div>
             )}
@@ -310,14 +252,16 @@ export default function GuestDiagnosisPage() {
             {activeDiagTab === "speaking" && (
               <div className="space-y-6 animate-in fade-in duration-200">
                 <div className="p-5 rounded-2xl border border-zinc-100 bg-zinc-50/50">
-                  <div className="text-[10px] font-black text-muted uppercase tracking-widest">Đặc trưng Speaking Band 4.5</div>
+                  <div className="text-[10px] font-black text-muted uppercase tracking-widest">
+                    Đặc trưng Speaking Band {formatBandScore(guest.scores.speaking)}
+                  </div>
                   <p className="text-xs font-medium text-foreground leading-relaxed mt-2">
-                    Bạn thường nói với những khoảng dừng đáng kể. Bài nói chậm, hay lặp từ và tự sửa lỗi liên tục. Cấu trúc câu đơn giản chiếm đa số, lỗi ngữ pháp và phát âm thường xuyên xảy ra gây cản trở cho người nghe.
+                    {guest.skillSummaries.speaking}
                   </p>
                 </div>
                 <div>
                   <div className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Chi tiết tiêu chí Speaking</div>
-                  <SpeakingCriteriaPanel scores={guestSpeakingCriteria} />
+                  <SpeakingCriteriaPanel scores={guest.speakingCriteria} />
                 </div>
               </div>
             )}
@@ -330,13 +274,12 @@ export default function GuestDiagnosisPage() {
                     Tổng quan lỗi ngữ pháp (Writing & Speaking)
                   </div>
                   <p className="mt-2 text-xs font-medium leading-relaxed text-foreground">
-                    Phát hiện {GUEST_BCB_GRAMMAR.reduce((s, r) => s + r.errorCount, 0)} lỗi ngữ pháp
-                    trên {GUEST_BCB_GRAMMAR.length} chuyên đề. Ưu tiên khắc phục S-V Agreement và Noun Phrase
-                    trước khi luyện dạng bài Listening/Reading.
+                    Phát hiện {guest.bcbGrammar.reduce((s, r) => s + r.errorCount, 0)} lỗi ngữ pháp
+                    trên {guest.bcbGrammar.length} chuyên đề.
                   </p>
                 </div>
                 <BcbGrammarTable
-                  rows={GUEST_BCB_GRAMMAR}
+                  rows={guest.bcbGrammar}
                   filter={grammarFilter}
                   onFilterChange={setGrammarFilter}
                 />
@@ -380,7 +323,7 @@ export default function GuestDiagnosisPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
                   <div className="lg:col-span-7 space-y-4">
                     <h3 className="text-xl md:text-2xl font-black text-foreground tracking-tight leading-tight">
-                      Bạn Muốn Bứt Phá Từ 6.0 Lên {guestCandidate.aim} Trong 4 Tháng?
+                      Bạn Muốn Bứt Phá Từ {formatBandScore(guest.scores.overall)} Lên {guest.aim} Trong 4 Tháng?
                     </h3>
                     <p className="text-xs md:text-sm font-medium text-zinc-500 leading-relaxed">
                       Lớp học tại Xa Lộ English được thiết kế may đo riêng cho từng học viên dựa trên chính kết quả chẩn đoán này. Chúng tôi sẽ giúp bạn:

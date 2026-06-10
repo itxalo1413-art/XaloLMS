@@ -1,11 +1,18 @@
 import { getCachedAuthUser } from "@/lib/auth";
-import { DEMO_STUDENT } from "@/lib/mockTestRequests";
+import { DEFAULT_STUDENT_ID, getRosterStudent, resolveActiveStudentId } from "@/lib/studentRoster";
 
-/** Id/name học viên đang đăng nhập (cho mock test demo). */
+/** Id/name học viên đang đăng nhập (cho mock test, luyện đề, v.v.). */
 export function getStudentIdentity() {
+  const id = resolveActiveStudentId();
   const user = getCachedAuthUser();
   if (user) {
-    return { id: user.id, name: user.name };
+    return { id, name: user.name };
   }
-  return DEMO_STUDENT;
+  const roster = getRosterStudent(id);
+  return {
+    id,
+    name: roster?.name ?? "Học viên",
+  };
 }
+
+export { DEFAULT_STUDENT_ID };

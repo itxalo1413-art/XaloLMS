@@ -6,6 +6,8 @@ import {
   STUDY_PREVIOUS_BAND_OPTIONS,
   STUDY_WEEKLY_HOURS_OPTIONS,
 } from "@/lib/studentProfileStudyOptions";
+import { DEFAULT_STUDENT_ID } from "@/lib/studentIds";
+import { getRosterStudent, resolveActiveStudentId } from "@/lib/studentRoster";
 
 export type StudentProfile = {
   name: string;
@@ -23,6 +25,8 @@ export type StudentProfile = {
 };
 
 export const STUDENT_PROFILE_STORAGE_KEY = "xalo.student.profile.v1";
+export const STUDENT_PROFILES_STORAGE_KEY = "xalo.student.profiles.v2";
+export const STUDENT_PROFILE_UPDATE_EVENT = "xalo-student-profile-updated";
 
 export const DEFAULT_STUDENT_PROFILE: StudentProfile = {
   name: "Dương Nguyên",
@@ -39,20 +43,86 @@ export const DEFAULT_STUDENT_PROFILE: StudentProfile = {
   focusSkills: ["Listening"],
 };
 
-export function loadStudentProfileFromStorage(): StudentProfile {
-  if (typeof window === "undefined") return DEFAULT_STUDENT_PROFILE;
+type ProfilesMap = Record<string, StudentProfile>;
+
+function dispatchProfileUpdate(studentId: string) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent(STUDENT_PROFILE_UPDATE_EVENT, { detail: { studentId } }),
+  );
+}
+
+function buildDefaultProfile(studentId: string): StudentProfile {
+  const roster = getRosterStudent(studentId);
+  return {
+    ...DEFAULT_STUDENT_PROFILE,
+    name: roster?.name ?? DEFAULT_STUDENT_PROFILE.name,
+    email: roster?.email ?? DEFAULT_STUDENT_PROFILE.email,
+    phone: roster?.phone ?? DEFAULT_STUDENT_PROFILE.phone,
+  };
+}
+
+function mergeProfile(parsed: Partial<StudentProfile>, studentId: string): StudentProfile {
+  const base = buildDefaultProfile(studentId);
+  const merged = { ...base, ...parsed };
+  merged.focusSkills = normalizeFocusSkills(parsed.focusSkills ?? merged.focusSkills);
+  return merged;
+}
+
+function migrateLegacyProfile(): ProfilesMap {
+  if (typeof window === "undefined") return {};
   try {
     const raw = localStorage.getItem(STUDENT_PROFILE_STORAGE_KEY);
-    if (!raw) return DEFAULT_STUDENT_PROFILE;
+    if (!raw) return {};
     const parsed = JSON.parse(raw) as Partial<StudentProfile>;
-    const merged = { ...DEFAULT_STUDENT_PROFILE, ...parsed };
-    merged.focusSkills = normalizeFocusSkills(parsed.focusSkills ?? merged.focusSkills);
-    return merged;
+    const migrated = {
+      [DEFAULT_STUDENT_ID]: mergeProfile(parsed, DEFAULT_STUDENT_ID),
+    };
+    localStorage.setItem(STUDENT_PROFILES_STORAGE_KEY, JSON.stringify(migrated));
+    return migrated;
   } catch {
-    return DEFAULT_STUDENT_PROFILE;
+    return {};
   }
 }
 
-export function saveStudentProfileToStorage(profile: StudentProfile): void {
-  localStorage.setItem(STUDENT_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+function loadAllProfiles(): ProfilesMap {
+  if (typeof window === "undefined") return {};
+  let map: ProfilesMap = {};
+  try {
+    const raw = localStorage.getItem(STUDENT_PROFILES_STORAGE_KEY);
+    if (raw) {
+      map = JSON.parse(raw) as ProfilesMap;
+    } else {
+      map = migrateLegacyProfile();
+    }
+  } catch {
+    map = migrateLegacyProfile();
+  }
+  return map;
+}
+
+export function getStudentProfile(studentId?: string): StudentProfile {
+  const id = studentId ?? resolveActiveStudentId();
+  if (typeof window === "undefined") return buildDefaultProfile(id);
+  const stored = loadAllProfiles()[id];
+  return stored ?? buildDefaultProfile(id);
+}
+
+/** @deprecated Use getStudentProfile */
+export function loadStudentProfileFromStorage(studentId?: string): StudentProfile {
+  return getStudentProfile(studentId);
+}
+
+export function saveStudentProfile(profile: StudentProfile, studentId?: string): void {
+  if (typeof window === "undefined") return;
+  const id = studentId ?? resolveActiveStudentId();
+  const all = loadAllProfiles();
+  all[id] = mergeProfile(profile, id);
+  localStorage.setItem(STUDENT_PROFILES_STORAGE_KEY, JSON.stringify(all));
+  dispatchProfileUpdate(id);
+}
+
+/** @deprecated Use saveStudentProfile */
+export function saveStudentProfileToStorage(profile: StudentProfile, studentId?: string): void {
+  saveStudentProfile(profile, studentId);
 }

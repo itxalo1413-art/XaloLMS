@@ -7,6 +7,7 @@ const items = [
   { href: "/teacher", label: "Danh sách học sinh" },
   { href: "/teacher/writing", label: "Chấm Writing" },
   { href: "/teacher/mock-test", label: "Mock Test Speaking" },
+  { href: "/teacher/bcb", label: "Chẩn đoán HV" },
   { href: "/teacher/rlp", label: "Cập nhật RLP" },
   { href: "/teacher/khoa-hoc", label: "Thông tin khóa" },
 ];

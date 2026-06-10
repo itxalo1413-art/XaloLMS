@@ -24,9 +24,11 @@ import {
 import Link from "next/link";
 import { InstructorProfileDialog } from "@/components/student/InstructorProfileDialog";
 import {
-  PORTAL_PROFILE_UPDATE_EVENT,
+  INSTRUCTOR_PROFILES_UPDATE_EVENT,
   resolveInstructorPublicProfile,
 } from "@/lib/courseInstructorProfile";
+import { PORTAL_PROFILE_UPDATE_EVENT } from "@/lib/portalProfile";
+import { useCourseImportantLinks } from "@/hooks/useCourseImportantLinks";
 
 function resolveLessonFileToken(url: string) {
   const clean = url.split("#")[0]?.split("?")[0]?.toLowerCase() ?? "";
@@ -60,10 +62,12 @@ function CourseOverviewSection() {
     };
     window.addEventListener(COURSE_METADATA_UPDATE_EVENT, onUpdate);
     window.addEventListener(PORTAL_PROFILE_UPDATE_EVENT, onUpdate);
+    window.addEventListener(INSTRUCTOR_PROFILES_UPDATE_EVENT, onUpdate);
     window.addEventListener("storage", onUpdate);
     return () => {
       window.removeEventListener(COURSE_METADATA_UPDATE_EVENT, onUpdate);
       window.removeEventListener(PORTAL_PROFILE_UPDATE_EVENT, onUpdate);
+      window.removeEventListener(INSTRUCTOR_PROFILES_UPDATE_EVENT, onUpdate);
       window.removeEventListener("storage", onUpdate);
     };
   }, [refreshInstructorProfile]);
@@ -141,6 +145,28 @@ function CourseOverviewSection() {
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {meta.zoomPassword && meta.zoomPassword !== "—" ? (
+          <div className="flex h-full gap-3 rounded-2xl border border-primary/10 bg-background/60 p-4 md:col-span-2">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-primary shadow-sm">
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] font-black uppercase tracking-widest text-muted">
+                Zoom khóa chính
+              </div>
+              <div className="mt-2 text-sm font-bold text-foreground">
+                Mật khẩu:{" "}
+                <span className="font-mono text-primary">{meta.zoomPassword}</span>
+              </div>
+              <p className="mt-1 text-xs text-muted">
+                Dùng khi tham gia buổi học online trên Zoom (cập nhật bởi ACA/GV).
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         <div className="flex h-full gap-3 rounded-2xl border border-primary/10 bg-background/60 p-4">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-primary shadow-sm">
             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -192,14 +218,8 @@ function CourseOverviewSection() {
   );
 }
 
-const importantLinks = [
-  { id: "rlp", label: "RLP", value: "Chặng 1: Speaking - Reading" },
-  { id: "lesson", label: "THƯ MỤC BÀI GIẢNG", value: "Writing - Listening (21/04/2026)" },
-  { id: "homework", label: "THƯ MỤC BÀI TẬP", value: "HW Dương Ngọc Khôi Nguyên" },
-  { id: "survey", label: "KHẢO SÁT HỌC VIÊN", value: "—" },
-];
-
 export default function CourseInfoPage() {
+  const { links: importantLinks } = useCourseImportantLinks();
   const schedule = useStudentSchedule();
   const { clientToday } = schedule;
   const [rlpSessions, setRlpSessions] = useState<RlpSession[]>(() => getCourseRlpSessions());
@@ -285,10 +305,20 @@ export default function CourseInfoPage() {
                     <div className="mt-2 text-sm font-bold text-foreground break-words">
                       {link.value}
                     </div>
-                    {link.id !== "rlp" ? (
-                      <button className="mt-4 rounded-lg bg-primary px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white hover:bg-primary/90 transition-all">
+                    {link.id !== "rlp" && link.url ? (
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-4 inline-block rounded-lg bg-primary px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white hover:bg-primary/90 transition-all"
+                      >
                         Truy cập
-                      </button>
+                      </a>
+                    ) : null}
+                    {link.id !== "rlp" && !link.url ? (
+                      <span className="mt-4 inline-block rounded-lg bg-zinc-200 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                        Chưa có link
+                      </span>
                     ) : null}
                     {link.id === "rlp" ? (
                       <div className="mt-4 rounded-xl border border-primary/10 bg-background/40 p-3">

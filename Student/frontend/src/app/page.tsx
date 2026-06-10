@@ -8,6 +8,8 @@ import {
   defaultStudyHabitForm,
   studyHabitOptionLists,
 } from "@/lib/studentProfileStudyOptions";
+import { BcbGrammarTable } from "@/components/diagnosis/BcbGrammarTable";
+import { BcbQuestionTypeTable } from "@/components/diagnosis/BcbQuestionTypeTable";
 import { SkillDiagIntro } from "@/components/diagnosis/SkillDiagIntro";
 import { WritingDiagIntro } from "@/components/diagnosis/WritingDiagIntro";
 import { WritingScoreFormulaNote } from "@/components/diagnosis/WritingScoreFormulaNote";
@@ -18,64 +20,14 @@ import { FocusSkillsSelfStudyHint } from "@/components/student/FocusSkillsSelfSt
 import { Panel } from "@/components/student/ui";
 import type { FocusSkill } from "@/lib/focusSkills";
 import { formatBandScore } from "@/lib/formatBandScore";
-import { resolveWritingBands } from "@/lib/writingScore";
-import type { SpeakingCriterionScores } from "@/lib/speakingBandDescriptors";
+import { useStudentDiagnosis } from "@/hooks/useStudentDiagnosis";
+import { useStudentProfileDisplay } from "@/hooks/useStudentProfileDisplay";
+import { saveStudentProfile, type StudentProfile } from "@/lib/studentProfile";
 
-const studentWritingCriteria = {
-  task1: {
-    taskAchievement: 6,
-    coherenceCohesion: 7,
-    lexicalResource: 6,
-    grammaticalRange: 6,
-  },
-  task2: {
-    taskResponse: 6,
-    coherenceCohesion: 6,
-    lexicalResource: 6,
-    grammaticalRange: 6,
-  },
-};
-
-const studentWritingBands = resolveWritingBands(studentWritingCriteria);
-const studentSpeakingCriteria: SpeakingCriterionScores = {
-  fluencyCoherence: 5.5,
-  lexicalResource: 4.0,
-  grammaticalRangeAccuracy: 4.0,
-  pronunciation: 5.5,
-};
-
-const student = {
-  name: "Dương Ngọc Khôi Nguyên",
-  email: "nguyenduong939705@gmail.com",
-  phone: "0947 188 794",
-  dob: "20/08/2006",
-  zodiac: "Sư Tử",
-  examDate: "10/08/2026",
-  countdown: "Còn 108 ngày",
-  aim: "7.5",
-  bcb: "BCB",
-  scores: {
-    listening: 7.5,
-    reading: 5.5,
-    writing: studentWritingBands.writingOverall,
-    speaking: 4.5,
-    overall: 6.0,
-  },
-  ...studentWritingCriteria,
-  writingBands: studentWritingBands,
-  writingSummary: {
-    task1:
-      "Bạn đáp ứng cơ bản yêu cầu đề bài, có overview phù hợp nhưng đôi khi thiếu chi tiết hoặc chưa chính xác hoàn toàn. Từ nối và vốn từ ở mức khá, còn vài lỗi nhỏ.",
-    task2:
-      "Bạn trình bày quan điểm và triển khai ý tương đối rõ, tuy nhiên luận điểm đôi khi chưa sắc sảo. Cần củng cố đa dạng cấu trúc câu và giảm lỗi ngữ pháp nhỏ.",
-  },
-  writingLinks: {
-    task1: "https://docs.google.com/document/d/example-student-writing-task1",
-    task2: "https://docs.google.com/document/d/example-student-writing-task2",
-  },
-  listeningLink: "https://docs.google.com/document/d/example-student-listening-test",
-  readingLink: "https://docs.google.com/document/d/example-student-reading-test",
-};
+type StudyHabitForm = Pick<
+  StudentProfile,
+  "method" | "weeklyHours" | "classEnvironment" | "ieltsMeaning" | "previousBand" | "focusSkills"
+>;
 
 const studyHabitOptions = studyHabitOptionLists;
 
@@ -214,7 +166,9 @@ function HabitMultiSelect({
 }
 
 export default function Home() {
-  const [habitForm, setHabitForm] = useState({ ...defaultStudyHabitForm });
+  const profile = useStudentProfileDisplay();
+  const { diagnosis, writingBands } = useStudentDiagnosis();
+  const [habitForm, setHabitForm] = useState<StudyHabitForm>({ ...defaultStudyHabitForm });
 
   // Diagnosis interactive states
   const [activeDiagTab, setActiveDiagTab] = useState<"listening" | "reading" | "writing" | "speaking" | "grammar">("listening");
@@ -246,9 +200,31 @@ export default function Home() {
     }));
   };
 
-  const [examDate, setExamDate] = useState("2026-08-10");
+  const [examDate, setExamDate] = useState(diagnosis.examDate);
 
   const [countdown, setCountdown] = useState("—");
+
+  useEffect(() => {
+    setExamDate(diagnosis.examDate);
+  }, [diagnosis.examDate]);
+
+  useEffect(() => {
+    setHabitForm({
+      method: profile.method,
+      weeklyHours: profile.weeklyHours,
+      classEnvironment: profile.classEnvironment,
+      ieltsMeaning: profile.ieltsMeaning,
+      previousBand: profile.previousBand,
+      focusSkills: profile.focusSkills,
+    });
+  }, [
+    profile.method,
+    profile.weeklyHours,
+    profile.classEnvironment,
+    profile.ieltsMeaning,
+    profile.previousBand,
+    profile.focusSkills,
+  ]);
 
   useEffect(() => {
     const target = new Date(examDate);
@@ -266,8 +242,12 @@ export default function Home() {
 
   const examInputRef = useRef<HTMLInputElement>(null);
   const avatarFileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+
+  const persistAvatar = (url: string) => {
+    saveStudentProfile({ ...profile, avatarUrl: url });
+    setShowAvatarPicker(false);
+  };
 
   const onPickAvatarFile = (file: File | null) => {
     if (!file) return;
@@ -277,8 +257,7 @@ export default function Home() {
     }
     const reader = new FileReader();
     reader.onload = () => {
-      setSelectedAvatar(reader.result as string);
-      setShowAvatarPicker(false);
+      persistAvatar(reader.result as string);
     };
     reader.readAsDataURL(file);
   };
@@ -316,11 +295,11 @@ export default function Home() {
                   <div className="relative shrink-0 group">
                     <div className="w-32 h-32 md:w-40 md:h-40 rounded-[32px] bg-gradient-to-br from-zinc-100 to-zinc-200 overflow-hidden shadow-soft border-4 border-white relative cursor-pointer"
                          onClick={() => setShowAvatarPicker(!showAvatarPicker)}>
-                       {selectedAvatar ? (
-                         <img src={selectedAvatar} alt="Avatar" className="w-full h-full object-cover" />
+                       {profile.avatarUrl ? (
+                         <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                        ) : (
                          <div className="w-full h-full flex items-center justify-center bg-primary/10 text-4xl font-black text-primary">
-                           {student.name.slice(0, 1)}
+                           {profile.name.slice(0, 1)}
                          </div>
                        )}
                        {/* Hover Overlay */}
@@ -349,11 +328,8 @@ export default function Home() {
                             <button
                               key={idx}
                               type="button"
-                              onClick={() => {
-                                setSelectedAvatar(av);
-                                setShowAvatarPicker(false);
-                              }}
-                              className={`aspect-square rounded-2xl overflow-hidden border-2 transition-all hover:scale-105 ${selectedAvatar === av ? 'border-primary ring-2 ring-primary/20' : 'border-zinc-100 hover:border-primary/40'}`}
+                              onClick={() => persistAvatar(av)}
+                              className={`aspect-square rounded-2xl overflow-hidden border-2 transition-all hover:scale-105 ${profile.avatarUrl === av ? "border-primary ring-2 ring-primary/20" : "border-zinc-100 hover:border-primary/40"}`}
                             >
                               <img src={av} alt={`Sample ${idx}`} className="w-full h-full object-cover" />
                             </button>
@@ -386,13 +362,13 @@ export default function Home() {
 
                   <div className="flex-1">
                     <h1 className="text-3xl md:text-5xl font-black text-foreground tracking-tight leading-[1.1] mb-4">
-                      {student.name}
+                      {profile.name}
                     </h1>
                     
                     <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
                       <div>
                         <div className="text-[10px] font-black text-muted uppercase tracking-widest mb-0.5">Contact Info</div>
-                        <div className="text-xs font-bold text-foreground opacity-80">{student.email} · {student.phone}</div>
+                        <div className="text-xs font-bold text-foreground opacity-80">{profile.email} · {profile.phone}</div>
                       </div>
                     </div>
                   </div>
@@ -405,14 +381,14 @@ export default function Home() {
                         <div className="text-[10px] font-black uppercase tracking-widest text-muted">
                           Ngày sinh
                         </div>
-                        <div className="mt-1 text-sm font-bold text-foreground">{student.dob}</div>
+                        <div className="mt-1 text-sm font-bold text-foreground">{profile.dob}</div>
                       </div>
 
                       <div className="flex min-h-[5.25rem] flex-col justify-center rounded-2xl bg-background p-4">
                         <div className="text-[10px] font-black uppercase tracking-widest text-muted">
                           Cung hoàng đạo
                         </div>
-                        <div className="mt-1 text-sm font-bold text-primary">{student.zodiac}</div>
+                        <div className="mt-1 text-sm font-bold text-primary">{profile.zodiac}</div>
                       </div>
                     </div>
 
@@ -426,7 +402,7 @@ export default function Home() {
                             Điểm đầu vào
                           </div>
                           <div className="mt-1 text-md font-bold text-foreground text-warning">
-                            {formatBandScore(student.scores.overall)} Overall
+                            {formatBandScore(diagnosis.scores.overall)} Overall
                           </div>
                         </div>
                         <Link
@@ -455,10 +431,10 @@ export default function Home() {
 
                       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:items-stretch">
                         {[
-                          { k: "Listening", v: student.scores.listening },
-                          { k: "Reading", v: student.scores.reading },
-                          { k: "Writing", v: student.scores.writing },
-                          { k: "Speaking", v: student.scores.speaking },
+                          { k: "Listening", v: diagnosis.scores.listening },
+                          { k: "Reading", v: diagnosis.scores.reading },
+                          { k: "Writing", v: diagnosis.scores.writing },
+                          { k: "Speaking", v: diagnosis.scores.speaking },
                         ].map((s) => (
                           <div
                             key={s.k}
@@ -484,10 +460,10 @@ export default function Home() {
                       <div className="mt-4 flex flex-1 flex-col items-center justify-center">
                         <div
                           className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full border-[5px] border-primary bg-white shadow-sm"
-                          aria-label={`Điểm overall ${student.scores.overall}`}
+                          aria-label={`Mục tiêu ${diagnosis.aim}`}
                         >
                           <span className="text-4xl font-black tabular-nums leading-none text-primary">
-                            {formatBandScore(student.aim)}
+                            {formatBandScore(diagnosis.aim)}
                           </span>
                         </div>
 
@@ -602,15 +578,19 @@ export default function Home() {
                         <circle cx="40" cy="40" r="32" stroke="#6a5acd" strokeWidth="6" fill="transparent" strokeDasharray="201" strokeDashoffset="67" strokeLinecap="round" />
                       </svg>
                       <div className="absolute text-center">
-                        <span className="block text-xl font-black leading-none text-primary">6.0</span>
-                        <span className="mt-0.5 block text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Aim 7.5</span>
+                        <span className="block text-xl font-black leading-none text-primary">
+                          {formatBandScore(diagnosis.scores.overall)}
+                        </span>
+                        <span className="mt-0.5 block text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                          Aim {formatBandScore(diagnosis.aim)}
+                        </span>
                       </div>
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="text-[10px] font-black uppercase tracking-widest text-muted">Đánh giá chung</div>
-                      <h4 className="text-md mt-0.5 font-bold text-foreground">Người dùng Khá (Competent)</h4>
+                      <h4 className="text-md mt-0.5 font-bold text-foreground">{diagnosis.bcbOverviewTitle}</h4>
                       <p className="mt-1 w-full text-xs font-medium leading-relaxed text-zinc-500">
-                        Sử dụng ngôn ngữ hiệu quả, thỉnh thoảng có lỗi dùng từ chưa phù hợp. Đã bắt đầu hiểu được ngôn ngữ phức tạp nhưng phong độ chưa đều giữa các kỹ năng.
+                        {diagnosis.bcbOverviewSummary}
                       </p>
                     </div>
                   </div>
@@ -619,10 +599,11 @@ export default function Home() {
                 {/* Tab Navigation */}
                 <div className="flex flex-wrap gap-2 mb-6 border-b border-zinc-100 pb-4">
                   {[
-                    { id: "listening", label: "Listening", score: "7.0" },
-                    { id: "reading", label: "Reading", score: "5.5" },
-                    { id: "writing", label: "Writing", score: "7.0" },
-                    { id: "speaking", label: "Speaking", score: "4.5" },
+                    { id: "listening", label: "Listening", score: formatBandScore(diagnosis.scores.listening) },
+                    { id: "reading", label: "Reading", score: formatBandScore(diagnosis.scores.reading) },
+                    { id: "writing", label: "Writing", score: formatBandScore(diagnosis.scores.writing) },
+                    { id: "speaking", label: "Speaking", score: formatBandScore(diagnosis.scores.speaking) },
+                    { id: "grammar", label: "Ngữ pháp", score: null as string | null },
                   ].map((tab) => {
                     const active = activeDiagTab === tab.id;
                     return (
@@ -652,53 +633,12 @@ export default function Home() {
                 {activeDiagTab === "listening" && (
                   <div className="space-y-6 animate-in fade-in duration-200">
                     <SkillDiagIntro
-                      bandLabel={`Đặc trưng Band ${formatBandScore(student.scores.listening)}`}
-                      summary="Bạn ở band này có thể hiểu được phần lớn từ vựng trong nhiều chủ đề, bao gồm các thuật ngữ học thuật trong tiếng Anh, kể cả khi bài nói có tốc độ nhanh và phức tạp. Bạn có thể hiểu được thông tin, thái độ, ý kiến, mục đích của người nói kể cả khi chúng không được đề cập trực tiếp."
-                      submissionLink={student.listeningLink}
+                      bandLabel={`Đặc trưng Band ${formatBandScore(diagnosis.scores.listening)}`}
+                      summary={diagnosis.skillSummaries.listening}
+                      submissionLink={diagnosis.listeningLink}
                       linkLabel="Xem bài Listening"
                     />
-
-                    <div>
-                      <div className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Dạng bài cần cải thiện (Tỷ lệ sai {">"} 50%)</div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {[
-                          {
-                            title: "Plan, Map, Diagram Labelling",
-                            diag: "Chưa hiểu được hoặc theo kịp ngôn ngữ chỉ phương hướng (đi thẳng, rẽ trái, ở phía đối diện, etc.). Thiếu từ vựng chỉ phương hướng hoặc chưa sử dụng thành thạo.",
-                          },
-                          {
-                            title: "Form, Note, Summary Completion",
-                            diag: "Chưa quen đọc thông tin trong bảng (Table) hoặc lưu đồ (Flow Chart), dẫn đến việc lúng túng hoặc điền sai câu trả lời.",
-                          },
-                          {
-                            title: "Multiple Choice & Matching",
-                            diag: "Dễ bị bẫy bởi các thông tin nhiễu (distractors) do nghe bắt từ đơn lẻ thay vì nghe hiểu toàn bộ ngữ cảnh.",
-                          },
-                          {
-                            title: "Short-answer Questions",
-                            diag: "Hiểu sai hoặc chưa hiểu câu hỏi do không quen với cấu trúc ngữ pháp câu hỏi phức tạp.",
-                          }
-                        ].map((w, idx) => (
-                          <div key={idx} className="p-5 rounded-2xl border border-secondary/10 bg-secondary/5 flex flex-col justify-between">
-                            <div>
-                              <div className="flex items-center justify-between gap-2">
-                                <h5 className="text-xs font-black text-secondary uppercase">{w.title}</h5>
-                                {(w as { tag?: string }).tag ? (
-                                  <span className="text-[9px] font-bold text-secondary bg-white px-2 py-0.5 rounded-lg border border-secondary/15">
-                                    {(w as { tag?: string }).tag}
-                                  </span>
-                                ) : null}
-                              </div>
-                              <p className="text-xs font-semibold text-foreground mt-2 leading-relaxed">{w.diag}</p>
-
-                            </div>
-                            <button className="mt-4 w-full py-2 bg-secondary text-white rounded-xl text-xs font-bold transition-all hover:bg-secondary/90 shadow-sm">
-                              Luyện tập Dạng bài ngay
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    <BcbQuestionTypeTable rows={diagnosis.bcbListening} showWeakCta />
                   </div>
                 )}
 
@@ -706,42 +646,12 @@ export default function Home() {
                 {activeDiagTab === "reading" && (
                   <div className="space-y-6 animate-in fade-in duration-200">
                     <SkillDiagIntro
-                      bandLabel={`Đặc trưng Band ${formatBandScore(student.scores.reading)}`}
-                      summary="Bạn có khả năng xử lý các văn bản học thuật và bài viết nêu quan điểm cá nhân ở mức cơ bản. Bạn hiểu được từ vựng khi các ý tưởng đơn giản, nhưng dễ bị bối rối trước cấu trúc câu phức tạp và có xu hướng đọc dịch từng từ khiến tốc độ đọc bị chậm."
-                      submissionLink={student.readingLink}
+                      bandLabel={`Đặc trưng Band ${formatBandScore(diagnosis.scores.reading)}`}
+                      summary={diagnosis.skillSummaries.reading}
+                      submissionLink={diagnosis.readingLink}
                       linkLabel="Xem bài Reading"
                     />
-
-                    <div>
-                      <div className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Dạng bài cần cải thiện (Tỷ lệ sai {">"} 50%)</div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {[
-                          {
-                            title: "Matching Features",
-                            tag: "DR_MF_00_001",
-                            diag: "Không tìm được dữ kiện để trả lời câu hỏi. Có thể do bỏ lỡ các tên riêng/các thông tin liên quan đến tên riêng trong bài hoặc không nhận biết được các đại từ nhân xưng được dùng để nhắc đến đối tượng nào.",
-                          },
-                          {
-                            title: "Matching Headings",
-                            tag: "DR_MH_00_001",
-                            diag: "Không nắm / tóm tắt được ý chính mà đoạn văn đang muốn nói đến. Dễ bị đánh lừa bởi các từ khóa lặp lại ở câu đầu nhưng chủ đề đoạn nằm ở giữa.",
-                          }
-                        ].map((w, idx) => (
-                          <div key={idx} className="p-5 rounded-2xl border border-secondary/10 bg-secondary/5 flex flex-col justify-between">
-                            <div>
-                              <div className="flex items-center justify-between gap-2">
-                                <h5 className="text-xs font-black text-secondary uppercase">{w.title}</h5>
-                                <span className="text-[9px] font-bold text-secondary bg-white px-2 py-0.5 rounded-lg border border-secondary/15">{w.tag}</span>
-                              </div>
-                              <p className="text-xs font-semibold text-foreground mt-2 leading-relaxed">{w.diag}</p>
-                            </div>
-                            <button className="mt-4 w-full py-2 bg-secondary text-white rounded-xl text-xs font-bold transition-all hover:bg-secondary/90 shadow-sm">
-                              Luyện tập Dạng bài ngay
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    <BcbQuestionTypeTable rows={diagnosis.bcbReading} showWeakCta />
                   </div>
                 )}
 
@@ -751,10 +661,10 @@ export default function Home() {
                     <WritingDiagIntro
                       taskMode={writingTaskMode}
                       onTaskModeChange={setWritingTaskMode}
-                      task1Band={student.writingBands.task1Band}
-                      task2Band={student.writingBands.task2Band}
-                      summary={student.writingSummary[writingTaskMode]}
-                      submissionLink={student.writingLinks[writingTaskMode]}
+                      task1Band={writingBands.task1Band}
+                      task2Band={writingBands.task2Band}
+                      summary={diagnosis.writingSummary[writingTaskMode]}
+                      submissionLink={diagnosis.writingLinks[writingTaskMode]}
                     />
 
                     <div>
@@ -762,16 +672,16 @@ export default function Home() {
                         Chi tiết tiêu chí chấm điểm - {writingTaskMode === "task1" ? "Writing Task 1" : "Writing Task 2"}
                       </div>
                       {writingTaskMode === "task1" ? (
-                        <WritingTask1CriteriaPanel scores={student.task1} />
+                        <WritingTask1CriteriaPanel scores={diagnosis.writingCriteria.task1} />
                       ) : (
-                        <WritingTask2CriteriaPanel scores={student.task2} />
+                        <WritingTask2CriteriaPanel scores={diagnosis.writingCriteria.task2} />
                       )}
                     </div>
 
                     <WritingScoreFormulaNote
-                      task1Band={student.writingBands.task1Band}
-                      task2Band={student.writingBands.task2Band}
-                      writingOverall={student.writingBands.writingOverall}
+                      task1Band={writingBands.task1Band}
+                      task2Band={writingBands.task2Band}
+                      writingOverall={writingBands.writingOverall}
                     />
                   </div>
                 )}
@@ -780,15 +690,36 @@ export default function Home() {
                 {activeDiagTab === "speaking" && (
                   <div className="space-y-6 animate-in fade-in duration-200">
                     <div className="p-5 rounded-2xl border border-zinc-100 bg-zinc-50/50">
-                      <div className="text-[10px] font-black text-muted uppercase tracking-widest">Đặc trưng Speaking Band 4.5</div>
+                      <div className="text-[10px] font-black text-muted uppercase tracking-widest">
+                        Đặc trưng Speaking Band {formatBandScore(diagnosis.scores.speaking)}
+                      </div>
                       <p className="text-xs font-medium text-foreground leading-relaxed mt-2">
-                        Bạn thường nói với những khoảng dừng đáng kể. Bài nói chậm, hay lặp từ và tự sửa lỗi liên tục. Cấu trúc câu đơn giản chiếm đa số, lỗi ngữ pháp và phát âm thường xuyên xảy ra gây cản trở cho người nghe.
+                        {diagnosis.skillSummaries.speaking}
                       </p>
                     </div>
                     <div>
                       <div className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Chi tiết tiêu chí Speaking</div>
-                      <SpeakingCriteriaPanel scores={studentSpeakingCriteria} />
+                      <SpeakingCriteriaPanel scores={diagnosis.speakingCriteria} />
                     </div>
+                  </div>
+                )}
+
+                {activeDiagTab === "grammar" && (
+                  <div className="space-y-6 animate-in fade-in duration-200">
+                    <div className="p-5 rounded-2xl border border-zinc-100 bg-zinc-50/50">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-muted">
+                        Tổng quan lỗi ngữ pháp (Writing & Speaking)
+                      </div>
+                      <p className="mt-2 text-xs font-medium leading-relaxed text-foreground">
+                        Phát hiện {diagnosis.bcbGrammar.reduce((s, r) => s + r.errorCount, 0)} lỗi ngữ pháp
+                        trên {diagnosis.bcbGrammar.length} chuyên đề.
+                      </p>
+                    </div>
+                    <BcbGrammarTable
+                      rows={diagnosis.bcbGrammar}
+                      filter={grammarFilter}
+                      onFilterChange={setGrammarFilter}
+                    />
                   </div>
                 )}
 
