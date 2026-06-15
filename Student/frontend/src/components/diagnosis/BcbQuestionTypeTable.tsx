@@ -104,40 +104,10 @@ export function BcbQuestionTypeTable({ rows, showWeakCta = false }: Props) {
                 </span>
               </div>
               <p className="mt-2 text-xs font-medium leading-relaxed text-foreground">{row.diagnosis}</p>
-              {showWeakCta && weak ? (
-                <Link
-                  href="#tu-van"
-                  className="mt-3 block rounded-xl bg-secondary py-2 text-center text-xs font-bold text-white shadow-sm"
-                >
-                  Đăng ký khắc phục dạng bài yếu
-                </Link>
-              ) : null}
             </div>
           );
         })}
       </div>
-
-      {showWeakCta && weakCount > 0 ? (
-        <div className="hidden md:grid md:grid-cols-2 md:gap-4">
-          {rows.filter(isWeakBcbQuestion).map((row) => (
-            <div
-              key={`cta-${row.id}`}
-              className="flex flex-col justify-between rounded-2xl border border-secondary/15 bg-secondary/5 p-4"
-            >
-              <div>
-                <h5 className="text-xs font-black uppercase text-secondary">{row.title}</h5>
-                <p className="mt-1 text-xs font-semibold text-foreground">{row.diagnosis}</p>
-              </div>
-              <Link
-                href="#tu-van"
-                className="mt-3 block rounded-xl bg-secondary py-2 text-center text-xs font-bold text-white"
-              >
-                Đăng ký khắc phục
-              </Link>
-            </div>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }

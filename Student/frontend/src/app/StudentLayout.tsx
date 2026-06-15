@@ -29,12 +29,9 @@ function FolderTab({
     <Link
       href={href}
       className={[
-        "relative -mr-3 h-10 flex items-center justify-center transition-all duration-300 select-none shrink-0",
+        "relative -mr-3 h-10 flex items-center justify-center transition-all duration-300 select-none shrink-0 w-max px-6 md:px-8",
         active ? "z-20 scale-100" : "z-10 opacity-75 hover:opacity-100 hover:scale-[1.02]",
       ].join(" ")}
-      style={{
-        width: "clamp(120px, 15vw, 180px)",
-      }}
     >
       {/* SVG Shape */}
       <svg

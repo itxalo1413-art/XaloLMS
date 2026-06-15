@@ -14,18 +14,17 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <section className={["relative pt-8", className].join(" ")}>
-      {/* Folder Tab Shape — Match layout tab style */}
-      <div className="absolute top-0 left-[8px] z-0 h-10 min-w-[240px] w-max max-w-[90%] flex items-center">
+    <section className={["relative pt-[37px]", className].join(" ")}>
+      {/* Folder Tab Shape — Match layout tab style and overlap body */}
+      <div className="absolute top-0 left-0 z-20 h-[38px] min-w-[180px] md:min-w-[240px] w-max max-w-[90%] flex items-center">
         <svg
-          className="absolute inset-0 w-full h-full"
+          className="absolute inset-0 w-full h-full text-card"
           viewBox="0 0 100 40"
           preserveAspectRatio="none"
         >
           <path
             d="M 0 40 C 10 40 8 0 20 0 L 80 0 C 92 0 90 40 100 40 L 100 41 L 0 41 Z"
             fill="currentColor"
-            className="text-card"
           />
           <path
             d="M 0 40 C 10 40 8 0 20 0 L 80 0 C 92 0 90 40 100 40"
@@ -36,23 +35,23 @@ export function Panel({
             vectorEffect="non-scaling-stroke"
           />
         </svg>
-        <div className="relative z-10 flex w-full items-center pl-14 pr-14">
+        <div className="relative z-10 flex w-full items-center justify-center px-8 md:px-14 pt-1">
           <div className="mr-2.5 h-3.5 w-1.5 rounded-full bg-gradient-to-b from-primary to-secondary shrink-0" />
-          <div className="whitespace-nowrap text-[11px] font-black uppercase tracking-wider text-foreground truncate">
+          <div className="whitespace-nowrap text-[10px] md:text-[11px] font-black uppercase tracking-wider text-foreground truncate">
             {title}
           </div>
         </div>
       </div>
 
       {/* Folder Body */}
-      <div className="relative z-10 flex h-full flex-col overflow-hidden rounded-2xl rounded-tl-xl rounded-tr-2xl rounded-br-2xl rounded-bl-2xl border border-primary/10 bg-card shadow-soft">
-        <div className="flex shrink-0 items-center justify-between gap-1.5 border-b border-primary/5 px-5 py-3 md:px-6 md:py-4">
+      <div className="relative z-10 flex h-full flex-col overflow-hidden rounded-b-2xl rounded-tr-2xl rounded-tl-none border border-primary/10 bg-card shadow-soft">
+        <div className="flex shrink-0 items-center justify-between gap-1.5 border-b border-primary/5 px-4 py-3 md:px-6 md:py-4">
           <div className="pointer-events-none select-none text-[10px] font-black uppercase text-muted opacity-0">
             {title}
           </div>
           {right ? <div className="text-[10px] font-bold uppercase text-muted">{right}</div> : null}
         </div>
-        <div className="flex-1 p-10 md:p-6 pt-3 md:pt-4">{children}</div>
+        <div className="flex-1 p-4 md:p-6 pt-3 md:pt-4">{children}</div>
       </div>
     </section>
   );
