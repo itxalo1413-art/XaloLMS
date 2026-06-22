@@ -42,6 +42,8 @@ export async function createMockTestApi(input: {
   month: number;
   year: number;
   examTime?: string;
+  status?: string;
+  examTeacher?: string;
 }): Promise<MockTestRequest> {
   const response = await apiFetch("/api/student/mock-tests", {
     method: "POST",

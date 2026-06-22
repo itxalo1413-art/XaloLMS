@@ -32,14 +32,39 @@ import { useCourseImportantLinks } from "@/hooks/useCourseImportantLinks";
 
 function resolveLessonFileToken(url: string) {
   const clean = url.split("#")[0]?.split("?")[0]?.toLowerCase() ?? "";
-  if (clean.endsWith(".pdf")) return { label: "PDF", tone: "bg-danger/10 text-danger" };
-  if (clean.endsWith(".doc") || clean.endsWith(".docx"))
-    return { label: "DOC", tone: "bg-primary/10 text-primary" };
-  if (clean.endsWith(".ppt") || clean.endsWith(".pptx") || clean.endsWith(".key"))
-    return { label: "SLD", tone: "bg-warning/10 text-warning" };
-  if (clean.endsWith(".xls") || clean.endsWith(".xlsx"))
-    return { label: "XLS", tone: "bg-success/10 text-success" };
-  return { label: "LINK", tone: "bg-zinc-100 text-zinc-700" };
+  if (clean.endsWith(".pdf")) {
+    return {
+      label: "PDF",
+      tone: "bg-danger/10 text-danger border-danger/20 hover:bg-danger/20 hover:border-danger/30",
+      isFolder: false,
+    };
+  }
+  if (clean.endsWith(".doc") || clean.endsWith(".docx")) {
+    return {
+      label: "DOC",
+      tone: "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 hover:border-primary/30",
+      isFolder: false,
+    };
+  }
+  if (clean.endsWith(".ppt") || clean.endsWith(".pptx") || clean.endsWith(".key")) {
+    return {
+      label: "SLD",
+      tone: "bg-warning/10 text-warning border-warning/25 hover:bg-warning/20 hover:border-warning/35",
+      isFolder: false,
+    };
+  }
+  if (clean.endsWith(".xls") || clean.endsWith(".xlsx")) {
+    return {
+      label: "XLS",
+      tone: "bg-success/10 text-success border-success/20 hover:bg-success/20 hover:border-success/30",
+      isFolder: false,
+    };
+  }
+  return {
+    label: "LINK",
+    tone: "bg-zinc-100 text-zinc-600 border-zinc-200 hover:bg-zinc-150 hover:border-zinc-300",
+    isFolder: true,
+  };
 }
 
 function CourseOverviewSection() {
@@ -383,17 +408,21 @@ export default function CourseInfoPage() {
                                         href={row.lessonFileUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center justify-center transition-opacity hover:opacity-80"
-                                        aria-label="Mở file bài học"
+                                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-success/20 bg-success/10 text-success shadow-soft transition-all hover:bg-success/20 hover:scale-105 active:scale-95"
+                                        title="Mở file bài học"
                                       >
-                                        <span
-                                          className={[
-                                            "inline-flex min-w-[38px] justify-center rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-wide",
-                                            resolveLessonFileToken(row.lessonFileUrl).tone,
-                                          ].join(" ")}
+                                        <svg
+                                          className="h-4.5 w-4.5"
+                                          viewBox="0 0 24 24"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          strokeWidth="2.5"
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
                                         >
-                                          {resolveLessonFileToken(row.lessonFileUrl).label}
-                                        </span>
+                                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                          <polyline points="14 2 14 8 20 8" />
+                                        </svg>
                                       </a>
                                     ) : (
                                       <span className="text-[11px] font-medium text-muted">—</span>

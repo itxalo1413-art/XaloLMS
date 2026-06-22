@@ -16,6 +16,16 @@ const aca_taxonomy_controller_1 = require("./aca-taxonomy.controller");
 const aca_taxonomy_service_1 = require("./aca-taxonomy.service");
 const category_schema_1 = require("./schemas/category.schema");
 const content_schema_1 = require("./schemas/content.schema");
+const aca_class_schema_1 = require("./schemas/aca-class.schema");
+const aca_student_schema_1 = require("./schemas/aca-student.schema");
+const aca_practice_week_schema_1 = require("./schemas/aca-practice-week.schema");
+const aca_practice_student_schema_1 = require("./schemas/aca-practice-student.schema");
+const aca_11_class_schema_1 = require("./schemas/aca-11-class.schema");
+const aca_weekly_doc_schema_1 = require("./schemas/aca-weekly-doc.schema");
+const aca_teacher_assignment_schema_1 = require("./schemas/aca-teacher-assignment.schema");
+const aca_free_slot_schema_1 = require("./schemas/aca-free-slot.schema");
+const aca_management_service_1 = require("./aca-management.service");
+const aca_management_controller_1 = require("./aca-management.controller");
 let AcaModule = class AcaModule {
 };
 exports.AcaModule = AcaModule;
@@ -26,10 +36,26 @@ exports.AcaModule = AcaModule = __decorate([
             mongoose_1.MongooseModule.forFeature([
                 { name: content_schema_1.Content.name, schema: content_schema_1.ContentSchema },
                 { name: category_schema_1.Category.name, schema: category_schema_1.CategorySchema },
+                { name: aca_class_schema_1.AcaClass.name, schema: aca_class_schema_1.AcaClassSchema },
+                { name: aca_student_schema_1.AcaStudent.name, schema: aca_student_schema_1.AcaStudentSchema },
+                { name: aca_practice_week_schema_1.AcaPracticeWeek.name, schema: aca_practice_week_schema_1.AcaPracticeWeekSchema },
+                { name: aca_practice_student_schema_1.AcaPracticeStudent.name, schema: aca_practice_student_schema_1.AcaPracticeStudentSchema },
+                { name: aca_11_class_schema_1.Aca11Class.name, schema: aca_11_class_schema_1.Aca11ClassSchema },
+                { name: aca_weekly_doc_schema_1.AcaWeeklyDoc.name, schema: aca_weekly_doc_schema_1.AcaWeeklyDocSchema },
+                { name: aca_teacher_assignment_schema_1.AcaTeacherAssignment.name, schema: aca_teacher_assignment_schema_1.AcaTeacherAssignmentSchema },
+                { name: aca_free_slot_schema_1.AcaFreeSlot.name, schema: aca_free_slot_schema_1.AcaFreeSlotSchema },
             ]),
         ],
-        controllers: [aca_content_controller_1.AcaContentController, aca_taxonomy_controller_1.AcaTaxonomyController],
-        providers: [aca_content_service_1.AcaContentService, aca_taxonomy_service_1.AcaTaxonomyService],
+        controllers: [
+            aca_content_controller_1.AcaContentController,
+            aca_taxonomy_controller_1.AcaTaxonomyController,
+            aca_management_controller_1.AcaManagementController,
+        ],
+        providers: [
+            aca_content_service_1.AcaContentService,
+            aca_taxonomy_service_1.AcaTaxonomyService,
+            aca_management_service_1.AcaManagementService,
+        ],
     })
 ], AcaModule);
 //# sourceMappingURL=aca.module.js.map

@@ -80,6 +80,7 @@ export const DEFAULT_COURSE_RLP_SESSIONS: RlpSession[] = [
     deadline: "09/10/2025",
     homeworkStatus: "submitted",
     attendance: "present",
+    lessonFileUrl: "https://example.com/tailieu-part1.pdf",
   },
   {
     no: 2,
@@ -90,6 +91,7 @@ export const DEFAULT_COURSE_RLP_SESSIONS: RlpSession[] = [
     deadline: "11/10/2025",
     homeworkStatus: "submitted",
     attendance: "present",
+    lessonFileUrl: "https://example.com/bai-tap-describe-person.docx",
   },
   {
     no: 3,
@@ -100,6 +102,7 @@ export const DEFAULT_COURSE_RLP_SESSIONS: RlpSession[] = [
     deadline: "16/10/2025",
     homeworkStatus: "overdue",
     attendance: "present",
+    lessonFileUrl: "https://example.com/slides-headings.pptx",
   },
   {
     no: 4,
@@ -110,6 +113,7 @@ export const DEFAULT_COURSE_RLP_SESSIONS: RlpSession[] = [
     deadline: "18/10/2025",
     homeworkStatus: "in_progress",
     attendance: "absent",
+    lessonFileUrl: "https://example.com/bang-diem-danh-phat-am.xlsx",
   },
   {
     no: 5,
@@ -120,6 +124,7 @@ export const DEFAULT_COURSE_RLP_SESSIONS: RlpSession[] = [
     deadline: "23/10/2025",
     homeworkStatus: "submitted",
     attendance: "present",
+    lessonFileUrl: "https://xalo.edu.vn",
   },
   {
     no: 6,

@@ -1,0 +1,399 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { TeacherLayout } from "@/components/teacher/TeacherLayout";
+import { TeacherTopbar } from "@/components/teacher/TeacherTopbar";
+import { NativeSelectChevron } from "@/components/student/ui";
+import {
+  fetchAcaClasses,
+  fetchAca11Classes,
+  type AcaClass,
+  type Aca11Class,
+} from "@/lib/acaManagementApi";
+
+const TEACHER_NAME = "Quỳnh Châu";
+
+// Helper to count day occurrences in a month
+const countDaysInMonth = (year: number, monthIndex: number, daysOfWeek: number[]) => {
+  let count = 0;
+  const totalDays = new Date(year, monthIndex + 1, 0).getDate();
+  for (let d = 1; d <= totalDays; d++) {
+    const dayOfWeek = new Date(year, monthIndex, d).getDay();
+    if (daysOfWeek.includes(dayOfWeek)) {
+      count++;
+    }
+  }
+  return count;
+};
+
+// Helper to parse class schedule properties
+interface ClassSchedule {
+  days: number[];
+  daysLabel: string;
+  timeRange: string;
+  duration: number;
+  cleanName: string;
+}
+
+const parseClassSchedule = (name: string): ClassSchedule => {
+  const nameLower = name.toLowerCase();
+  
+  let days: number[] = [];
+  let daysLabel = "";
+  if (nameLower.includes("246")) {
+    days = [1, 3, 5];
+    daysLabel = "T2-T4-T6";
+  } else if (nameLower.includes("357")) {
+    days = [2, 4, 6];
+    daysLabel = "T3-T5-T7";
+  } else if (nameLower.includes("s/s")) {
+    days = [6, 0];
+    daysLabel = "T7-CN";
+  }
+  
+  let timeRange = "18:00 - 19:45";
+  let duration = 1.75;
+  
+  if (nameLower.includes("c2")) {
+    timeRange = "19:45 - 21:30";
+    duration = 1.75;
+  } else if (nameLower.includes("c1")) {
+    timeRange = "18:00 - 19:45";
+    duration = 1.75;
+  } else if (nameLower.includes("18002000")) {
+    timeRange = "18:00 - 20:00";
+    duration = 2.0;
+  } else if (nameLower.includes("20002200")) {
+    timeRange = "20:00 - 22:00";
+    duration = 2.0;
+  }
+  
+  let cleanName = "LỚP HỌC";
+  if (nameLower.includes("momentum")) cleanName = "MOMENTUM";
+  else if (nameLower.includes("upstream")) cleanName = "UPSTREAM";
+  else if (nameLower.includes("soar")) cleanName = "SOAR";
+  else if (nameLower.includes("advanced")) cleanName = "ADVANCED";
+  else if (nameLower.includes("foundation")) cleanName = "FOUNDATION";
+  else if (nameLower.includes("pre core")) cleanName = "PRE CORE";
+  
+  return { days, daysLabel, timeRange, duration, cleanName };
+};
+
+export default function PerformancePage() {
+  const [selectedMonth, setSelectedMonth] = useState<number>(6);
+  const [classes, setClasses] = useState<AcaClass[]>([]);
+  const [classes11, setClasses11] = useState<Aca11Class[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [cData, c11Data] = await Promise.all([
+          fetchAcaClasses(),
+          fetchAca11Classes(),
+        ]);
+        setClasses(cData);
+        setClasses11(c11Data);
+      } catch (err: any) {
+        setError(err.message || "Không tải được danh sách lớp.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
+
+  // Filter regular classes for Quỳnh Châu for the selected month
+  const filteredMyClasses = useMemo(() => {
+    return classes.filter(
+      (c) =>
+        c.month === selectedMonth &&
+        (c.teacher || "").toLowerCase().includes(TEACHER_NAME.toLowerCase())
+    );
+  }, [classes, selectedMonth]);
+
+  // Filter 1:1 active classes
+  const my11Classes = useMemo(() => {
+    return classes11.filter(
+      (c) =>
+        c.status === "Đang diễn ra" &&
+        (c.teacher || "").toLowerCase().includes(TEACHER_NAME.toLowerCase())
+    );
+  }, [classes11]);
+
+  // Teaching hour calculations (Actual vs. Expected)
+  const hourStats = useMemo(() => {
+    const year = 2026;
+    const monthIndex = selectedMonth - 1;
+    let expected = 0;
+    let actual = 0;
+    
+    const details: { className: string; expectedHours: number; actualHours: number; scheduleText: string }[] = [];
+
+    // Regular classes calculation
+    filteredMyClasses.forEach((c) => {
+      const { days, daysLabel, duration, cleanName } = parseClassSchedule(c.name);
+      if (days.length > 0) {
+        const count = countDaysInMonth(year, monthIndex, days);
+        const classExpected = count * duration;
+        expected += classExpected;
+        
+        // Mock actual hours as 90% of expected for realistic display
+        const classActual = Math.max(0, classExpected - (selectedMonth === 6 ? 1.75 : 0));
+        actual += classActual;
+
+        const timeLabel = c.name.toLowerCase().includes("c2") ? "Ca 2" : "Ca 1";
+
+        details.push({
+          className: `${cleanName} (${timeLabel})`,
+          expectedHours: classExpected,
+          actualHours: classActual,
+          scheduleText: `${daysLabel} x ${duration.toFixed(2)}h`,
+        });
+      }
+    });
+
+    // 1:1 active classes calculation
+    my11Classes.forEach((c11) => {
+      const sched = c11.schedule || "";
+      const parts = sched.split(" ");
+      const dayPart = parts[0]?.toUpperCase() || "";
+      const timeRange = parts.slice(1).join(" ") || "15:00 - 17:00";
+      
+      let daysOfWeek: number[] = [];
+      let daysLabel = "";
+      if (dayPart.includes("T2")) { daysOfWeek = [1]; daysLabel = "Thứ 2"; }
+      else if (dayPart.includes("T3")) { daysOfWeek = [2]; daysLabel = "Thứ 3"; }
+      else if (dayPart.includes("T4")) { daysOfWeek = [3]; daysLabel = "Thứ 4"; }
+      else if (dayPart.includes("T5")) { daysOfWeek = [4]; daysLabel = "Thứ 5"; }
+      else if (dayPart.includes("T6")) { daysOfWeek = [5]; daysLabel = "Thứ 6"; }
+      else if (dayPart.includes("T7")) { daysOfWeek = [6]; daysLabel = "Thứ 7"; }
+      else if (dayPart.includes("CN")) { daysOfWeek = [0]; daysLabel = "Chủ Nhật"; }
+      
+      if (daysOfWeek.length > 0) {
+        const count = countDaysInMonth(year, monthIndex, daysOfWeek);
+        
+        // Parse time slot duration
+        const durationParts = timeRange.split("-");
+        let duration = 2.0;
+        if (durationParts.length >= 2) {
+          const start = durationParts[0].trim();
+          const end = durationParts[1].trim();
+          const [sh, sm] = start.split(":").map(Number);
+          const [eh, em] = end.split(":").map(Number);
+          if (!isNaN(sh) && !isNaN(eh)) {
+            duration = ((eh * 60 + (em || 0)) - (sh * 60 + (sm || 0))) / 60;
+          }
+        }
+        
+        const classExpected = count * duration;
+        expected += classExpected;
+        const classActual = classExpected; // Assuming 100% attendance for 1:1
+        actual += classActual;
+
+        details.push({
+          className: `1:1 ${c11.className.replace("2026RLP_ONL 1:1 ", "")}`,
+          expectedHours: classExpected,
+          actualHours: classActual,
+          scheduleText: `${daysLabel} x ${duration.toFixed(2)}h`,
+        });
+      }
+    });
+
+    return { expected, actual, details };
+  }, [filteredMyClasses, my11Classes, selectedMonth]);
+
+  // Mock Teacher attendance sheets for the current active month (June 2026)
+  const teacherAttendanceLog = useMemo(() => {
+    // Generate class schedule dates in June 2026
+    const log: { date: string; className: string; time: string; attendanceStatus: "Đúng giờ" | "Vắng dạy bù"; isLocked: boolean }[] = [];
+    const year = 2026;
+    const monthIndex = 5; // June
+    
+    // We list logs from June 1st to June 20th, 2026 (current time baseline)
+    for (let d = 1; d <= 20; d++) {
+      const currentDate = new Date(year, monthIndex, d);
+      const dayOfWeek = currentDate.getDay();
+      
+      filteredMyClasses.forEach((c) => {
+        const { days, timeRange, cleanName } = parseClassSchedule(c.name);
+        if (days.includes(dayOfWeek)) {
+          const dateString = `${d < 10 ? "0" + d : d}/06/2026`;
+          
+          // Overdue / Lock check: lock editing after 1 week (June 20 - June 7 = 13)
+          const isLocked = (20 - d) > 7;
+          
+          log.push({
+            date: dateString,
+            className: cleanName,
+            time: timeRange,
+            attendanceStatus: d === 12 ? "Vắng dạy bù" : "Đúng giờ",
+            isLocked,
+          });
+        }
+      });
+    }
+
+    // Sort chronologically in reverse
+    return log.sort((a, b) => b.date.localeCompare(a.date));
+  }, [filteredMyClasses]);
+
+  return (
+    <TeacherLayout>
+      <TeacherTopbar
+        title="Performance & Thống kê"
+        subtitle={`Theo dõi giờ giảng dạy thực tế của giáo viên Nghiêm Doãn Quỳnh Châu.`}
+      />
+      <main className="mx-auto max-w-6xl px-6 py-6 pb-16 md:px-8 space-y-6">
+        {error ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        ) : null}
+
+        {/* Month Selector Header */}
+        <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-zinc-200/80 shadow-sm">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-black uppercase text-muted tracking-wider">Chọn tháng thống kê:</label>
+            <div className="w-48">
+              <NativeSelectChevron
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                className="h-10 text-xs font-bold text-zinc-700 shadow-sm"
+              >
+                <option value={5}>Tháng 5 / 2026</option>
+                <option value={6}>Tháng 6 / 2026</option>
+              </NativeSelectChevron>
+            </div>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="rounded-2xl border border-zinc-200 bg-white p-12 text-center text-sm text-zinc-500 shadow-sm">
+            Đang tải dữ liệu hiệu suất...
+          </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-3">
+            {/* Left Column: Hours calculation summary */}
+            <div className="md:col-span-1 space-y-6">
+              <div className="bg-white rounded-2xl border border-zinc-200 p-5 shadow-sm space-y-4">
+                <h3 className="text-xs font-black uppercase tracking-wider text-zinc-950 pb-2 border-b border-zinc-100">
+                  Thống kê giờ dạy (Tháng {selectedMonth})
+                </h3>
+                
+                <div className="space-y-4 pt-2">
+                  <div className="rounded-xl bg-zinc-50 p-4 border border-zinc-100 space-y-2">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-zinc-500 font-bold">Số giờ thực tế:</span>
+                      <span className="font-black text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg text-sm">
+                        {hourStats.actual.toFixed(1)}h
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-zinc-500 font-bold">Giờ dự kiến:</span>
+                      <span className="font-black text-primary bg-primary/5 px-2.5 py-1 rounded-lg text-sm">
+                        {hourStats.expected.toFixed(1)}h
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Chi tiết theo lớp</h4>
+                    {hourStats.details.length === 0 ? (
+                      <p className="text-xs text-zinc-400 py-3 text-center italic">Không có lớp học tháng này.</p>
+                    ) : (
+                      hourStats.details.map((item, idx) => (
+                        <div key={idx} className="flex justify-between items-center text-xs border-b border-zinc-50 pb-2">
+                          <div>
+                            <div className="font-black text-zinc-800">{item.className}</div>
+                            <div className="text-[10px] text-zinc-400 font-bold">{item.scheduleText}</div>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-black text-zinc-800">{item.actualHours.toFixed(1)}h</span>
+                            <span className="text-[10px] text-zinc-400 font-bold block">Dự tính: {item.expectedHours.toFixed(1)}h</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Teacher attendance sheet & locked edits */}
+            <div className="md:col-span-2 space-y-6">
+              <div className="bg-white rounded-2xl border border-zinc-200 p-5 shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-zinc-950">
+                      Điểm danh giáo viên & Khóa chỉnh sửa
+                    </h3>
+                    <p className="text-[10px] text-zinc-400 font-semibold mt-0.5">
+                      Check-in các buổi dạy đã giảng dạy. Lịch dạy tự động khóa sau 1 tuần.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-zinc-200 bg-zinc-50 text-[10px] font-bold uppercase text-zinc-400">
+                        <th className="px-4 py-3">Ngày</th>
+                        <th className="px-4 py-3">Lớp học</th>
+                        <th className="px-4 py-3">Khung giờ</th>
+                        <th className="px-4 py-3 text-center">Điểm danh</th>
+                        <th className="px-4 py-3 text-right">Khóa chỉnh sửa</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100 font-semibold text-zinc-700">
+                      {teacherAttendanceLog.length > 0 ? (
+                        teacherAttendanceLog.map((logItem, index) => (
+                          <tr key={index} className="hover:bg-zinc-50/50 align-middle">
+                            <td className="px-4 py-3 tabular-nums text-zinc-950 font-bold">{logItem.date}</td>
+                            <td className="px-4 py-3">{logItem.className}</td>
+                            <td className="px-4 py-3 text-zinc-500 tabular-nums">{logItem.time}</td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-black uppercase ${
+                                logItem.attendanceStatus === "Đúng giờ"
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}>
+                                {logItem.attendanceStatus}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {logItem.isLocked ? (
+                                <span className="inline-flex items-center gap-1 text-[9px] font-black text-zinc-400 uppercase">
+                                  🔒 Khóa sửa
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="text-primary hover:underline font-black text-[10px] uppercase"
+                                  onClick={() => alert(`Cho phép chỉnh sửa buổi học ngày ${logItem.date}`)}
+                                >
+                                  ✍️ Có thể sửa
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-6 text-center text-zinc-400 font-medium">
+                            Chưa có dữ liệu điểm danh.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    </TeacherLayout>
+  );
+}

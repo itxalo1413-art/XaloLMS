@@ -4,4 +4,6 @@ export class CreateMockTestDto {
   month?: number;
   year?: number;
   examTime?: string;
+  status?: string;
+  examTeacher?: string;
 }

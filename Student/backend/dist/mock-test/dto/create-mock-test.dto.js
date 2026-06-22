@@ -7,6 +7,8 @@ class CreateMockTestDto {
     month;
     year;
     examTime;
+    status;
+    examTeacher;
 }
 exports.CreateMockTestDto = CreateMockTestDto;
 //# sourceMappingURL=create-mock-test.dto.js.map

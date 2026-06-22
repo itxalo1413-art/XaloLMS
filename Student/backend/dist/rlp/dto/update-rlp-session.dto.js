@@ -5,6 +5,7 @@ class UpdateRlpSessionDto {
     attendance;
     homeworkStatus;
     teacherNote;
+    lessonFileUrl;
 }
 exports.UpdateRlpSessionDto = UpdateRlpSessionDto;
 //# sourceMappingURL=update-rlp-session.dto.js.map

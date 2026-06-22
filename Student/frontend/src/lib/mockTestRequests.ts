@@ -160,12 +160,14 @@ export function createPendingRequest(input: {
   month: number;
   year: number;
   examTime?: string;
+  status?: MockTestRequestStatus;
+  examTeacher?: string;
 }): MockTestRequest {
   const id = `mt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   return {
     id,
     ...input,
-    status: "pending",
+    status: input.status || "pending",
     requestedAt: new Date().toISOString(),
   };
 }
@@ -178,6 +180,8 @@ export async function createMockTestRequest(input: {
   month: number;
   year: number;
   examTime?: string;
+  status?: MockTestRequestStatus;
+  examTeacher?: string;
 }): Promise<MockTestRequest> {
   if (canUseMockTestApi()) {
     const row = await createMockTestApi({
@@ -186,6 +190,8 @@ export async function createMockTestRequest(input: {
       month: input.month,
       year: input.year,
       examTime: input.examTime,
+      status: input.status,
+      examTeacher: input.examTeacher,
     });
     await refreshMockTestRequestsForStudent(input.studentId);
     return row;

@@ -3,4 +3,5 @@ export declare class UpdateRlpSessionDto {
     attendance?: Attendance;
     homeworkStatus?: HomeworkStatus;
     teacherNote?: string;
+    lessonFileUrl?: string;
 }

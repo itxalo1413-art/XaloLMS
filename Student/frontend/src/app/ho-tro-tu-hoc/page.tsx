@@ -60,6 +60,7 @@ import {
   WRITING_SUBMISSIONS_EVENT,
   type WritingSubmission,
 } from "@/lib/writingSubmissions";
+import { fetchAcaFreeSlots, updateAcaFreeSlot, type AcaFreeSlot } from "@/lib/acaManagementApi";
 
 type PageDialog =
   | { kind: "confirm-practice"; slotId: PracticeSlotId }
@@ -74,7 +75,8 @@ export default function HoTroTuHocPage() {
   const [regSkill] = useState("Speaking Mock Test");
   const [regMonth, setRegMonth] = useState(month);
   const [regDay, setRegDay] = useState(1);
-  const [regTime, setRegTime] = useState("09:00");
+  const [regTime, setRegTime] = useState("");
+  const [freeSlots, setFreeSlots] = useState<AcaFreeSlot[]>([]);
 
   const [writingLink, setWritingLink] = useState("");
   const [writingSubmissions, setWritingSubmissions] = useState<WritingSubmission[]>([]);
@@ -83,6 +85,55 @@ export default function HoTroTuHocPage() {
   const [dialog, setDialog] = useState<PageDialog | null>(null);
 
   const student = getStudentIdentity();
+ 
+  const activeSlots = useMemo(() => {
+    return freeSlots.filter(
+      (s) =>
+        s.day === regDay &&
+        s.month === regMonth &&
+        s.year === year &&
+        s.status === "available"
+    );
+  }, [freeSlots, regDay, regMonth, year]);
+
+  const groupedSlots = useMemo(() => {
+    const groups: Record<string, { time: string; mode: "Online" | "Offline"; slots: AcaFreeSlot[] }> = {};
+    for (const s of activeSlots) {
+      const mode = s.type === "Nhận ca Test speaking/ chấm writing offline" ? "Offline" : "Online";
+      const key = `${s.time}_${mode}`;
+      if (!groups[key]) {
+        groups[key] = { time: s.time, mode, slots: [] };
+      }
+      groups[key].slots.push(s);
+    }
+    return Object.values(groups).sort((a, b) => a.time.localeCompare(b.time));
+  }, [activeSlots]);
+
+  const loadFreeSlots = useCallback(async () => {
+    try {
+      const slots = await fetchAcaFreeSlots();
+      setFreeSlots(slots);
+    } catch (err) {
+      console.error("Failed to load free slots", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadFreeSlots();
+    window.addEventListener("storage", loadFreeSlots);
+    return () => {
+      window.removeEventListener("storage", loadFreeSlots);
+    };
+  }, [loadFreeSlots]);
+
+  useEffect(() => {
+    if (groupedSlots.length > 0) {
+      const firstGroup = groupedSlots[0];
+      setRegTime(`${firstGroup.time} (${firstGroup.mode})`);
+    } else {
+      setRegTime("");
+    }
+  }, [groupedSlots]);
 
   const bumpPracticeSlots = useCallback(() => {
     void refreshPracticeRegistrations(student.id).finally(() =>
@@ -232,6 +283,15 @@ export default function HoTroTuHocPage() {
       setDialog({ kind: "duplicate-mock" });
       return;
     }
+
+    // Parse the selected regTime, e.g. "09:00 (Online)"
+    const mode = regTime.includes("Offline") ? "Offline" : "Online";
+    const timeOnly = regTime.split(" ")[0]; // "09:00"
+
+    // Find the grouped slot and select the first available free slot
+    const matchedGroup = groupedSlots.find((g) => g.time === timeOnly && g.mode === mode);
+    const availableSlot = matchedGroup?.slots.find((s) => s.status === "available");
+
     try {
       await createMockTestRequest({
         studentId: student.id,
@@ -241,7 +301,14 @@ export default function HoTroTuHocPage() {
         month: regMonth,
         year,
         examTime: regTime,
+        status: "approved", // Automatically approve booking
+        examTeacher: availableSlot?.teacherName || "ACA", // Assign the examiner of this slot
       });
+
+      if (availableSlot) {
+        await updateAcaFreeSlot(availableSlot.id, { status: "booked" });
+        await loadFreeSlots();
+      }
     } catch (err) {
       setDialog({
         kind: "alert",
@@ -309,24 +376,34 @@ export default function HoTroTuHocPage() {
                     </NativeSelectChevron>
                   </div>
                   <div className="flex min-w-0 flex-col gap-2">
-                    <label className="text-[10px] font-black text-muted uppercase tracking-widest">Giờ</label>
+                    <label className="text-[10px] font-black text-muted uppercase tracking-widest font-semibold">Giờ</label>
                     <NativeSelectChevron
                       value={regTime}
                       onChange={(e) => setRegTime(e.target.value)}
                       className="h-11 w-full rounded-xl bg-white text-xs font-bold text-foreground shadow-sm focus:ring-2 focus:ring-primary/10"
+                      disabled={groupedSlots.length === 0}
                     >
-                      {["09:00", "09:30", "10:00", "10:30", "14:00", "14:30", "15:00", "15:30", "16:00", "19:45"].map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
+                      {groupedSlots.length === 0 ? (
+                        <option value="">Không có lịch rảnh</option>
+                      ) : (
+                        groupedSlots.map((g) => {
+                          const val = `${g.time} (${g.mode})`;
+                          const count = g.slots.length;
+                          return (
+                            <option key={val} value={val}>
+                              {g.time} · {g.mode} (Còn {count} chỗ)
+                            </option>
+                          );
+                        })
+                      )}
                     </NativeSelectChevron>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => void registerMockTest()}
-                  className="h-11 w-fit shrink-0 self-start rounded-xl bg-primary px-5 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-primary/90 sm:self-auto sm:px-4"
+                  disabled={groupedSlots.length === 0}
+                  className="h-11 w-fit shrink-0 self-start rounded-xl bg-primary px-5 text-xs font-black uppercase tracking-widest text-white transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed sm:self-auto sm:px-4"
                 >
                   Đăng ký
                 </button>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const items = [
-  { href: "/aca", label: "Dash" },
+  { href: "/aca/quan-ly/lop-theo-thang", label: "Lớp tháng" },
   { href: "/aca/quan-ly/lop-luyen-de", label: "Luyện đề" },
   { href: "/aca/quan-ly/mock-test", label: "Mock" },
   { href: "/aca/phan-tich", label: "Phân tích" },

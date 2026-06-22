@@ -37,8 +37,14 @@ let RlpService = class RlpService {
         }
         return doc.sessions;
     }
+    normalizeSessions(sessions) {
+        return sessions.map((s) => ({
+            ...s,
+            lessonFileUrl: s.lessonFileUrl?.trim() ?? '',
+        }));
+    }
     async listSessions() {
-        return this.ensureStore();
+        return this.normalizeSessions(await this.ensureStore());
     }
     async updateSession(no, payload) {
         const sessions = await this.ensureStore();
@@ -57,6 +63,9 @@ let RlpService = class RlpService {
                 : {}),
             ...(payload.teacherNote !== undefined
                 ? { teacherNote: payload.teacherNote.trim() }
+                : {}),
+            ...(payload.lessonFileUrl !== undefined
+                ? { lessonFileUrl: payload.lessonFileUrl.trim() }
                 : {}),
         };
         sessions[index] = next;

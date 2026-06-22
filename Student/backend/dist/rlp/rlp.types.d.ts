@@ -9,4 +9,5 @@ export type RlpSessionRecord = {
     deadline: string;
     homeworkStatus: HomeworkStatus;
     attendance: Attendance;
+    lessonFileUrl?: string;
 };

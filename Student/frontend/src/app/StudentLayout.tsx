@@ -173,9 +173,9 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
           <main className="flat-card-scope relative mx-auto w-full max-w-7xl flex-1 px-4 pb-8 pt-6 md:px-8 flex flex-col">
             
             {/* Folder Tabs & Header Row */}
-            <div className="flex items-end justify-between px-2 md:px-4 mb-0.5">
+            <div className="flex items-end justify-between px-2 md:px-4 mb-0">
               {/* Left: Scrollable Folder Tabs */}
-              <div className="flex items-end -mb-[1px] z-10 overflow-x-auto no-scrollbar scroll-smooth flex-1 min-w-0 pr-4">
+              <div className="flex items-end -mb-[1.5px] z-10 overflow-x-auto no-scrollbar scroll-smooth flex-1 min-w-0 pr-4">
                 {tabs.map((tab) => {
                   const active = tab.match(pathname);
                   return (

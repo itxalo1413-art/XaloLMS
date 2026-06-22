@@ -176,8 +176,9 @@ export class MockTestService {
       day,
       month,
       year,
-      status: 'pending',
+      status: payload.status?.trim() || 'pending',
       examTime: payload.examTime?.trim() || undefined,
+      examTeacher: payload.examTeacher?.trim() || undefined,
     });
 
     return this.toPublic(created.toObject() as MockTestLean);

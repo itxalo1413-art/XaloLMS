@@ -7,6 +7,7 @@ export declare class RlpService {
     constructor(storeModel: Model<RlpCourseStoreDocument>);
     private cloneDefaults;
     private ensureStore;
+    private normalizeSessions;
     listSessions(): Promise<RlpSessionRecord[]>;
     updateSession(no: number, payload: UpdateRlpSessionDto): Promise<RlpSessionRecord>;
 }

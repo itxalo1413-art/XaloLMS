@@ -91,7 +91,14 @@ export async function apiFetch(
   if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  return fetch(`${API_BASE}${path}`, { ...init, headers });
+  try {
+    return await fetch(`${API_BASE}${path}`, { ...init, headers });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Không kết nối được backend (${API_BASE}${path}). Kiểm tra NEXT_PUBLIC_BACKEND_URL và server API. Chi tiết: ${reason}`,
+    );
+  }
 }
 
 export async function login(email: string, password: string): Promise<LoginResponse> {

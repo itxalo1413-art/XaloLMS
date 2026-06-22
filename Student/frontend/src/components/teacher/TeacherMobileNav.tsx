@@ -4,8 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const items = [
-  { href: "/teacher", label: "Học sinh" },
-  { href: "/teacher/mock-test", label: "Mock Test" },
+  { href: "/teacher", label: "Lớp học" },
+  { href: "/teacher/lich", label: "Lịch" },
+  { href: "/teacher/teaching-materials", label: "Materials" },
+  { href: "/teacher/performance", label: "Performance" },
 ];
 
 export function TeacherMobileNav() {
@@ -13,7 +15,7 @@ export function TeacherMobileNav() {
 
   return (
     <nav className="fixed inset-x-0 top-0 z-50 flex h-14 items-center border-b border-primary/15 bg-white/95 px-3 backdrop-blur-md md:hidden">
-      <ul className="grid w-full grid-cols-2 gap-2">
+      <ul className="grid w-full grid-cols-4 gap-1">
         {items.map((item) => {
           const active =
             item.href === "/teacher"
