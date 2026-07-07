@@ -24,6 +24,7 @@ const student_profile_store_schema_1 = require("./schemas/student-profile-store.
 const student_profile_study_options_1 = require("./student-profile-study-options");
 const focus_skills_util_1 = require("./focus-skills.util");
 const student_profile_types_1 = require("./student-profile.types");
+const aca_student_schema_1 = require("../aca/schemas/aca-student.schema");
 const STUDY_FIELDS = [
     'method',
     'weeklyHours',
@@ -34,11 +35,13 @@ const STUDY_FIELDS = [
 ];
 let StudentProfileService = StudentProfileService_1 = class StudentProfileService {
     store;
+    acaStudentModel;
     users;
     cloudinary;
     logger = new common_1.Logger(StudentProfileService_1.name);
-    constructor(store, users, cloudinary) {
+    constructor(store, acaStudentModel, users, cloudinary) {
         this.store = store;
+        this.acaStudentModel = acaStudentModel;
         this.users = users;
         this.cloudinary = cloudinary;
     }
@@ -142,12 +145,47 @@ let StudentProfileService = StudentProfileService_1 = class StudentProfileServic
         };
         return this.persist(userId, next);
     }
+    async getStudentDiagnosis(email) {
+        if (!email)
+            return null;
+        const cleanEmail = email.trim().toLowerCase();
+        const student = await this.acaStudentModel
+            .findOne({ email: cleanEmail })
+            .lean()
+            .exec();
+        if (!student) {
+            return null;
+        }
+        return {
+            name: student.name,
+            email: student.email,
+            phone: student.phone,
+            classId: student.classId,
+            bcbLink: student.bcbLink || '',
+            scores: {
+                listening: student.scores?.l !== undefined && student.scores?.l !== '-' ? Number(student.scores.l) : 0,
+                reading: student.scores?.r !== undefined && student.scores?.r !== '-' ? Number(student.scores.r) : 0,
+                writing: student.scores?.w !== undefined && student.scores?.w !== '-' ? Number(student.scores.w) : 0,
+                speaking: student.scores?.s !== undefined && student.scores?.s !== '-' ? Number(student.scores.s) : 0,
+                overall: student.scores?.o !== undefined && student.scores?.o !== '-' ? Number(student.scores.o) : 0,
+            },
+            finalScores: {
+                listening: student.finalScores?.l !== undefined && student.finalScores?.l !== '-' ? Number(student.finalScores.l) : 0,
+                reading: student.finalScores?.r !== undefined && student.finalScores?.r !== '-' ? Number(student.finalScores.r) : 0,
+                writing: student.finalScores?.w !== undefined && student.finalScores?.w !== '-' ? Number(student.finalScores.w) : 0,
+                speaking: student.finalScores?.s !== undefined && student.finalScores?.s !== '-' ? Number(student.finalScores.s) : 0,
+                overall: student.finalScores?.o !== undefined && student.finalScores?.o !== '-' ? Number(student.finalScores.o) : 0,
+            }
+        };
+    }
 };
 exports.StudentProfileService = StudentProfileService;
 exports.StudentProfileService = StudentProfileService = StudentProfileService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(student_profile_store_schema_1.StudentProfileStore.name)),
+    __param(1, (0, mongoose_1.InjectModel)(aca_student_schema_1.AcaStudent.name)),
     __metadata("design:paramtypes", [mongoose_2.Model,
+        mongoose_2.Model,
         users_service_1.UsersService,
         cloudinary_service_1.CloudinaryService])
 ], StudentProfileService);

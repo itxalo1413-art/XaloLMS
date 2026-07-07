@@ -29,6 +29,9 @@ let StudentProfileController = class StudentProfileController {
     getProfile(req) {
         return this.studentProfileService.getProfile(req.user.sub);
     }
+    getDiagnosis(req) {
+        return this.studentProfileService.getStudentDiagnosis(req.user.email);
+    }
     updateProfile(req, payload) {
         return this.studentProfileService.updateProfile(req.user.sub, payload);
     }
@@ -50,6 +53,13 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], StudentProfileController.prototype, "getProfile", null);
+__decorate([
+    (0, common_1.Get)('diagnosis'),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], StudentProfileController.prototype, "getDiagnosis", null);
 __decorate([
     (0, common_1.Patch)(),
     __param(0, (0, common_1.Req)()),

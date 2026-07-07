@@ -9,6 +9,27 @@ export declare class StudentProfileController {
     private readonly studentProfileService;
     constructor(studentProfileService: StudentProfileService);
     getProfile(req: AuthedRequest): Promise<import("./student-profile.types").StudentProfile>;
+    getDiagnosis(req: AuthedRequest): Promise<{
+        name: string;
+        email: string;
+        phone: string;
+        classId: string;
+        bcbLink: string;
+        scores: {
+            listening: number;
+            reading: number;
+            writing: number;
+            speaking: number;
+            overall: number;
+        };
+        finalScores: {
+            listening: number;
+            reading: number;
+            writing: number;
+            speaking: number;
+            overall: number;
+        };
+    } | null>;
     updateProfile(req: AuthedRequest, payload: UpdateStudentProfileDto): Promise<import("./student-profile.types").StudentProfile>;
     uploadAvatar(req: AuthedRequest, file: Express.Multer.File): Promise<import("./student-profile.types").StudentProfile>;
 }
