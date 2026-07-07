@@ -7,6 +7,9 @@ export declare class AcaPracticeStudent {
     rlp: string;
     testScheduleSunday: string;
     scheduleTueSat: string;
+    scheduleTue: string;
+    scheduleSat: string;
+    scheduleSun: string;
     participateLd28: boolean;
     note: string;
     weekRange: string;
@@ -66,6 +69,33 @@ export declare const AcaPracticeStudentSchema: import("mongoose").Schema<AcaPrac
         id: string;
     }> | undefined;
     scheduleTueSat?: import("mongoose").SchemaDefinitionProperty<string, AcaPracticeStudent, import("mongoose").Document<unknown, {}, AcaPracticeStudent, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<AcaPracticeStudent & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    scheduleTue?: import("mongoose").SchemaDefinitionProperty<string, AcaPracticeStudent, import("mongoose").Document<unknown, {}, AcaPracticeStudent, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<AcaPracticeStudent & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    scheduleSat?: import("mongoose").SchemaDefinitionProperty<string, AcaPracticeStudent, import("mongoose").Document<unknown, {}, AcaPracticeStudent, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<AcaPracticeStudent & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    scheduleSun?: import("mongoose").SchemaDefinitionProperty<string, AcaPracticeStudent, import("mongoose").Document<unknown, {}, AcaPracticeStudent, {
         id: string;
     }, import("mongoose").DefaultSchemaOptions> & Omit<AcaPracticeStudent & {
         _id: import("mongoose").Types.ObjectId;

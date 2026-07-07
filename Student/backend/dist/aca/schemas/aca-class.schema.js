@@ -12,6 +12,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AcaClassSchema = exports.AcaClass = void 0;
 const mongoose_1 = require("@nestjs/mongoose");
 let AcaClass = class AcaClass {
+    classCode;
     name;
     month;
     type;
@@ -23,8 +24,14 @@ let AcaClass = class AcaClass {
     nextPhaseStartDate;
     nextPhase;
     slotsToEnroll;
+    endDate;
+    progressNote;
 };
 exports.AcaClass = AcaClass;
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaClass.prototype, "classCode", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ required: true, trim: true }),
     __metadata("design:type", String)
@@ -69,6 +76,14 @@ __decorate([
     (0, mongoose_1.Prop)({ default: 0 }),
     __metadata("design:type", Number)
 ], AcaClass.prototype, "slotsToEnroll", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaClass.prototype, "endDate", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaClass.prototype, "progressNote", void 0);
 exports.AcaClass = AcaClass = __decorate([
     (0, mongoose_1.Schema)({ collection: 'aca_classes', timestamps: true })
 ], AcaClass);

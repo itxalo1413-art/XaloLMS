@@ -405,28 +405,55 @@ export default function Home() {
                             {formatBandScore(diagnosis.scores.overall)} Overall
                           </div>
                         </div>
-                        <Link
-                          href="#bcb-archive"
-                          className="group flex min-h-[7.5rem] h-full flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-primary bg-white px-4 py-3 text-center shadow-sm ring-1 ring-primary/10 transition-all hover:bg-primary hover:shadow-md md:h-full"
-                        >
-                          <svg
-                            className="h-5 w-5 shrink-0 text-primary transition-colors group-hover:text-white"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.25"
-                            aria-hidden
+                        {diagnosis.bcbLink ? (
+                          <a
+                            href={diagnosis.bcbLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group flex min-h-[7.5rem] h-full flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-primary bg-white px-4 py-3 text-center shadow-sm ring-1 ring-primary/10 transition-all hover:bg-primary hover:shadow-md md:h-full"
                           >
-                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                          </svg>
-                          <span className="text-[11px] font-black uppercase tracking-widest text-primary transition-colors group-hover:text-white">
-                            BCB Archive
-                          </span>
-                          <span className="text-[9px] font-semibold leading-tight text-muted transition-colors group-hover:text-white/85">
-                            Mở bảng chẩn đoán
-                          </span>
-                        </Link>
+                            <svg
+                              className="h-5 w-5 shrink-0 text-primary transition-colors group-hover:text-white"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.25"
+                              aria-hidden
+                            >
+                              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                            </svg>
+                            <span className="text-[11px] font-black uppercase tracking-widest text-primary transition-colors group-hover:text-white">
+                              BCB Archive
+                            </span>
+                            <span className="text-[9px] font-semibold leading-tight text-muted transition-colors group-hover:text-white/85">
+                              Mở Driver Bảng Chẩn Bệnh
+                            </span>
+                          </a>
+                        ) : (
+                          <Link
+                            href="#bcb-archive"
+                            className="group flex min-h-[7.5rem] h-full flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-primary bg-white px-4 py-3 text-center shadow-sm ring-1 ring-primary/10 transition-all hover:bg-primary hover:shadow-md md:h-full"
+                          >
+                            <svg
+                              className="h-5 w-5 shrink-0 text-primary transition-colors group-hover:text-white"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.25"
+                              aria-hidden
+                            >
+                              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                            </svg>
+                            <span className="text-[11px] font-black uppercase tracking-widest text-primary transition-colors group-hover:text-white">
+                              BCB Archive
+                            </span>
+                            <span className="text-[9px] font-semibold leading-tight text-muted transition-colors group-hover:text-white/85">
+                              Mở bảng chẩn đoán
+                            </span>
+                          </Link>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:items-stretch">

@@ -14,6 +14,12 @@ export type WritingSubmissionPublic = {
     status: WritingSubmissionStatus;
     score?: string;
     gradedAt?: string;
+    dueDate?: string;
+    studentGmail?: string;
+    type?: string;
+    task1?: string;
+    task2?: string;
+    note?: string;
 };
 export declare class WritingSubmissionService {
     private readonly model;

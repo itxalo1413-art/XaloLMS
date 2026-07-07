@@ -5,6 +5,7 @@ import {
   Param,
   ParseIntPipe,
   Patch,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -20,16 +21,17 @@ export class TeacherRlpController {
   constructor(private readonly rlp: RlpService) {}
 
   @Get()
-  list() {
-    return this.rlp.listSessions();
+  list(@Query('classId') classId: string) {
+    return this.rlp.listSessionsForClass(classId);
   }
 
   @Patch(':no')
   async update(
     @Param('no', ParseIntPipe) no: number,
+    @Query('classId') classId: string,
     @Body() body: UpdateRlpSessionDto,
   ) {
-    const session = await this.rlp.updateSession(no, body ?? {});
+    const session = await this.rlp.updateSessionForClass(classId, no, body ?? {});
     return { session };
   }
 }

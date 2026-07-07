@@ -8,6 +8,12 @@ export declare class WritingSubmission {
     status: string;
     score?: string;
     gradedAt?: string;
+    dueDate?: string;
+    studentGmail?: string;
+    type?: string;
+    task1?: string;
+    task2?: string;
+    note?: string;
 }
 export declare const WritingSubmissionSchema: import("mongoose").Schema<WritingSubmission, import("mongoose").Model<WritingSubmission, any, any, any, any, any, WritingSubmission>, {}, {}, {}, {}, import("mongoose").DefaultSchemaOptions, WritingSubmission, import("mongoose").Document<unknown, {}, WritingSubmission, {
     id: string;
@@ -73,6 +79,60 @@ export declare const WritingSubmissionSchema: import("mongoose").Schema<WritingS
         id: string;
     }> | undefined;
     gradedAt?: import("mongoose").SchemaDefinitionProperty<string | undefined, WritingSubmission, import("mongoose").Document<unknown, {}, WritingSubmission, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<WritingSubmission & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    dueDate?: import("mongoose").SchemaDefinitionProperty<string | undefined, WritingSubmission, import("mongoose").Document<unknown, {}, WritingSubmission, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<WritingSubmission & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    studentGmail?: import("mongoose").SchemaDefinitionProperty<string | undefined, WritingSubmission, import("mongoose").Document<unknown, {}, WritingSubmission, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<WritingSubmission & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    type?: import("mongoose").SchemaDefinitionProperty<string | undefined, WritingSubmission, import("mongoose").Document<unknown, {}, WritingSubmission, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<WritingSubmission & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    task1?: import("mongoose").SchemaDefinitionProperty<string | undefined, WritingSubmission, import("mongoose").Document<unknown, {}, WritingSubmission, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<WritingSubmission & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    task2?: import("mongoose").SchemaDefinitionProperty<string | undefined, WritingSubmission, import("mongoose").Document<unknown, {}, WritingSubmission, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<WritingSubmission & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    note?: import("mongoose").SchemaDefinitionProperty<string | undefined, WritingSubmission, import("mongoose").Document<unknown, {}, WritingSubmission, {
         id: string;
     }, import("mongoose").DefaultSchemaOptions> & Omit<WritingSubmission & {
         _id: import("mongoose").Types.ObjectId;

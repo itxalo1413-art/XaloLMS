@@ -20,14 +20,69 @@ const users_service_1 = require("../users/users.service");
 const practice_class_constants_1 = require("./practice-class.constants");
 const practice_class_registration_schema_1 = require("./schemas/practice-class-registration.schema");
 const practice_class_schedule_schema_1 = require("./schemas/practice-class-schedule.schema");
+const aca_practice_student_schema_1 = require("../aca/schemas/aca-practice-student.schema");
+const aca_student_schema_1 = require("../aca/schemas/aca-student.schema");
 let PracticeClassService = class PracticeClassService {
     scheduleModel;
     registrationModel;
+    practiceStudentModel;
+    acaStudentModel;
     usersService;
-    constructor(scheduleModel, registrationModel, usersService) {
+    constructor(scheduleModel, registrationModel, practiceStudentModel, acaStudentModel, usersService) {
         this.scheduleModel = scheduleModel;
         this.registrationModel = registrationModel;
+        this.practiceStudentModel = practiceStudentModel;
+        this.acaStudentModel = acaStudentModel;
         this.usersService = usersService;
+    }
+    async syncStudentPracticeSchedule(userId) {
+        try {
+            const scheduleDoc = await this.scheduleModel.findOne({ key: practice_class_constants_1.PRACTICE_SCHEDULE_KEY }).lean().exec();
+            let currentWeekRange = scheduleDoc?.weekRangeLabel?.trim() || '';
+            if (!currentWeekRange) {
+                const weeksColl = this.scheduleModel.db.collection('aca_practice_weeks');
+                const latestWeeks = await weeksColl.find({}).sort({ _id: -1 }).limit(1).toArray();
+                if (latestWeeks && latestWeeks.length > 0 && latestWeeks[0].weekRange) {
+                    currentWeekRange = latestWeeks[0].weekRange.trim();
+                }
+            }
+            if (!currentWeekRange)
+                return;
+            const user = await this.usersService.findPublicById(userId);
+            if (!user)
+                return;
+            const acaStudent = await this.acaStudentModel.findOne({ email: user.email }).lean().exec();
+            const phone = acaStudent?.phone || '';
+            const registrations = await this.registrationModel.find({ userId: new mongoose_2.Types.ObjectId(userId) }).lean().exec();
+            const registeredSlotIds = new Set(registrations.map(r => r.slotId));
+            const scheduleTue = registeredSlotIds.has('tue-lrw') ? 'Ca 1 (18h-20h)' : 'Không học';
+            const scheduleSat = registeredSlotIds.has('sat-speaking') ? 'Ca 1 (18h-20h)' : 'Không học';
+            const scheduleSun = registeredSlotIds.has('sun-lrw') ? 'Có tham gia' : 'Không học';
+            const query = {
+                weekRange: currentWeekRange,
+            };
+            if (phone) {
+                query.$or = [
+                    { phone: phone },
+                    { name: { $regex: new RegExp(`^${user.name.trim()}$`, 'i') } }
+                ];
+            }
+            else {
+                query.name = { $regex: new RegExp(`^${user.name.trim()}$`, 'i') };
+            }
+            const practiceStudent = await this.practiceStudentModel.findOne(query).exec();
+            if (practiceStudent) {
+                practiceStudent.scheduleTue = scheduleTue;
+                practiceStudent.scheduleSat = scheduleSat;
+                practiceStudent.scheduleSun = scheduleSun;
+                practiceStudent.testScheduleSunday = scheduleSun;
+                practiceStudent.scheduleTueSat = `${scheduleTue !== "Không học" ? `T3: ${scheduleTue}` : ""}${scheduleTue !== "Không học" && scheduleSat !== "Không học" ? ", " : ""}${scheduleSat !== "Không học" ? `T7: ${scheduleSat}` : ""}`;
+                await practiceStudent.save();
+            }
+        }
+        catch (err) {
+            console.error('Lỗi khi đồng bộ đăng ký lớp luyện đề: ', err);
+        }
     }
     mergeSlot(base, override) {
         if (!override)
@@ -116,6 +171,7 @@ let PracticeClassService = class PracticeClassService {
             userId: new mongoose_2.Types.ObjectId(userId),
             slotId,
         });
+        await this.syncStudentPracticeSchedule(userId);
         const doc = created.toObject();
         return {
             slotId: doc.slotId,
@@ -160,6 +216,7 @@ let PracticeClassService = class PracticeClassService {
         if (result.deletedCount === 0) {
             throw new common_1.NotFoundException('Chưa đăng ký buổi này');
         }
+        await this.syncStudentPracticeSchedule(userId);
     }
 };
 exports.PracticeClassService = PracticeClassService;
@@ -167,7 +224,11 @@ exports.PracticeClassService = PracticeClassService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(practice_class_schedule_schema_1.PracticeClassSchedule.name)),
     __param(1, (0, mongoose_1.InjectModel)(practice_class_registration_schema_1.PracticeClassRegistration.name)),
+    __param(2, (0, mongoose_1.InjectModel)(aca_practice_student_schema_1.AcaPracticeStudent.name)),
+    __param(3, (0, mongoose_1.InjectModel)(aca_student_schema_1.AcaStudent.name)),
     __metadata("design:paramtypes", [mongoose_2.Model,
+        mongoose_2.Model,
+        mongoose_2.Model,
         mongoose_2.Model,
         users_service_1.UsersService])
 ], PracticeClassService);

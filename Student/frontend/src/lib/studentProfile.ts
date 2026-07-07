@@ -29,7 +29,7 @@ export const STUDENT_PROFILES_STORAGE_KEY = "xalo.student.profiles.v2";
 export const STUDENT_PROFILE_UPDATE_EVENT = "xalo-student-profile-updated";
 
 export const DEFAULT_STUDENT_PROFILE: StudentProfile = {
-  name: "Dương Nguyên",
+  name: "Dương Ngọc Khôi Nguyên",
   email: "nguyenduong939705@gmail.com",
   phone: "0947 188 794",
   dob: "20/08/2006",
@@ -65,6 +65,10 @@ function buildDefaultProfile(studentId: string): StudentProfile {
 function mergeProfile(parsed: Partial<StudentProfile>, studentId: string): StudentProfile {
   const base = buildDefaultProfile(studentId);
   const merged = { ...base, ...parsed };
+  // Normalize old demo seed to the full roster name.
+  if (merged.name.trim() === "Dương Nguyên") {
+    merged.name = base.name;
+  }
   merged.focusSkills = normalizeFocusSkills(parsed.focusSkills ?? merged.focusSkills);
   return merged;
 }

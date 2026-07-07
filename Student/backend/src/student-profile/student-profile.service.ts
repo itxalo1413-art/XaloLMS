@@ -18,6 +18,7 @@ import {
   DEFAULT_STUDENT_PROFILE,
   type StudentProfile,
 } from './student-profile.types';
+import { AcaStudent, AcaStudentDocument } from '../aca/schemas/aca-student.schema';
 
 const STUDY_FIELDS: StudySelectionField[] = [
   'method',
@@ -35,6 +36,8 @@ export class StudentProfileService {
   constructor(
     @InjectModel(StudentProfileStore.name)
     private readonly store: Model<StudentProfileStoreDocument>,
+    @InjectModel(AcaStudent.name)
+    private readonly acaStudentModel: Model<AcaStudentDocument>,
     private readonly users: UsersService,
     private readonly cloudinary: CloudinaryService,
   ) {}
@@ -161,5 +164,43 @@ export class StudentProfileService {
       avatarUrl,
     };
     return this.persist(userId, next);
+  }
+
+  async getStudentDiagnosis(email: string) {
+    if (!email) return null;
+    const cleanEmail = email.trim().toLowerCase();
+    
+    // Find AcaStudent matching the email
+    const student = await this.acaStudentModel
+      .findOne({ email: cleanEmail })
+      .lean()
+      .exec();
+
+    if (!student) {
+      return null;
+    }
+
+    // Map database fields to the frontend structure
+    return {
+      name: student.name,
+      email: student.email,
+      phone: student.phone,
+      classId: student.classId,
+      bcbLink: student.bcbLink || '',
+      scores: {
+        listening: student.scores?.l !== undefined && student.scores?.l !== '-' ? Number(student.scores.l) : 0,
+        reading: student.scores?.r !== undefined && student.scores?.r !== '-' ? Number(student.scores.r) : 0,
+        writing: student.scores?.w !== undefined && student.scores?.w !== '-' ? Number(student.scores.w) : 0,
+        speaking: student.scores?.s !== undefined && student.scores?.s !== '-' ? Number(student.scores.s) : 0,
+        overall: student.scores?.o !== undefined && student.scores?.o !== '-' ? Number(student.scores.o) : 0,
+      },
+      finalScores: {
+        listening: student.finalScores?.l !== undefined && student.finalScores?.l !== '-' ? Number(student.finalScores.l) : 0,
+        reading: student.finalScores?.r !== undefined && student.finalScores?.r !== '-' ? Number(student.finalScores.r) : 0,
+        writing: student.finalScores?.w !== undefined && student.finalScores?.w !== '-' ? Number(student.finalScores.w) : 0,
+        speaking: student.finalScores?.s !== undefined && student.finalScores?.s !== '-' ? Number(student.finalScores.s) : 0,
+        overall: student.finalScores?.o !== undefined && student.finalScores?.o !== '-' ? Number(student.finalScores.o) : 0,
+      }
+    };
   }
 }

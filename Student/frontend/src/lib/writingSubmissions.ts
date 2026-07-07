@@ -22,6 +22,12 @@ export type WritingSubmission = {
   score?: string;
   examLink: string;
   gradedAt?: string;
+  dueDate?: string;
+  studentGmail?: string;
+  type?: string;
+  task1?: string;
+  task2?: string;
+  note?: string;
 };
 
 export const WRITING_SUBMISSIONS_KEY = "xalo.student.writingSubmissions.v1";
@@ -160,6 +166,12 @@ export async function gradeWritingSubmission(
     status: WritingSubmissionStatus;
     score?: string;
     examLink?: string;
+    dueDate?: string;
+    studentGmail?: string;
+    type?: string;
+    task1?: string;
+    task2?: string;
+    note?: string;
   },
 ): Promise<WritingSubmission> {
   if (canUseWritingSubmissionApi()) {
@@ -179,8 +191,14 @@ export async function gradeWritingSubmission(
     updated = {
       ...r,
       status: payload.status,
-      score: payload.score?.trim() || r.score,
-      examLink: payload.examLink?.trim() || r.examLink,
+      score: payload.score?.trim() !== undefined ? payload.score.trim() : r.score,
+      examLink: payload.examLink?.trim() !== undefined ? payload.examLink.trim() : r.examLink,
+      dueDate: payload.dueDate?.trim() !== undefined ? payload.dueDate.trim() : r.dueDate,
+      studentGmail: payload.studentGmail?.trim() !== undefined ? payload.studentGmail.trim() : r.studentGmail,
+      type: payload.type?.trim() !== undefined ? payload.type.trim() : r.type,
+      task1: payload.task1?.trim() !== undefined ? payload.task1.trim() : r.task1,
+      task2: payload.task2?.trim() !== undefined ? payload.task2.trim() : r.task2,
+      note: payload.note?.trim() !== undefined ? payload.note.trim() : r.note,
       gradedAt: payload.status === "graded" ? now : r.gradedAt,
     };
     return updated;

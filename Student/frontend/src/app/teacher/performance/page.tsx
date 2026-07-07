@@ -365,15 +365,21 @@ export default function PerformancePage() {
                             <td className="px-4 py-3 text-right">
                               {logItem.isLocked ? (
                                 <span className="inline-flex items-center gap-1 text-[9px] font-black text-zinc-400 uppercase">
-                                  🔒 Khóa sửa
+                                  <svg className="w-3 h-3 text-zinc-450 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                                  </svg>
+                                  Khóa sửa
                                 </span>
                               ) : (
                                 <button
                                   type="button"
-                                  className="text-primary hover:underline font-black text-[10px] uppercase"
+                                  className="inline-flex items-center gap-1 text-primary hover:underline font-black text-[10px] uppercase"
                                   onClick={() => alert(`Cho phép chỉnh sửa buổi học ngày ${logItem.date}`)}
                                 >
-                                  ✍️ Có thể sửa
+                                  <svg className="w-3 h-3 text-primary shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.83 18.062a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                                  </svg>
+                                  Có thể sửa
                                 </button>
                               )}
                             </td>

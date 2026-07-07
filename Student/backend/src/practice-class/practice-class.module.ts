@@ -12,6 +12,8 @@ import {
   PracticeClassSchedule,
   PracticeClassScheduleSchema,
 } from './schemas/practice-class-schedule.schema';
+import { AcaPracticeStudent, AcaPracticeStudentSchema } from '../aca/schemas/aca-practice-student.schema';
+import { AcaStudent, AcaStudentSchema } from '../aca/schemas/aca-student.schema';
 import { StudentPracticeClassController } from './student-practice-class.controller';
 
 @Module({
@@ -22,6 +24,8 @@ import { StudentPracticeClassController } from './student-practice-class.control
         name: PracticeClassRegistration.name,
         schema: PracticeClassRegistrationSchema,
       },
+      { name: AcaPracticeStudent.name, schema: AcaPracticeStudentSchema },
+      { name: AcaStudent.name, schema: AcaStudentSchema },
     ]),
     AuthGuardsModule,
     UsersModule,

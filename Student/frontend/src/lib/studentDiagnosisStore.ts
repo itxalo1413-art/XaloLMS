@@ -23,6 +23,7 @@ export type StudentDiagnosisRecord = {
   examDate: string;
   bcbOverviewTitle: string;
   bcbOverviewSummary: string;
+  bcbLink: string;
   scores: SkillScores;
   skillSummaries: {
     listening: string;
@@ -64,6 +65,7 @@ export const DEFAULT_STUDENT_DIAGNOSIS: StudentDiagnosisRecord = {
   bcbOverviewTitle: "Người dùng Khá (Competent)",
   bcbOverviewSummary:
     "Sử dụng ngôn ngữ hiệu quả, thỉnh thoảng có lỗi dùng từ chưa phù hợp. Đã bắt đầu hiểu được ngôn ngữ phức tạp nhưng phong độ chưa đều giữa các kỹ năng.",
+  bcbLink: "",
   scores: {
     listening: 7.5,
     reading: 5.5,
@@ -158,6 +160,7 @@ function mergeDiagnosis(
   const merged: StudentDiagnosisRecord = {
     ...defaults,
     ...data,
+    bcbLink: data.bcbLink !== undefined ? data.bcbLink : defaults.bcbLink,
     scores: { ...defaults.scores, ...data.scores },
     skillSummaries: {
       ...defaults.skillSummaries,

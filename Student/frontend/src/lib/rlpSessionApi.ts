@@ -23,8 +23,9 @@ async function parseJson<T>(response: Response): Promise<T> {
   return (await response.json()) as T;
 }
 
-export async function fetchRlpSessionsForTeacher(): Promise<RlpSession[]> {
-  const response = await apiFetch("/api/teacher/rlp-sessions", { method: "GET" });
+export async function fetchRlpSessionsForTeacher(classId?: string): Promise<RlpSession[]> {
+  const url = classId ? `/api/teacher/rlp-sessions?classId=${encodeURIComponent(classId)}` : "/api/teacher/rlp-sessions";
+  const response = await apiFetch(url, { method: "GET" });
   return parseJson(response);
 }
 
@@ -43,8 +44,12 @@ export type UpdateRlpSessionPayload = {
 export async function updateRlpSessionApi(
   no: number,
   payload: UpdateRlpSessionPayload,
+  classId?: string,
 ): Promise<RlpSession> {
-  const response = await apiFetch(`/api/teacher/rlp-sessions/${no}`, {
+  const url = classId
+    ? `/api/teacher/rlp-sessions/${no}?classId=${encodeURIComponent(classId)}`
+    : `/api/teacher/rlp-sessions/${no}`;
+  const response = await apiFetch(url, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });

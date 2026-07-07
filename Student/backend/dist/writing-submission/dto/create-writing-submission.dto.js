@@ -4,6 +4,12 @@ exports.CreateWritingSubmissionDto = void 0;
 class CreateWritingSubmissionDto {
     examLink;
     testDateTime;
+    dueDate;
+    studentGmail;
+    type;
+    task1;
+    task2;
+    note;
 }
 exports.CreateWritingSubmissionDto = CreateWritingSubmissionDto;
 //# sourceMappingURL=create-writing-submission.dto.js.map

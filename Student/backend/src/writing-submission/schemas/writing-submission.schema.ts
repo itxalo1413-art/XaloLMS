@@ -26,6 +26,24 @@ export class WritingSubmission {
 
   @Prop()
   gradedAt?: string;
+
+  @Prop({ trim: true, default: '' })
+  dueDate?: string;
+
+  @Prop({ trim: true, default: '' })
+  studentGmail?: string;
+
+  @Prop({ trim: true, default: '' })
+  type?: string;
+
+  @Prop({ trim: true, default: '' })
+  task1?: string;
+
+  @Prop({ trim: true, default: '' })
+  task2?: string;
+
+  @Prop({ trim: true, default: '' })
+  note?: string;
 }
 
 export const WritingSubmissionSchema =

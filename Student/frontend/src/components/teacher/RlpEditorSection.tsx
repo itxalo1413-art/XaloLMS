@@ -12,6 +12,7 @@ import {
   RLP_SESSIONS_UPDATE_EVENT,
   updateRlpSession,
 } from "@/lib/rlpSessionStore";
+import { fetchAcaClasses, displayClassCode, type AcaClass } from "@/lib/acaManagementApi";
 
 const ATTENDANCE_OPTIONS: { value: Attendance; label: string }[] = [
   { value: "present", label: "Đi học" },
@@ -61,12 +62,33 @@ export function RlpEditorSection() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
   const [filterSkill, setFilterSkill] = useState<string>("all");
+  
+  const [classes, setClasses] = useState<AcaClass[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<string>("");
 
-  const sync = useCallback(async () => {
+  useEffect(() => {
+    async function loadClasses() {
+      try {
+        const data = await fetchAcaClasses();
+        const teacherClasses = data.filter((c) =>
+          (c.teacher || "").toLowerCase().includes("quỳnh châu")
+        );
+        setClasses(teacherClasses);
+        if (teacherClasses.length > 0) {
+          setSelectedClassId(teacherClasses[0].id);
+        }
+      } catch (err) {
+        console.error("Failed to load teacher classes", err);
+      }
+    }
+    loadClasses();
+  }, []);
+
+  const sync = useCallback(async (classId?: string) => {
     setLoading(true);
     setError(null);
     try {
-      const data = await refreshRlpSessions();
+      const data = await refreshRlpSessions(classId);
       setRows(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không tải được RLP.");
@@ -76,15 +98,15 @@ export function RlpEditorSection() {
   }, []);
 
   useEffect(() => {
-    void sync();
-    const onUpdate = () => void sync();
+    void sync(selectedClassId);
+    const onUpdate = () => void sync(selectedClassId);
     window.addEventListener(RLP_SESSIONS_UPDATE_EVENT, onUpdate);
     window.addEventListener("storage", onUpdate);
     return () => {
       window.removeEventListener(RLP_SESSIONS_UPDATE_EVENT, onUpdate);
       window.removeEventListener("storage", onUpdate);
     };
-  }, [sync]);
+  }, [sync, selectedClassId]);
 
   const skills = useMemo(
     () => ["all", ...new Set(rows.map((r) => r.skill))],
@@ -114,8 +136,8 @@ export function RlpEditorSection() {
         homeworkStatus: draft.homeworkStatus,
         teacherNote: draft.teacherNote.trim() || "—",
         lessonFileUrl: draft.lessonFileUrl.trim(),
-      });
-      await sync();
+      }, selectedClassId);
+      await sync(selectedClassId);
       setActiveNo(null);
       setDraft(null);
     } catch (err) {
@@ -128,10 +150,29 @@ export function RlpEditorSection() {
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-primary/10 bg-white p-5 shadow-soft">
-        <p className="text-sm text-muted">
-          Cập nhật điểm danh, homework, ghi chú GV và link file bài học cho từng buổi RLP. Học viên
-          thấy ngay trên trang Thông tin khóa học.
-        </p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-primary/5 pb-4 mb-4">
+          <div className="space-y-1">
+            <h4 className="text-xs font-black uppercase tracking-wider text-zinc-400">Chọn lớp giảng dạy</h4>
+            <select
+              value={selectedClassId}
+              onChange={(e) => setSelectedClassId(e.target.value)}
+              className="h-10 w-full md:w-80 rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10 bg-white cursor-pointer"
+            >
+              {classes.length === 0 ? (
+                <option value="">Không tìm thấy lớp học nào của bạn</option>
+              ) : (
+                classes.map((cls) => (
+                  <option key={cls.id} value={cls.id}>
+                    {cls.classCode ? `[${displayClassCode(cls.classCode)}] ${cls.name}` : cls.name}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+          <p className="text-xs text-muted max-w-md leading-relaxed md:text-right">
+            Cập nhật điểm danh, homework, ghi chú GV và link file bài học cho từng buổi RLP của lớp này. Học viên thấy ngay trên trang Thông tin khóa học.
+          </p>
+        </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {skills.map((skill) => (
             <button

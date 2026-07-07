@@ -14,6 +14,8 @@ const rlp_course_store_schema_1 = require("./schemas/rlp-course-store.schema");
 const rlp_service_1 = require("./rlp.service");
 const student_rlp_controller_1 = require("./student-rlp.controller");
 const teacher_rlp_controller_1 = require("./teacher-rlp.controller");
+const aca_student_schema_1 = require("../aca/schemas/aca-student.schema");
+const aca_class_schema_1 = require("../aca/schemas/aca-class.schema");
 let RlpModule = class RlpModule {
 };
 exports.RlpModule = RlpModule;
@@ -22,6 +24,8 @@ exports.RlpModule = RlpModule = __decorate([
         imports: [
             mongoose_1.MongooseModule.forFeature([
                 { name: rlp_course_store_schema_1.RlpCourseStore.name, schema: rlp_course_store_schema_1.RlpCourseStoreSchema },
+                { name: aca_student_schema_1.AcaStudent.name, schema: aca_student_schema_1.AcaStudentSchema },
+                { name: aca_class_schema_1.AcaClass.name, schema: aca_class_schema_1.AcaClassSchema },
             ]),
             auth_guards_module_1.AuthGuardsModule,
         ],

@@ -27,6 +27,12 @@ export type WritingSubmissionPublic = {
   status: WritingSubmissionStatus;
   score?: string;
   gradedAt?: string;
+  dueDate?: string;
+  studentGmail?: string;
+  type?: string;
+  task1?: string;
+  task2?: string;
+  note?: string;
 };
 
 type WritingSubmissionLean = WritingSubmission & {
@@ -57,6 +63,12 @@ export class WritingSubmissionService {
       status,
       score: doc.score,
       gradedAt: doc.gradedAt,
+      dueDate: doc.dueDate,
+      studentGmail: doc.studentGmail,
+      type: doc.type,
+      task1: doc.task1,
+      task2: doc.task2,
+      note: doc.note,
     };
   }
 
@@ -129,6 +141,12 @@ export class WritingSubmissionService {
       examLink,
       testDateTime,
       status: 'pending',
+      dueDate: payload.dueDate?.trim() || '',
+      studentGmail: payload.studentGmail?.trim() || '',
+      type: payload.type?.trim() || '',
+      task1: payload.task1?.trim() || '',
+      task2: payload.task2?.trim() || '',
+      note: payload.note?.trim() || '',
     });
 
     return this.toPublic(created.toObject() as WritingSubmissionLean);
@@ -144,8 +162,14 @@ export class WritingSubmissionService {
       throw new BadRequestException('Trạng thái không hợp lệ');
     }
 
-    const score = payload.score?.trim() || doc.score;
-    const examLink = payload.examLink?.trim() || doc.examLink;
+    const score = payload.score?.trim() !== undefined ? payload.score.trim() : doc.score;
+    const examLink = payload.examLink?.trim() !== undefined ? payload.examLink.trim() : doc.examLink;
+    const dueDate = payload.dueDate?.trim() !== undefined ? payload.dueDate.trim() : doc.dueDate;
+    const studentGmail = payload.studentGmail?.trim() !== undefined ? payload.studentGmail.trim() : doc.studentGmail;
+    const type = payload.type?.trim() !== undefined ? payload.type.trim() : doc.type;
+    const task1 = payload.task1?.trim() !== undefined ? payload.task1.trim() : doc.task1;
+    const task2 = payload.task2?.trim() !== undefined ? payload.task2.trim() : doc.task2;
+    const note = payload.note?.trim() !== undefined ? payload.note.trim() : doc.note;
 
     if (nextStatus === 'graded' && !score) {
       throw new BadRequestException('Cần nhập điểm khi chấm xong');
@@ -167,6 +191,12 @@ export class WritingSubmissionService {
             score: score || undefined,
             examLink,
             gradedAt,
+            dueDate,
+            studentGmail,
+            type,
+            task1,
+            task2,
+            note,
           },
         },
         { new: true },

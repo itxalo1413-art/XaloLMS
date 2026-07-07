@@ -15,6 +15,8 @@ const aca_practice_class_controller_1 = require("./aca-practice-class.controller
 const practice_class_service_1 = require("./practice-class.service");
 const practice_class_registration_schema_1 = require("./schemas/practice-class-registration.schema");
 const practice_class_schedule_schema_1 = require("./schemas/practice-class-schedule.schema");
+const aca_practice_student_schema_1 = require("../aca/schemas/aca-practice-student.schema");
+const aca_student_schema_1 = require("../aca/schemas/aca-student.schema");
 const student_practice_class_controller_1 = require("./student-practice-class.controller");
 let PracticeClassModule = class PracticeClassModule {
 };
@@ -28,6 +30,8 @@ exports.PracticeClassModule = PracticeClassModule = __decorate([
                     name: practice_class_registration_schema_1.PracticeClassRegistration.name,
                     schema: practice_class_registration_schema_1.PracticeClassRegistrationSchema,
                 },
+                { name: aca_practice_student_schema_1.AcaPracticeStudent.name, schema: aca_practice_student_schema_1.AcaPracticeStudentSchema },
+                { name: aca_student_schema_1.AcaStudent.name, schema: aca_student_schema_1.AcaStudentSchema },
             ]),
             auth_guards_module_1.AuthGuardsModule,
             users_module_1.UsersModule,

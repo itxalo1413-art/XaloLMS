@@ -5,6 +5,14 @@ export type AcaClassDocument = HydratedDocument<AcaClass>;
 
 @Schema({ collection: 'aca_classes', timestamps: true })
 export class AcaClass {
+  /**
+   * Mã lớp ngắn, dễ đọc, ví dụ: UPSTR-246-C2-KHOA-5
+   * Format: {PROG}-{DAYS}-{SLOT}-{TEACHER}-{MONTH}
+   * Không bắt buộc để backward-compatible với dữ liệu cũ.
+   */
+  @Prop({ trim: true, default: '' })
+  classCode: string;
+
   @Prop({ required: true, trim: true })
   name: string;
 
@@ -37,6 +45,14 @@ export class AcaClass {
 
   @Prop({ default: 0 })
   slotsToEnroll: number;
+
+  /** Ngày kết thúc lớp học (dd/mm/yyyy) */
+  @Prop({ trim: true, default: '' })
+  endDate: string;
+
+  /** Ghi chú tình trạng tiến độ lớp */
+  @Prop({ trim: true, default: '' })
+  progressNote: string;
 }
 
 export const AcaClassSchema = SchemaFactory.createForClass(AcaClass);

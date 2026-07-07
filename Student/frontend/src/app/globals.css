@@ -19,7 +19,7 @@
   --shadow-hover: 0 12px 24px rgba(64, 46, 128, 0.14), 0 4px 8px rgba(0, 0, 0, 0.06);
   --shadow-premium: 0 16px 32px rgba(97, 81, 190, 0.16);
   
-  --font-sans: var(--font-noto-serif), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-montserrat), var(--font-geist-sans), sans-serif;
 
   @keyframes bounce-slow {
     0%, 100% { transform: translateY(0); }
@@ -38,6 +38,10 @@
   --secondary-soft: #ffeef2;
 }
 
+html {
+  font-size: 105%;
+}
+
 body {
   background-color: var(--color-background);
   /* background-image: url("/bg.png");
@@ -47,6 +51,8 @@ body {
   background-attachment: fixed; */
   color: var(--foreground);
   font-family: var(--font-sans);
+  font-weight: 500;
+  letter-spacing: -0.02em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -97,5 +103,60 @@ input::-webkit-calendar-picker-indicator {
 .no-scrollbar {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
+}
+
+/* Custom Dropdown Chevron for ACA and Teacher sides (matching Student side) */
+select:not(.h-8):not(.inline-select) {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyNCcgaGVpZ2h0PScyNCcgdmlld0JveD0nMCAwIDI0IDI0JyBmaWxsPSdub25lJyBzdHJva2U9JyM3MTcxN2EnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLWxpbmVjYXA9J3JvdW5kJyBzdHJva2UtbGluZWpvaW49J3JvdW5kJz48cG9seWxpbmUgcG9pbnRzPSc2IDkgMTIgMTUgMTggOSc+PC9wb2x5bGluZT48L3N2Zz4=");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 1rem;
+  padding-right: 2.5rem !important;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, background-image 0.2s;
+}
+
+/* Turn chevron to primary purple on focus */
+select:not(.h-8):not(.inline-select):focus {
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyNCcgaGVpZ2h0PScyNCcgdmlld0JveD0nMCAwIDI0IDI0JyBmaWxsPSdub25lJyBzdHJva2U9JyM3YjYxZmYnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLWxpbmVjYXA9J3JvdW5kJyBzdHJva2UtbGluZWpvaW49J3JvdW5kJz48cG9seWxpbmUgcG9pbnRzPSc2IDkgMTIgMTUgMTggOSc+PC9wb2x5bGluZT48L3N2Zz4=");
+}
+
+/* Custom Dropdown Chevron for inline compact selects (like Phân loại in tables) */
+select.h-8, select.inline-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyNCcgaGVpZ2h0PScyNCcgdmlld0JveD0nMCAwIDI0IDI0JyBmaWxsPSdub25lJyBzdHJva2U9JyM3MTcxN2EnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLWxpbmVjYXA9J3JvdW5kJyBzdHJva2UtbGluZWpvaW49J3JvdW5kJz48cG9seWxpbmUgcG9pbnRzPSc2IDkgMTIgMTUgMTggOSc+PC9wb2x5bGluZT48L3N2Zz4=");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  background-size: 0.75rem;
+  padding-right: 1.75rem !important;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, background-image 0.2s;
+}
+
+select.h-8:focus, select.inline-select:focus {
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyNCcgaGVpZ2h0PScyNCcgdmlld0JveD0nMCAwIDI0IDI0JyBmaWxsPSdub25lJyBzdHJva2U9JyM3YjYxZmYnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLWxpbmVjYXA9J3JvdW5kJyBzdHJva2UtbGluZWpvaW49J3JvdW5kJz48cG9seWxpbmUgcG9pbnRzPSc2IDkgMTIgMTUgMTggOSc+PC9wb2x5bGluZT48L3N2Zz4=");
+}
+
+/* Disable custom background chevron on student side to prevent double chevrons */
+.flat-card-scope select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-image: none !important;
+  padding-right: inherit !important;
+}
+
+/* Map all bold and black font-weights to semibold (600) for clean Montserrat typography */
+.font-bold,
+.font-black,
+.font-extrabold,
+strong,
+b {
+  font-weight: 600 !important;
 }
 

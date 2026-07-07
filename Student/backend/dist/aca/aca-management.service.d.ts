@@ -74,15 +74,87 @@ export declare class AcaManagementService implements OnModuleInit {
     } & Required<{
         _id: import("mongoose").Types.ObjectId;
     }>) | null>;
-    findAllStudents(): Promise<(import("mongoose").Document<unknown, {}, AcaStudent, {}, import("mongoose").DefaultSchemaOptions> & AcaStudent & {
+    findAllStudents(): Promise<{
+        classification: string;
         _id: import("mongoose").Types.ObjectId;
-    } & {
+        $locals: Record<string, unknown>;
+        $op: "save" | "validate" | "remove" | null;
+        $where: Record<string, unknown>;
+        baseModelName?: string;
+        collection: import("mongoose").Collection;
+        db: import("mongoose").Connection;
+        errors?: import("mongoose").Error.ValidationError;
+        isNew: boolean;
+        schema: import("mongoose").Schema;
+        classId: string;
+        stt: number;
+        name: string;
+        phone: string;
+        email: string;
+        scores: {
+            l: string | number;
+            r: string | number;
+            w: string | number;
+            s: string | number;
+            o: string | number;
+        };
+        finalScores: {
+            l: string | number;
+            r: string | number;
+            w: string | number;
+            s: string | number;
+            o: string | number;
+        };
+        entrance: string;
+        registeredWriting: boolean;
+        registeredMocktest: boolean;
+        registeredLuyenDe: boolean;
+        homeworkPercent: string;
+        attendanceCount: string;
+        registeredWriting2: boolean;
+        registeredMocktest2: boolean;
+        registeredLuyenDe2: boolean;
+        homeworkPercent2: string;
+        attendanceCount2: string;
+        registeredWriting3: boolean;
+        registeredMocktest3: boolean;
+        registeredLuyenDe3: boolean;
+        homeworkPercent3: string;
+        attendanceCount3: string;
+        l1: string;
+        f1: string;
+        l2: string;
+        f2: string;
+        l3: string;
+        f3: string;
+        bcbLink: string;
+        note: string;
+        cycles: {
+            classCode: string;
+            finalScore: string;
+            registeredWriting: boolean;
+            registeredMocktest: boolean;
+            registeredLuyenDe: boolean;
+            homeworkPercent: string;
+            attendanceCount: string;
+            scores: {
+                l: string | number;
+                r: string | number;
+                w: string | number;
+                s: string | number;
+                o: string | number;
+            };
+            finalScores: {
+                l: string | number;
+                r: string | number;
+                w: string | number;
+                s: string | number;
+                o: string | number;
+            };
+        }[];
         __v: number;
-    } & {
         id: string;
-    } & Required<{
-        _id: import("mongoose").Types.ObjectId;
-    }>)[]>;
+    }[]>;
     createStudent(data: any): Promise<import("mongoose").Document<unknown, {}, import("mongoose").Document<unknown, {}, AcaStudent, {}, import("mongoose").DefaultSchemaOptions> & AcaStudent & {
         _id: import("mongoose").Types.ObjectId;
     } & {

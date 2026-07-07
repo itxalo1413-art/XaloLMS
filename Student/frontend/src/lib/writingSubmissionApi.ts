@@ -43,6 +43,12 @@ export async function fetchWritingSubmissionsForTeacher(
 export async function createWritingSubmissionApi(input: {
   examLink: string;
   testDateTime?: string;
+  dueDate?: string;
+  studentGmail?: string;
+  type?: string;
+  task1?: string;
+  task2?: string;
+  note?: string;
 }): Promise<WritingSubmission> {
   const response = await apiFetch("/api/student/writing-submissions", {
     method: "POST",
@@ -58,6 +64,12 @@ export async function gradeWritingSubmissionApi(
     status?: WritingSubmission["status"];
     score?: string;
     examLink?: string;
+    dueDate?: string;
+    studentGmail?: string;
+    type?: string;
+    task1?: string;
+    task2?: string;
+    note?: string;
   },
 ): Promise<WritingSubmission> {
   const response = await apiFetch(`/api/teacher/writing-submissions/${id}/grade`, {

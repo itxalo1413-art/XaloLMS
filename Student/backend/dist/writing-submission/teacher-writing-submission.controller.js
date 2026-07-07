@@ -51,7 +51,7 @@ __decorate([
 exports.TeacherWritingSubmissionController = TeacherWritingSubmissionController = __decorate([
     (0, common_1.Controller)('teacher/writing-submissions'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
-    (0, roles_decorator_1.Roles)('GV'),
+    (0, roles_decorator_1.Roles)('ACA'),
     __metadata("design:paramtypes", [writing_submission_service_1.WritingSubmissionService])
 ], TeacherWritingSubmissionController);
 //# sourceMappingURL=teacher-writing-submission.controller.js.map

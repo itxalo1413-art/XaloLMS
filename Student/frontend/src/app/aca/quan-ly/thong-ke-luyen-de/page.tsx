@@ -141,7 +141,7 @@ export default function ThongKeLuyenDePage() {
         </div>
 
         {/* Graphs and distribution lists */}
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-1">
           
           {/* Sunday Test Registration Progress Breakdown */}
           <div className="bg-white rounded-2xl border border-zinc-200 p-6 shadow-sm space-y-6">
@@ -183,42 +183,10 @@ export default function ThongKeLuyenDePage() {
                 </div>
               </div>
 
-              {/* Progress 4: Chưa phản hồi */}
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs font-bold text-zinc-700">
-                  <span>Chưa phản hồi (Hong reply)</span>
-                  <span className="text-zinc-400 font-black">{noResponseCount} ({noResponsePct}%)</span>
-                </div>
-                <div className="h-3 w-full bg-zinc-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-zinc-300 transition-all duration-500" style={{ width: `${noResponsePct}%` }}></div>
-                </div>
-              </div>
             </div>
           </div>
 
-          {/* RLP Class level distribution */}
-          <div className="bg-white rounded-2xl border border-zinc-200 p-6 shadow-sm space-y-4">
-            <h3 className="text-xs font-black uppercase tracking-wider text-foreground pb-2 border-b border-zinc-100">
-              Phân bố theo hệ lớp RLP học viên
-            </h3>
-            
-            <div className="divide-y divide-zinc-100">
-              {Object.entries(rlpClassesMap).map(([className, count], index) => {
-                const pct = Math.round((count / totalCount) * 100);
-                return (
-                  <div key={index} className="flex justify-between items-center py-3 text-xs">
-                    <span className="font-bold text-zinc-700">{className}</span>
-                    <div className="flex items-center gap-3">
-                      <span className="text-zinc-400 font-bold">{count} học viên</span>
-                      <span className="font-black text-primary bg-primary/10 px-2 py-0.5 rounded-lg text-[10px]">
-                        {pct}%
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+
 
         </div>
 

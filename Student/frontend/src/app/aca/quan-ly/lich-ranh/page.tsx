@@ -385,8 +385,13 @@ export default function AcaLichRanhPage() {
                                   className="h-3 w-3 rounded text-primary focus:ring-primary/20 border-zinc-300 cursor-pointer disabled:cursor-not-allowed"
                                 />
                                 {isChecked && (
-                                  <span className="text-[9px] font-black tracking-wider uppercase leading-none opacity-80">
-                                    {labelText} {isBooked && "🔒"}
+                                  <span className="inline-flex items-center gap-0.5 text-[9px] font-black tracking-wider uppercase leading-none opacity-80">
+                                    {labelText}
+                                    {isBooked && (
+                                      <svg className="w-2.5 h-2.5 text-zinc-500 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                                      </svg>
+                                    )}
                                   </span>
                                 )}
                               </div>

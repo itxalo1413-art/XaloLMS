@@ -10,6 +10,14 @@ import { AcaWeeklyDoc, AcaWeeklyDocDocument } from './schemas/aca-weekly-doc.sch
 import { AcaTeacherAssignment, AcaTeacherAssignmentDocument } from './schemas/aca-teacher-assignment.schema';
 import { AcaFreeSlot, AcaFreeSlotDocument } from './schemas/aca-free-slot.schema';
 
+function normalizeClassification(cls: string): string {
+  const c = (cls || '').trim().toLowerCase();
+  if (c.includes('combo')) return 'Combo';
+  if (c.includes('học lại') || c.includes('hoc lai')) return 'Học lại';
+  if (c.includes('chuyển lớp') || c.includes('chuyen lop')) return 'Chuyển lớp';
+  return 'Lớp lẻ mới';
+}
+
 @Injectable()
 export class AcaManagementService implements OnModuleInit {
   constructor(
@@ -32,36 +40,37 @@ export class AcaManagementService implements OnModuleInit {
     const classCount = await this.classModel.countDocuments().exec();
     if (classCount === 0) {
       const initialClasses = [
-        { name: "XLE RLP_Upstream - 246 - C2 - GV Thái Đỗ Đăng Khoa", month: 5, type: "Lớp đang diễn ra", openDate: "17/09/2024", teacher: "Đăng Khoa", currentPhase: "S-R", phaseStartDate: "30/03/2026", phaseStudents: 7, nextPhaseStartDate: "15/05/2026", nextPhase: "W-L", slotsToEnroll: 5 },
-        { name: "XLE RLP_Upstream - 246 - C2 - GV Tất Duy Khải", month: 5, type: "Lớp đang diễn ra", openDate: "10/02/2025", teacher: "Duy Khải", currentPhase: "S-R", phaseStartDate: "01/04/2026", phaseStudents: 4, nextPhaseStartDate: "18/05/2026", nextPhase: "W-L", slotsToEnroll: 8 },
-        { name: "XLE RLP_Upstream - 357 - C1 - GV Lê Như Hải", month: 5, type: "Lớp đang diễn ra", openDate: "27/03/2025", teacher: "Như Hải", currentPhase: "W-L", phaseStartDate: "07/04/2026", phaseStudents: 3, nextPhaseStartDate: "21/05/2026", nextPhase: "S-R", slotsToEnroll: 9 },
-        { name: "XLE RLP_Upstream - 357 - C2 - GV Tất Duy Khải", month: 5, type: "Lớp đang diễn ra", openDate: "27/06/2024", teacher: "Duy Khải", currentPhase: "W-L", phaseStartDate: "14/04/2026", phaseStudents: 5, nextPhaseStartDate: "30/05/2026", nextPhase: "S-R", slotsToEnroll: 7 },
-        { name: "XLE RLP_Momentum - 357 - C1 - GV Nguyễn Lê Trung Dũng", month: 5, type: "Lớp đang diễn ra", openDate: "24/03/2026", teacher: "Trung Dũng", currentPhase: "W-L", phaseStartDate: "24/03/2026", phaseStudents: 5, nextPhaseStartDate: "07/05/2026", nextPhase: "S-R", slotsToEnroll: 5 },
-        { name: "XLE RLP_Momentum - 246 - C2 - GV Lê Như Hải", month: 5, type: "Lớp đang diễn ra", openDate: "03/05/2024", teacher: "Như Hải", currentPhase: "S-R", phaseStartDate: "30/03/2026", phaseStudents: 3, nextPhaseStartDate: "18/05/2026", nextPhase: "W-L", slotsToEnroll: 7 },
-        { name: "XLE RLP_Soar - S/S - C1 - GV Nguyễn Lưu Minh Tâm", month: 5, type: "Lớp đang diễn ra", openDate: "06/12/2025", teacher: "Minh Tâm", currentPhase: "W-L", phaseStartDate: "04/04/2026", phaseStudents: 1, nextPhaseStartDate: "23/05/2026", nextPhase: "S-R", slotsToEnroll: 11 },
-        { name: "XLE RLP_Soar - 246 - C2 - GV Trần Quang Minh", month: 5, type: "Lớp đang diễn ra", openDate: "28/10/2024", teacher: "Quang Minh", currentPhase: "W-L", phaseStartDate: "03/04/2026", phaseStudents: 3, nextPhaseStartDate: "20/05/2026", nextPhase: "S-R", slotsToEnroll: 9 },
-        { name: "XLE RLP_Soar - 357 - C2 - GV Lê Như Hải", month: 5, type: "Lớp đang diễn ra", openDate: "29/10/2024", teacher: "Như Hải", currentPhase: "S-R", phaseStartDate: "04/04/2026", phaseStudents: 2, nextPhaseStartDate: "26/05/2026", nextPhase: "W-L", slotsToEnroll: 10 },
+        // Month 5
+        { classCode: "UPSTR-246-C2-KHOA-5", name: "XLE RLP_Upstream - 246 - C2 - GV Thái Đỗ Đăng Khoa", month: 5, type: "Lớp đang diễn ra", openDate: "17/09/2024", teacher: "Đăng Khoa", currentPhase: "S-R", phaseStartDate: "30/03/2026", phaseStudents: 7, nextPhaseStartDate: "15/05/2026", nextPhase: "W-L", slotsToEnroll: 5 },
+        { classCode: "UPSTR-246-C2-KHAI-5", name: "XLE RLP_Upstream - 246 - C2 - GV Tất Duy Khải", month: 5, type: "Lớp đang diễn ra", openDate: "10/02/2025", teacher: "Duy Khải", currentPhase: "S-R", phaseStartDate: "01/04/2026", phaseStudents: 4, nextPhaseStartDate: "18/05/2026", nextPhase: "W-L", slotsToEnroll: 8 },
+        { classCode: "UPSTR-357-C1-HAI-5", name: "XLE RLP_Upstream - 357 - C1 - GV Lê Như Hải", month: 5, type: "Lớp đang diễn ra", openDate: "27/03/2025", teacher: "Như Hải", currentPhase: "W-L", phaseStartDate: "07/04/2026", phaseStudents: 3, nextPhaseStartDate: "21/05/2026", nextPhase: "S-R", slotsToEnroll: 9 },
+        { classCode: "UPSTR-357-C2-KHAI-5", name: "XLE RLP_Upstream - 357 - C2 - GV Tất Duy Khải", month: 5, type: "Lớp đang diễn ra", openDate: "27/06/2024", teacher: "Duy Khải", currentPhase: "W-L", phaseStartDate: "14/04/2026", phaseStudents: 5, nextPhaseStartDate: "30/05/2026", nextPhase: "S-R", slotsToEnroll: 7 },
+        { classCode: "MMNT-357-C1-DUNG-5", name: "XLE RLP_Momentum - 357 - C1 - GV Nguyễn Lê Trung Dũng", month: 5, type: "Lớp đang diễn ra", openDate: "24/03/2026", teacher: "Trung Dũng", currentPhase: "W-L", phaseStartDate: "24/03/2026", phaseStudents: 5, nextPhaseStartDate: "07/05/2026", nextPhase: "S-R", slotsToEnroll: 5 },
+        { classCode: "MMNT-246-C2-HAI-5", name: "XLE RLP_Momentum - 246 - C2 - GV Lê Như Hải", month: 5, type: "Lớp đang diễn ra", openDate: "03/05/2024", teacher: "Như Hải", currentPhase: "S-R", phaseStartDate: "30/03/2026", phaseStudents: 3, nextPhaseStartDate: "18/05/2026", nextPhase: "W-L", slotsToEnroll: 7 },
+        { classCode: "SOAR-SS-C1-TAM-5", name: "XLE RLP_Soar - S/S - C1 - GV Nguyễn Lưu Minh Tâm", month: 5, type: "Lớp đang diễn ra", openDate: "06/12/2025", teacher: "Minh Tâm", currentPhase: "W-L", phaseStartDate: "04/04/2026", phaseStudents: 1, nextPhaseStartDate: "23/05/2026", nextPhase: "S-R", slotsToEnroll: 11 },
+        { classCode: "SOAR-246-C2-MINH-5", name: "XLE RLP_Soar - 246 - C2 - GV Trần Quang Minh", month: 5, type: "Lớp đang diễn ra", openDate: "28/10/2024", teacher: "Quang Minh", currentPhase: "W-L", phaseStartDate: "03/04/2026", phaseStudents: 3, nextPhaseStartDate: "20/05/2026", nextPhase: "S-R", slotsToEnroll: 9 },
+        { classCode: "SOAR-357-C2-HAI-5", name: "XLE RLP_Soar - 357 - C2 - GV Lê Như Hải", month: 5, type: "Lớp đang diễn ra", openDate: "29/10/2024", teacher: "Như Hải", currentPhase: "S-R", phaseStartDate: "04/04/2026", phaseStudents: 2, nextPhaseStartDate: "26/05/2026", nextPhase: "W-L", slotsToEnroll: 10 },
         // Month 6
-        { name: "XLE RLP_Upstream - 246 - C1 - GV Tất Duy Khải", month: 6, type: "Lớp đang diễn ra", openDate: "26/08/2024", teacher: "Duy Khải", currentPhase: "S-R", phaseStartDate: "29/04/2026", phaseStudents: 2, nextPhaseStartDate: "12/06/2026", nextPhase: "W-L", slotsToEnroll: 10 },
-        { name: "XLE RLP_Upstream - 246 - C2 - GV Tất Duy Khải", month: 6, type: "Lớp đang diễn ra", openDate: "10/02/2025", teacher: "Duy Khải", currentPhase: "W-L", phaseStartDate: "18/05/2026", phaseStudents: 2, nextPhaseStartDate: "29/06/2026", nextPhase: "S-R", slotsToEnroll: 10 },
-        { name: "XLE RLP_Upstream - 246 - C2 - GV Thái Đỗ Đăng Khoa", month: 6, type: "Lớp đang diễn ra", openDate: "17/09/2024", teacher: "Đăng Khoa", currentPhase: "W-L", phaseStartDate: "15/05/2026", phaseStudents: 7, nextPhaseStartDate: "26/06/2026", nextPhase: "S-R", slotsToEnroll: 5 },
-        { name: "XLE RLP_Upstream - 357 - C1 - GV Lê Như Hải", month: 6, type: "Lớp đang diễn ra", openDate: "27/03/2025", teacher: "Như Hải", currentPhase: "S-R", phaseStartDate: "21/05/2026", phaseStudents: 3, nextPhaseStartDate: "02/07/2026", nextPhase: "W-L", slotsToEnroll: 9 },
-        { name: "XLE RLP_Upstream - 357 - C2 - GV Tất Duy Khải", month: 6, type: "Lớp đang diễn ra", openDate: "27/06/2024", teacher: "Duy Khải", currentPhase: "S-R", phaseStartDate: "30/05/2026", phaseStudents: 5, nextPhaseStartDate: "11/07/2026", nextPhase: "W-L", slotsToEnroll: 7 },
-        { name: "XLE RLP_Upstream - S/S - C1 - GV Nghiêm Doãn Quỳnh Châu", month: 6, type: "Lớp đang diễn ra", openDate: "18/04/2026", teacher: "Quỳnh Châu", currentPhase: "W-L", phaseStartDate: "18/04/2026", phaseStudents: 4, nextPhaseStartDate: "13/06/2026", nextPhase: "S-R", slotsToEnroll: 8 },
-        { name: "XLE RLP_Momentum - 246 - C1 - GV Lê Như Hải", month: 6, type: "Lớp đang diễn ra", openDate: "26/08/2024", teacher: "Như Hải", currentPhase: "S-R", phaseStartDate: "04/05/2026", phaseStudents: 3, nextPhaseStartDate: "15/06/2026", nextPhase: "W-L", slotsToEnroll: 7 },
-        { name: "XLE RLP_Momentum - 246 - C2 - GV Lê Như Hải", month: 6, type: "Lớp đang diễn ra", openDate: "03/05/2024", teacher: "Như Hải", currentPhase: "W-L", phaseStartDate: "18/05/2026", phaseStudents: 2, nextPhaseStartDate: "29/06/2026", nextPhase: "S-R", slotsToEnroll: 8 },
-        { name: "XLE RLP_Momentum - 357 - C1 - GV Nguyễn Lê Trung Dũng", month: 6, type: "Lớp đang diễn ra", openDate: "24/03/2026", teacher: "Trung Dũng", currentPhase: "S-R", phaseStartDate: "07/05/2026", phaseStudents: 1, nextPhaseStartDate: "18/06/2026", nextPhase: "W-L", slotsToEnroll: 9 },
-        { name: "XLE RLP_Momentum - 357 - C2 - GV Nghiêm Doãn Quỳnh Châu", month: 6, type: "Lớp đang diễn ra", openDate: "21/04/2026", teacher: "Quỳnh Châu", currentPhase: "W-L", phaseStartDate: "21/04/2026", phaseStudents: 4, nextPhaseStartDate: "11/06/2026", nextPhase: "S-R", slotsToEnroll: 6 },
-        { name: "XLE RLP_Soar - 246 - C1 - GV Trần Quang Minh", month: 6, type: "Lớp đang diễn ra", openDate: "28/06/2024", teacher: "Quang Minh", currentPhase: "W-L", phaseStartDate: "29/05/2026", phaseStudents: 2, nextPhaseStartDate: "10/07/2026", nextPhase: "S-R", slotsToEnroll: 10 },
-        { name: "XLE RLP_Soar - 246 - C2 - GV Trần Quang Minh", month: 6, type: "Lớp đang diễn ra", openDate: "28/10/2024", teacher: "Quang Minh", currentPhase: "S-R", phaseStartDate: "20/05/2026", phaseStudents: 2, nextPhaseStartDate: "01/07/2026", nextPhase: "W-L", slotsToEnroll: 10 },
-        { name: "XLE RLP_Soar - 357 - C2 - GV Lê Như Hải", month: 6, type: "Lớp đang diễn ra", openDate: "29/10/2024", teacher: "Như Hải", currentPhase: "W-L", phaseStartDate: "26/05/2026", phaseStudents: 2, nextPhaseStartDate: "07/07/2026", nextPhase: "S-R", slotsToEnroll: 10 },
-        { name: "XLE RLP_Soar - S/S - C1 - GV Nguyễn Lưu Minh Tâm", month: 6, type: "Lớp đang diễn ra", openDate: "06/12/2025", teacher: "Minh Tâm", currentPhase: "S-R", phaseStartDate: "23/05/2026", phaseStudents: 3, nextPhaseStartDate: "05/07/2026", nextPhase: "W-L", slotsToEnroll: 9 },
-        { name: "XLE RLP_Advanced - 246 - C1 - GV Nguyễn Lê Trung Dũng", month: 6, type: "Lớp đang diễn ra", openDate: "25/03/2026", teacher: "Trung Dũng", currentPhase: "S-R", phaseStartDate: "11/05/2026", phaseStudents: 2, nextPhaseStartDate: "22/06/2026", nextPhase: "W-L", slotsToEnroll: 8 },
-        { name: "XLE RLP_PRE CORE - 246 - 18002000 - GV Minh Tâm", month: 6, type: "Lớp đang diễn ra", openDate: "13/04/2026", teacher: "Minh Tâm", currentPhase: "Pre IELTS", phaseStartDate: "13/04/2026", phaseStudents: 6, nextPhaseStartDate: "15/06/2026", nextPhase: "CORE 2", slotsToEnroll: 6 },
-        { name: "XLE RLP_PRE CORE - 357 - 20002200 - GV Thanh Tâm", month: 6, type: "Lớp đang diễn ra", openDate: "14/04/2026", teacher: "Thanh Tâm", currentPhase: "Pre IELTS", phaseStartDate: "14/04/2026", phaseStudents: 3, nextPhaseStartDate: "11/06/2026", nextPhase: "CORE 2", slotsToEnroll: 9 },
-        { name: "XLE RLP_PRE CORE - 246 - 20002200 / 220526 - GV Quỳnh Châu", month: 6, type: "Lớp đang diễn ra", openDate: "22/05/2026", teacher: "Quỳnh Châu", currentPhase: "Pre IELTS", phaseStartDate: "22/05/2026", phaseStudents: 3, nextPhaseStartDate: "17/07/2026", nextPhase: "CORE 2", slotsToEnroll: 9 },
-        { name: "XLE RLP_PRE CORE - 357 - 18002000 / 230526 - GV Thanh Tâm", month: 6, type: "Lớp đang diễn ra", openDate: "23/05/2026", teacher: "Thanh Tâm", currentPhase: "Pre IELTS", phaseStartDate: "23/05/2026", phaseStudents: 4, nextPhaseStartDate: "18/07/2026", nextPhase: "CORE 2", slotsToEnroll: 8 },
-        { name: "XLE RLP_Foundation - 357 - C2 - GV Đăng Duy", month: 6, type: "Lớp mới", openDate: "18/06/2026", teacher: "Đăng Duy", currentPhase: "-", phaseStartDate: "-", phaseStudents: 0, nextPhaseStartDate: "18/06/2026", nextPhase: "-", slotsToEnroll: 10 }
+        { classCode: "UPSTR-246-C1-KHAI-6", name: "XLE RLP_Upstream - 246 - C1 - GV Tất Duy Khải", month: 6, type: "Lớp đang diễn ra", openDate: "26/08/2024", teacher: "Duy Khải", currentPhase: "S-R", phaseStartDate: "29/04/2026", phaseStudents: 2, nextPhaseStartDate: "12/06/2026", nextPhase: "W-L", slotsToEnroll: 10 },
+        { classCode: "UPSTR-246-C2-KHAI-6", name: "XLE RLP_Upstream - 246 - C2 - GV Tất Duy Khải", month: 6, type: "Lớp đang diễn ra", openDate: "10/02/2025", teacher: "Duy Khải", currentPhase: "W-L", phaseStartDate: "18/05/2026", phaseStudents: 2, nextPhaseStartDate: "29/06/2026", nextPhase: "S-R", slotsToEnroll: 10 },
+        { classCode: "UPSTR-246-C2-KHOA-6", name: "XLE RLP_Upstream - 246 - C2 - GV Thái Đỗ Đăng Khoa", month: 6, type: "Lớp đang diễn ra", openDate: "17/09/2024", teacher: "Đăng Khoa", currentPhase: "W-L", phaseStartDate: "15/05/2026", phaseStudents: 7, nextPhaseStartDate: "26/06/2026", nextPhase: "S-R", slotsToEnroll: 5 },
+        { classCode: "UPSTR-357-C1-HAI-6", name: "XLE RLP_Upstream - 357 - C1 - GV Lê Như Hải", month: 6, type: "Lớp đang diễn ra", openDate: "27/03/2025", teacher: "Như Hải", currentPhase: "S-R", phaseStartDate: "21/05/2026", phaseStudents: 3, nextPhaseStartDate: "02/07/2026", nextPhase: "W-L", slotsToEnroll: 9 },
+        { classCode: "UPSTR-357-C2-KHAI-6", name: "XLE RLP_Upstream - 357 - C2 - GV Tất Duy Khải", month: 6, type: "Lớp đang diễn ra", openDate: "27/06/2024", teacher: "Duy Khải", currentPhase: "S-R", phaseStartDate: "30/05/2026", phaseStudents: 5, nextPhaseStartDate: "11/07/2026", nextPhase: "W-L", slotsToEnroll: 7 },
+        { classCode: "UPSTR-SS-C1-CHAU-6", name: "XLE RLP_Upstream - S/S - C1 - GV Nghiêm Doãn Quỳnh Châu", month: 6, type: "Lớp đang diễn ra", openDate: "18/04/2026", teacher: "Quỳnh Châu", currentPhase: "W-L", phaseStartDate: "18/04/2026", phaseStudents: 4, nextPhaseStartDate: "13/06/2026", nextPhase: "S-R", slotsToEnroll: 8 },
+        { classCode: "MMNT-246-C1-HAI-6", name: "XLE RLP_Momentum - 246 - C1 - GV Lê Như Hải", month: 6, type: "Lớp đang diễn ra", openDate: "26/08/2024", teacher: "Như Hải", currentPhase: "S-R", phaseStartDate: "04/05/2026", phaseStudents: 3, nextPhaseStartDate: "15/06/2026", nextPhase: "W-L", slotsToEnroll: 7 },
+        { classCode: "MMNT-246-C2-HAI-6", name: "XLE RLP_Momentum - 246 - C2 - GV Lê Như Hải", month: 6, type: "Lớp đang diễn ra", openDate: "03/05/2024", teacher: "Như Hải", currentPhase: "W-L", phaseStartDate: "18/05/2026", phaseStudents: 2, nextPhaseStartDate: "29/06/2026", nextPhase: "S-R", slotsToEnroll: 8 },
+        { classCode: "MMNT-357-C1-DUNG-6", name: "XLE RLP_Momentum - 357 - C1 - GV Nguyễn Lê Trung Dũng", month: 6, type: "Lớp đang diễn ra", openDate: "24/03/2026", teacher: "Trung Dũng", currentPhase: "S-R", phaseStartDate: "07/05/2026", phaseStudents: 1, nextPhaseStartDate: "18/06/2026", nextPhase: "W-L", slotsToEnroll: 9 },
+        { classCode: "MMNT-357-C2-CHAU-6", name: "XLE RLP_Momentum - 357 - C2 - GV Nghiêm Doãn Quỳnh Châu", month: 6, type: "Lớp đang diễn ra", openDate: "21/04/2026", teacher: "Quỳnh Châu", currentPhase: "W-L", phaseStartDate: "21/04/2026", phaseStudents: 4, nextPhaseStartDate: "11/06/2026", nextPhase: "S-R", slotsToEnroll: 6 },
+        { classCode: "SOAR-246-C1-MINH-6", name: "XLE RLP_Soar - 246 - C1 - GV Trần Quang Minh", month: 6, type: "Lớp đang diễn ra", openDate: "28/06/2024", teacher: "Quang Minh", currentPhase: "W-L", phaseStartDate: "29/05/2026", phaseStudents: 2, nextPhaseStartDate: "10/07/2026", nextPhase: "S-R", slotsToEnroll: 10 },
+        { classCode: "SOAR-246-C2-MINH-6", name: "XLE RLP_Soar - 246 - C2 - GV Trần Quang Minh", month: 6, type: "Lớp đang diễn ra", openDate: "28/10/2024", teacher: "Quang Minh", currentPhase: "S-R", phaseStartDate: "20/05/2026", phaseStudents: 2, nextPhaseStartDate: "01/07/2026", nextPhase: "W-L", slotsToEnroll: 10 },
+        { classCode: "SOAR-357-C2-HAI-6", name: "XLE RLP_Soar - 357 - C2 - GV Lê Như Hải", month: 6, type: "Lớp đang diễn ra", openDate: "29/10/2024", teacher: "Như Hải", currentPhase: "W-L", phaseStartDate: "26/05/2026", phaseStudents: 2, nextPhaseStartDate: "07/07/2026", nextPhase: "S-R", slotsToEnroll: 10 },
+        { classCode: "SOAR-SS-C1-TAM-6", name: "XLE RLP_Soar - S/S - C1 - GV Nguyễn Lưu Minh Tâm", month: 6, type: "Lớp đang diễn ra", openDate: "06/12/2025", teacher: "Minh Tâm", currentPhase: "S-R", phaseStartDate: "23/05/2026", phaseStudents: 3, nextPhaseStartDate: "05/07/2026", nextPhase: "W-L", slotsToEnroll: 9 },
+        { classCode: "ADV-246-C1-DUNG-6", name: "XLE RLP_Advanced - 246 - C1 - GV Nguyễn Lê Trung Dũng", month: 6, type: "Lớp đang diễn ra", openDate: "25/03/2026", teacher: "Trung Dũng", currentPhase: "S-R", phaseStartDate: "11/05/2026", phaseStudents: 2, nextPhaseStartDate: "22/06/2026", nextPhase: "W-L", slotsToEnroll: 8 },
+        { classCode: "PCORE-246-1800-TAM-6", name: "XLE RLP_PRE CORE - 246 - 18002000 - GV Minh Tâm", month: 6, type: "Lớp đang diễn ra", openDate: "13/04/2026", teacher: "Minh Tâm", currentPhase: "Pre IELTS", phaseStartDate: "13/04/2026", phaseStudents: 6, nextPhaseStartDate: "15/06/2026", nextPhase: "CORE 2", slotsToEnroll: 6 },
+        { classCode: "PCORE-357-2000-TTAM-6", name: "XLE RLP_PRE CORE - 357 - 20002200 - GV Thanh Tâm", month: 6, type: "Lớp đang diễn ra", openDate: "14/04/2026", teacher: "Thanh Tâm", currentPhase: "Pre IELTS", phaseStartDate: "14/04/2026", phaseStudents: 3, nextPhaseStartDate: "11/06/2026", nextPhase: "CORE 2", slotsToEnroll: 9 },
+        { classCode: "PCORE-246-2000-CHAU-6", name: "XLE RLP_PRE CORE - 246 - 20002200 / 220526 - GV Quỳnh Châu", month: 6, type: "Lớp đang diễn ra", openDate: "22/05/2026", teacher: "Quỳnh Châu", currentPhase: "Pre IELTS", phaseStartDate: "22/05/2026", phaseStudents: 3, nextPhaseStartDate: "17/07/2026", nextPhase: "CORE 2", slotsToEnroll: 9 },
+        { classCode: "PCORE-357-1800-TTAM-6", name: "XLE RLP_PRE CORE - 357 - 18002000 / 230526 - GV Thanh Tâm", month: 6, type: "Lớp đang diễn ra", openDate: "23/05/2026", teacher: "Thanh Tâm", currentPhase: "Pre IELTS", phaseStartDate: "23/05/2026", phaseStudents: 4, nextPhaseStartDate: "18/07/2026", nextPhase: "CORE 2", slotsToEnroll: 8 },
+        { classCode: "FOUND-357-C2-DUY-6", name: "XLE RLP_Foundation - 357 - C2 - GV Đăng Duy", month: 6, type: "Lớp mới", openDate: "18/06/2026", teacher: "Đăng Duy", currentPhase: "-", phaseStartDate: "-", phaseStudents: 0, nextPhaseStartDate: "18/06/2026", nextPhase: "-", slotsToEnroll: 10 }
       ];
       await this.classModel.insertMany(initialClasses);
     }
@@ -130,11 +139,11 @@ export class AcaManagementService implements OnModuleInit {
     const practiceStudentCount = await this.practiceStudentModel.countDocuments().exec();
     if (practiceStudentCount === 0) {
       const initialPracStudents = [
-        { stt: 1, name: "Trần Kiều My", phone: "397672066", rlp: "RLP Trần Kiều My - 09022501CC5", testScheduleSunday: "Có tham gia", scheduleTueSat: "có test, đang sắp xếp thời gian học", participateLd28: false, note: "", weekRange: "08/06/2026 - 14/06/2026" },
-        { stt: 2, name: "Bùi Phạm Diệu Linh", phone: "0343311238", rlp: "RLP Bùi Phạm Diệu Linh - 30092503CC2", testScheduleSunday: "Có tham gia", scheduleTueSat: "", participateLd28: false, note: "", weekRange: "08/06/2026 - 14/06/2026" },
-        { stt: 3, name: "Nguyễn Hoà Gia Liên", phone: "-", rlp: "RLP Nguyễn Hòa Gia Liên - 23082502CC4", testScheduleSunday: "Gửi đề vào CN", scheduleTueSat: "", participateLd28: false, note: "", weekRange: "08/06/2026 - 14/06/2026" },
-        { stt: 4, name: "Nguyễn Ngọc Mai", phone: "353514489", rlp: "RLP Nguyễn Ngọc Mai - 16092503CC4", testScheduleSunday: "Có tham gia", scheduleTueSat: "", participateLd28: false, note: "12/3 hong tham gia", weekRange: "08/06/2026 - 14/06/2026" },
-        { stt: 5, name: "Lê Trần Bảo Thy", phone: "948928401", rlp: "RLP Lê Trần Bảo Thy - 28062402CC4", testScheduleSunday: "Đăng ký lịch khác", scheduleTueSat: "", participateLd28: true, note: "", weekRange: "08/06/2026 - 14/06/2026" }
+        { stt: 1, name: "Trần Kiều My", phone: "397672066", rlp: "RLP Trần Kiều My - 09022501CC5", testScheduleSunday: "Có tham gia", scheduleTueSat: "có test, đang sắp xếp thời gian học", scheduleTue: "Không học", scheduleSat: "Không học", scheduleSun: "Có tham gia", participateLd28: false, note: "", weekRange: "08/06/2026 - 14/06/2026" },
+        { stt: 2, name: "Bùi Phạm Diệu Linh", phone: "0343311238", rlp: "RLP Bùi Phạm Diệu Linh - 30092503CC2", testScheduleSunday: "Có tham gia", scheduleTueSat: "", scheduleTue: "Không học", scheduleSat: "Không học", scheduleSun: "Có tham gia", participateLd28: false, note: "", weekRange: "08/06/2026 - 14/06/2026" },
+        { stt: 3, name: "Nguyễn Hoà Gia Liên", phone: "-", rlp: "RLP Nguyễn Hòa Gia Liên - 23082502CC4", testScheduleSunday: "Gửi đề vào CN", scheduleTueSat: "", scheduleTue: "Không học", scheduleSat: "Không học", scheduleSun: "Gửi đề vào CN", participateLd28: false, note: "", weekRange: "08/06/2026 - 14/06/2026" },
+        { stt: 4, name: "Nguyễn Ngọc Mai", phone: "353514489", rlp: "RLP Nguyễn Ngọc Mai - 16092503CC4", testScheduleSunday: "Có tham gia", scheduleTueSat: "", scheduleTue: "Không học", scheduleSat: "Không học", scheduleSun: "Có tham gia", participateLd28: false, note: "12/3 hong tham gia", weekRange: "08/06/2026 - 14/06/2026" },
+        { stt: 5, name: "Lê Trần Bảo Thy", phone: "948928401", rlp: "RLP Lê Trần Bảo Thy - 28062402CC4", testScheduleSunday: "Đăng ký lịch khác", scheduleTueSat: "", scheduleTue: "Không học", scheduleSat: "Không học", scheduleSun: "Đăng ký lịch khác", participateLd28: true, note: "", weekRange: "08/06/2026 - 14/06/2026" }
       ];
       await this.practiceStudentModel.insertMany(initialPracStudents);
     }
@@ -189,12 +198,22 @@ export class AcaManagementService implements OnModuleInit {
 
   // --- Students CRUD ---
   async findAllStudents() {
-    return this.studentModel.find().lean().exec();
+    const students = await this.studentModel.find().lean().exec();
+    return students.map(st => ({
+      ...st,
+      classification: normalizeClassification(st.classification || '')
+    }));
   }
   async createStudent(data: any) {
+    if (data.classification) {
+      data.classification = normalizeClassification(data.classification);
+    }
     return this.studentModel.create(data);
   }
   async updateStudent(id: string, data: any) {
+    if (data.classification) {
+      data.classification = normalizeClassification(data.classification);
+    }
     return this.studentModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
   }
   async deleteStudent(id: string) {

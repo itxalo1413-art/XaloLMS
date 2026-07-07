@@ -1,7 +1,73 @@
 import { apiFetch, isAuthDisabled, getAuthToken } from "@/lib/auth";
 
+export function normalizeClassification(cls: string): string {
+  const c = (cls || "").trim().toLowerCase();
+  if (c.includes("combo")) return "Combo";
+  if (c.includes("học lại") || c.includes("hoc lai")) return "Học lại";
+  if (c.includes("chuyển lớp") || c.includes("chuyen lop")) return "Chuyển lớp";
+  return "Lớp lẻ mới";
+}
+
+/** Bỏ đuôi `-số` tháng ở cuối mã lớp (vd. -4, -5, -6, -12). */
+export function displayClassCode(code: string): string {
+  const c = (code || "").trim();
+  return c.replace(/-\d+$/i, "");
+}
+
+export function classCodesMatch(a?: string | null, b?: string | null): boolean {
+  if (!a || !b) return false;
+  return displayClassCode(a).toUpperCase() === displayClassCode(b).toUpperCase();
+}
+
+function normalizeClassCodeValue(code: string | undefined): string | undefined {
+  if (!code) return code;
+  const normalized = displayClassCode(code).toUpperCase();
+  return normalized || undefined;
+}
+
+function normalizeAcaClass<T extends { classCode?: string }>(item: T): T {
+  if (!item.classCode) return item;
+  return { ...item, classCode: normalizeClassCodeValue(item.classCode) || item.classCode };
+}
+
+function normalizeAcaStudent<T extends AcaStudent>(item: T): T {
+  const cycles = item.cycles?.map((cycle) =>
+    cycle.classCode
+      ? { ...cycle, classCode: normalizeClassCodeValue(cycle.classCode) || cycle.classCode }
+      : cycle
+  );
+  return {
+    ...item,
+    l1: item.l1 ? normalizeClassCodeValue(item.l1) : item.l1,
+    l2: item.l2 ? normalizeClassCodeValue(item.l2) : item.l2,
+    l3: item.l3 ? normalizeClassCodeValue(item.l3) : item.l3,
+    cycles,
+  };
+}
+
+function normalizeAcaStudentPayload(data: Partial<AcaStudent>): Partial<AcaStudent> {
+  const payload = { ...data };
+  if (payload.l1) payload.l1 = normalizeClassCodeValue(payload.l1);
+  if (payload.l2) payload.l2 = normalizeClassCodeValue(payload.l2);
+  if (payload.l3) payload.l3 = normalizeClassCodeValue(payload.l3);
+  if (payload.cycles) {
+    payload.cycles = payload.cycles.map((cycle) =>
+      cycle.classCode
+        ? { ...cycle, classCode: normalizeClassCodeValue(cycle.classCode) || cycle.classCode }
+        : cycle
+    );
+  }
+  return payload;
+}
+
+function withNormalizedClassCode<T extends { classCode?: string }>(data: T): T {
+  if (!data.classCode) return data;
+  return { ...data, classCode: normalizeClassCodeValue(data.classCode) || data.classCode };
+}
+
 export interface AcaClass {
   id: string;
+  classCode: string;
   name: string;
   month: number;
   type: string;
@@ -13,6 +79,34 @@ export interface AcaClass {
   nextPhaseStartDate: string;
   nextPhase: string;
   slotsToEnroll: number;
+  /** Ngày kết thúc lớp (dd/mm/yyyy) */
+  endDate?: string;
+  /** Ghi chú tiến độ lớp */
+  progressNote?: string;
+}
+
+export interface AcaStudentCycle {
+  classCode: string;
+  finalScore: string;
+  registeredWriting: boolean;
+  registeredMocktest: boolean;
+  registeredLuyenDe: boolean;
+  homeworkPercent: string;
+  attendanceCount: string;
+  scores?: {
+    l: number | string;
+    r: number | string;
+    w: number | string;
+    s: number | string;
+    o: number | string;
+  };
+  finalScores?: {
+    l: number | string;
+    r: number | string;
+    w: number | string;
+    s: number | string;
+    o: number | string;
+  };
 }
 
 export interface AcaStudent {
@@ -37,8 +131,31 @@ export interface AcaStudent {
     s: number | string;
     o: number | string;
   };
+  entrance?: string;
+  registeredWriting?: boolean;
+  registeredMocktest?: boolean;
+  registeredLuyenDe?: boolean;
+  homeworkPercent?: string;
+  attendanceCount?: string;
+  registeredWriting2?: boolean;
+  registeredMocktest2?: boolean;
+  registeredLuyenDe2?: boolean;
+  homeworkPercent2?: string;
+  attendanceCount2?: string;
+  registeredWriting3?: boolean;
+  registeredMocktest3?: boolean;
+  registeredLuyenDe3?: boolean;
+  homeworkPercent3?: string;
+  attendanceCount3?: string;
+  l1?: string;
+  f1?: string;
+  l2?: string;
+  f2?: string;
+  l3?: string;
+  f3?: string;
   bcbLink: string;
   note: string;
+  cycles?: AcaStudentCycle[];
 }
 
 export interface AcaPracticeWeek {
@@ -58,6 +175,9 @@ export interface AcaPracticeStudent {
   rlp: string;
   testScheduleSunday: string;
   scheduleTueSat: string;
+  scheduleTue?: string;
+  scheduleSat?: string;
+  scheduleSun?: string;
   participateLd28: boolean;
   note: string;
   weekRange: string;
@@ -107,27 +227,27 @@ export async function fetchAcaClasses(): Promise<AcaClass[]> {
   if (!canUseAcaApi()) return [];
   const res = await apiFetch("/api/aca/classes", { method: "GET" });
   const raw = await parseJson<any[]>(res);
-  return raw.map(item => ({ ...item, id: item._id }));
+  return raw.map(item => normalizeAcaClass({ ...item, id: item._id }));
 }
 
 export async function createAcaClass(data: Partial<AcaClass>): Promise<AcaClass> {
   const res = await apiFetch("/api/aca/classes", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data)
+    body: JSON.stringify(withNormalizedClassCode(data))
   });
   const raw = await parseJson<any>(res);
-  return { ...raw, id: raw._id };
+  return normalizeAcaClass({ ...raw, id: raw._id });
 }
 
 export async function updateAcaClass(id: string, data: Partial<AcaClass>): Promise<AcaClass> {
   const res = await apiFetch(`/api/aca/classes/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data)
+    body: JSON.stringify(withNormalizedClassCode(data))
   });
   const raw = await parseJson<any>(res);
-  return { ...raw, id: raw._id };
+  return normalizeAcaClass({ ...raw, id: raw._id });
 }
 
 export async function deleteAcaClass(id: string): Promise<void> {
@@ -140,27 +260,47 @@ export async function fetchAcaStudents(): Promise<AcaStudent[]> {
   if (!canUseAcaApi()) return [];
   const res = await apiFetch("/api/aca/students", { method: "GET" });
   const raw = await parseJson<any[]>(res);
-  return raw.map(item => ({ ...item, id: item._id }));
+  return raw.map(item =>
+    normalizeAcaStudent({
+      ...item,
+      id: item._id,
+      classification: normalizeClassification(item.classification || ""),
+    })
+  );
 }
 
 export async function createAcaStudent(data: Partial<AcaStudent>): Promise<AcaStudent> {
   const res = await apiFetch("/api/aca/students", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data)
+    body: JSON.stringify({
+      ...normalizeAcaStudentPayload(data),
+      classification: data.classification ? normalizeClassification(data.classification) : undefined,
+    }),
   });
   const raw = await parseJson<any>(res);
-  return { ...raw, id: raw._id };
+  return normalizeAcaStudent({
+    ...raw,
+    id: raw._id,
+    classification: normalizeClassification(raw.classification || ""),
+  });
 }
 
 export async function updateAcaStudent(id: string, data: Partial<AcaStudent>): Promise<AcaStudent> {
   const res = await apiFetch(`/api/aca/students/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data)
+    body: JSON.stringify({
+      ...normalizeAcaStudentPayload(data),
+      classification: data.classification ? normalizeClassification(data.classification) : undefined,
+    }),
   });
   const raw = await parseJson<any>(res);
-  return { ...raw, id: raw._id };
+  return normalizeAcaStudent({
+    ...raw,
+    id: raw._id,
+    classification: normalizeClassification(raw.classification || ""),
+  });
 }
 
 export async function deleteAcaStudent(id: string): Promise<void> {

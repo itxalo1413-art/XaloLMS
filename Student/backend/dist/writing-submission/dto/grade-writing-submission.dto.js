@@ -5,6 +5,12 @@ class GradeWritingSubmissionDto {
     status;
     score;
     examLink;
+    dueDate;
+    studentGmail;
+    type;
+    task1;
+    task2;
+    note;
 }
 exports.GradeWritingSubmissionDto = GradeWritingSubmissionDto;
 //# sourceMappingURL=grade-writing-submission.dto.js.map

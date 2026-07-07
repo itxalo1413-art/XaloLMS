@@ -5,10 +5,12 @@ import {
   getStudentDiagnosis,
   getStudentWritingBands,
   refreshStudentDiagnosis,
+  saveStudentDiagnosis,
   STUDENT_DIAGNOSIS_UPDATE_EVENT,
   type StudentDiagnosisRecord,
 } from "@/lib/studentDiagnosisStore";
 import { resolveActiveStudentId } from "@/lib/studentRoster";
+import { fetchLiveStudentDiagnosis } from "@/lib/studentDiagnosisApi";
 
 export function useStudentDiagnosis(studentId?: string) {
   const activeId = studentId ?? resolveActiveStudentId();
@@ -33,6 +35,36 @@ export function useStudentDiagnosis(studentId?: string) {
       window.removeEventListener("storage", sync);
     };
   }, [sync, activeId]);
+
+  useEffect(() => {
+    if (!activeId) return;
+    let alive = true;
+    void fetchLiveStudentDiagnosis()
+      .then((live) => {
+        if (!alive || !live) return;
+        
+        const current = getStudentDiagnosis(activeId);
+        const nextScores = {
+          listening: Number(live.scores?.listening) || current.scores?.listening || 0,
+          reading: Number(live.scores?.reading) || current.scores?.reading || 0,
+          writing: Number(live.scores?.writing) || current.scores?.writing || 0,
+          speaking: Number(live.scores?.speaking) || current.scores?.speaking || 0,
+          overall: Number(live.scores?.overall) || current.scores?.overall || 0,
+        };
+
+        saveStudentDiagnosis({
+          ...current,
+          bcbLink: live.bcbLink || current.bcbLink || "",
+          scores: nextScores,
+        }, activeId);
+      })
+      .catch((err) => {
+        console.error("Failed to load live student diagnosis:", err);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [activeId]);
 
   const writingBands = useMemo(
     () => getStudentWritingBands(diagnosis, activeId),

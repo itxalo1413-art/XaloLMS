@@ -20,6 +20,12 @@ let WritingSubmission = class WritingSubmission {
     status;
     score;
     gradedAt;
+    dueDate;
+    studentGmail;
+    type;
+    task1;
+    task2;
+    note;
 };
 exports.WritingSubmission = WritingSubmission;
 __decorate([
@@ -50,6 +56,30 @@ __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
 ], WritingSubmission.prototype, "gradedAt", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], WritingSubmission.prototype, "dueDate", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], WritingSubmission.prototype, "studentGmail", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], WritingSubmission.prototype, "type", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], WritingSubmission.prototype, "task1", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], WritingSubmission.prototype, "task2", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], WritingSubmission.prototype, "note", void 0);
 exports.WritingSubmission = WritingSubmission = __decorate([
     (0, mongoose_1.Schema)({ collection: 'writing_submissions', timestamps: true })
 ], WritingSubmission);

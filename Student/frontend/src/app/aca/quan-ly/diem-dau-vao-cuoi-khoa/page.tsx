@@ -46,6 +46,8 @@ export default function DiemDauVaoCuoiKhoaPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
 
   const handleImportScores = async (
     mappedRows: any[],
@@ -202,6 +204,18 @@ export default function DiemDauVaoCuoiKhoaPage() {
     });
   }, [students, searchQuery, classMap]);
 
+  // Reset current page when filtering changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  const totalPages = Math.ceil(filteredStudents.length / ITEMS_PER_PAGE);
+
+  const paginatedStudents = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredStudents.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredStudents, currentPage]);
+
   // Stats calculation
   const stats = useMemo(() => {
     let totalEntrance = 0;
@@ -232,10 +246,18 @@ export default function DiemDauVaoCuoiKhoaPage() {
     return { avgEntrance, avgFinal, avgDelta };
   }, [students]);
 
+  const totalLeads = useMemo(() => {
+    return students.length;
+  }, [students]);
+
+  const totalStudents = useMemo(() => {
+    return students.filter(s => s.classId && classes.some(c => c.id === s.classId)).length;
+  }, [students, classes]);
+
   return (
     <AcaLayout>
       <AcaTopbar
-        title="Danh sách điểm đầu vào / cuối khóa"
+        title="Danh sách điểm đầu vào"
         subtitle="Quản lý đồng bộ điểm số đầu vào (từ danh sách học viên tổng) và nhập điểm thi cuối khóa của học viên."
       />
       <main className="mx-auto max-w-7xl px-6 py-6 pb-16 md:px-8 space-y-6">
@@ -247,29 +269,17 @@ export default function DiemDauVaoCuoiKhoaPage() {
         ) : null}
 
         {/* Highlight Stats */}
-        <div className="grid gap-4 sm:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <div className="text-[10px] font-bold uppercase text-zinc-500">Tổng học viên</div>
+            <div className="text-[10px] font-bold uppercase text-zinc-500">Tổng số Lead</div>
             <div className="mt-2 text-2xl font-black text-foreground">
-              {loading ? "..." : `${students.length} học viên`}
+              {loading ? "..." : `${totalLeads} lead`}
             </div>
           </div>
           <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <div className="text-[10px] font-bold uppercase text-zinc-500">Đầu vào TB (Overall)</div>
-            <div className="mt-2 text-2xl font-black text-primary">
-              {loading ? "..." : `${stats.avgEntrance} Band`}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <div className="text-[10px] font-bold uppercase text-zinc-500">Đầu ra TB (Overall)</div>
-            <div className="mt-2 text-2xl font-black text-secondary">
-              {loading ? "..." : `${stats.avgFinal} Band`}
-            </div>
-          </div>
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <div className="text-[10px] font-bold uppercase text-zinc-500">Mức tăng trưởng TB</div>
-            <div className="mt-2 text-2xl font-black text-success">
-              {loading ? "..." : stats.avgDelta !== "—" ? `+${stats.avgDelta} Band` : "—"}
+            <div className="text-[10px] font-bold uppercase text-zinc-500">Tổng số Học viên</div>
+            <div className="mt-2 text-2xl font-black text-foreground">
+              {loading ? "..." : `${totalStudents} học viên`}
             </div>
           </div>
         </div>
@@ -288,15 +298,7 @@ export default function DiemDauVaoCuoiKhoaPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsImportModalOpen(true)}
-              className="h-10 rounded-xl border border-success/30 bg-success/10 text-success px-4 text-xs font-black uppercase shadow-soft hover:bg-success/15 hover:-translate-y-0.5 transition-all flex items-center gap-1.5"
-            >
-              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              Nhập điểm Excel
-            </button>
+            {/* Read-only view for ACA */}
           </div>
         </div>
 
@@ -328,17 +330,13 @@ export default function DiemDauVaoCuoiKhoaPage() {
                     <th className="px-2 py-4 text-center bg-purple-50/30">Đầu ra (S)</th>
                     <th className="px-2 py-4 text-center bg-purple-50/70 font-black text-secondary border-r border-zinc-200">Overall</th>
                     
-                    <th className="px-3 py-4 text-center">Tăng (Delta)</th>
-                    <th className="px-4 py-4 text-right">Thao tác</th>
+                    <th className="px-3 py-4 text-center">Tăng</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100 font-semibold text-zinc-700 bg-white">
-                  {filteredStudents.map((st) => {
-                    const draft = drafts[st.id] || { l: "-", r: "-", w: "-", s: "-", o: "-" };
-                    
-                    // Growth overall delta calculation
+                  {paginatedStudents.map((st) => {
                     const entO = Number(st.scores?.o);
-                    const finO = Number(draft.o);
+                    const finO = Number(st.finalScores?.o);
                     let deltaLabel = "—";
                     let deltaColor = "text-zinc-400 bg-zinc-50";
 
@@ -356,8 +354,6 @@ export default function DiemDauVaoCuoiKhoaPage() {
                       }
                     }
 
-                    const isSaving = savingId === st.id;
-
                     return (
                       <tr key={st.id} className="hover:bg-zinc-50/50 transition-colors">
                         <td className="px-4 py-4 font-black text-foreground">{st.name}</td>
@@ -366,54 +362,21 @@ export default function DiemDauVaoCuoiKhoaPage() {
                         </td>
 
                         {/* Entrance stats */}
-                        <td className="px-2 py-4 text-center tabular-nums bg-blue-50/10 border-l border-zinc-100">{st.scores?.l}</td>
-                        <td className="px-2 py-4 text-center tabular-nums bg-blue-50/10">{st.scores?.r}</td>
-                        <td className="px-2 py-4 text-center tabular-nums bg-blue-50/10">{st.scores?.w}</td>
-                        <td className="px-2 py-4 text-center tabular-nums bg-blue-50/10">{st.scores?.s}</td>
+                        <td className="px-2 py-4 text-center tabular-nums bg-blue-50/10 border-l border-zinc-100">{st.scores?.l ?? "-"}</td>
+                        <td className="px-2 py-4 text-center tabular-nums bg-blue-50/10">{st.scores?.r ?? "-"}</td>
+                        <td className="px-2 py-4 text-center tabular-nums bg-blue-50/10">{st.scores?.w ?? "-"}</td>
+                        <td className="px-2 py-4 text-center tabular-nums bg-blue-50/10">{st.scores?.s ?? "-"}</td>
                         <td className="px-2 py-4 text-center font-bold tabular-nums bg-blue-50/30 text-primary border-r border-zinc-200">
-                          {st.scores?.o}
+                          {st.scores?.o ?? "-"}
                         </td>
 
-                        {/* Editable output stats */}
-                        <td className="px-1 py-2 text-center bg-purple-50/10">
-                          <input
-                            type="text"
-                            value={draft.l}
-                            onChange={(e) => handleUpdateDraft(st.id, "l", e.target.value)}
-                            className="w-10 text-center rounded-lg border border-zinc-200 px-1 py-1 font-bold text-zinc-800 focus:border-secondary focus:ring-1 focus:ring-secondary/20 outline-none"
-                          />
-                        </td>
-                        <td className="px-1 py-2 text-center bg-purple-50/10">
-                          <input
-                            type="text"
-                            value={draft.r}
-                            onChange={(e) => handleUpdateDraft(st.id, "r", e.target.value)}
-                            className="w-10 text-center rounded-lg border border-zinc-200 px-1 py-1 font-bold text-zinc-800 focus:border-secondary focus:ring-1 focus:ring-secondary/20 outline-none"
-                          />
-                        </td>
-                        <td className="px-1 py-2 text-center bg-purple-50/10">
-                          <input
-                            type="text"
-                            value={draft.w}
-                            onChange={(e) => handleUpdateDraft(st.id, "w", e.target.value)}
-                            className="w-10 text-center rounded-lg border border-zinc-200 px-1 py-1 font-bold text-zinc-800 focus:border-secondary focus:ring-1 focus:ring-secondary/20 outline-none"
-                          />
-                        </td>
-                        <td className="px-1 py-2 text-center bg-purple-50/10">
-                          <input
-                            type="text"
-                            value={draft.s}
-                            onChange={(e) => handleUpdateDraft(st.id, "s", e.target.value)}
-                            className="w-10 text-center rounded-lg border border-zinc-200 px-1 py-1 font-bold text-zinc-800 focus:border-secondary focus:ring-1 focus:ring-secondary/20 outline-none"
-                          />
-                        </td>
-                        <td className="px-1 py-2 text-center bg-purple-50/30 border-r border-zinc-200">
-                          <input
-                            type="text"
-                            value={draft.o}
-                            onChange={(e) => handleUpdateDraft(st.id, "o", e.target.value)}
-                            className="w-10 text-center rounded-lg border border-secondary/40 bg-purple-50 px-1 py-1 font-black text-secondary focus:border-secondary focus:ring-2 focus:ring-secondary/20 outline-none"
-                          />
+                        {/* Read-only output stats */}
+                        <td className="px-2 py-4 text-center tabular-nums bg-purple-50/10">{st.finalScores?.l ?? "-"}</td>
+                        <td className="px-2 py-4 text-center tabular-nums bg-purple-50/10">{st.finalScores?.r ?? "-"}</td>
+                        <td className="px-2 py-4 text-center tabular-nums bg-purple-50/10">{st.finalScores?.w ?? "-"}</td>
+                        <td className="px-2 py-4 text-center tabular-nums bg-purple-50/10">{st.finalScores?.s ?? "-"}</td>
+                        <td className="px-2 py-4 text-center font-bold tabular-nums bg-purple-50/30 text-secondary border-r border-zinc-200">
+                          {st.finalScores?.o ?? "-"}
                         </td>
 
                         {/* Delta display */}
@@ -424,27 +387,108 @@ export default function DiemDauVaoCuoiKhoaPage() {
                             {deltaLabel}
                           </span>
                         </td>
-
-                        {/* Save Action */}
-                        <td className="px-4 py-4 text-right">
-                          <button
-                            type="button"
-                            disabled={isSaving}
-                            onClick={() => void handleSaveFinalScores(st.id)}
-                            className={`rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-wider transition-colors ${
-                              isSaving
-                                ? "bg-emerald-500 text-white"
-                                : "bg-secondary text-white hover:bg-secondary/90 shadow-sm"
-                            }`}
-                          >
-                            {isSaving ? "Đã lưu ✓" : "Lưu"}
-                          </button>
-                        </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-zinc-200 shadow-sm mt-4 text-xs font-semibold">
+            <div className="text-zinc-500">
+              Đang xem <span className="font-bold text-zinc-800">{(currentPage - 1) * ITEMS_PER_PAGE + 1}</span> -{" "}
+              <span className="font-bold text-zinc-800">
+                {Math.min(currentPage * ITEMS_PER_PAGE, filteredStudents.length)}
+              </span>{" "}
+              trong tổng số <span className="font-bold text-zinc-800">{filteredStudents.length}</span> học viên
+            </div>
+            
+            <div className="flex items-center gap-1">
+              {/* First Page Button */}
+              <button
+                type="button"
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="h-8 w-8 rounded-lg border border-zinc-200 flex items-center justify-center text-zinc-500 hover:bg-zinc-50 disabled:opacity-40 disabled:hover:bg-transparent transition-all"
+                title="Trang đầu"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5" />
+                </svg>
+              </button>
+
+              {/* Previous Page Button */}
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="h-8 rounded-lg border border-zinc-200 px-2.5 flex items-center justify-center gap-1 text-zinc-650 hover:bg-zinc-50 disabled:opacity-40 disabled:hover:bg-transparent transition-all"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+                Trước
+              </button>
+
+              {/* Page numbers */}
+              {(() => {
+                const pages = [];
+                const maxVisiblePages = 5;
+                let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+                let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+                if (endPage - startPage + 1 < maxVisiblePages) {
+                  startPage = Math.max(1, endPage - maxVisiblePages + 1);
+                }
+
+                for (let p = startPage; p <= endPage; p++) {
+                  pages.push(
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setCurrentPage(p)}
+                      className={`h-8 w-8 rounded-lg text-xs font-black uppercase transition-all ${
+                        currentPage === p
+                          ? "bg-primary text-white shadow-premium"
+                          : "border border-zinc-200 text-zinc-650 hover:bg-zinc-50"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  );
+                }
+                return pages;
+              })()}
+
+              {/* Next Page Button */}
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="h-8 rounded-lg border border-zinc-200 px-2.5 flex items-center justify-center gap-1 text-zinc-650 hover:bg-zinc-50 disabled:opacity-40 disabled:hover:bg-transparent transition-all"
+              >
+                Sau
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </button>
+
+              {/* Last Page Button */}
+              <button
+                type="button"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="h-8 w-8 rounded-lg border border-zinc-200 flex items-center justify-center text-zinc-500 hover:bg-zinc-50 disabled:opacity-40 disabled:hover:bg-transparent transition-all"
+                title="Trang cuối"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 4.5l7.5 7.5-7.5 7.5m-6-15l7.5 7.5-7.5 7.5" />
+                </svg>
+              </button>
             </div>
           </div>
         )}

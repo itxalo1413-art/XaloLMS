@@ -1,6 +1,7 @@
 import { HydratedDocument } from 'mongoose';
 export type AcaClassDocument = HydratedDocument<AcaClass>;
 export declare class AcaClass {
+    classCode: string;
     name: string;
     month: number;
     type: string;
@@ -12,6 +13,8 @@ export declare class AcaClass {
     nextPhaseStartDate: string;
     nextPhase: string;
     slotsToEnroll: number;
+    endDate: string;
+    progressNote: string;
 }
 export declare const AcaClassSchema: import("mongoose").Schema<AcaClass, import("mongoose").Model<AcaClass, any, any, any, any, any, AcaClass>, {}, {}, {}, {}, import("mongoose").DefaultSchemaOptions, AcaClass, import("mongoose").Document<unknown, {}, AcaClass, {
     id: string;
@@ -22,6 +25,15 @@ export declare const AcaClassSchema: import("mongoose").Schema<AcaClass, import(
 }, "id"> & {
     id: string;
 }, {
+    classCode?: import("mongoose").SchemaDefinitionProperty<string, AcaClass, import("mongoose").Document<unknown, {}, AcaClass, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<AcaClass & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
     name?: import("mongoose").SchemaDefinitionProperty<string, AcaClass, import("mongoose").Document<unknown, {}, AcaClass, {
         id: string;
     }, import("mongoose").DefaultSchemaOptions> & Omit<AcaClass & {
@@ -113,6 +125,24 @@ export declare const AcaClassSchema: import("mongoose").Schema<AcaClass, import(
         id: string;
     }> | undefined;
     slotsToEnroll?: import("mongoose").SchemaDefinitionProperty<number, AcaClass, import("mongoose").Document<unknown, {}, AcaClass, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<AcaClass & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    endDate?: import("mongoose").SchemaDefinitionProperty<string, AcaClass, import("mongoose").Document<unknown, {}, AcaClass, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<AcaClass & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    progressNote?: import("mongoose").SchemaDefinitionProperty<string, AcaClass, import("mongoose").Document<unknown, {}, AcaClass, {
         id: string;
     }, import("mongoose").DefaultSchemaOptions> & Omit<AcaClass & {
         _id: import("mongoose").Types.ObjectId;

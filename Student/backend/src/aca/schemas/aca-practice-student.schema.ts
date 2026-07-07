@@ -23,6 +23,15 @@ export class AcaPracticeStudent {
   @Prop({ trim: true, default: '' })
   scheduleTueSat: string;
 
+  @Prop({ trim: true, default: '' })
+  scheduleTue: string;
+
+  @Prop({ trim: true, default: '' })
+  scheduleSat: string;
+
+  @Prop({ trim: true, default: '' })
+  scheduleSun: string;
+
   @Prop({ default: false })
   participateLd28: boolean;
 

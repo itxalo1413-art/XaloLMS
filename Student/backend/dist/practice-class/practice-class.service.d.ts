@@ -4,6 +4,8 @@ import { UpdatePracticeScheduleDto } from './dto/update-practice-schedule.dto';
 import { type PracticeSlotDefinition, type PracticeSlotId } from './practice-class.constants';
 import { type PracticeClassRegistrationDocument } from './schemas/practice-class-registration.schema';
 import { type PracticeClassScheduleDocument } from './schemas/practice-class-schedule.schema';
+import { AcaPracticeStudentDocument } from '../aca/schemas/aca-practice-student.schema';
+import { AcaStudentDocument } from '../aca/schemas/aca-student.schema';
 export type PracticeClassSlotPublic = PracticeSlotDefinition & {
     dateNote?: string;
 };
@@ -27,8 +29,11 @@ export type PracticeRegistrationAcaPublic = {
 export declare class PracticeClassService {
     private readonly scheduleModel;
     private readonly registrationModel;
+    private readonly practiceStudentModel;
+    private readonly acaStudentModel;
     private readonly usersService;
-    constructor(scheduleModel: Model<PracticeClassScheduleDocument>, registrationModel: Model<PracticeClassRegistrationDocument>, usersService: UsersService);
+    constructor(scheduleModel: Model<PracticeClassScheduleDocument>, registrationModel: Model<PracticeClassRegistrationDocument>, practiceStudentModel: Model<AcaPracticeStudentDocument>, acaStudentModel: Model<AcaStudentDocument>, usersService: UsersService);
+    private syncStudentPracticeSchedule;
     private mergeSlot;
     private buildScheduleResponse;
     getSchedule(): Promise<PracticeSchedulePublic>;

@@ -24,27 +24,29 @@ let TeacherRlpController = class TeacherRlpController {
     constructor(rlp) {
         this.rlp = rlp;
     }
-    list() {
-        return this.rlp.listSessions();
+    list(classId) {
+        return this.rlp.listSessionsForClass(classId);
     }
-    async update(no, body) {
-        const session = await this.rlp.updateSession(no, body ?? {});
+    async update(no, classId, body) {
+        const session = await this.rlp.updateSessionForClass(classId, no, body ?? {});
         return { session };
     }
 };
 exports.TeacherRlpController = TeacherRlpController;
 __decorate([
     (0, common_1.Get)(),
+    __param(0, (0, common_1.Query)('classId')),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
+    __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", void 0)
 ], TeacherRlpController.prototype, "list", null);
 __decorate([
     (0, common_1.Patch)(':no'),
     __param(0, (0, common_1.Param)('no', common_1.ParseIntPipe)),
-    __param(1, (0, common_1.Body)()),
+    __param(1, (0, common_1.Query)('classId')),
+    __param(2, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Number, update_rlp_session_dto_1.UpdateRlpSessionDto]),
+    __metadata("design:paramtypes", [Number, String, update_rlp_session_dto_1.UpdateRlpSessionDto]),
     __metadata("design:returntype", Promise)
 ], TeacherRlpController.prototype, "update", null);
 exports.TeacherRlpController = TeacherRlpController = __decorate([

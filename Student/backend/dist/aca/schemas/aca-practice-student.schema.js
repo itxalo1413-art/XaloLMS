@@ -18,6 +18,9 @@ let AcaPracticeStudent = class AcaPracticeStudent {
     rlp;
     testScheduleSunday;
     scheduleTueSat;
+    scheduleTue;
+    scheduleSat;
+    scheduleSun;
     participateLd28;
     note;
     weekRange;
@@ -47,6 +50,18 @@ __decorate([
     (0, mongoose_1.Prop)({ trim: true, default: '' }),
     __metadata("design:type", String)
 ], AcaPracticeStudent.prototype, "scheduleTueSat", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaPracticeStudent.prototype, "scheduleTue", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaPracticeStudent.prototype, "scheduleSat", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaPracticeStudent.prototype, "scheduleSun", void 0);
 __decorate([
     (0, mongoose_1.Prop)({ default: false }),
     __metadata("design:type", Boolean)

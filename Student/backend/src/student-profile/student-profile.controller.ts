@@ -22,6 +22,11 @@ export class StudentProfileController {
     return this.studentProfileService.getProfile(req.user.sub);
   }
 
+  @Get('diagnosis')
+  getDiagnosis(@Req() req: AuthedRequest) {
+    return this.studentProfileService.getStudentDiagnosis(req.user.email);
+  }
+
   @Patch()
   updateProfile(
     @Req() req: AuthedRequest,

@@ -26,6 +26,9 @@ import {
   type PracticeClassScheduleDocument,
 } from './schemas/practice-class-schedule.schema';
 
+import { AcaPracticeStudent, AcaPracticeStudentDocument } from '../aca/schemas/aca-practice-student.schema';
+import { AcaStudent, AcaStudentDocument } from '../aca/schemas/aca-student.schema';
+
 export type PracticeClassSlotPublic = PracticeSlotDefinition & {
   dateNote?: string;
 };
@@ -57,8 +60,75 @@ export class PracticeClassService {
     private readonly scheduleModel: Model<PracticeClassScheduleDocument>,
     @InjectModel(PracticeClassRegistration.name)
     private readonly registrationModel: Model<PracticeClassRegistrationDocument>,
+    @InjectModel(AcaPracticeStudent.name)
+    private readonly practiceStudentModel: Model<AcaPracticeStudentDocument>,
+    @InjectModel(AcaStudent.name)
+    private readonly acaStudentModel: Model<AcaStudentDocument>,
     private readonly usersService: UsersService,
   ) {}
+
+  private async syncStudentPracticeSchedule(userId: string): Promise<void> {
+    try {
+      // 1. Get the current active weekRangeLabel from the schedule doc
+      const scheduleDoc = await this.scheduleModel.findOne({ key: PRACTICE_SCHEDULE_KEY }).lean().exec();
+      let currentWeekRange = scheduleDoc?.weekRangeLabel?.trim() || '';
+      
+      // Fallback to the latest week from aca_practice_weeks if empty
+      if (!currentWeekRange) {
+        const weeksColl = this.scheduleModel.db.collection('aca_practice_weeks');
+        const latestWeeks = await weeksColl.find({}).sort({ _id: -1 }).limit(1).toArray();
+        if (latestWeeks && latestWeeks.length > 0 && latestWeeks[0].weekRange) {
+          currentWeekRange = latestWeeks[0].weekRange.trim();
+        }
+      }
+      
+      if (!currentWeekRange) return;
+
+      // 2. Get user info
+      const user = await this.usersService.findPublicById(userId);
+      if (!user) return;
+
+      // 3. Find any matching AcaStudent to see if we have their phone number
+      const acaStudent = await this.acaStudentModel.findOne({ email: user.email }).lean().exec();
+      const phone = acaStudent?.phone || '';
+
+      // 4. Find all practice registrations for this student
+      const registrations = await this.registrationModel.find({ userId: new Types.ObjectId(userId) }).lean().exec();
+      const registeredSlotIds = new Set(registrations.map(r => r.slotId));
+
+      // Determine the values for scheduleTue, scheduleSat, scheduleSun based on registrations
+      const scheduleTue = registeredSlotIds.has('tue-lrw') ? 'Ca 1 (18h-20h)' : 'Không học';
+      const scheduleSat = registeredSlotIds.has('sat-speaking') ? 'Ca 1 (18h-20h)' : 'Không học';
+      const scheduleSun = registeredSlotIds.has('sun-lrw') ? 'Có tham gia' : 'Không học';
+
+      // 5. Look for AcaPracticeStudent entry for this user
+      const query: any = {
+        weekRange: currentWeekRange,
+      };
+      if (phone) {
+        query.$or = [
+          { phone: phone },
+          { name: { $regex: new RegExp(`^${user.name.trim()}$`, 'i') } }
+        ];
+      } else {
+        query.name = { $regex: new RegExp(`^${user.name.trim()}$`, 'i') };
+      }
+
+      const practiceStudent = await this.practiceStudentModel.findOne(query).exec();
+      if (practiceStudent) {
+        // 6. Update practice student's schedule fields
+        practiceStudent.scheduleTue = scheduleTue;
+        practiceStudent.scheduleSat = scheduleSat;
+        practiceStudent.scheduleSun = scheduleSun;
+        practiceStudent.testScheduleSunday = scheduleSun;
+        practiceStudent.scheduleTueSat = `${scheduleTue !== "Không học" ? `T3: ${scheduleTue}` : ""}${scheduleTue !== "Không học" && scheduleSat !== "Không học" ? ", " : ""}${scheduleSat !== "Không học" ? `T7: ${scheduleSat}` : ""}`;
+        
+        await practiceStudent.save();
+      }
+    } catch (err) {
+      console.error('Lỗi khi đồng bộ đăng ký lớp luyện đề: ', err);
+    }
+  }
 
   private mergeSlot(
     base: PracticeSlotDefinition,
@@ -174,6 +244,7 @@ export class PracticeClassService {
       userId: new Types.ObjectId(userId),
       slotId,
     });
+    await this.syncStudentPracticeSchedule(userId);
     const doc = created.toObject() as PracticeClassRegistration & {
       createdAt?: Date;
     };
@@ -224,5 +295,6 @@ export class PracticeClassService {
     if (result.deletedCount === 0) {
       throw new NotFoundException('Chưa đăng ký buổi này');
     }
+    await this.syncStudentPracticeSchedule(userId);
   }
 }

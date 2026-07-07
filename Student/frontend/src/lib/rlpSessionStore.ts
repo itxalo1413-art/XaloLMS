@@ -64,16 +64,22 @@ export function getCourseRlpSessions(): RlpSession[] {
   return sessionsCache;
 }
 
-export async function refreshRlpSessions(): Promise<RlpSession[]> {
+export async function refreshRlpSessions(classId?: string): Promise<RlpSession[]> {
   if (canUseRlpSessionApi()) {
-    for (const fetcher of [fetchRlpSessionsForTeacher, fetchRlpSessionsForStudent]) {
-      try {
-        const rows = await fetcher();
-        saveLocal(rows);
-        return rows;
-      } catch {
-        // try next endpoint
-      }
+    try {
+      const rows = await fetchRlpSessionsForTeacher(classId);
+      saveLocal(rows);
+      return rows;
+    } catch {
+      // try student fetcher next
+    }
+
+    try {
+      const rows = await fetchRlpSessionsForStudent();
+      saveLocal(rows);
+      return rows;
+    } catch {
+      // ignore
     }
   }
   const local = loadLocal();
@@ -85,9 +91,10 @@ export async function refreshRlpSessions(): Promise<RlpSession[]> {
 export async function updateRlpSession(
   no: number,
   payload: UpdateRlpSessionPayload,
+  classId?: string,
 ): Promise<RlpSession> {
   if (canUseRlpSessionApi()) {
-    const remote = await updateRlpSessionApi(no, payload);
+    const remote = await updateRlpSessionApi(no, payload, classId);
     const next = getCourseRlpSessions().map((s) => (s.no === no ? remote : s));
     saveLocal(next);
     return remote;
