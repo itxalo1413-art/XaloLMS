@@ -1385,7 +1385,7 @@ export default function Lop11Page() {
                   <h4 className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Danh sách các khóa học (Runs)</h4>
                   <button
                     type="button"
-                     onClick={() => setRuns(prev => [...prev, { schedule: "", classDays: [], totalHours: "", totalSessions: "", sessionsPerWeek: "", startDate: "" }])}
+                     onClick={() => setRuns(prev => [...prev, { classDays: [], dayTimes: {}, totalHours: "", totalSessions: "", sessionsPerWeek: "", startDate: "" }])}
                     className="px-2.5 py-1 text-[9px] font-black uppercase bg-primary/10 hover:bg-primary/15 text-primary rounded-xl transition-all"
                   >
                     + Thêm khóa học
