@@ -83,6 +83,9 @@ const toDDMMYYYY = (yyyyMMdd: string): string => {
 // ─── Utilities: Unified Standard End Date Calculations ───────────────────────
 const countSessionsPerWeek = (scheduleText: string): number => {
   if (!scheduleText) return 2;
+  // New structured format: [Xh|Ybuổi|Zb/w]
+  const structMatch = scheduleText.match(/\|(\d+)b\/w\]/i);
+  if (structMatch) return parseInt(structMatch[1], 10);
   const explicitMatch = scheduleText.match(/(\d+)\s*buổi\s*\/\s*tuần/i);
   if (explicitMatch) return parseInt(explicitMatch[1], 10);
   const lower = scheduleText.toLowerCase();
@@ -143,6 +146,10 @@ const getRunTotalSessions = (progressText: string, scheduleLine: string): number
     if (progressTotalMatch) return parseInt(progressTotalMatch[1], 10);
     if (progressOnlyMatch) return parseInt(progressOnlyMatch[1], 10);
   }
+  // New structured format: [Xh|Ybuổi|Zb/w] → use Ybuổi directly
+  const structMatch = scheduleLine.match(/\[(\d+)h\|(\d+)buổi\|(\d+)b\/w\]/i);
+  if (structMatch) return parseInt(structMatch[2], 10);
+  // Old format: [36h] → compute from hours / session duration
   const hoursMatch = scheduleLine.match(/\[(\d+)h\]/i);
   if (hoursMatch) {
     const hours = parseInt(hoursMatch[1], 10);
@@ -175,6 +182,94 @@ const calcRunEndDate = (runStartStr: string, runSchedLine: string, progressText:
   return formatDDMMYYYY(endDate);
 };
 
+// ─── Helper: parse specific day times from schedule text ──────────────────────
+const parseDayTimesFromText = (
+  text: string,
+  days: string[]
+): Record<string, { startHour: string; startMinute: string; endHour: string; endMinute: string }> => {
+  const result: Record<string, { startHour: string; startMinute: string; endHour: string; endMinute: string }> = {};
+  const defaultVal = { startHour: "19", startMinute: "00", endHour: "21", endMinute: "00" };
+
+  days.forEach(d => {
+    result[d] = { ...defaultVal };
+  });
+
+  // Try to find specific day times: e.g. "T2 18h30-20h30" or "T2 (18h-20h)"
+  days.forEach(d => {
+    const dayPatternStr = d === "CN" ? "(?:CN|Chủ\\s*Nhật)" : `T${d}`;
+    const regex = new RegExp(dayPatternStr + `[^a-z0-9]*(?:(\\d{1,2}))(?:h|:)?(\\d{2})?\\s*-\\s*(?:(\\d{1,2}))(?:h|:)?(\\d{2})?`, "i");
+    const match = text.match(regex);
+    if (match) {
+      result[d] = {
+        startHour: match[1],
+        startMinute: match[2] || "00",
+        endHour: match[3],
+        endMinute: match[4] || "00"
+      };
+    }
+  });
+
+  // If no day-specific time matches, fallback to the general range for all days
+  const generalRange = text.match(/(\d{1,2})(?:h|:)(\d{2})?\s*-\s*(\d{1,2})(?:h|:)(\d{2})?/i);
+  if (generalRange) {
+    days.forEach(d => {
+      const dayPatternStr = d === "CN" ? "(?:CN|Chủ\\s*Nhật)" : `T${d}`;
+      const hasSpecific = new RegExp(dayPatternStr + `[^a-z0-9]*(?:\\d{1,2})(?:h|:)?(?:\\d{2})?\\s*-\\s*(?:\\d{1,2})(?:h|:)?(?:\\d{2})?`, "i").test(text);
+      if (!hasSpecific) {
+        result[d] = {
+          startHour: generalRange[1],
+          startMinute: generalRange[2] || "00",
+          endHour: generalRange[3],
+          endMinute: generalRange[4] || "00"
+        };
+      }
+    });
+  }
+
+  return result;
+};
+
+// ─── Helper: compute end date from structured run fields ─────────────────────
+const computeEndDateFromRun = (run: {
+  dayTimes: Record<string, { startHour: string; startMinute: string; endHour: string; endMinute: string }>;
+  totalHours: string;
+  totalSessions: string;
+  sessionsPerWeek: string;
+  startDate: string;
+}): string => {
+  const start = parseDDMMYYYY(run.startDate);
+  if (!start) return "";
+  const spw = run.sessionsPerWeek ? parseInt(run.sessionsPerWeek, 10) : 0;
+  if (!spw) return "";
+  
+  let sessions = 0;
+  if (run.totalHours) {
+    const days = Object.keys(run.dayTimes);
+    let avgHours = 2.0;
+    if (days.length > 0) {
+      const firstDay = days[0];
+      const t = run.dayTimes[firstDay];
+      if (t) {
+        const sh = parseInt(t.startHour, 10) || 19;
+        const sm = parseInt(t.startMinute, 10) || 0;
+        const eh = parseInt(t.endHour, 10) || 21;
+        const em = parseInt(t.endMinute, 10) || 0;
+        const duration = (eh * 60 + em - (sh * 60 + sm)) / 60;
+        if (duration > 0) avgHours = duration;
+      }
+    }
+    sessions = Math.ceil(parseInt(run.totalHours, 10) / avgHours);
+  } else if (run.totalSessions) {
+    sessions = parseInt(run.totalSessions, 10);
+  }
+
+  if (!sessions) return "";
+  const weeks = Math.ceil(sessions / spw);
+  const end = new Date(start);
+  end.setDate(end.getDate() + weeks * 7);
+  return formatDDMMYYYY(end);
+};
+
 // ─── Current date ────────────────────────────────────────────────────────────
 const _NOW = new Date();
 const _NOW_Y = _NOW.getFullYear();
@@ -191,9 +286,41 @@ export default function Lop11Page() {
     }));
   };
 
-  const [runs, setRuns] = useState<{ schedule: string; startDate: string; endDate: string }[]>([
-    { schedule: "", startDate: "", endDate: "" }
-  ]);
+  const [runs, setRuns] = useState<{
+    classDays: string[];     // e.g. ["2","4","6"] = T2,T4,T6
+    dayTimes: Record<string, { startHour: string; startMinute: string; endHour: string; endMinute: string }>;
+    totalHours: string;      // e.g. "36"
+    totalSessions: string;   // e.g. "18"
+    sessionsPerWeek: string; // auto-synced from classDays.length
+    startDate: string;
+  }[]>([{ classDays: [], dayTimes: {}, totalHours: "", totalSessions: "", sessionsPerWeek: "", startDate: "" }]);
+
+  // Toggle a day in a run's classDays; auto-syncs sessionsPerWeek & dayTimes
+  const toggleClassDay = (runIndex: number, dayVal: string) => {
+    setRuns(prev => prev.map((r, idx) => {
+      if (idx !== runIndex) return r;
+      const exists = r.classDays.includes(dayVal);
+      const newDays = exists
+        ? r.classDays.filter(d => d !== dayVal)
+        : [...r.classDays, dayVal];
+      
+      const newDayTimes = { ...r.dayTimes };
+      if (!exists) {
+        if (!newDayTimes[dayVal]) {
+          newDayTimes[dayVal] = { startHour: "19", startMinute: "00", endHour: "21", endMinute: "00" };
+        }
+      } else {
+        delete newDayTimes[dayVal];
+      }
+
+      return {
+        ...r,
+        classDays: newDays,
+        dayTimes: newDayTimes,
+        sessionsPerWeek: newDays.length > 0 ? String(newDays.length) : r.sessionsPerWeek,
+      };
+    }));
+  };
 
   const handleDateIconClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     const container = e.currentTarget.parentElement;
@@ -296,7 +423,7 @@ export default function Lop11Page() {
     setFormSuccessorLink("");
     setFormMaterials("");
     setFormStatus("Đang diễn ra");
-    setRuns([{ schedule: "", startDate: "", endDate: "" }]);
+    setRuns([{ classDays: [], dayTimes: {}, totalHours: "", totalSessions: "", sessionsPerWeek: "", startDate: "" }]);
     setIsFormOpen(true);
   };
 
@@ -318,18 +445,64 @@ export default function Lop11Page() {
     setFormMaterials(c.materials || "");
     setFormStatus(c.status);
 
-    // Parse existing compound runs
+    // Parse existing compound runs — decode structured prefix [Xh|Ybuổi|Zb/w] if present
     const lines = parseScheduleLines(c.schedule);
     const startDates = parseStartDates(c.startDate);
-    const endDates = parseStartDates(c.endDate);
-    const maxLen = Math.max(lines.length, startDates.length, endDates.length, 1);
-    const parsedRuns = [];
-    for (let i = 0; i < maxLen; i++) {
-      parsedRuns.push({
-        schedule: getCleanSchedule(lines[i] || ""),
-        startDate: startDates[i] || "",
-        endDate: endDates[i] || "",
+    const maxLen = Math.max(lines.length, startDates.length, 1);
+    const parsedRuns: typeof runs = [];
+
+    // Helper: extract day values like ["2","4","6"] from schedule text
+    const parseDaysFromText = (text: string): string[] => {
+      const days: string[] = [];
+      const ORDER = ["2","3","4","5","6","7"];
+      ORDER.forEach(d => {
+        if (new RegExp(`t${d}(?!\\d)`, 'i').test(text) || new RegExp(`[^a-z0-9]${d}[^0-9]`).test(text)) {
+          // "t2", "t246" matches
+        }
       });
+      // Parse compact form like "T246" or "T35"
+      const compact = text.match(/\bT([2-7]+)\b/i);
+      if (compact) {
+        compact[1].split('').forEach(d => { if (!days.includes(d)) days.push(d); });
+      }
+      // Parse "T2,4,6" or "T2,T4,T6"
+      const csv = text.match(/T?(\d)(?:[,\/]\s*T?(\d))+/ig);
+      if (csv) {
+        const digits = text.match(/(?<=T|,)([2-7])/ig);
+        if (digits) digits.forEach(d => { if (!days.includes(d)) days.push(d); });
+      }
+      if (/\bcn\b|chủ\s*nhật/i.test(text) && !days.includes("CN")) days.push("CN");
+      return days;
+    };
+
+    for (let i = 0; i < maxLen; i++) {
+      const cleanSched = getCleanSchedule(lines[i] || "");
+      const structMatch = cleanSched.match(/^\[(\d*)h\|(\d*)buổi\|(\d*)b\/w\]\s*(.*)/i);
+      const rawDayTime = structMatch ? structMatch[4].trim() : cleanSched;
+      // Extract classDays from the day/time portion
+      const classDays = parseDaysFromText(rawDayTime);
+      const dayTimes = parseDayTimesFromText(rawDayTime, classDays);
+
+      if (structMatch) {
+        parsedRuns.push({
+          totalHours: structMatch[1],
+          totalSessions: structMatch[2],
+          sessionsPerWeek: structMatch[3],
+          classDays,
+          dayTimes,
+          startDate: startDates[i] || "",
+        });
+      } else {
+        const spwMatch = cleanSched.match(/(\d+)\s*buổi\s*\/\s*tuần/i);
+        parsedRuns.push({
+          totalHours: "",
+          totalSessions: "",
+          sessionsPerWeek: classDays.length > 0 ? String(classDays.length) : (spwMatch ? spwMatch[1] : ""),
+          classDays,
+          dayTimes,
+          startDate: startDates[i] || "",
+        });
+      }
     }
     setRuns(parsedRuns);
     setIsFormOpen(true);
@@ -351,10 +524,75 @@ export default function Lop11Page() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Reconstruct compound string fields from runs list
-    const computedSchedule = runs.map((r, i) => `K${i + 1}: ${r.schedule.trim()}`).join("\n");
+    // Build full schedule string for each run: prefix [Xh|Ybuổi|Zb/w] + day times
+    const buildScheduleStr = (r: typeof runs[0]) => {
+      // Calculate totalSessions automatically
+      let computedSessions = 0;
+      const days = Object.keys(r.dayTimes);
+      let avgHours = 2.0;
+      if (days.length > 0) {
+        const firstDay = days[0];
+        const t = r.dayTimes[firstDay];
+        if (t) {
+          const sh = parseInt(t.startHour, 10) || 19;
+          const sm = parseInt(t.startMinute, 10) || 0;
+          const eh = parseInt(t.endHour, 10) || 21;
+          const em = parseInt(t.endMinute, 10) || 0;
+          const duration = (eh * 60 + em - (sh * 60 + sm)) / 60;
+          if (duration > 0) avgHours = duration;
+        }
+      }
+      if (r.totalHours) {
+        computedSessions = Math.ceil(parseFloat(r.totalHours) / avgHours);
+      } else if (r.totalSessions) {
+        computedSessions = parseInt(r.totalSessions, 10);
+      }
+
+      const hasStructured = r.totalHours || computedSessions || r.sessionsPerWeek;
+      const prefix = hasStructured
+        ? `[${r.totalHours || "0"}h|${computedSessions}buổi|${r.sessionsPerWeek || "0"}b/w] `
+        : "";
+      const dayOrder = ["2","3","4","5","6","7","CN"];
+      const sorted = [...r.classDays].sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b));
+
+      if (sorted.length === 0) return prefix.trim();
+
+      // Check if all selected days have the same time
+      const firstDay = sorted[0];
+      const firstTime = r.dayTimes[firstDay] || { startHour: "19", startMinute: "00", endHour: "21", endMinute: "00" };
+      const allSame = sorted.every(d => {
+        const t = r.dayTimes[d];
+        return t && t.startHour === firstTime.startHour &&
+               t.startMinute === firstTime.startMinute &&
+               t.endHour === firstTime.endHour &&
+               t.endMinute === firstTime.endMinute;
+      });
+
+      const formatTimeStr = (t: typeof firstTime) => {
+        const sm = t.startMinute && t.startMinute !== "00" ? `h${t.startMinute}` : "h";
+        const em = t.endMinute && t.endMinute !== "00" ? `h${t.endMinute}` : "h";
+        return `${t.startHour}${sm}-${t.endHour}${em}`;
+      };
+
+      if (allSame) {
+        const nums = sorted.filter(d => d !== "CN");
+        const hasCN = sorted.includes("CN");
+        const dayStr = `T${nums.join("")}${hasCN ? "CN" : ""}`;
+        return `${prefix}${dayStr} ${formatTimeStr(firstTime)}`.trim();
+      } else {
+        const chunks = sorted.map(d => {
+          const t = r.dayTimes[d] || { startHour: "19", startMinute: "00", endHour: "21", endMinute: "00" };
+          const dayLabel = d === "CN" ? "CN" : `T${d}`;
+          return `${dayLabel} ${formatTimeStr(t)}`;
+        });
+        return `${prefix}${chunks.join(" ")}`.trim();
+      }
+    };
+
+    const computedSchedule = runs.map((r, i) => `K${i + 1}: ${buildScheduleStr(r)}`).join("\n");
     const computedStartDate = runs.map(r => r.startDate.trim()).join(" • ");
-    const computedEndDate = runs.map(r => r.endDate.trim()).join(" • ");
+    // Auto-compute end date from structured fields for each run
+    const computedEndDate = runs.map(r => computeEndDateFromRun(r)).join(" • ");
 
     const payload = {
       className: formClassName,
@@ -1000,7 +1238,7 @@ export default function Lop11Page() {
                     <span className="text-zinc-500 font-bold">Ngày khai giảng:</span>
                     <span className="font-black text-zinc-800">{selectedClass.startDate}</span>
                   </div>
-                  <div className="flex justify-between">
+                  {/* <div className="flex justify-between">
                     <span className="text-zinc-500 font-bold">Ngày kết thúc:</span>
                     <span className="font-black text-zinc-800">
                       {calcEndDate(selectedClass) || <span className="text-zinc-400">—</span>}
@@ -1008,7 +1246,7 @@ export default function Lop11Page() {
                         <span className="ml-1 text-[9px] text-amber-500 font-bold">(tự tính)</span>
                       )}
                     </span>
-                  </div>
+                  </div> */}
                   <div className="flex justify-between">
                     <span className="text-zinc-500 font-bold">Đầu ra / Kết quả:</span>
                     <span className="font-black text-zinc-800 text-right whitespace-pre-line">{selectedClass.output}</span>
@@ -1147,16 +1385,42 @@ export default function Lop11Page() {
                   <h4 className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Danh sách các khóa học (Runs)</h4>
                   <button
                     type="button"
-                    onClick={() => setRuns(prev => [...prev, { schedule: "", startDate: "", endDate: "" }])}
+                     onClick={() => setRuns(prev => [...prev, { schedule: "", classDays: [], totalHours: "", totalSessions: "", sessionsPerWeek: "", startDate: "" }])}
                     className="px-2.5 py-1 text-[9px] font-black uppercase bg-primary/10 hover:bg-primary/15 text-primary rounded-xl transition-all"
                   >
                     + Thêm khóa học
                   </button>
                 </div>
 
-                <div className="space-y-3 max-h-[30vh] overflow-y-auto pr-1">
-                  {runs.map((run, index) => (
+                <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
+                  {runs.map((run, index) => {
+                    const computedEnd = computeEndDateFromRun(run);
+                    
+                    // calculate computedSessions inline for display
+                    let computedSessions = 0;
+                    const days = Object.keys(run.dayTimes);
+                    let avgHours = 2.0;
+                    if (days.length > 0) {
+                      const firstDay = days[0];
+                      const t = run.dayTimes[firstDay];
+                      if (t) {
+                        const sh = parseInt(t.startHour, 10) || 19;
+                        const sm = parseInt(t.startMinute, 10) || 0;
+                        const eh = parseInt(t.endHour, 10) || 21;
+                        const em = parseInt(t.endMinute, 10) || 0;
+                        const duration = (eh * 60 + em - (sh * 60 + sm)) / 60;
+                        if (duration > 0) avgHours = duration;
+                      }
+                    }
+                    if (run.totalHours) {
+                      computedSessions = Math.ceil(parseFloat(run.totalHours) / avgHours);
+                    } else if (run.totalSessions) {
+                      computedSessions = parseInt(run.totalSessions, 10);
+                    }
+
+                    return (
                     <div key={index} className="bg-zinc-50 border border-zinc-200/60 p-3 rounded-2xl relative space-y-3">
+                      {/* Run header */}
                       <div className="flex items-center justify-between border-b border-zinc-200/50 pb-1.5">
                         <span className="text-[9.5px] font-black text-zinc-500 uppercase">Khóa K{index + 1}</span>
                         {runs.length > 1 && (
@@ -1170,97 +1434,235 @@ export default function Lop11Page() {
                         )}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[9px] font-black uppercase text-muted tracking-wide mb-1">Ngày khai giảng</label>
-                          <div className="relative flex items-center">
-                            <input
-                              type="text"
-                              required
-                              value={run.startDate}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setRuns(prev => prev.map((r, idx) => idx === index ? { ...r, startDate: val } : r));
-                              }}
-                              placeholder="dd/mm/yyyy"
-                              className="h-8 w-full rounded-lg border border-zinc-200 pl-3 pr-8 font-bold text-foreground outline-none focus:border-primary/45 bg-white text-[11px]"
-                            />
-                            <input
-                              type="date"
-                              value={toYYYYMMDD(run.startDate)}
-                              onChange={(e) => {
-                                const val = toDDMMYYYY(e.target.value);
-                                setRuns(prev => prev.map((r, idx) => idx === index ? { ...r, startDate: val } : r));
-                              }}
-                              className="absolute opacity-0 pointer-events-none w-0 h-0"
-                            />
-                            <button
-                              type="button"
-                              onClick={handleDateIconClick}
-                              className="absolute right-2 text-zinc-400 hover:text-primary transition-colors flex items-center justify-center p-1 rounded hover:bg-zinc-100"
-                              title="Chọn ngày"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z" />
-                              </svg>
-                            </button>
-                          </div>
+                      {/* Ngày khai giảng */}
+                      <div>
+                        <label className="block text-[9px] font-black uppercase text-muted tracking-wide mb-1">Ngày khai giảng</label>
+                        <div className="relative flex items-center">
+                          <input
+                            type="text"
+                            required
+                            value={run.startDate}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setRuns(prev => prev.map((r, idx) => idx === index ? { ...r, startDate: val } : r));
+                            }}
+                            placeholder="dd/mm/yyyy"
+                            className="h-8 w-full rounded-lg border border-zinc-200 pl-3 pr-8 font-bold text-foreground outline-none focus:border-primary/45 bg-white text-[11px]"
+                          />
+                          <input
+                            type="date"
+                            value={toYYYYMMDD(run.startDate)}
+                            onChange={(e) => {
+                              const val = toDDMMYYYY(e.target.value);
+                              setRuns(prev => prev.map((r, idx) => idx === index ? { ...r, startDate: val } : r));
+                            }}
+                            className="absolute opacity-0 pointer-events-none w-0 h-0"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleDateIconClick}
+                            className="absolute right-2 text-zinc-400 hover:text-primary transition-colors flex items-center justify-center p-1 rounded hover:bg-zinc-100"
+                            title="Chọn ngày"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z" />
+                            </svg>
+                          </button>
                         </div>
-                        <div>
-                          <label className="block text-[9px] font-black uppercase text-muted tracking-wide mb-1">
-                            Ngày kết thúc <span className="text-[7.5px] text-zinc-400 normal-case font-medium">(tự tính nếu trống)</span>
-                          </label>
-                          <div className="relative flex items-center">
-                            <input
-                              type="text"
-                              value={run.endDate}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setRuns(prev => prev.map((r, idx) => idx === index ? { ...r, endDate: val } : r));
-                              }}
-                              placeholder="dd/mm/yyyy"
-                              className="h-8 w-full rounded-lg border border-zinc-200 pl-3 pr-8 font-bold text-foreground outline-none focus:border-primary/45 bg-white text-[11px]"
-                            />
-                            <input
-                              type="date"
-                              value={toYYYYMMDD(run.endDate)}
-                              onChange={(e) => {
-                                const val = toDDMMYYYY(e.target.value);
-                                setRuns(prev => prev.map((r, idx) => idx === index ? { ...r, endDate: val } : r));
-                              }}
-                              className="absolute opacity-0 pointer-events-none w-0 h-0"
-                            />
-                            <button
-                              type="button"
-                              onClick={handleDateIconClick}
-                              className="absolute right-2 text-zinc-400 hover:text-primary transition-colors flex items-center justify-center p-1 rounded hover:bg-zinc-100"
-                              title="Chọn ngày"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z" />
-                              </svg>
-                            </button>
+                      </div>
+
+                      {/* ─── Structured schedule: 2 number inputs ─── */}
+                      <div>
+                        <label className="block text-[9px] font-black uppercase text-muted tracking-wide mb-1.5">
+                          Thông số khóa học
+                          <span className="ml-1 text-[7.5px] text-zinc-400 normal-case font-medium">
+                            (điền để tự tính số buổi và ngày kết thúc)
+                          </span>
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[8px] font-bold text-zinc-400 mb-1">Tổng số giờ</label>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                min="0"
+                                value={run.totalHours}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setRuns(prev => prev.map((r, idx) => idx === index ? { ...r, totalHours: val } : r));
+                                }}
+                                placeholder="36"
+                                className="h-8 w-full rounded-lg border border-zinc-200 pl-3 pr-1 font-bold text-foreground outline-none focus:border-primary/45 bg-white text-[11px]"
+                              />
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-zinc-400 font-bold pointer-events-none">h</span>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[8px] font-bold text-zinc-400 mb-1">Số buổi / tuần</label>
+                            <div className="relative">
+                              <input
+                                type="number"
+                                min="1"
+                                max="7"
+                                value={run.sessionsPerWeek}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setRuns(prev => prev.map((r, idx) => idx === index ? { ...r, sessionsPerWeek: val } : r));
+                                }}
+                                placeholder="3"
+                                className="h-8 w-full rounded-lg border border-zinc-200 pl-3 pr-1 font-bold text-foreground outline-none focus:border-primary/45 bg-white text-[11px]"
+                              />
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-zinc-400 font-bold pointer-events-none">b/t</span>
+                            </div>
                           </div>
                         </div>
                       </div>
 
+                      {/* Day-of-week pill checkboxes */}
                       <div>
-                        <label className="block text-[9px] font-black uppercase text-muted tracking-wide mb-1">
-                          Lịch học <span className="text-[7.5px] text-zinc-400 normal-case font-medium">(Ghi rõ N buổi/tuần để tự tính ngày KT)</span>
+                        <label className="block text-[9px] font-black uppercase text-muted tracking-wide mb-1.5">
+                          Ngày học trong tuần
+                          {run.classDays.length > 0 && (
+                            <span className="ml-1.5 text-[7.5px] text-primary font-black normal-case">
+                              → {run.classDays.length} buổi/tuần
+                            </span>
+                          )}
                         </label>
-                        <textarea
-                          required
-                          value={run.schedule}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setRuns(prev => prev.map((r, idx) => idx === index ? { ...r, schedule: val } : r));
-                          }}
-                          placeholder="Ví dụ: [36h] 3 buổi/tuần - T246 19h-21h&#10;T3,5 14h-16h"
-                          className="w-full min-h-[50px] rounded-lg border border-zinc-200 p-2 font-bold text-foreground outline-none focus:border-primary/45 bg-white text-[11px] resize-y"
-                        />
+                        <div className="flex gap-1.5">
+                          {(["2","3","4","5","6","7","CN"] as const).map((d) => {
+                            const isOn = run.classDays.includes(d);
+                            return (
+                              <button
+                                key={d}
+                                type="button"
+                                onClick={() => toggleClassDay(index, d)}
+                                className={`h-7 min-w-[28px] px-2 rounded-lg text-[10px] font-black transition-all ${
+                                  isOn
+                                    ? "bg-primary text-white shadow-sm scale-105"
+                                    : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700"
+                                }`}
+                              >
+                                {d === "2" ? "T2" : d === "3" ? "T3" : d === "4" ? "T4"
+                                  : d === "5" ? "T5" : d === "6" ? "T6" : d === "7" ? "T7" : "CN"}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Giờ học cho từng thứ được chọn */}
+                      {run.classDays.length > 0 && (
+                        <div className="space-y-2 border-t border-zinc-200/50 pt-2.5">
+                          <label className="block text-[9px] font-black uppercase text-muted tracking-wide">
+                            Giờ học tương ứng với thứ
+                          </label>
+                          <div className="space-y-1.5">
+                            {run.classDays.map(d => {
+                              const t = run.dayTimes[d] || { startHour: "19", startMinute: "00", endHour: "21", endMinute: "00" };
+                              const dayLabel = d === "CN" ? "Chủ Nhật" : `Thứ ${d}`;
+                              return (
+                                <div key={d} className="flex items-center justify-between bg-zinc-100/50 px-2.5 py-1.5 rounded-xl border border-zinc-200/40">
+                                  <span className="text-[10px] font-black text-zinc-600 w-16">{dayLabel}</span>
+                                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-500">
+                                    <span>Từ</span>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      max="23"
+                                      value={t.startHour}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setRuns(prev => prev.map((r, idx) => idx === index ? {
+                                          ...r,
+                                          dayTimes: {
+                                            ...r.dayTimes,
+                                            [d]: { ...t, startHour: val }
+                                          }
+                                        } : r));
+                                      }}
+                                      className="w-10 h-7 rounded border border-zinc-200 text-center font-bold text-foreground text-[10px]"
+                                    />
+                                    <span>:</span>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      max="59"
+                                      step="5"
+                                      value={t.startMinute}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setRuns(prev => prev.map((r, idx) => idx === index ? {
+                                          ...r,
+                                          dayTimes: {
+                                            ...r.dayTimes,
+                                            [d]: { ...t, startMinute: val.padStart(2, '0') }
+                                          }
+                                        } : r));
+                                      }}
+                                      className="w-10 h-7 rounded border border-zinc-200 text-center font-bold text-foreground text-[10px]"
+                                    />
+                                    <span className="mx-1">đến</span>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      max="23"
+                                      value={t.endHour}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setRuns(prev => prev.map((r, idx) => idx === index ? {
+                                          ...r,
+                                          dayTimes: {
+                                            ...r.dayTimes,
+                                            [d]: { ...t, endHour: val }
+                                          }
+                                        } : r));
+                                      }}
+                                      className="w-10 h-7 rounded border border-zinc-200 text-center font-bold text-foreground text-[10px]"
+                                    />
+                                    <span>:</span>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      max="59"
+                                      step="5"
+                                      value={t.endMinute}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setRuns(prev => prev.map((r, idx) => idx === index ? {
+                                          ...r,
+                                          dayTimes: {
+                                            ...r.dayTimes,
+                                            [d]: { ...t, endMinute: val.padStart(2, '0') }
+                                          }
+                                        } : r));
+                                      }}
+                                      className="w-10 h-7 rounded border border-zinc-200 text-center font-bold text-foreground text-[10px]"
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Live computed end date preview */}
+                      <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-[10px] font-black ${
+                        computedEnd
+                          ? "bg-primary/8 border border-primary/20 text-primary"
+                          : "bg-zinc-100 border border-zinc-200 text-zinc-400"
+                      }`}>
+                        <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                        </svg>
+                        {computedEnd
+                          ? <span>Dự kiến: <span className="text-zinc-900 font-bold">{computedSessions} buổi</span> ({run.totalHours || 0}h) • Kết thúc: <span className="tabular-nums font-black">{computedEnd}</span></span>
+                          : <span>Nhập Tổng số giờ + Chọn thứ &amp; điền giờ học + Ngày KG để tính ngày KT</span>
+                        }
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 

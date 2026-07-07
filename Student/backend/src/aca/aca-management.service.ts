@@ -190,7 +190,31 @@ export class AcaManagementService implements OnModuleInit {
     return this.classModel.create(data);
   }
   async updateClass(id: string, data: any) {
-    return this.classModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+    const updated = await this.classModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+    if (updated && updated.classCode) {
+      const codePrefix = updated.classCode.replace(/-\d+$/i, '');
+      if (codePrefix && codePrefix !== updated.classCode) {
+        const regex = new RegExp(`^${codePrefix}-\\d+$`, 'i');
+        await this.classModel.updateMany(
+          { classCode: { $regex: regex }, _id: { $ne: updated._id } },
+          { 
+            $set: { 
+              openDate: updated.openDate,
+              teacher: updated.teacher,
+              endDate: updated.endDate,
+              name: updated.name,
+              currentPhase: updated.currentPhase,
+              phaseStartDate: updated.phaseStartDate,
+              nextPhase: updated.nextPhase,
+              nextPhaseStartDate: updated.nextPhaseStartDate,
+              slotsToEnroll: updated.slotsToEnroll,
+              progressNote: updated.progressNote
+            } 
+          }
+        ).exec();
+      }
+    }
+    return updated;
   }
   async deleteClass(id: string) {
     return this.classModel.findByIdAndDelete(id).exec();

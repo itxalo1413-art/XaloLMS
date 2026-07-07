@@ -58,19 +58,21 @@ interface ClassSchedule {
   cleanName: string;
 }
 
-const parseClassSchedule = (name: string): ClassSchedule => {
-  const nameLower = name.toLowerCase();
+const parseClassSchedule = (name: string, classCode?: string): ClassSchedule => {
+  const nameLower = `${name || ""} ${classCode || ""}`.toLowerCase();
   
-  // 1. Parse days
+  // 1. Parse days — support both Vietnamese numeric (246/357) and English alpha (MWF/TTS) abbreviations
   let days: number[] = [];
   let daysLabel = "";
-  if (nameLower.includes("246")) {
+  if (nameLower.includes("246") || nameLower.includes("mwf") || nameLower.includes("m/w/f")) {
+    // Monday / Wednesday / Friday
     days = [1, 3, 5];
     daysLabel = "T2-T4-T6";
-  } else if (nameLower.includes("357")) {
+  } else if (nameLower.includes("357") || nameLower.includes("tts") || nameLower.includes("t/t/s")) {
+    // Tuesday / Thursday / Saturday
     days = [2, 4, 6];
     daysLabel = "T3-T5-T7";
-  } else if (nameLower.includes("s/s")) {
+  } else if (nameLower.includes("s/s") || nameLower.includes("t7cn") || nameLower.includes("t7 cn")) {
     days = [6, 0];
     daysLabel = "T7-CN";
   }
@@ -153,7 +155,7 @@ const resolvePhaseDates = (cls: AcaClass): ResolvedPhases => {
     wlDate = cls.openDate;
   }
   if (!srDate && wlDate) {
-    // Calculate rolling date (+45 days / ~1.5 months after wlDate)
+    // Calculate rolling date after wlDate
     const parts = wlDate.split("/");
     if (parts.length === 3) {
       const d = parseInt(parts[0], 10);
@@ -161,8 +163,9 @@ const resolvePhaseDates = (cls: AcaClass): ResolvedPhases => {
       const y = parseInt(parts[2], 10);
       const date = new Date(y, m, d);
       if (!isNaN(date.getTime())) {
-        date.setDate(date.getDate() + 45);
-        const schedule = parseClassSchedule(cls.name);
+        const offsetDays = getPhaseDurationDays(cls.name, cls.classCode);
+        date.setDate(date.getDate() + offsetDays);
+        const schedule = parseClassSchedule(cls.name, cls.classCode);
         const adjusted = adjustToClassDay(date, schedule.days);
         const dd = String(adjusted.getDate()).padStart(2, "0");
         const mm = String(adjusted.getMonth() + 1).padStart(2, "0");
@@ -194,6 +197,63 @@ const formatDDMMYYYY = (date: Date): string => {
   const dd = String(date.getDate()).padStart(2, "0");
   const mm = String(date.getMonth() + 1).padStart(2, "0");
   return `${dd}/${mm}/${date.getFullYear()}`;
+};
+
+const toYYYYMMDD = (ddMMyyyy: string): string => {
+  if (!ddMMyyyy) return "";
+  const parts = ddMMyyyy.split("/");
+  if (parts.length !== 3) return "";
+  const d = parts[0].padStart(2, "0");
+  const m = parts[1].padStart(2, "0");
+  const y = parts[2];
+  return `${y}-${m}-${d}`;
+};
+
+const toDDMMYYYY = (yyyyMMdd: string): string => {
+  if (!yyyyMMdd) return "";
+  const parts = yyyyMMdd.split("-");
+  if (parts.length !== 3) return yyyyMMdd;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+};
+
+const handleDateIconClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+  const container = e.currentTarget.parentElement;
+  const dateInput = container?.querySelector('input[type="date"]') as HTMLInputElement;
+  if (dateInput) {
+    if (typeof dateInput.showPicker === 'function') {
+      dateInput.showPicker();
+    } else {
+      dateInput.focus();
+      dateInput.click();
+    }
+  }
+};
+
+const getClassPhaseIndex = (classCode: string): number => {
+  if (!classCode) return 0;
+  if (classCode.includes('-C2-')) return 1;
+  if (classCode.includes('-C3-')) return 2;
+  return 0;
+};
+
+const getPhaseDurationDays = (name: string, code: string): number => {
+  const nameUpper = (name || "").toUpperCase();
+  const codeUpper = (code || "").toUpperCase();
+  
+  if (nameUpper.includes("FOU") || nameUpper.includes("FOUND") || codeUpper.includes("FOU") || codeUpper.includes("FOUND")) {
+    return 105; // 3.5 months
+  }
+  if (nameUpper.includes("PRE CORE") || nameUpper.includes("PCORE") || nameUpper.includes("PRECORE") || 
+      nameUpper.includes("PRE IELTS") || nameUpper.includes("PREIELTS") || nameUpper.includes("CORE") ||
+      codeUpper.includes("PRE CORE") || codeUpper.includes("PCORE") || codeUpper.includes("PRECORE") || 
+      codeUpper.includes("PRE IELTS") || codeUpper.includes("PREIELTS") || codeUpper.includes("CORE")) {
+    return 60; // 2 months
+  }
+  // 42 days = exactly 6 weeks. Since 42 is a multiple of 7, adding 42 days to any
+  // class start date always lands on the SAME day of the week — so chặng kế will
+  // always be on the correct class day (e.g. Thứ Ba stays Thứ Ba) without any
+  // extra snap adjustment needed. Previously 45 days caused a 3-day drift.
+  return 42; // 6 weeks (1.5 months)
 };
 
 const parseScheduleLines = (scheduleText: string): string[] => {
@@ -479,7 +539,7 @@ const getProjectedEventsForMonth = (
   const dCurr = parseDate(cls.phaseStartDate);
   const dNext = parseDate(cls.nextPhaseStartDate);
 
-  const schedule = parseClassSchedule(cls.name);
+  const schedule = parseClassSchedule(cls.name, cls.classCode);
   const classDays = schedule.days;
 
   // Fix: targetEnd = last ms of last day of the target month
@@ -574,7 +634,8 @@ const getProjectedEventsForMonth = (
     }
 
     let nextDate = new Date(currentDate.getTime());
-    nextDate.setDate(nextDate.getDate() + 45);
+    const offsetDays = getPhaseDurationDays(cls.name, cls.classCode);
+    nextDate.setDate(nextDate.getDate() + offsetDays);
     currentDate = adjustToClassDay(nextDate, classDays);
     step++;
   }
@@ -657,7 +718,7 @@ const getProjectedPhasesForYear = (
   const firstPhaseIsWL = !(cls.currentPhase && (cls.currentPhase.toUpperCase().includes("S") || cls.currentPhase.toUpperCase().includes("R")));
   const step0isWL = firstPhaseIsWL;
 
-  const schedule = parseClassSchedule(cls.name);
+  const schedule = parseClassSchedule(cls.name, cls.classCode);
   const classDays = schedule.days;
 
   let currentDate = new Date(dOpen.getTime());
@@ -679,7 +740,8 @@ const getProjectedPhasesForYear = (
     });
 
     const nextDate = new Date(currentDate.getTime());
-    nextDate.setDate(nextDate.getDate() + 45);
+    const offsetDays = getPhaseDurationDays(cls.name, cls.classCode);
+    nextDate.setDate(nextDate.getDate() + offsetDays);
     currentDate = adjustToClassDay(nextDate, classDays);
     step++;
   }
@@ -931,6 +993,44 @@ export default function LopTheoThangPage() {
     setIsCrudModalOpen(true);
   };
 
+  const handleOpenDateChange = (val: string) => {
+    setFOpenDate(val);
+    
+    // Parse val to Date and auto-calculate other fields
+    const openD = parseDDMMYYYY(val);
+    if (openD) {
+      const offsetDays = getPhaseDurationDays(fName, fClassCode);
+      
+      // 1. Calculate phaseStartDate
+      const pIndex = getClassPhaseIndex(fClassCode);
+      const daysOffset = pIndex * offsetDays;
+      const sched = parseClassSchedule(fName, fClassCode);
+      const targetPhaseStart = new Date(openD.getTime());
+      targetPhaseStart.setDate(targetPhaseStart.getDate() + daysOffset);
+      const adjustedPhaseStart = adjustToClassDay(targetPhaseStart, sched.days);
+      setFPhaseStartDate(formatDDMMYYYY(adjustedPhaseStart));
+      
+      // 2. Calculate nextPhaseStartDate (+offsetDays from phaseStartDate)
+      const targetNextPhaseStart = new Date(adjustedPhaseStart.getTime());
+      targetNextPhaseStart.setDate(targetNextPhaseStart.getDate() + offsetDays);
+      const adjustedNextPhaseStart = adjustToClassDay(targetNextPhaseStart, sched.days);
+      setFNextPhaseStartDate(formatDDMMYYYY(adjustedNextPhaseStart));
+      
+      // 3. Calculate endDate (behind the scenes)
+      const nameUpper = fName.toUpperCase();
+      const codeUpper = fClassCode.toUpperCase();
+      const isFoundation = nameUpper.includes("FOU") || nameUpper.includes("FOUND") || codeUpper.includes("FOU") || codeUpper.includes("FOUND");
+      const isPreCore = nameUpper.includes("PRE CORE") || nameUpper.includes("PCORE") || nameUpper.includes("PRECORE") || 
+                        nameUpper.includes("PRE IELTS") || nameUpper.includes("PREIELTS") || nameUpper.includes("CORE") ||
+                        codeUpper.includes("PRE CORE") || codeUpper.includes("PCORE") || codeUpper.includes("PRECORE") || 
+                        codeUpper.includes("PRE IELTS") || codeUpper.includes("PREIELTS") || codeUpper.includes("CORE");
+      const totalDays = isFoundation ? 105 : (isPreCore ? 120 : 90);
+      const endD = new Date(openD.getTime());
+      endD.setDate(endD.getDate() + totalDays);
+      setFEndDate(formatDDMMYYYY(endD));
+    }
+  };
+
   // Submit class CRUD
   const handleCrudSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -952,12 +1052,12 @@ export default function LopTheoThangPage() {
     };
     try {
       if (crudMode === "add") {
-        const newClass = await createAcaClass(payload);
-        setClasses((prev) => [...prev, newClass]);
+        await createAcaClass(payload);
       } else if (crudMode === "edit" && editingClassId) {
-        const updated = await updateAcaClass(editingClassId, payload);
-        setClasses((prev) => prev.map((c) => (c.id === editingClassId ? updated : c)));
+        await updateAcaClass(editingClassId, payload);
       }
+      const updatedClasses = await fetchAcaClasses();
+      setClasses(updatedClasses);
       setIsCrudModalOpen(false);
     } catch (err: any) {
       alert("Lưu thất bại: " + err.message);
@@ -973,8 +1073,9 @@ export default function LopTheoThangPage() {
     const y = parseInt(parts[2], 10);
     const date = new Date(y, m, d);
     if (isNaN(date.getTime())) return "";
-    date.setDate(date.getDate() + 45); // + 45 days
-    const schedule = parseClassSchedule(name);
+    const offsetDays = getPhaseDurationDays(name, fClassCode);
+    date.setDate(date.getDate() + offsetDays);
+    const schedule = parseClassSchedule(name, fClassCode);
     const adjusted = adjustToClassDay(date, schedule.days);
     const dd = String(adjusted.getDate()).padStart(2, "0");
     const mm = String(adjusted.getMonth() + 1).padStart(2, "0");
@@ -1522,8 +1623,9 @@ export default function LopTheoThangPage() {
                                             const m = parseInt(parts[1], 10) - 1;
                                             const y = parseInt(parts[2], 10);
                                             const base = new Date(y, m, d);
-                                            base.setDate(base.getDate() + 45);
-                                            const schedule = parseClassSchedule((found as AcaClass).name || "");
+                                            const offsetDays = getPhaseDurationDays((found as AcaClass).name, (found as AcaClass).classCode);
+                                            base.setDate(base.getDate() + offsetDays);
+                                            const schedule = parseClassSchedule((found as AcaClass).name || "", (found as AcaClass).classCode || "");
                                             const adj = adjustToClassDay(base, schedule.days);
                                             nextDateStr = `${String(adj.getDate()).padStart(2, "0")}/${String(adj.getMonth() + 1).padStart(2, "0")}/${adj.getFullYear()}`;
                                           }
@@ -1831,10 +1933,10 @@ export default function LopTheoThangPage() {
                       <span className="text-zinc-500 font-bold">Ngày bắt đầu:</span>
                       <span className="font-black text-zinc-800">{selectedClass.startDate}</span>
                     </div>
-                    <div className="flex justify-between">
+                    {/* <div className="flex justify-between">
                       <span className="text-zinc-500 font-bold">Ngày kết thúc:</span>
                       <span className="font-black text-zinc-800">{selectedClass.endDate}</span>
-                    </div>
+                    </div> */}
                   </div>
                   <div className="space-y-2 border-l border-zinc-200/80 pl-6">
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-400">TIẾN ĐỘ & KẾT QUẢ</h4>
@@ -1886,12 +1988,7 @@ export default function LopTheoThangPage() {
                         <span className="text-zinc-500 font-bold">Ngày mở lớp:</span>
                         <span className="font-black text-zinc-800">{selectedClass.openDate}</span>
                       </div>
-                      {selectedClass.endDate && (
-                        <div className="flex justify-between">
-                          <span className="text-zinc-500 font-bold">Ngày kết thúc:</span>
-                          <span className="font-black text-zinc-800">{selectedClass.endDate}</span>
-                        </div>
-                      )}
+
                       {selectedClass.progressNote && (
                         <div className="flex justify-between">
                           <span className="text-zinc-500 font-bold">Tiến độ lớp:</span>
@@ -2029,7 +2126,19 @@ export default function LopTheoThangPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="pt-3 border-t border-zinc-100 flex justify-end">
+            <div className="pt-3 border-t border-zinc-100 flex justify-end gap-3">
+              {selectedClass && !("className" in selectedClass) && (
+                <button
+                  onClick={() => {
+                    const classToEdit = selectedClass as AcaClass;
+                    setSelectedClass(null);
+                    openEditModal(classToEdit);
+                  }}
+                  className="h-9 rounded-xl bg-primary text-white px-5 text-xs font-black uppercase shadow-soft hover:shadow-hover hover:-translate-y-0.5 transition-all"
+                >
+                  Chỉnh sửa lớp
+                </button>
+              )}
               <button
                 onClick={() => { setSelectedClass(null); setSelectedEventContext(null); }}
                 className="h-9 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 px-5 text-xs font-black uppercase"
@@ -2143,13 +2252,31 @@ export default function LopTheoThangPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Ngày mở lớp</label>
-                  <input
-                    type="text"
-                    value={fOpenDate}
-                    onChange={(e) => setFOpenDate(e.target.value)}
-                    placeholder="dd/mm/yyyy"
-                    className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10"
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      value={fOpenDate}
+                      onChange={(e) => handleOpenDateChange(e.target.value)}
+                      placeholder="dd/mm/yyyy"
+                      className="h-10 w-full rounded-xl border border-zinc-200 pl-4 pr-10 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10"
+                    />
+                    <input
+                      type="date"
+                      value={toYYYYMMDD(fOpenDate)}
+                      onChange={(e) => handleOpenDateChange(toDDMMYYYY(e.target.value))}
+                      className="absolute opacity-0 pointer-events-none w-0 h-0"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleDateIconClick}
+                      className="absolute right-3 text-zinc-400 hover:text-primary transition-colors flex items-center justify-center p-1.5 rounded-lg hover:bg-zinc-100"
+                      title="Chọn ngày"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Chặng hiện tại</label>
@@ -2167,13 +2294,31 @@ export default function LopTheoThangPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Khai giảng chặng hiện tại</label>
-                  <input
-                    type="text"
-                    value={fPhaseStartDate}
-                    onChange={(e) => setFPhaseStartDate(e.target.value)}
-                    placeholder="dd/mm/yyyy"
-                    className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10"
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      value={fPhaseStartDate}
+                      onChange={(e) => setFPhaseStartDate(e.target.value)}
+                      placeholder="dd/mm/yyyy"
+                      className="h-10 w-full rounded-xl border border-zinc-200 pl-4 pr-10 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10"
+                    />
+                    <input
+                      type="date"
+                      value={toYYYYMMDD(fPhaseStartDate)}
+                      onChange={(e) => setFPhaseStartDate(toDDMMYYYY(e.target.value))}
+                      className="absolute opacity-0 pointer-events-none w-0 h-0"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleDateIconClick}
+                      className="absolute right-3 text-zinc-400 hover:text-primary transition-colors flex items-center justify-center p-1.5 rounded-lg hover:bg-zinc-100"
+                      title="Chọn ngày"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Sĩ số chặng hiện tại</label>
@@ -2201,13 +2346,31 @@ export default function LopTheoThangPage() {
                 </div>
                 <div>
                   <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Khai giảng chặng kế</label>
-                  <input
-                    type="text"
-                    value={fNextPhaseStartDate}
-                    onChange={(e) => setFNextPhaseStartDate(e.target.value)}
-                    placeholder="dd/mm/yyyy"
-                    className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10"
-                  />
+                  <div className="relative flex items-center">
+                    <input
+                      type="text"
+                      value={fNextPhaseStartDate}
+                      onChange={(e) => setFNextPhaseStartDate(e.target.value)}
+                      placeholder="dd/mm/yyyy"
+                      className="h-10 w-full rounded-xl border border-zinc-200 pl-4 pr-10 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10"
+                    />
+                    <input
+                      type="date"
+                      value={toYYYYMMDD(fNextPhaseStartDate)}
+                      onChange={(e) => setFNextPhaseStartDate(toDDMMYYYY(e.target.value))}
+                      className="absolute opacity-0 pointer-events-none w-0 h-0"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleDateIconClick}
+                      className="absolute right-3 text-zinc-400 hover:text-primary transition-colors flex items-center justify-center p-1.5 rounded-lg hover:bg-zinc-100"
+                      title="Chọn ngày"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5m-9-6h.008v.008H12v-.008ZM12 15h.008v.008H12V15Zm0 2.25h.008v.008H12v-.008ZM9.75 15h.008v.008H9.75V15Zm0 2.25h.008v.008H9.75v-.008ZM7.5 15h.008v.008H7.5V15Zm0 2.25h.008v.008H7.5v-.008Zm6.75-4.5h.008v.008h-.008v-.008Zm0 2.25h.008v.008h-.008V15Zm0 2.25h.008v.008h-.008v-.008Zm2.25-4.5h.008v.008H16.5v-.008Zm0 2.25h.008v.008H16.5V15Z" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Cần tuyển (slot)</label>
@@ -2221,28 +2384,16 @@ export default function LopTheoThangPage() {
                 </div>
               </div>
 
-              {/* Row 7: endDate + progressNote */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Ngày kết thúc lớp học</label>
-                  <input
-                    type="text"
-                    value={fEndDate}
-                    onChange={(e) => setFEndDate(e.target.value)}
-                    placeholder="dd/mm/yyyy"
-                    className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Ghi chú tình trạng tiến độ</label>
-                  <input
-                    type="text"
-                    value={fProgressNote}
-                    onChange={(e) => setFProgressNote(e.target.value)}
-                    placeholder="Đúng tiến độ, GV nhận xét tốt..."
-                    className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10"
-                  />
-                </div>
+              {/* Row 7: progressNote */}
+              <div>
+                <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Ghi chú tình trạng tiến độ</label>
+                <input
+                  type="text"
+                  value={fProgressNote}
+                  onChange={(e) => setFProgressNote(e.target.value)}
+                  placeholder="Đúng tiến độ, GV nhận xét tốt..."
+                  className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10"
+                />
               </div>
 
               <div className="flex justify-end gap-3 pt-3 border-t border-zinc-100">
