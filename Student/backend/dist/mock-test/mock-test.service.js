@@ -164,7 +164,7 @@ let MockTestService = class MockTestService {
                 examTime,
                 examTeacher,
             },
-        }, { new: true })
+        }, { returnDocument: 'after' })
             .lean()
             .exec();
         return this.toPublic(updated);
@@ -208,7 +208,7 @@ let MockTestService = class MockTestService {
                 score,
                 examLink,
             },
-        }, { new: true })
+        }, { returnDocument: 'after' })
             .lean()
             .exec();
         return this.toPublic(updated);
@@ -219,7 +219,7 @@ let MockTestService = class MockTestService {
             throw new common_1.BadRequestException('Yêu cầu không còn ở trạng thái chờ duyệt');
         }
         const updated = await this.model
-            .findByIdAndUpdate(doc._id, { $set: { status: 'rejected' } }, { new: true })
+            .findByIdAndUpdate(doc._id, { $set: { status: 'rejected' } }, { returnDocument: 'after' })
             .lean()
             .exec();
         return this.toPublic(updated);

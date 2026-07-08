@@ -131,7 +131,7 @@ let PracticeClassService = class PracticeClassService {
                 weekRangeLabel: payload.weekRangeLabel?.trim() ?? '',
                 slotOverrides: normalized,
             },
-        }, { upsert: true, new: true })
+        }, { upsert: true, returnDocument: 'after' })
             .lean()
             .exec();
         return this.buildScheduleResponse(doc, doc?.slotOverrides ?? normalized);

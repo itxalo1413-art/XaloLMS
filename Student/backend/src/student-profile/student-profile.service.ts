@@ -95,7 +95,7 @@ export class StudentProfileService {
           $set: { profileData: { ...next } },
           $setOnInsert: { userId: new Types.ObjectId(userId) },
         },
-        { upsert: true, new: true },
+        { upsert: true, returnDocument: 'after' },
       )
       .exec();
     return next;

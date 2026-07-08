@@ -160,7 +160,7 @@ export class AcaContentService {
       throw new BadRequestException('Không có dữ liệu cập nhật hợp lệ');
     }
     const updated = await this.contentModel
-      .findByIdAndUpdate(id, { $set: payload }, { new: true })
+      .findByIdAndUpdate(id, { $set: payload }, { returnDocument: 'after' })
       .lean()
       .exec();
     if (!updated) throw new NotFoundException('Không tìm thấy tài liệu');
@@ -177,7 +177,7 @@ export class AcaContentService {
       );
     }
     const updated = await this.contentModel
-      .findByIdAndUpdate(id, { $set: { status } }, { new: true })
+      .findByIdAndUpdate(id, { $set: { status } }, { returnDocument: 'after' })
       .lean()
       .exec();
     if (!updated) throw new NotFoundException('Không tìm thấy tài liệu');

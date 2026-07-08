@@ -41,11 +41,7 @@ export function Sidebar({ onOpenProfile }: { onOpenProfile?: () => void }) {
             alt="Logo XLE"
             className="h-8 w-auto object-contain"
           />
-          <img
-            src="/XALO.ENGLISH.svg"
-            alt="Logo phụ âm bản"
-            className="h-4 w-auto object-contain"
-          />
+          <p className="text-bold">XA LỘ ENGLISH</p>
         </Link>
 
         <div className="h-px w-full bg-gradient-to-r from-transparent via-background to-transparent mb-4"></div>

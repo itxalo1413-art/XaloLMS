@@ -194,7 +194,7 @@ export class PracticeClassService {
             slotOverrides: normalized,
           },
         },
-        { upsert: true, new: true },
+        { upsert: true, returnDocument: 'after' },
       )
       .lean()
       .exec();

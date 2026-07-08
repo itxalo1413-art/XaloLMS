@@ -190,7 +190,7 @@ export class AcaManagementService implements OnModuleInit {
     return this.classModel.create(data);
   }
   async updateClass(id: string, data: any) {
-    const updated = await this.classModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+    const updated = await this.classModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
     if (updated && updated.classCode) {
       const codePrefix = updated.classCode.replace(/-\d+$/i, '');
       if (codePrefix && codePrefix !== updated.classCode) {
@@ -238,7 +238,7 @@ export class AcaManagementService implements OnModuleInit {
     if (data.classification) {
       data.classification = normalizeClassification(data.classification);
     }
-    return this.studentModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+    return this.studentModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
   }
   async deleteStudent(id: string) {
     return this.studentModel.findByIdAndDelete(id).exec();
@@ -252,7 +252,7 @@ export class AcaManagementService implements OnModuleInit {
     return this.practiceWeekModel.create(data);
   }
   async updateWeek(id: string, data: any) {
-    return this.practiceWeekModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+    return this.practiceWeekModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
   }
   async deleteWeek(id: string) {
     return this.practiceWeekModel.findByIdAndDelete(id).exec();
@@ -266,7 +266,7 @@ export class AcaManagementService implements OnModuleInit {
     return this.practiceStudentModel.create(data);
   }
   async updatePracticeStudent(id: string, data: any) {
-    return this.practiceStudentModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+    return this.practiceStudentModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
   }
   async deletePracticeStudent(id: string) {
     return this.practiceStudentModel.findByIdAndDelete(id).exec();
@@ -280,7 +280,7 @@ export class AcaManagementService implements OnModuleInit {
     return this.aca11Model.create(data);
   }
   async update11Class(id: string, data: any) {
-    return this.aca11Model.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+    return this.aca11Model.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
   }
   async delete11Class(id: string) {
     return this.aca11Model.findByIdAndDelete(id).exec();
@@ -294,7 +294,7 @@ export class AcaManagementService implements OnModuleInit {
     return this.weeklyDocModel.create(data);
   }
   async updateWeeklyDoc(id: string, data: any) {
-    return this.weeklyDocModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+    return this.weeklyDocModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
   }
   async deleteWeeklyDoc(id: string) {
     return this.weeklyDocModel.findByIdAndDelete(id).exec();
@@ -308,7 +308,7 @@ export class AcaManagementService implements OnModuleInit {
     return this.teacherAssignmentModel.create(data);
   }
   async updateTeacherAssignment(id: string, data: any) {
-    return this.teacherAssignmentModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+    return this.teacherAssignmentModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
   }
   async deleteTeacherAssignment(id: string) {
     return this.teacherAssignmentModel.findByIdAndDelete(id).exec();
@@ -322,7 +322,7 @@ export class AcaManagementService implements OnModuleInit {
     return this.freeSlotModel.create(data);
   }
   async updateFreeSlot(id: string, data: any) {
-    return this.freeSlotModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+    return this.freeSlotModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
   }
   async deleteFreeSlot(id: string) {
     return this.freeSlotModel.findByIdAndDelete(id).exec();

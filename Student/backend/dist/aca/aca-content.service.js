@@ -124,7 +124,7 @@ let AcaContentService = class AcaContentService {
             throw new common_1.BadRequestException('Không có dữ liệu cập nhật hợp lệ');
         }
         const updated = await this.contentModel
-            .findByIdAndUpdate(id, { $set: payload }, { new: true })
+            .findByIdAndUpdate(id, { $set: payload }, { returnDocument: 'after' })
             .lean()
             .exec();
         if (!updated)
@@ -139,7 +139,7 @@ let AcaContentService = class AcaContentService {
             throw new common_1.BadRequestException('status phải là draft, pending, published hoặc hidden');
         }
         const updated = await this.contentModel
-            .findByIdAndUpdate(id, { $set: { status } }, { new: true })
+            .findByIdAndUpdate(id, { $set: { status } }, { returnDocument: 'after' })
             .lean()
             .exec();
         if (!updated)

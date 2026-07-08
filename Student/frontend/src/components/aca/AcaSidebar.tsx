@@ -15,9 +15,8 @@ const requiredLists = [
 const systemModules = [
   { href: "/aca/quan-ly/mock-test", label: "Duyệt Mock Test", desc: "Xếp lịch & ca rảnh Speaking" },
   { href: "/aca/quan-ly/lich-ranh", label: "Lịch rảnh ACA", desc: "Set lịch rảnh Speaking" },
-  { href: "/aca/quan-ly/cham-writing", label: "Chấm Writing", desc: "Quản lý & chấm bài nộp" },
-  { href: "/aca/he-thong-ws", label: "Hệ thống W-S", desc: "Phân công & lịch chấm" },
-  { href: "/aca/mock-test-sw", label: "Mock Test S-W", desc: "Test & Lịch Entrance/Final" },
+  { href: "/aca/quan-ly/cham-writing", label: "Chấm Writing", desc: "Quản lý & chấm bài Writing" },
+  { href: "/aca/quan-ly/cham-speaking", label: "Chấm Speaking", desc: "Quản lý lịch & link Meet/Zoom Speaking" },
   { href: "/aca/nhan-bai-luyen-de", label: "Nhận bài & Cấp độ", desc: "Nhận bài làm & Giao GV" },
 ];
 

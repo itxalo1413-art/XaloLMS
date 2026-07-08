@@ -189,7 +189,7 @@ let AcaManagementService = class AcaManagementService {
         return this.classModel.create(data);
     }
     async updateClass(id, data) {
-        const updated = await this.classModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+        const updated = await this.classModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
         if (updated && updated.classCode) {
             const codePrefix = updated.classCode.replace(/-\d+$/i, '');
             if (codePrefix && codePrefix !== updated.classCode) {
@@ -232,7 +232,7 @@ let AcaManagementService = class AcaManagementService {
         if (data.classification) {
             data.classification = normalizeClassification(data.classification);
         }
-        return this.studentModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+        return this.studentModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
     }
     async deleteStudent(id) {
         return this.studentModel.findByIdAndDelete(id).exec();
@@ -244,7 +244,7 @@ let AcaManagementService = class AcaManagementService {
         return this.practiceWeekModel.create(data);
     }
     async updateWeek(id, data) {
-        return this.practiceWeekModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+        return this.practiceWeekModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
     }
     async deleteWeek(id) {
         return this.practiceWeekModel.findByIdAndDelete(id).exec();
@@ -256,7 +256,7 @@ let AcaManagementService = class AcaManagementService {
         return this.practiceStudentModel.create(data);
     }
     async updatePracticeStudent(id, data) {
-        return this.practiceStudentModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+        return this.practiceStudentModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
     }
     async deletePracticeStudent(id) {
         return this.practiceStudentModel.findByIdAndDelete(id).exec();
@@ -268,7 +268,7 @@ let AcaManagementService = class AcaManagementService {
         return this.aca11Model.create(data);
     }
     async update11Class(id, data) {
-        return this.aca11Model.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+        return this.aca11Model.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
     }
     async delete11Class(id) {
         return this.aca11Model.findByIdAndDelete(id).exec();
@@ -280,7 +280,7 @@ let AcaManagementService = class AcaManagementService {
         return this.weeklyDocModel.create(data);
     }
     async updateWeeklyDoc(id, data) {
-        return this.weeklyDocModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+        return this.weeklyDocModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
     }
     async deleteWeeklyDoc(id) {
         return this.weeklyDocModel.findByIdAndDelete(id).exec();
@@ -292,7 +292,7 @@ let AcaManagementService = class AcaManagementService {
         return this.teacherAssignmentModel.create(data);
     }
     async updateTeacherAssignment(id, data) {
-        return this.teacherAssignmentModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+        return this.teacherAssignmentModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
     }
     async deleteTeacherAssignment(id) {
         return this.teacherAssignmentModel.findByIdAndDelete(id).exec();
@@ -304,7 +304,7 @@ let AcaManagementService = class AcaManagementService {
         return this.freeSlotModel.create(data);
     }
     async updateFreeSlot(id, data) {
-        return this.freeSlotModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+        return this.freeSlotModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
     }
     async deleteFreeSlot(id) {
         return this.freeSlotModel.findByIdAndDelete(id).exec();

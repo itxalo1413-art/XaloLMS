@@ -280,7 +280,7 @@ export class UsersService implements OnModuleInit {
       throw new BadRequestException('Không có dữ liệu cập nhật hợp lệ');
     }
     const updated = await this.userModel
-      .findByIdAndUpdate(id, { $set: payload }, { new: true })
+      .findByIdAndUpdate(id, { $set: payload }, { returnDocument: 'after' })
       .lean<UserLean>()
       .exec();
     if (!updated) {
@@ -298,7 +298,7 @@ export class UsersService implements OnModuleInit {
     }
     const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
     const updated = await this.userModel
-      .findByIdAndUpdate(id, { $set: { passwordHash } }, { new: true })
+      .findByIdAndUpdate(id, { $set: { passwordHash } }, { returnDocument: 'after' })
       .select('_id')
       .lean()
       .exec();

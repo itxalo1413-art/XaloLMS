@@ -264,7 +264,7 @@ let UsersService = class UsersService {
             throw new common_1.BadRequestException('Không có dữ liệu cập nhật hợp lệ');
         }
         const updated = await this.userModel
-            .findByIdAndUpdate(id, { $set: payload }, { new: true })
+            .findByIdAndUpdate(id, { $set: payload }, { returnDocument: 'after' })
             .lean()
             .exec();
         if (!updated) {
@@ -281,7 +281,7 @@ let UsersService = class UsersService {
         }
         const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
         const updated = await this.userModel
-            .findByIdAndUpdate(id, { $set: { passwordHash } }, { new: true })
+            .findByIdAndUpdate(id, { $set: { passwordHash } }, { returnDocument: 'after' })
             .select('_id')
             .lean()
             .exec();

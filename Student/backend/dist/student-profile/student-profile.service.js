@@ -88,7 +88,7 @@ let StudentProfileService = StudentProfileService_1 = class StudentProfileServic
             .findOneAndUpdate({ userId: new mongoose_2.Types.ObjectId(userId) }, {
             $set: { profileData: { ...next } },
             $setOnInsert: { userId: new mongoose_2.Types.ObjectId(userId) },
-        }, { upsert: true, new: true })
+        }, { upsert: true, returnDocument: 'after' })
             .exec();
         return next;
     }

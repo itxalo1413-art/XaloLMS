@@ -212,7 +212,7 @@ export class MockTestService {
             examTeacher,
           },
         },
-        { new: true },
+        { returnDocument: 'after' },
       )
       .lean()
       .exec();
@@ -265,7 +265,7 @@ export class MockTestService {
             examLink,
           },
         },
-        { new: true },
+        { returnDocument: 'after' },
       )
       .lean()
       .exec();
@@ -278,7 +278,7 @@ export class MockTestService {
       throw new BadRequestException('Yêu cầu không còn ở trạng thái chờ duyệt');
     }
     const updated = await this.model
-      .findByIdAndUpdate(doc._id, { $set: { status: 'rejected' } }, { new: true })
+      .findByIdAndUpdate(doc._id, { $set: { status: 'rejected' } }, { returnDocument: 'after' })
       .lean()
       .exec();
     return this.toPublic(updated as MockTestLean);

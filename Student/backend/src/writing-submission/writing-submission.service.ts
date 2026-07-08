@@ -199,7 +199,7 @@ export class WritingSubmissionService {
             note,
           },
         },
-        { new: true },
+        { returnDocument: 'after' },
       )
       .lean()
       .exec();

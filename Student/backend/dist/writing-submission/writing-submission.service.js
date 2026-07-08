@@ -149,7 +149,7 @@ let WritingSubmissionService = class WritingSubmissionService {
                 task2,
                 note,
             },
-        }, { new: true })
+        }, { returnDocument: 'after' })
             .lean()
             .exec();
         return this.toPublic(updated);

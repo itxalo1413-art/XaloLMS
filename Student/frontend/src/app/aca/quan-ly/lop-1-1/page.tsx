@@ -229,8 +229,82 @@ const parseDayTimesFromText = (
   return result;
 };
 
+// ─── Helper: compute run sessions and weeks from structured fields ───────────
+const computeRunSessionsAndWeeks = (run: {
+  dayTimes: Record<string, { startHour: string; startMinute: string; endHour: string; endMinute: string }>;
+  totalHours: string;
+  totalSessions?: string;
+  sessionsPerWeek: string;
+}) => {
+  const spw = run.sessionsPerWeek ? parseInt(run.sessionsPerWeek, 10) : 0;
+  if (!spw) return { sessions: 0, weeks: 0 };
+
+  let sessions = 0;
+  if (run.totalHours) {
+    // Sum duration of all selected days to get hours per week
+    let hoursPerWeek = 0;
+    Object.keys(run.dayTimes).forEach(d => {
+      const t = run.dayTimes[d];
+      if (t) {
+        const sh = parseInt(t.startHour, 10) || 0;
+        const sm = parseInt(t.startMinute, 10) || 0;
+        const eh = parseInt(t.endHour, 10) || 0;
+        const em = parseInt(t.endMinute, 10) || 0;
+        const duration = (eh * 60 + em - (sh * 60 + sm)) / 60;
+        if (duration > 0) hoursPerWeek += duration;
+      }
+    });
+
+    // Default to 2 hours per session if no days are selected or all are 0
+    if (hoursPerWeek <= 0) {
+      hoursPerWeek = spw * 2.0;
+    }
+
+    const avgHoursPerSession = hoursPerWeek / spw;
+    sessions = Math.ceil(parseFloat(run.totalHours) / avgHoursPerSession);
+  } else if (run.totalSessions) {
+    sessions = parseInt(run.totalSessions, 10);
+  }
+
+  const weeks = spw > 0 ? Math.ceil(sessions / spw) : 0;
+  return { sessions, weeks };
+};
+
+// ─── Helper: calculate exact end date by day-by-day calendar simulation ──────
+const calculateExactEndDate = (startDateStr: string, classDays: string[], sessionsCount: number): string => {
+  const start = parseDDMMYYYY(startDateStr);
+  if (!start || sessionsCount <= 0) return "";
+
+  // Map classDays ("2", "3", "4", "5", "6", "7", "CN") to JS getDay() values (1, 2, 3, 4, 5, 6, 0)
+  const targetDays = classDays.map(d => {
+    if (d === "CN") return 0;
+    return parseInt(d, 10);
+  });
+
+  if (targetDays.length === 0) {
+    // Fallback: assume 3 sessions per week (1 session = 2.33 days on average)
+    const fallbackDate = new Date(start);
+    fallbackDate.setDate(fallbackDate.getDate() + Math.ceil(sessionsCount * 2.33));
+    return formatDDMMYYYY(fallbackDate);
+  }
+
+  let current = new Date(start);
+  let count = 1; // Start date itself counts as the first session
+
+  while (count < sessionsCount) {
+    current.setDate(current.getDate() + 1);
+    const dayOfWeek = current.getDay();
+    if (targetDays.includes(dayOfWeek)) {
+      count++;
+    }
+  }
+
+  return formatDDMMYYYY(current);
+};
+
 // ─── Helper: compute end date from structured run fields ─────────────────────
 const computeEndDateFromRun = (run: {
+  classDays: string[];
   dayTimes: Record<string, { startHour: string; startMinute: string; endHour: string; endMinute: string }>;
   totalHours: string;
   totalSessions: string;
@@ -239,35 +313,9 @@ const computeEndDateFromRun = (run: {
 }): string => {
   const start = parseDDMMYYYY(run.startDate);
   if (!start) return "";
-  const spw = run.sessionsPerWeek ? parseInt(run.sessionsPerWeek, 10) : 0;
-  if (!spw) return "";
-  
-  let sessions = 0;
-  if (run.totalHours) {
-    const days = Object.keys(run.dayTimes);
-    let avgHours = 2.0;
-    if (days.length > 0) {
-      const firstDay = days[0];
-      const t = run.dayTimes[firstDay];
-      if (t) {
-        const sh = parseInt(t.startHour, 10) || 19;
-        const sm = parseInt(t.startMinute, 10) || 0;
-        const eh = parseInt(t.endHour, 10) || 21;
-        const em = parseInt(t.endMinute, 10) || 0;
-        const duration = (eh * 60 + em - (sh * 60 + sm)) / 60;
-        if (duration > 0) avgHours = duration;
-      }
-    }
-    sessions = Math.ceil(parseInt(run.totalHours, 10) / avgHours);
-  } else if (run.totalSessions) {
-    sessions = parseInt(run.totalSessions, 10);
-  }
-
+  const { sessions } = computeRunSessionsAndWeeks(run);
   if (!sessions) return "";
-  const weeks = Math.ceil(sessions / spw);
-  const end = new Date(start);
-  end.setDate(end.getDate() + weeks * 7);
-  return formatDDMMYYYY(end);
+  return calculateExactEndDate(run.startDate, run.classDays, sessions);
 };
 
 // ─── Current date ────────────────────────────────────────────────────────────
@@ -526,27 +574,7 @@ export default function Lop11Page() {
 
     // Build full schedule string for each run: prefix [Xh|Ybuổi|Zb/w] + day times
     const buildScheduleStr = (r: typeof runs[0]) => {
-      // Calculate totalSessions automatically
-      let computedSessions = 0;
-      const days = Object.keys(r.dayTimes);
-      let avgHours = 2.0;
-      if (days.length > 0) {
-        const firstDay = days[0];
-        const t = r.dayTimes[firstDay];
-        if (t) {
-          const sh = parseInt(t.startHour, 10) || 19;
-          const sm = parseInt(t.startMinute, 10) || 0;
-          const eh = parseInt(t.endHour, 10) || 21;
-          const em = parseInt(t.endMinute, 10) || 0;
-          const duration = (eh * 60 + em - (sh * 60 + sm)) / 60;
-          if (duration > 0) avgHours = duration;
-        }
-      }
-      if (r.totalHours) {
-        computedSessions = Math.ceil(parseFloat(r.totalHours) / avgHours);
-      } else if (r.totalSessions) {
-        computedSessions = parseInt(r.totalSessions, 10);
-      }
+      const { sessions: computedSessions } = computeRunSessionsAndWeeks(r);
 
       const hasStructured = r.totalHours || computedSessions || r.sessionsPerWeek;
       const prefix = hasStructured
@@ -1396,27 +1424,7 @@ export default function Lop11Page() {
                   {runs.map((run, index) => {
                     const computedEnd = computeEndDateFromRun(run);
                     
-                    // calculate computedSessions inline for display
-                    let computedSessions = 0;
-                    const days = Object.keys(run.dayTimes);
-                    let avgHours = 2.0;
-                    if (days.length > 0) {
-                      const firstDay = days[0];
-                      const t = run.dayTimes[firstDay];
-                      if (t) {
-                        const sh = parseInt(t.startHour, 10) || 19;
-                        const sm = parseInt(t.startMinute, 10) || 0;
-                        const eh = parseInt(t.endHour, 10) || 21;
-                        const em = parseInt(t.endMinute, 10) || 0;
-                        const duration = (eh * 60 + em - (sh * 60 + sm)) / 60;
-                        if (duration > 0) avgHours = duration;
-                      }
-                    }
-                    if (run.totalHours) {
-                      computedSessions = Math.ceil(parseFloat(run.totalHours) / avgHours);
-                    } else if (run.totalSessions) {
-                      computedSessions = parseInt(run.totalSessions, 10);
-                    }
+                    const { sessions: computedSessions } = computeRunSessionsAndWeeks(run);
 
                     return (
                     <div key={index} className="bg-zinc-50 border border-zinc-200/60 p-3 rounded-2xl relative space-y-3">
@@ -1560,9 +1568,19 @@ export default function Lop11Page() {
                             {run.classDays.map(d => {
                               const t = run.dayTimes[d] || { startHour: "19", startMinute: "00", endHour: "21", endMinute: "00" };
                               const dayLabel = d === "CN" ? "Chủ Nhật" : `Thứ ${d}`;
+                              const sh = parseInt(t.startHour, 10) || 0;
+                              const sm = parseInt(t.startMinute, 10) || 0;
+                              const eh = parseInt(t.endHour, 10) || 0;
+                              const em = parseInt(t.endMinute, 10) || 0;
+                              const duration = (eh * 60 + em - (sh * 60 + sm)) / 60;
+                              const durationText = duration > 0 ? `${duration}h` : "";
+
                               return (
                                 <div key={d} className="flex items-center justify-between bg-zinc-100/50 px-2.5 py-1.5 rounded-xl border border-zinc-200/40">
-                                  <span className="text-[10px] font-black text-zinc-600 w-16">{dayLabel}</span>
+                                  <div className="flex flex-col">
+                                    <span className="text-[10px] font-black text-zinc-600 w-16">{dayLabel}</span>
+                                    {durationText && <span className="text-[8px] text-primary/80 font-black">{durationText}/buổi</span>}
+                                  </div>
                                   <div className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-500">
                                     <span>Từ</span>
                                     <input
