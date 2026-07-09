@@ -72,6 +72,8 @@ export interface AcaClass {
   month: number;
   type: string;
   openDate: string;
+  /** Lịch sử các ngày mở lớp trước đây (dd/mm/yyyy), từ cũ nhất đến gần nhất) */
+  openDateHistory?: string[];
   teacher: string;
   currentPhase: string;
   phaseStartDate: string;
@@ -83,6 +85,8 @@ export interface AcaClass {
   endDate?: string;
   /** Ghi chú tiến độ lớp */
   progressNote?: string;
+  /** Số ngày thời lượng chặng để chiếu lịch custom */
+  phaseDurationDays?: number;
 }
 
 export interface AcaStudentCycle {

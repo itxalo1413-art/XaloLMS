@@ -289,8 +289,15 @@ const calculateExactEndDate = (startDateStr: string, classDays: string[], sessio
   }
 
   let current = new Date(start);
-  let count = 1; // Start date itself counts as the first session
 
+  // Step 1: Advance to the first valid class day on or after the start date
+  // This handles the case where the start date itself is NOT a class day
+  while (!targetDays.includes(current.getDay())) {
+    current.setDate(current.getDate() + 1);
+  }
+
+  // Step 2: Count sessions from the first valid class day (count = 1 already)
+  let count = 1;
   while (count < sessionsCount) {
     current.setDate(current.getDate() + 1);
     const dayOfWeek = current.getDay();

@@ -26,6 +26,7 @@ let AcaClass = class AcaClass {
     slotsToEnroll;
     endDate;
     progressNote;
+    phaseDurationDays;
 };
 exports.AcaClass = AcaClass;
 __decorate([
@@ -84,6 +85,10 @@ __decorate([
     (0, mongoose_1.Prop)({ trim: true, default: '' }),
     __metadata("design:type", String)
 ], AcaClass.prototype, "progressNote", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: Number }),
+    __metadata("design:type", Number)
+], AcaClass.prototype, "phaseDurationDays", void 0);
 exports.AcaClass = AcaClass = __decorate([
     (0, mongoose_1.Schema)({ collection: 'aca_classes', timestamps: true })
 ], AcaClass);

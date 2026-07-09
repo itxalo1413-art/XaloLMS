@@ -53,6 +53,10 @@ export class AcaClass {
   /** Ghi chú tình trạng tiến độ lớp */
   @Prop({ trim: true, default: '' })
   progressNote: string;
+
+  /** Số ngày thời lượng chặng để chiếu lịch custom */
+  @Prop({ type: Number })
+  phaseDurationDays?: number;
 }
 
 export const AcaClassSchema = SchemaFactory.createForClass(AcaClass);

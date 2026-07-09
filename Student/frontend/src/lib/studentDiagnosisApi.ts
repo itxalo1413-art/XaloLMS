@@ -23,10 +23,14 @@ export type LiveStudentDiagnosis = {
 };
 
 export async function fetchLiveStudentDiagnosis(): Promise<LiveStudentDiagnosis | null> {
-  const response = await apiFetch("/api/student/profile/diagnosis", { method: "GET" });
-  if (response.status === 401) {
-    throw new Error("UNAUTHORIZED");
+  let response: Response;
+  try {
+    response = await apiFetch("/api/student/profile/diagnosis", { method: "GET" });
+  } catch {
+    // Backend không kết nối được: coi như chưa có dữ liệu live.
+    return null;
   }
+  // 401 = chưa đăng nhập (bình thường khi tắt auth); không phải lỗi cần ném ra.
   if (!response.ok) {
     return null;
   }

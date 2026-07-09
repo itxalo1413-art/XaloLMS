@@ -15,6 +15,7 @@ export declare class AcaClass {
     slotsToEnroll: number;
     endDate: string;
     progressNote: string;
+    phaseDurationDays?: number;
 }
 export declare const AcaClassSchema: import("mongoose").Schema<AcaClass, import("mongoose").Model<AcaClass, any, any, any, any, any, AcaClass>, {}, {}, {}, {}, import("mongoose").DefaultSchemaOptions, AcaClass, import("mongoose").Document<unknown, {}, AcaClass, {
     id: string;
@@ -143,6 +144,15 @@ export declare const AcaClassSchema: import("mongoose").Schema<AcaClass, import(
         id: string;
     }> | undefined;
     progressNote?: import("mongoose").SchemaDefinitionProperty<string, AcaClass, import("mongoose").Document<unknown, {}, AcaClass, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<AcaClass & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    phaseDurationDays?: import("mongoose").SchemaDefinitionProperty<number | undefined, AcaClass, import("mongoose").Document<unknown, {}, AcaClass, {
         id: string;
     }, import("mongoose").DefaultSchemaOptions> & Omit<AcaClass & {
         _id: import("mongoose").Types.ObjectId;

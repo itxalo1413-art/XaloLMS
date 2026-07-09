@@ -119,6 +119,10 @@ interface ResolvedPhases {
   activePhase: "W-L" | "S-R" | "OTHER";
 }
 
+const isAcaClass = (value: AcaClass | Aca11Class | null | undefined): value is AcaClass => {
+  return !!value && "classCode" in value;
+};
+
 const LEVEL_SEQUENCE = ["FOUND", "MMNT", "UPSTR", "SOAR", "ADV"];
 
 const resolvePhaseDates = (cls: AcaClass): ResolvedPhases => {
@@ -163,7 +167,7 @@ const resolvePhaseDates = (cls: AcaClass): ResolvedPhases => {
       const y = parseInt(parts[2], 10);
       const date = new Date(y, m, d);
       if (!isNaN(date.getTime())) {
-        const offsetDays = getPhaseDurationDays(cls.name, cls.classCode);
+        const offsetDays = getPhaseDurationDays(cls.name, cls.classCode, cls.phaseDurationDays);
         date.setDate(date.getDate() + offsetDays);
         const schedule = parseClassSchedule(cls.name, cls.classCode);
         const adjusted = adjustToClassDay(date, schedule.days);
@@ -236,7 +240,10 @@ const getClassPhaseIndex = (classCode: string): number => {
   return 0;
 };
 
-const getPhaseDurationDays = (name: string, code: string): number => {
+const getPhaseDurationDays = (name: string, code: string, customDuration?: number): number => {
+  if (customDuration !== undefined && customDuration > 0) {
+    return customDuration;
+  }
   const nameUpper = (name || "").toUpperCase();
   const codeUpper = (code || "").toUpperCase();
   
@@ -634,7 +641,7 @@ const getProjectedEventsForMonth = (
     }
 
     let nextDate = new Date(currentDate.getTime());
-    const offsetDays = getPhaseDurationDays(cls.name, cls.classCode);
+    const offsetDays = getPhaseDurationDays(cls.name, cls.classCode, cls.phaseDurationDays);
     nextDate.setDate(nextDate.getDate() + offsetDays);
     currentDate = adjustToClassDay(nextDate, classDays);
     step++;
@@ -740,7 +747,7 @@ const getProjectedPhasesForYear = (
     });
 
     const nextDate = new Date(currentDate.getTime());
-    const offsetDays = getPhaseDurationDays(cls.name, cls.classCode);
+    const offsetDays = getPhaseDurationDays(cls.name, cls.classCode, cls.phaseDurationDays);
     nextDate.setDate(nextDate.getDate() + offsetDays);
     currentDate = adjustToClassDay(nextDate, classDays);
     step++;
@@ -850,6 +857,7 @@ export default function LopTheoThangPage() {
 
   const [activeTab, setActiveTab] = useState<"calendar" | "list">("calendar");
   const [selectedClass, setSelectedClass] = useState<AcaClass | Aca11Class | null>(null);
+  const [showHistoryInTimeline, setShowHistoryInTimeline] = useState(false);
   // Context of the clicked calendar event (which phase/date in the target month was selected)
   const [selectedEventContext, setSelectedEventContext] = useState<{
     phaseType: "open" | "wl" | "sr";
@@ -861,6 +869,7 @@ export default function LopTheoThangPage() {
   const [selectedPhaseIndex, setSelectedPhaseIndex] = useState<number | null>(null);
 
   useEffect(() => {
+    setShowHistoryInTimeline(false);
     if (selectedClass && !("className" in selectedClass)) {
       const projected = getProjectedPhasesForYear(selectedClass as AcaClass, selectedYear);
       const active = projected.find(p => p.isCurrent);
@@ -922,6 +931,7 @@ export default function LopTheoThangPage() {
   const [fNextPhase, setFNextPhase] = useState("");
   const [fSlotsToEnroll, setFSlotsToEnroll] = useState(0);
   const [fProgressNote, setFProgressNote] = useState("");
+  const [fOpenDateHistory, setFOpenDateHistory] = useState<string[]>([]);
 
   useEffect(() => {
     async function loadData() {
@@ -969,6 +979,7 @@ export default function LopTheoThangPage() {
     setFNextPhase("");
     setFSlotsToEnroll(0);
     setFProgressNote("");
+    setFOpenDateHistory([]);
     setIsCrudModalOpen(true);
   };
 
@@ -990,44 +1001,51 @@ export default function LopTheoThangPage() {
     setFNextPhase(cls.nextPhase);
     setFSlotsToEnroll(cls.slotsToEnroll);
     setFProgressNote(cls.progressNote || "");
+    setFOpenDateHistory(cls.openDateHistory || []);
     setIsCrudModalOpen(true);
   };
 
   const handleOpenDateChange = (val: string) => {
+    // In edit mode: if the current openDate is non-empty and different from the new value,
+    // push the old openDate into history before replacing it.
+    if (crudMode === "edit" && fOpenDate.trim() && fOpenDate.trim() !== val.trim()) {
+      setFOpenDateHistory(prev => {
+        const already = prev.includes(fOpenDate.trim());
+        return already ? prev : [...prev, fOpenDate.trim()];
+      });
+    }
+
     setFOpenDate(val);
-    
-    // Parse val to Date and auto-calculate other fields
-    const openD = parseDDMMYYYY(val);
-    if (openD) {
-      const offsetDays = getPhaseDurationDays(fName, fClassCode);
-      
-      // 1. Calculate phaseStartDate
-      const pIndex = getClassPhaseIndex(fClassCode);
-      const daysOffset = pIndex * offsetDays;
-      const sched = parseClassSchedule(fName, fClassCode);
-      const targetPhaseStart = new Date(openD.getTime());
-      targetPhaseStart.setDate(targetPhaseStart.getDate() + daysOffset);
-      const adjustedPhaseStart = adjustToClassDay(targetPhaseStart, sched.days);
-      setFPhaseStartDate(formatDDMMYYYY(adjustedPhaseStart));
-      
-      // 2. Calculate nextPhaseStartDate (+offsetDays from phaseStartDate)
-      const targetNextPhaseStart = new Date(adjustedPhaseStart.getTime());
-      targetNextPhaseStart.setDate(targetNextPhaseStart.getDate() + offsetDays);
-      const adjustedNextPhaseStart = adjustToClassDay(targetNextPhaseStart, sched.days);
-      setFNextPhaseStartDate(formatDDMMYYYY(adjustedNextPhaseStart));
-      
-      // 3. Calculate endDate (behind the scenes)
-      const nameUpper = fName.toUpperCase();
-      const codeUpper = fClassCode.toUpperCase();
-      const isFoundation = nameUpper.includes("FOU") || nameUpper.includes("FOUND") || codeUpper.includes("FOU") || codeUpper.includes("FOUND");
-      const isPreCore = nameUpper.includes("PRE CORE") || nameUpper.includes("PCORE") || nameUpper.includes("PRECORE") || 
-                        nameUpper.includes("PRE IELTS") || nameUpper.includes("PREIELTS") || nameUpper.includes("CORE") ||
-                        codeUpper.includes("PRE CORE") || codeUpper.includes("PCORE") || codeUpper.includes("PRECORE") || 
-                        codeUpper.includes("PRE IELTS") || codeUpper.includes("PREIELTS") || codeUpper.includes("CORE");
-      const totalDays = isFoundation ? 105 : (isPreCore ? 120 : 90);
-      const endD = new Date(openD.getTime());
-      endD.setDate(endD.getDate() + totalDays);
-      setFEndDate(formatDDMMYYYY(endD));
+
+    // Only auto-calculate phase/end dates in ADD mode.
+    // In EDIT mode the existing phaseStartDate and nextPhaseStartDate are kept as-is.
+    if (crudMode === "add") {
+      const openD = parseDDMMYYYY(val);
+      if (openD) {
+        const offsetDays = getPhaseDurationDays(fName, fClassCode);
+        const pIndex = getClassPhaseIndex(fClassCode);
+        const daysOffset = pIndex * offsetDays;
+        const sched = parseClassSchedule(fName, fClassCode);
+        const targetPhaseStart = new Date(openD.getTime());
+        targetPhaseStart.setDate(targetPhaseStart.getDate() + daysOffset);
+        const adjustedPhaseStart = adjustToClassDay(targetPhaseStart, sched.days);
+        setFPhaseStartDate(formatDDMMYYYY(adjustedPhaseStart));
+        const targetNextPhaseStart = new Date(adjustedPhaseStart.getTime());
+        targetNextPhaseStart.setDate(targetNextPhaseStart.getDate() + offsetDays);
+        const adjustedNextPhaseStart = adjustToClassDay(targetNextPhaseStart, sched.days);
+        setFNextPhaseStartDate(formatDDMMYYYY(adjustedNextPhaseStart));
+        const nameUpper = fName.toUpperCase();
+        const codeUpper = fClassCode.toUpperCase();
+        const isFoundation = nameUpper.includes("FOU") || nameUpper.includes("FOUND") || codeUpper.includes("FOU") || codeUpper.includes("FOUND");
+        const isPreCore = nameUpper.includes("PRE CORE") || nameUpper.includes("PCORE") || nameUpper.includes("PRECORE") ||
+                          nameUpper.includes("PRE IELTS") || nameUpper.includes("PREIELTS") || nameUpper.includes("CORE") ||
+                          codeUpper.includes("PRE CORE") || codeUpper.includes("PCORE") || codeUpper.includes("PRECORE") ||
+                          codeUpper.includes("PRE IELTS") || codeUpper.includes("PREIELTS") || codeUpper.includes("CORE");
+        const totalDays = isFoundation ? 105 : (isPreCore ? 120 : 90);
+        const endD = new Date(openD.getTime());
+        endD.setDate(endD.getDate() + totalDays);
+        setFEndDate(formatDDMMYYYY(endD));
+      }
     }
   };
 
@@ -1040,6 +1058,7 @@ export default function LopTheoThangPage() {
       month: fMonth,
       type: fType,
       openDate: fOpenDate.trim(),
+      openDateHistory: fOpenDateHistory.length > 0 ? fOpenDateHistory : undefined,
       endDate: fEndDate.trim(),
       teacher: fTeacher.trim(),
       currentPhase: fCurrentPhase.trim(),
@@ -1073,7 +1092,11 @@ export default function LopTheoThangPage() {
     const y = parseInt(parts[2], 10);
     const date = new Date(y, m, d);
     if (isNaN(date.getTime())) return "";
-    const offsetDays = getPhaseDurationDays(name, fClassCode);
+    const offsetDays = getPhaseDurationDays(
+      name,
+      fClassCode,
+      isAcaClass(selectedClass) ? selectedClass.phaseDurationDays : undefined,
+    );
     date.setDate(date.getDate() + offsetDays);
     const schedule = parseClassSchedule(name, fClassCode);
     const adjusted = adjustToClassDay(date, schedule.days);
@@ -1155,7 +1178,7 @@ export default function LopTheoThangPage() {
             const sy = parseInt(parts[2], 10);
             const stopDate = new Date(sy, sm, sd);
             if (!isNaN(stopDate.getTime())) {
-              map.set(predecessor.classCode, stopDate);
+              map.set(predecessor.id, stopDate);
             }
           }
         }
@@ -1170,7 +1193,7 @@ export default function LopTheoThangPage() {
       if (c.month === selectedMonth) return true;
       
       // 2. Has projected events in the target month/year
-      const stopAt = stopAtMap.get(c.classCode) || undefined;
+      const stopAt = stopAtMap.get(c.id) || undefined;
       const events = getProjectedEventsForMonth(c, selectedMonth, selectedYear, stopAt);
       if (events.length > 0) return true;
       
@@ -1260,7 +1283,7 @@ export default function LopTheoThangPage() {
       classes.forEach((c) => {
         // Ẩn lớp chưa gán GV khỏi lịch
         if (!c.teacher || c.teacher.trim() === "" || c.teacher.trim() === "Chưa gán") return;
-        const stopAt = stopAtMap.get(c.classCode) || undefined;
+        const stopAt = stopAtMap.get(c.id) || undefined;
         const projected = getProjectedEventsForMonth(c, selectedMonth, year, stopAt);
         projected.forEach((evt) => {
           if (evt.day === d) {
@@ -1369,7 +1392,7 @@ export default function LopTheoThangPage() {
     classes.forEach((c) => {
       // Ẩn lớp chưa gán GV khỏi lịch khai giảng
       if (!c.teacher || c.teacher.trim() === "" || c.teacher.trim() === "Chưa gán") return;
-      const stopAt = stopAtMap.get(c.classCode) || undefined;
+      const stopAt = stopAtMap.get(c.id) || undefined;
       const projected = getProjectedEventsForMonth(c, selectedMonth, selectedYear, stopAt);
       projected.forEach((evt) => {
         summaryList.push({
@@ -1610,7 +1633,7 @@ export default function LopTheoThangPage() {
                                         : classes.find(c => c.id === evt.classId);
                                       if (found) {
                                         setSelectedClass(found);
-                                        if (!evt.is11) {
+                                        if (!evt.is11 && isAcaClass(found)) {
                                           // Compute next phase from clicked event
                                           const isWL = evt.type === "wl";
                                           const nextType: "wl" | "sr" = isWL ? "sr" : "wl";
@@ -1623,9 +1646,13 @@ export default function LopTheoThangPage() {
                                             const m = parseInt(parts[1], 10) - 1;
                                             const y = parseInt(parts[2], 10);
                                             const base = new Date(y, m, d);
-                                            const offsetDays = getPhaseDurationDays((found as AcaClass).name, (found as AcaClass).classCode);
+                                            const offsetDays = getPhaseDurationDays(
+                                              found.name,
+                                              found.classCode,
+                                              found.phaseDurationDays,
+                                            );
                                             base.setDate(base.getDate() + offsetDays);
-                                            const schedule = parseClassSchedule((found as AcaClass).name || "", (found as AcaClass).classCode || "");
+                                            const schedule = parseClassSchedule(found.name || "", found.classCode || "");
                                             const adj = adjustToClassDay(base, schedule.days);
                                             nextDateStr = `${String(adj.getDate()).padStart(2, "0")}/${String(adj.getMonth() + 1).padStart(2, "0")}/${adj.getFullYear()}`;
                                           }
@@ -1986,8 +2013,36 @@ export default function LopTheoThangPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-zinc-500 font-bold">Ngày mở lớp:</span>
-                        <span className="font-black text-zinc-800">{selectedClass.openDate}</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowHistoryInTimeline(prev => !prev)}
+                          className="font-black text-primary hover:underline transition-colors flex items-center gap-1"
+                          title="Click để xem lịch sử khai giảng trong lộ trình"
+                        >
+                          {selectedClass.openDate}
+                          <svg className={`w-3 h-3 shrink-0 transition-transform duration-200 ${showHistoryInTimeline ? "rotate-90 text-primary" : "text-zinc-400"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                          </svg>
+                        </button>
                       </div>
+
+                      {selectedClass.openDateHistory && selectedClass.openDateHistory.length > 0 ? (
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Lịch sử ngày KG cũ</span>
+                          <div className="flex flex-wrap gap-1">
+                            {selectedClass.openDateHistory.map((d, i) => (
+                              <span key={i} className="rounded bg-zinc-100 px-1.5 py-0.5 text-[9px] font-bold text-zinc-500">
+                                {d}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex justify-between">
+                          <span className="text-zinc-500 font-bold">Lịch sử ngày KG:</span>
+                          <span className="text-[10px] text-zinc-400 italic">Chưa có</span>
+                        </div>
+                      )}
 
                       {selectedClass.progressNote && (
                         <div className="flex justify-between">
@@ -2011,8 +2066,30 @@ export default function LopTheoThangPage() {
                           const y = parts.length === 3 ? parseInt(parts[2], 10) : 0;
                           return y === selectedYear;
                         });
-                        return visiblePhases.map((p) => {
-                          const isSelected = selectedPhaseIndex === p.phaseIndex;
+                        const historyItems = selectedClass.openDateHistory || [];
+                        const renderHistory = showHistoryInTimeline && (
+                          <div className="space-y-1.5 border-l-2 border-dashed border-zinc-200 pl-4 py-1.5 mb-2 bg-zinc-100/30 p-2.5 rounded-xl">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400 block">Lịch sử ngày mở lớp cũ</span>
+                            {historyItems.length > 0 ? (
+                              <div className="space-y-1">
+                                {historyItems.map((hDate, idx) => (
+                                  <div key={idx} className="flex items-center gap-2 text-[10px] text-zinc-500 font-bold">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-300 shrink-0" />
+                                    <span>Khởi chạy: <span className="text-zinc-700 font-black">{hDate}</span></span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-[10px] text-zinc-400 italic">Chưa ghi nhận ngày cũ</div>
+                            )}
+                          </div>
+                        );
+
+                        return (
+                          <>
+                            {renderHistory}
+                            {visiblePhases.map((p) => {
+                              const isSelected = selectedPhaseIndex === p.phaseIndex;
                           const studentsCount = students.filter(st => {
                             if (st.classId !== selectedClass.id) return false;
                             return isStudentInPhase(st, p.phaseIndex, p.isCurrent, selectedClass.classCode);
@@ -2053,8 +2130,9 @@ export default function LopTheoThangPage() {
                               </div>
                             </div>
                           );
-                        });
-                      })()}
+                        })}
+                      </>
+                    )})()}
                     </div>
                   </div>
                 </div>
@@ -2289,6 +2367,31 @@ export default function LopTheoThangPage() {
                   />
                 </div>
               </div>
+
+              {/* Lịch sử ngày mở lớp — chỉ hiện khi edit và có lịch sử */}
+              {crudMode === "edit" && fOpenDateHistory.length > 0 && (
+                <div className="rounded-xl border border-zinc-200/60 bg-zinc-50/50 px-4 py-3 space-y-2">
+                  <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Lịch sử ngày mở lớp</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {fOpenDateHistory.map((d, i) => (
+                      <span
+                        key={i}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-200/60 px-2.5 py-1 text-[10px] font-bold text-zinc-600"
+                      >
+                        {d}
+                        <button
+                          type="button"
+                          title="Xóa khỏi lịch sử"
+                          onClick={() => setFOpenDateHistory(prev => prev.filter((_, idx) => idx !== i))}
+                          className="text-zinc-400 hover:text-danger transition-colors leading-none"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Row 5: phaseStartDate + phaseStudents */}
               <div className="grid grid-cols-2 gap-4">
