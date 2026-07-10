@@ -135,7 +135,7 @@ export function PracticeClassScheduleSection() {
       <section className="rounded-2xl border border-primary/15 bg-primary/5 p-5">
         <h2 className="text-sm font-bold text-foreground">Lịch tuần — Lớp luyện đề tập trung</h2>
         <p className="mt-2 text-xs font-medium leading-relaxed text-muted">
-          Ngày và giờ từng buổi (vd. <strong>[CN] 9h – 11h30</strong>) thay đổi{" "}
+          Ngày và giờ từng buổi (vd. <strong>[Thứ 5] 19h45 – 21h45</strong>) thay đổi{" "}
           <strong>mỗi tuần</strong>. Sau khi lưu, học viên thấy lịch mới ngay trên trang Hỗ trợ tự
           học và Thời khoá biểu.
         </p>
@@ -203,8 +203,8 @@ export function PracticeClassScheduleSection() {
                     <div className="text-sm font-bold text-zinc-900">{base.title}</div>
                     <div className="mt-1 text-xs text-zinc-500">
                       {base.platform} · Thứ cố định trên lịch:{" "}
-                      {base.dayOfWeek === 0
-                        ? "Chủ nhật"
+                      {base.dayOfWeek === 4
+                        ? "Thứ 5"
                         : base.dayOfWeek === 2
                           ? "Thứ 3"
                           : "Thứ 7"}

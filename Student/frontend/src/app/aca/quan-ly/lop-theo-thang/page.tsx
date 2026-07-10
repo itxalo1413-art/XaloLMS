@@ -235,8 +235,9 @@ const handleDateIconClick = (e: React.MouseEvent<HTMLButtonElement>) => {
 
 const getClassPhaseIndex = (classCode: string): number => {
   if (!classCode) return 0;
-  if (classCode.includes('-C2-')) return 1;
-  if (classCode.includes('-C3-')) return 2;
+  const upper = classCode.toUpperCase();
+  if (upper.includes("-C2-") || upper.includes("C2")) return 1;
+  if (upper.includes("-C3-") || upper.includes("C3")) return 2;
   return 0;
 };
 
@@ -253,7 +254,8 @@ const getPhaseDurationDays = (name: string, code: string, customDuration?: numbe
   if (nameUpper.includes("PRE CORE") || nameUpper.includes("PCORE") || nameUpper.includes("PRECORE") || 
       nameUpper.includes("PRE IELTS") || nameUpper.includes("PREIELTS") || nameUpper.includes("CORE") ||
       codeUpper.includes("PRE CORE") || codeUpper.includes("PCORE") || codeUpper.includes("PRECORE") || 
-      codeUpper.includes("PRE IELTS") || codeUpper.includes("PREIELTS") || codeUpper.includes("CORE")) {
+      codeUpper.includes("PRE IELTS") || codeUpper.includes("PREIELTS") || codeUpper.includes("CORE") ||
+      codeUpper.startsWith("PC")) {
     return 60; // 2 months
   }
   // 42 days = exactly 6 weeks. Since 42 is a multiple of 7, adding 42 days to any
@@ -289,6 +291,9 @@ const parseStartDates = (startDateStr: string): string[] => {
 
 const countSessionsPerWeek = (scheduleText: string): number => {
   if (!scheduleText) return 2;
+  // New structured format: [Xh|Ybuổi|Zb/w]
+  const structMatch = scheduleText.match(/\|(\d+)b\/w\]/i);
+  if (structMatch) return parseInt(structMatch[1], 10);
   const explicitMatch = scheduleText.match(/(\d+)\s*buổi\s*\/\s*tuần/i);
   if (explicitMatch) return parseInt(explicitMatch[1], 10);
   const lower = scheduleText.toLowerCase();
@@ -349,6 +354,10 @@ const getRunTotalSessions = (progressText: string, scheduleLine: string): number
     if (progressTotalMatch) return parseInt(progressTotalMatch[1], 10);
     if (progressOnlyMatch) return parseInt(progressOnlyMatch[1], 10);
   }
+  // New structured format: [Xh|Ybuổi|Zb/w] → use Ybuổi directly
+  const structMatch = scheduleLine.match(/\[(\d+)h\|(\d+)buổi\|(\d+)b\/w\]/i);
+  if (structMatch) return parseInt(structMatch[2], 10);
+  // Old format: [36h] → compute from hours / session duration
   const hoursMatch = scheduleLine.match(/\[(\d+)h\]/i);
   if (hoursMatch) {
     const hours = parseInt(hoursMatch[1], 10);
@@ -602,6 +611,13 @@ const getProjectedEventsForMonth = (
   const maxSteps = 150;
 
   while (step < maxSteps) {
+    if (stopAt && currentDate >= stopAt) {
+      break;
+    }
+    if (currentDate > targetEnd) {
+      break;
+    }
+
     if (
       currentDate.getFullYear() === targetYear &&
       (currentDate.getMonth() + 1) === targetMonth
@@ -630,14 +646,6 @@ const getProjectedEventsForMonth = (
           day
         });
       }
-    }
-
-    // Stop condition: past targetEnd OR past stopAt
-    if (currentDate > targetEnd) {
-      break;
-    }
-    if (stopAt && currentDate >= stopAt) {
-      break;
     }
 
     let nextDate = new Date(currentDate.getTime());
@@ -1040,7 +1048,8 @@ export default function LopTheoThangPage() {
         const isPreCore = nameUpper.includes("PRE CORE") || nameUpper.includes("PCORE") || nameUpper.includes("PRECORE") ||
                           nameUpper.includes("PRE IELTS") || nameUpper.includes("PREIELTS") || nameUpper.includes("CORE") ||
                           codeUpper.includes("PRE CORE") || codeUpper.includes("PCORE") || codeUpper.includes("PRECORE") ||
-                          codeUpper.includes("PRE IELTS") || codeUpper.includes("PREIELTS") || codeUpper.includes("CORE");
+                          codeUpper.includes("PRE IELTS") || codeUpper.includes("PREIELTS") || codeUpper.includes("CORE") ||
+                          codeUpper.startsWith("PC");
         const totalDays = isFoundation ? 105 : (isPreCore ? 120 : 90);
         const endD = new Date(openD.getTime());
         endD.setDate(endD.getDate() + totalDays);
@@ -2265,10 +2274,10 @@ export default function LopTheoThangPage() {
                     required
                     value={fClassCode}
                     onChange={(e) => setFClassCode(e.target.value.toUpperCase())}
-                    placeholder="Ví dụ: UPSTR-246-C2-KHOA"
+                    placeholder="Ví dụ: U246C2 (hoặc F246C1_070926 cho Foundation)"
                     className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-black text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10 tracking-wide"
                   />
-                  <p className="text-[10px] text-zinc-400 mt-1">Không cần thêm đuôi tháng (-4, -5, -6...); chọn tháng ở ô bên cạnh.</p>
+                  <p className="text-[10px] text-zinc-400 mt-1">Lớp thường: U246C2. Foundation: F + thứ + ca + _ngày khai giảng (DDMMYY).</p>
                 </div>
                 <div>
                   <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Tháng hoạt động</label>

@@ -55,15 +55,11 @@ export function sortMockTestsByDateDesc(rows: MockTestRequest[]): MockTestReques
 const DEMO_SPEAKING_LINK = "https://docs.google.com/document/d/demo-speaking-mock";
 
 export function speakingResultScore(row: MockTestRequest): string {
-  if (row.score) return row.score;
-  if (row.status === "approved") return "7.0";
-  return "—";
+  return row.score || "—";
 }
 
 export function speakingResultExamLink(row: MockTestRequest): string | null {
-  if (row.examLink) return row.examLink;
-  if (row.status === "approved") return DEMO_SPEAKING_LINK;
-  return null;
+  return row.examLink || null;
 }
 
 export function isSpeakingMockTest(skill: string): boolean {

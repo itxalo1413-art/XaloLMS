@@ -306,16 +306,26 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
 };
 
   const checkIsHocLai = (cycles: AcaStudentCycle[]): boolean => {
+    const getLevelPrefix = (code: string): string => {
+      const p = code.split("-")[0].trim().toUpperCase();
+      if (p.startsWith("F") && !p.startsWith("FOA")) return "FOUND";
+      if (p.startsWith("M")) return "MMNT";
+      if (p.startsWith("U")) return "UPSTR";
+      if (p.startsWith("S")) return "SOAR";
+      if (p.startsWith("A")) return "ADV";
+      return p;
+    };
+
     for (let j = 1; j < cycles.length; j++) {
       const classCodeJ = cycles[j].classCode;
       if (!classCodeJ) continue;
-      const prefixJ = classCodeJ.split("-")[0].trim().toUpperCase();
+      const prefixJ = getLevelPrefix(classCodeJ);
       
       // Compare with all previous cycles
       for (let i = 0; i < j; i++) {
         const classCodeI = cycles[i].classCode;
         if (!classCodeI) continue;
-        const prefixI = classCodeI.split("-")[0].trim().toUpperCase();
+        const prefixI = getLevelPrefix(classCodeI);
         
         if (prefixI && prefixI === prefixJ) {
           return true;
@@ -674,14 +684,24 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
 
   const getNextLevelClassCode = (currentClassCode: string): string => {
     if (!currentClassCode) return "";
-    const prefix = currentClassCode.split("-")[0].toUpperCase();
+    let prefix = currentClassCode.split("-")[0].toUpperCase();
+    if (prefix.startsWith("F") && !prefix.startsWith("FOA")) prefix = "FOUND";
+    else if (prefix.startsWith("M")) prefix = "MMNT";
+    else if (prefix.startsWith("U")) prefix = "UPSTR";
+    else if (prefix.startsWith("S")) prefix = "SOAR";
+    else if (prefix.startsWith("A")) prefix = "ADV";
+
     const currentIndex = LEVEL_SEQUENCE.indexOf(prefix);
     if (currentIndex === -1 || currentIndex === LEVEL_SEQUENCE.length - 1) {
       return "";
     }
     const nextPrefix = LEVEL_SEQUENCE[currentIndex + 1];
-    // Find the first class in classesList that has this nextPrefix in its classCode
-    const nextClass = classesList.find((c) => c.classCode && c.classCode.toUpperCase().startsWith(nextPrefix));
+    const nextClass = classesList.find((c) => {
+      if (!c.classCode) return false;
+      const cUpper = c.classCode.toUpperCase();
+      if (cUpper.startsWith(nextPrefix)) return true;
+      return cUpper.startsWith(nextPrefix[0]);
+    });
     return nextClass ? nextClass.classCode : "";
   };
 

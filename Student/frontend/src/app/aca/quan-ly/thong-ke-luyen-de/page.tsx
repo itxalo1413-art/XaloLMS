@@ -124,7 +124,7 @@ export default function ThongKeLuyenDePage() {
             <div className="mt-1 text-[10px] text-zinc-400 font-bold">Đăng ký tham gia tuần học</div>
           </div>
           <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <div className="text-[10px] font-black uppercase text-zinc-500 tracking-wider">Test trực tiếp (CN)</div>
+            <div className="text-[10px] font-black uppercase text-zinc-500 tracking-wider">Học trực tiếp (Thứ 5)</div>
             <div className="mt-2 text-3xl font-black text-success">{directTestCount} học viên</div>
             <div className="mt-1 text-[10px] text-zinc-400 font-bold">Tỷ lệ: {directTestPct}% tổng số</div>
           </div>
@@ -143,17 +143,17 @@ export default function ThongKeLuyenDePage() {
         {/* Graphs and distribution lists */}
         <div className="grid gap-6 md:grid-cols-1">
           
-          {/* Sunday Test Registration Progress Breakdown */}
+          {/* Thursday Test Registration Progress Breakdown */}
           <div className="bg-white rounded-2xl border border-zinc-200 p-6 shadow-sm space-y-6">
             <h3 className="text-xs font-black uppercase tracking-wider text-foreground pb-2 border-b border-zinc-100">
-              Phân tích trạng thái Test chủ nhật (9h - 11h30)
+              Phân tích trạng thái học Thứ 5 (Chữa đề L-R-W)
             </h3>
             
             <div className="space-y-4">
               {/* Progress 1: Có tham gia */}
               <div className="space-y-1">
                 <div className="flex justify-between text-xs font-bold text-zinc-700">
-                  <span>Có tham gia trực tiếp</span>
+                  <span>Có tham gia trực tiếp (19h45-21h45)</span>
                   <span className="text-success font-black">{directTestCount} ({directTestPct}%)</span>
                 </div>
                 <div className="h-3 w-full bg-zinc-100 rounded-full overflow-hidden">
@@ -161,7 +161,7 @@ export default function ThongKeLuyenDePage() {
                 </div>
               </div>
 
-              {/* Progress 2: Gửi đề vào CN */}
+              {/* Progress 2: Gửi đề vào T5 */}
               <div className="space-y-1">
                 <div className="flex justify-between text-xs font-bold text-zinc-700">
                   <span>Nhận đề tự làm tại nhà</span>
@@ -175,7 +175,7 @@ export default function ThongKeLuyenDePage() {
               {/* Progress 3: Đăng ký lịch khác */}
               <div className="space-y-1">
                 <div className="flex justify-between text-xs font-bold text-zinc-700">
-                  <span>Hẹn lịch test bù / Lịch khác</span>
+                  <span>Hẹn lịch học bù / Lịch khác</span>
                   <span className="text-amber-600 font-black">{otherTestCount} ({otherTestPct}%)</span>
                 </div>
                 <div className="h-3 w-full bg-zinc-100 rounded-full overflow-hidden">

@@ -303,8 +303,8 @@ export default function LopLuyenDeTuanPage() {
                         <th className="px-6 py-4 min-w-[120px]">Số điện thoại</th>
                         <th className="px-6 py-4 min-w-[240px]">Lớp RLP</th>
                         <th className="px-6 py-4 min-w-[180px]">Thứ 3 (T3)</th>
+                        <th className="px-6 py-4 min-w-[180px]">Thứ 5 (T5)</th>
                         <th className="px-6 py-4 min-w-[180px]">Thứ 7 (T7)</th>
-                        <th className="px-6 py-4 min-w-[180px]">Chủ Nhật (CN)</th>
                         <th className="px-6 py-4 text-center min-w-[150px]">Tham gia test LĐ 28</th>
                         <th className="px-6 py-4 min-w-[200px]">Ghi chú (Note)</th>
                         <th className="px-6 py-4 text-center min-w-[140px]">Hành động</th>
@@ -325,7 +325,21 @@ export default function LopLuyenDeTuanPage() {
                                   ? "bg-zinc-100 text-zinc-400"
                                   : "bg-primary/10 text-primary"
                               }`}>
-                                {st.scheduleTue || (st.scheduleTueSat?.toLowerCase().includes("t3") ? "Ca 1 (18h-20h)" : "Không học")}
+                                {st.scheduleTue || (st.scheduleTueSat?.toLowerCase().includes("t3") ? "Ca 1 (19h45-21h45)" : "Không học")}
+                              </span>
+                            </td>
+                            {/* T5 Schedule */}
+                            <td className="px-6 py-4 min-w-[180px]">
+                              <span className={`px-2 py-0.5 rounded-lg font-black text-[10px] ${
+                                st.scheduleSun === "Không học" || st.testScheduleSunday === "Không tham gia" || st.testScheduleSunday === "Không có/Chưa chọn"
+                                  ? "bg-zinc-100 text-zinc-400"
+                                  : st.scheduleSun === "Gửi đề vào T5" || st.testScheduleSunday === "Gửi đề vào T5"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : st.scheduleSun === "Đăng ký lịch khác" || st.testScheduleSunday === "Đăng ký lịch khác"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-success/10 text-success"
+                              }`}>
+                                {st.scheduleSun || st.testScheduleSunday || "Có tham gia"}
                               </span>
                             </td>
                             {/* T7 Schedule */}
@@ -335,21 +349,7 @@ export default function LopLuyenDeTuanPage() {
                                   ? "bg-zinc-100 text-zinc-400"
                                   : "bg-primary/10 text-primary"
                               }`}>
-                                {st.scheduleSat || (st.scheduleTueSat?.toLowerCase().includes("t7") ? "Ca 1 (18h-20h)" : "Không học")}
-                              </span>
-                            </td>
-                            {/* CN Schedule */}
-                            <td className="px-6 py-4 min-w-[180px]">
-                              <span className={`px-2 py-0.5 rounded-lg font-black text-[10px] ${
-                                st.scheduleSun === "Không học" || st.testScheduleSunday === "Không tham gia" || st.testScheduleSunday === "Không có/Chưa chọn"
-                                  ? "bg-zinc-100 text-zinc-400"
-                                  : st.scheduleSun === "Gửi đề vào CN" || st.testScheduleSunday === "Gửi đề vào CN"
-                                  ? "bg-blue-100 text-blue-700"
-                                  : st.scheduleSun === "Đăng ký lịch khác" || st.testScheduleSunday === "Đăng ký lịch khác"
-                                  ? "bg-amber-100 text-amber-700"
-                                  : "bg-success/10 text-success"
-                              }`}>
-                                {st.scheduleSun || st.testScheduleSunday || "Có tham gia"}
+                                {st.scheduleSat || (st.scheduleTueSat?.toLowerCase().includes("t7") ? "Ca 1 (19h-21h30)" : "Không học")}
                               </span>
                             </td>
                             <td className="px-6 py-4 text-center min-w-[150px]">
@@ -451,10 +451,25 @@ export default function LopLuyenDeTuanPage() {
                     className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10 bg-white"
                   >
                     <option value="Không học">Không học</option>
-                    <option value="Ca 1 (18h-20h)">Ca 1 (18h-20h)</option>
-                    <option value="Ca 2 (20h-22h)">Ca 2 (20h-22h)</option>
+                    <option value="Ca 1 (19h45-21h45)">Ca 1 (19h45-21h45)</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Lịch học Thứ 5 (T5)</label>
+                  <select
+                    value={formScheduleSun}
+                    onChange={(e) => setFormScheduleSun(e.target.value)}
+                    className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10 bg-white"
+                  >
+                    <option value="Có tham gia">Có tham gia (19h45-21h45)</option>
+                    <option value="Gửi đề vào T5">Gửi đề vào T5</option>
+                    <option value="Đăng ký lịch khác">Đăng ký lịch khác</option>
+                    <option value="Không học">Không học</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Lịch học Thứ 7 (T7)</label>
                   <select
@@ -463,24 +478,7 @@ export default function LopLuyenDeTuanPage() {
                     className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10 bg-white"
                   >
                     <option value="Không học">Không học</option>
-                    <option value="Ca 1 (18h-20h)">Ca 1 (18h-20h)</option>
-                    <option value="Ca 2 (20h-22h)">Ca 2 (20h-22h)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Lịch test Chủ Nhật (CN)</label>
-                  <select
-                    value={formScheduleSun}
-                    onChange={(e) => setFormScheduleSun(e.target.value)}
-                    className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10 bg-white"
-                  >
-                    <option value="Có tham gia">Có tham gia (9h-11h)</option>
-                    <option value="Gửi đề vào CN">Gửi đề vào CN</option>
-                    <option value="Đăng ký lịch khác">Đăng ký lịch khác</option>
-                    <option value="Không học">Không học</option>
+                    <option value="Ca 1 (19h-21h30)">Ca 1 (19h-21h30)</option>
                   </select>
                 </div>
                 <div className="flex items-center pt-5 pl-2">

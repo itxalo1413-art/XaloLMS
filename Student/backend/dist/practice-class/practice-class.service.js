@@ -55,8 +55,8 @@ let PracticeClassService = class PracticeClassService {
             const phone = acaStudent?.phone || '';
             const registrations = await this.registrationModel.find({ userId: new mongoose_2.Types.ObjectId(userId) }).lean().exec();
             const registeredSlotIds = new Set(registrations.map(r => r.slotId));
-            const scheduleTue = registeredSlotIds.has('tue-lrw') ? 'Ca 1 (18h-20h)' : 'Không học';
-            const scheduleSat = registeredSlotIds.has('sat-speaking') ? 'Ca 1 (18h-20h)' : 'Không học';
+            const scheduleTue = registeredSlotIds.has('tue-lrw') ? 'Ca 1 (19h45-21h45)' : 'Không học';
+            const scheduleSat = registeredSlotIds.has('sat-speaking') ? 'Ca 1 (19h-21h30)' : 'Không học';
             const scheduleSun = registeredSlotIds.has('sun-lrw') ? 'Có tham gia' : 'Không học';
             const query = {
                 weekRange: currentWeekRange,

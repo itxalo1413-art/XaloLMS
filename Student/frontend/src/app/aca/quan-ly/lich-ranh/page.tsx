@@ -15,17 +15,55 @@ import { MOCK_TEST_TEACHER_OPTIONS } from "@/lib/mockTestTeacherNames";
 import {
   refreshMockTestRequestsForAca,
   loadMockTestRequests,
+  MOCK_TEST_UPDATE_EVENT,
   type MockTestRequest,
 } from "@/lib/mockTestRequests";
 import { fetchAcaStudents, type AcaStudent } from "@/lib/acaManagementApi";
+import { getCachedAuthUser } from "@/lib/auth";
 
-const WEEKS_DATA = [
-  { label: "[JUNE/Week 1]", labelFull: "Week 1 (01/Jun - 07/Jun/2026)", startDate: new Date(2026, 5, 1) },
-  { label: "[JUNE/Week 2]", labelFull: "Week 2 (08/Jun - 14/Jun/2026)", startDate: new Date(2026, 5, 8) },
-  { label: "[JUNE/Week 3]", labelFull: "Week 3 (15/Jun - 21/Jun/2026)", startDate: new Date(2026, 5, 15) },
-  { label: "[JUNE/Week 4]", labelFull: "Week 4 (22/Jun - 28/Jun/2026)", startDate: new Date(2026, 5, 22) },
-  { label: "[JUNE/Week 5]", labelFull: "Week 5 (29/Jun - 05/Jul/2026)", startDate: new Date(2026, 5, 29) },
-];
+function getMondayOfCurrentWeek(d: Date): Date {
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(d.getFullYear(), d.getMonth(), diff);
+  monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
+function generateWeeks() {
+  const weeks = [];
+  const startMonday = getMondayOfCurrentWeek(new Date());
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  for (let i = 0; i < 5; i++) {
+    const monday = new Date(startMonday.getTime());
+    monday.setDate(startMonday.getDate() + i * 7);
+
+    const sunday = new Date(monday.getTime());
+    sunday.setDate(monday.getDate() + 6);
+
+    const monthLabel = monthNames[monday.getMonth()].toUpperCase();
+    const label = `[${monthLabel}/Tuần ${i + 1}]`;
+
+    const formatDateShort = (dt: Date) => {
+      const dd = String(dt.getDate()).padStart(2, "0");
+      const mmm = monthNames[dt.getMonth()];
+      return `${dd}/${mmm}`;
+    };
+
+    const ddSunday = String(sunday.getDate()).padStart(2, "0");
+    const mmmSunday = monthNames[sunday.getMonth()];
+
+    const labelFull = `Tuần ${i + 1} (${formatDateShort(monday)} - ${ddSunday}/${mmmSunday}/${sunday.getFullYear()})`;
+    weeks.push({
+      label,
+      labelFull,
+      startDate: monday,
+    });
+  }
+  return weeks;
+}
+
+const WEEKS_DATA = generateWeeks();
 
 const TIME_SLOTS = [
   "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
@@ -81,8 +119,15 @@ export default function AcaLichRanhPage() {
 
   // Filter & selections
   const [selectedTeacher, setSelectedTeacher] = useState<string>(MOCK_TEST_TEACHER_OPTIONS[0]);
-  const [currentWeekIndex, setCurrentWeekIndex] = useState<number>(3); // Default Week 4 (June 22)
+  const [currentWeekIndex, setCurrentWeekIndex] = useState<number>(0); // Default to current week
   const [activeBrush, setActiveBrush] = useState<string>("Nhận ca Test speaking/ chấm writing online");
+
+  useEffect(() => {
+    const loggedInUser = getCachedAuthUser();
+    if (loggedInUser && (loggedInUser.role === "ACA" || loggedInUser.role === "GV")) {
+      setSelectedTeacher(loggedInUser.name);
+    }
+  }, []);
 
   const sync = useCallback(async () => {
     setLoading(true);
@@ -105,9 +150,12 @@ export default function AcaLichRanhPage() {
 
   useEffect(() => {
     void sync();
-    window.addEventListener("storage", sync);
+    const onUpdate = () => void sync();
+    window.addEventListener(MOCK_TEST_UPDATE_EVENT, onUpdate);
+    window.addEventListener("storage", onUpdate);
     return () => {
-      window.removeEventListener("storage", sync);
+      window.removeEventListener(MOCK_TEST_UPDATE_EVENT, onUpdate);
+      window.removeEventListener("storage", onUpdate);
     };
   }, [sync]);
 
@@ -239,17 +287,22 @@ export default function AcaLichRanhPage() {
     const sundayDate = getDayDate(currentWeekIndex, 6);
     sundayDate.setHours(23, 59, 59, 999);
 
-    return mockRequests
-      .filter((r) => {
-        const testDate = new Date(r.year, r.month, r.day);
-        const inRange = testDate >= mondayDate && testDate <= sundayDate;
-        const belongsToAca = (r.examTeacher ?? "").trim() === selectedTeacher.trim();
-        return inRange && belongsToAca && r.status === "approved";
-      })
-      .sort((a, b) => {
-        if (a.day !== b.day) return a.day - b.day;
-        return (a.examTime ?? "").localeCompare(b.examTime ?? "");
-      });
+    const filtered = mockRequests.filter((r) => {
+      const testDate = new Date(r.year, r.month, r.day);
+      const inRange = testDate >= mondayDate && testDate <= sundayDate;
+      const belongsToAca =
+        (r.examTeacher ?? "").trim().toLowerCase() === selectedTeacher.trim().toLowerCase() ||
+        (selectedTeacher.trim().toLowerCase() === "lê nguyễn khánh thi" &&
+          ((r.examTeacher ?? "").trim().toLowerCase() === "aca" ||
+           (r.examTeacher ?? "").trim().toLowerCase() === "lê thị diệu linh"));
+      const isApproved = r.status === "approved";
+      return inRange && belongsToAca && isApproved;
+    });
+
+    return filtered.sort((a, b) => {
+      if (a.day !== b.day) return a.day - b.day;
+      return (a.examTime ?? "").localeCompare(b.examTime ?? "");
+    });
   }, [mockRequests, currentWeekIndex, selectedTeacher, getDayDate]);
 
   return (
@@ -269,20 +322,10 @@ export default function AcaLichRanhPage() {
         {/* Filters Top Bar */}
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
           <div className="flex items-center gap-3">
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Chọn Nhân viên ACA:</span>
-            <div className="w-56">
-              <NativeSelectChevron
-                value={selectedTeacher}
-                onChange={(e) => setSelectedTeacher(e.target.value)}
-                className="h-9 text-xs font-bold shadow-sm"
-              >
-                {MOCK_TEST_TEACHER_OPTIONS.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </NativeSelectChevron>
-            </div>
+            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Nhân viên ACA:</span>
+            <span className="text-xs font-black text-zinc-800 bg-zinc-100 border border-zinc-200 px-3 py-1.5 rounded-xl">
+              {selectedTeacher}
+            </span>
           </div>
           <div className="text-right">
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">Tuần đang cấu hình</span>
@@ -322,7 +365,7 @@ export default function AcaLichRanhPage() {
         <div className="grid gap-6 grid-cols-1 lg:grid-cols-12 items-start">
           
           {/* LEFT: Grid sheet table */}
-          <div className="lg:col-span-8 space-y-4">
+          <div className="lg:col-span-7 space-y-4">
             <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
@@ -452,92 +495,223 @@ export default function AcaLichRanhPage() {
             </div>
           </div>
 
-          {/* RIGHT: Speaking test list */}
-          <div className="lg:col-span-4 space-y-4">
-            <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-              <h2 className="text-sm font-bold text-zinc-950 uppercase tracking-wide border-b border-zinc-100 pb-3">
-                Speaking Test Schedule
-              </h2>
-              
+          {/* RIGHT: Speaking test spreadsheet table */}
+          <div className="lg:col-span-5 space-y-4">
+            <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm overflow-hidden flex flex-col">
+              <div className="flex items-center justify-between border-b border-zinc-100 pb-3 mb-4">
+                <h2 className="text-sm font-bold text-zinc-950 uppercase tracking-wide">
+                  Speaking Test Schedule
+                </h2>
+                <a href="#test-link" className="text-[10px] text-primary font-bold hover:underline">Link test speak</a>
+              </div>
+
               {loading ? (
                 <p className="text-xs text-zinc-500 text-center py-6">Đang tải lịch thi...</p>
-              ) : weeklyMockTests.length === 0 ? (
-                <div className="text-center py-10 border border-dashed border-zinc-100 rounded-xl bg-zinc-50/50">
-                  <p className="text-xs text-zinc-500">Chưa có ca test Speaking nào được đặt trong tuần này.</p>
-                </div>
               ) : (
-                <div className="space-y-3 max-h-[700px] overflow-y-auto pr-1">
-                  {weeklyMockTests.map((req) => {
-                    const studentInfo = students.find((s) => s.id === req.studentId);
-                    const bcbScore = studentInfo?.scores?.o || "—";
-                    const isOnline = !req.examTime?.includes("Offline");
-                    
-                    return (
-                      <div
-                        key={req.id}
-                        className="rounded-xl border border-zinc-200 bg-white p-3.5 shadow-sm hover:border-[#6a5acd]/30 transition-all space-y-2.5"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className={`inline-flex rounded-md px-2 py-0.5 text-[9px] font-bold uppercase border ${
-                            isOnline 
-                              ? "bg-purple-50 text-purple-700 border-purple-200" 
-                              : "bg-blue-50 text-blue-700 border-blue-200"
-                          }`}>
-                            {isOnline ? "Online" : "Offline"}
-                          </span>
-                          <span className="text-[10px] font-bold text-zinc-400">
-                            Ngày {req.day}/{req.month + 1}
-                          </span>
-                        </div>
-
-                        <div className="border-t border-zinc-100 pt-2 space-y-1">
-                          <div className="text-xs font-bold text-zinc-900 flex justify-between">
-                            <span>{req.studentName}</span>
-                            <span className="text-[#6a5acd] font-black">{req.examTime?.split(" ")[0]}</span>
-                          </div>
-                          
-                          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 text-[10px] text-zinc-500 font-medium">
-                            <div>BCB Đầu vào: <strong className="text-zinc-700">{bcbScore}</strong></div>
-                            {studentInfo?.bcbLink ? (
-                              <a
-                                href={studentInfo.bcbLink}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-[#6a5acd] font-bold hover:underline"
-                              >
-                                Xem BCB ↗
-                              </a>
-                            ) : null}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-zinc-100 text-[10px]">
-                          <div>
-                            {req.score ? (
-                              <span className="font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded px-1.5 py-0.5">
-                                Điểm S: {req.score}
-                              </span>
-                            ) : (
-                              <span className="text-zinc-400">Chưa chấm</span>
-                            )}
-                          </div>
-                          <div>
-                            {req.score ? (
-                              <span className="font-bold text-emerald-800 uppercase text-[9px]">Đã chấm</span>
-                            ) : (
-                              <span className="font-bold text-[#6a5acd] uppercase text-[9px]">Chờ test</span>
-                            )}
-                          </div>
-                        </div>
+                <div className="overflow-x-auto border border-zinc-200 rounded-2xl">
+                  <table className="w-full text-left text-[11px] border-collapse min-w-[850px]">
+                    <thead>
+                      <tr className="bg-zinc-50 border-b border-zinc-200 text-center font-bold text-zinc-600 text-[10px]">
+                        <th className="px-1 py-2 border-r border-zinc-200 bg-zinc-100/50 w-8"></th>
+                        <th className="px-2 py-2 border-r border-zinc-200">HÌNH THỨC</th>
+                        <th className="px-2 py-2 border-r border-zinc-200">NGÀY</th>
+                        <th className="px-2 py-2 border-r border-zinc-200">GIỜ</th>
+                        <th className="px-2 py-2 border-r border-zinc-200">TÊN</th>
+                        <th className="px-2 py-2 border-r border-zinc-200">BCB</th>
+                        <th className="px-2 py-2 border-r border-zinc-200">DẠNG</th>
+                        <th className="px-2 py-2 border-r border-zinc-200">LINK ĐỀ</th>
+                        <th className="px-2 py-2 border-r border-zinc-200">ĐIỂM S</th>
+                        <th className="px-2 py-2 border-r border-zinc-200">TÌNH TRẠNG</th>
+                        <th className="px-2 py-2">Note</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-200 text-center font-medium">
+                      {(() => {
+                        const rows = [...weeklyMockTests];
+                        while (rows.length < 10) {
+                          rows.push(null as any);
+                        }
                         
-                        {req.examLink ? (
-                          <div className="text-[9px] text-zinc-500 truncate pt-1 border-t border-dashed border-zinc-100">
-                            Link đề: <a href={req.examLink} target="_blank" rel="noreferrer" className="text-primary hover:underline">{req.examLink}</a>
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
+                        return rows.map((req, idx) => {
+                          if (!req) {
+                            // Render empty placeholder row
+                            return (
+                              <tr key={`empty-${idx}`} className="h-10 hover:bg-zinc-50/20">
+                                <td className="border-r border-zinc-200 bg-zinc-50 font-bold text-zinc-400 text-[10px] py-2">
+                                  {idx + 1}
+                                </td>
+                                <td className="border-r border-zinc-200"></td>
+                                <td className="border-r border-zinc-200"></td>
+                                <td className="border-r border-zinc-200"></td>
+                                <td className="border-r border-zinc-200"></td>
+                                <td className="border-r border-zinc-200"></td>
+                                <td className="border-r border-zinc-200"></td>
+                                <td className="border-r border-zinc-200"></td>
+                                <td className="border-r border-zinc-200"></td>
+                                <td className="border-r border-zinc-200"></td>
+                                <td></td>
+                              </tr>
+                            );
+                          }
+
+                          const studentInfo = students.find((s) => s.id === req.studentId);
+                          const isOnline = !req.examTime?.includes("Offline");
+                          
+                          // Handle inline edit save
+                          const handleSaveValue = async (field: "score" | "examLink", val: string) => {
+                            try {
+                              const updatedPayload = {
+                                score: field === "score" ? val : (req.score || "—"),
+                                examLink: field === "examLink" ? val : (req.examLink || "—")
+                              };
+                              // Ensure values are not empty for API
+                              if (updatedPayload.score === "—") updatedPayload.score = "0";
+                              if (updatedPayload.examLink === "—") updatedPayload.examLink = "https://";
+                              
+                              const { submitMockTestSpeakingResult } = await import("@/lib/mockTestRequests");
+                              await submitMockTestSpeakingResult(req.id, selectedTeacher, updatedPayload);
+                              void sync();
+                            } catch (err: any) {
+                              alert("Lỗi lưu điểm/link: " + err.message);
+                            }
+                          };
+
+                          const handleStatusChange = async (newStatus: "Tested" | "Canceled" | "Scheduled") => {
+                            try {
+                              if (newStatus === "Canceled") {
+                                const { rejectMockTestRequest } = await import("@/lib/mockTestRequests");
+                                await rejectMockTestRequest(req.id);
+                              } else {
+                                // For Tested or Scheduled, update status via mockTestRequests
+                                const { approveMockTestRequest } = await import("@/lib/mockTestRequests");
+                                await approveMockTestRequest(req.id, {
+                                  examTime: req.examTime || "",
+                                  examTeacher: req.examTeacher || selectedTeacher
+                                });
+                                if (newStatus === "Tested" && !req.score) {
+                                  // Prompt for score if tested
+                                  const score = prompt("Nhập điểm Speaking (S):", "5");
+                                  if (score) {
+                                    const { submitMockTestSpeakingResult } = await import("@/lib/mockTestRequests");
+                                    await submitMockTestSpeakingResult(req.id, selectedTeacher, {
+                                      score,
+                                      examLink: req.examLink || "https://"
+                                    });
+                                  }
+                                }
+                              }
+                              void sync();
+                            } catch (err: any) {
+                              alert("Lỗi cập nhật trạng thái: " + err.message);
+                            }
+                          };
+
+                          const isTested = !!req.score;
+                          const isCanceled = req.status === "rejected";
+                          const currentStatus = isTested ? "Tested" : (isCanceled ? "Canceled" : "Scheduled");
+
+                          return (
+                            <tr key={req.id} className="h-10 hover:bg-zinc-50/30 text-zinc-700">
+                              {/* Index */}
+                              <td className="border-r border-zinc-200 bg-zinc-50 font-bold text-zinc-500 text-[10px] py-1.5">
+                                {idx + 1}
+                              </td>
+                              
+                              {/* HÌNH THỨC */}
+                              <td className="border-r border-zinc-200 font-extrabold text-zinc-900 text-[10px] uppercase">
+                                {isOnline ? "ONL" : "OFF"}
+                              </td>
+                              
+                              {/* NGÀY */}
+                              <td className="border-r border-zinc-200 font-bold text-zinc-500 tabular-nums">
+                                {req.day}/{req.month + 1}
+                              </td>
+                              
+                              {/* GIỜ */}
+                              <td className="border-r border-zinc-200 font-black text-zinc-900 tabular-nums">
+                                {req.examTime?.split(" ")[0] || "—"}
+                              </td>
+                              
+                              {/* TÊN */}
+                              <td className="border-r border-zinc-200 text-left px-2 font-bold truncate max-w-[120px]" title={req.studentName}>
+                                {req.studentName}
+                              </td>
+                              
+                              {/* BCB */}
+                              <td className="border-r border-zinc-200 font-medium text-[9px] text-zinc-400 select-all cursor-copy truncate max-w-[90px]" title={req.studentId}>
+                                {req.studentId}
+                              </td>
+                              
+                              {/* DẠNG */}
+                              <td className="border-r border-zinc-200">
+                                <span className="inline-flex rounded px-1.5 py-0.5 text-[9px] font-black uppercase bg-[#fae8ff] border border-[#f5d0fe] text-[#86198f]">
+                                  Support
+                                </span>
+                              </td>
+                              
+                              {/* LINK ĐỀ */}
+                              <td className="border-r border-zinc-200 px-1">
+                                <input
+                                  type="text"
+                                  defaultValue={req.examLink || ""}
+                                  placeholder="Dán link..."
+                                  onBlur={(e) => handleSaveValue("examLink", e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      handleSaveValue("examLink", e.currentTarget.value);
+                                      e.currentTarget.blur();
+                                    }
+                                  }}
+                                  className="w-full bg-transparent border-0 hover:bg-zinc-50 focus:bg-white text-[10px] font-bold text-primary underline truncate text-center outline-none focus:ring-1 focus:ring-primary/20 rounded py-0.5"
+                                />
+                              </td>
+                              
+                              {/* ĐIỂM S */}
+                              <td className="border-r border-zinc-200 px-1 w-14">
+                                <input
+                                  type="text"
+                                  defaultValue={req.score || ""}
+                                  placeholder="—"
+                                  onBlur={(e) => handleSaveValue("score", e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      handleSaveValue("score", e.currentTarget.value);
+                                      e.currentTarget.blur();
+                                    }
+                                  }}
+                                  className="w-full bg-transparent border-0 hover:bg-zinc-50 focus:bg-white text-[11px] font-black text-center outline-none focus:ring-1 focus:ring-primary/20 rounded py-0.5"
+                                />
+                              </td>
+                              
+                              {/* TÌNH TRẠNG */}
+                              <td className="border-r border-zinc-200 px-1 w-24">
+                                <select
+                                  value={currentStatus}
+                                  onChange={(e) => handleStatusChange(e.target.value as any)}
+                                  className={`w-full text-center border-0 text-[9px] font-black uppercase rounded py-1 px-1 outline-none cursor-pointer appearance-none ${
+                                    currentStatus === "Tested"
+                                      ? "bg-[#dcfce7] border border-[#bbf7d0] text-[#166534]"
+                                      : currentStatus === "Canceled"
+                                        ? "bg-[#fee2e2] border border-[#fecaca] text-[#991b1b]"
+                                        : "bg-amber-50 border border-amber-100 text-amber-700"
+                                  }`}
+                                >
+                                  <option value="Scheduled">Scheduled</option>
+                                  <option value="Tested">Tested</option>
+                                  <option value="Canceled">Canceled</option>
+                                </select>
+                              </td>
+                              
+                              {/* Note */}
+                              <td className="px-1 text-zinc-400 font-bold text-[9px] truncate max-w-[80px]" title={req.skill}>
+                                {req.skill.includes("·") ? req.skill.split("·")[1].trim() : "—"}
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </section>

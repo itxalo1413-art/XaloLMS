@@ -13,6 +13,7 @@ import {
 import { MOCK_TEST_TEACHER_OPTIONS } from "@/lib/mockTestTeacherNames";
 import { MockTestTeacherSchedulePreview } from "./MockTestTeacherSchedulePreview";
 import { NativeSelectChevron } from "@/components/student/ui";
+import { fetchAcaFreeSlots, updateAcaFreeSlot } from "@/lib/acaManagementApi";
 
 const months = [
   "Tháng 1",
@@ -90,6 +91,22 @@ export function MockTestApprovalSection() {
     if (!confirm(`Từ chối yêu cầu Mock Test của ${r.studentName}?`)) return;
     try {
       await rejectMockTestRequest(r.id);
+      
+      // Free the slot
+      const timePart = (r.examTime || "").split(" (")[0];
+      const slots = await fetchAcaFreeSlots();
+      const bookedSlot = slots.find(
+        (s) =>
+          s.day === r.day &&
+          s.month === r.month &&
+          s.year === r.year &&
+          s.time === timePart &&
+          s.status === "booked"
+      );
+      if (bookedSlot) {
+        await updateAcaFreeSlot(bookedSlot.id, { status: "available" });
+      }
+
       await sync();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Từ chối thất bại.");

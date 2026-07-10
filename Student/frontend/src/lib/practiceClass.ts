@@ -68,24 +68,20 @@ export type PracticeClassSlot = {
 
 const DEFAULT_PRACTICE_CLASS_WEEKLY_SCHEDULE: PracticeClassSlot[] = [
   {
-    id: "sun-lrw",
-    dayOfWeek: 0,
-    dayLabel: "CN",
-    time: "9h – 11h30",
-    title: "Làm đề L-R-W tập trung",
-    detail:
-      "Tham gia bằng link Google Meet, làm bài trên Google Docs, có nhân viên canh thời gian làm bài và các bạn học viên khác tham gia.",
-    platform: "Google Meet",
-    meeting: {
-      meetingId: "meet-lrw-sun",
-      password: "Không cần mật khẩu",
-      joinUrl: "https://meet.google.com/abc-defg-hij",
-    },
-  },
-  {
     id: "tue-lrw",
     dayOfWeek: 2,
     dayLabel: "Thứ 3",
+    time: "19h45 – 21h45",
+    title: "Luyện tập Speaking theo chuyên đề",
+    detail:
+      "Tham gia bằng Zoom, học với Giáo viên, phân tích bộ đề Speaking 3 part, được cung cấp từ vựng/phương pháp tiếp cận và luyện tập trực tiếp với Giáo viên.",
+    platform: "Zoom",
+    meeting: PRACTICE_CLASS_ZOOM_ROOM,
+  },
+  {
+    id: "sun-lrw",
+    dayOfWeek: 4,
+    dayLabel: "Thứ 5",
     time: "19h45 – 21h45",
     title: "Chữa đề L-R-W",
     detail:
@@ -97,12 +93,16 @@ const DEFAULT_PRACTICE_CLASS_WEEKLY_SCHEDULE: PracticeClassSlot[] = [
     id: "sat-speaking",
     dayOfWeek: 6,
     dayLabel: "Thứ 7",
-    time: "19h45 – 21h45",
-    title: "Chữa đề Speaking",
+    time: "19h – 21h30",
+    title: "Làm đề L-R-W tập trung",
     detail:
-      "Tham gia bằng Zoom, học với Giáo viên, phân tích bộ đề Speaking 3 part, được cung cấp từ vựng/phương pháp tiếp cận và luyện tập trực tiếp với Giáo viên.",
-    platform: "Zoom",
-    meeting: PRACTICE_CLASS_ZOOM_ROOM,
+      "Tham gia bằng link Google Meet, làm bài trên Google Docs, có nhân viên canh thời gian làm bài và các bạn học viên khác tham gia.",
+    platform: "Google Meet",
+    meeting: {
+      meetingId: "meet-lrw-sat",
+      password: "Không cần mật khẩu",
+      joinUrl: "https://meet.google.com/abc-defg-hij",
+    },
   },
 ];
 

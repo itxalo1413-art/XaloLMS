@@ -10,23 +10,36 @@ import {
   isAuthDisabled,
   login,
   setAuthToken,
+  type AuthUser,
 } from "@/lib/auth";
 
 const LOGIN_QUOTE_POPUP_KEY = "xalo.showLoginQuotePopup";
+
+const DEMO_PROFILES: { name: string; email: string; role: "HS" | "ACA" | "GV"; label: string }[] = [
+  { name: "Dương Ngọc Khôi Nguyên", email: "student.demo@xalo.local", role: "HS", label: "🎓 Học viên (Khôi Nguyên)" },
+  { name: "Lê Nguyễn Khánh Thi", email: "aca@xaloenglish.vn", role: "ACA", label: "💼 ACA 1 (Khánh Thi)" },
+  { name: "Nghiêm Doãn Quỳnh Châu", email: "aca2@xaloenglish.vn", role: "ACA", label: "💼 ACA 2 (Quỳnh Châu)" },
+  { name: "Lê Minh Trang", email: "aca3@xaloenglish.vn", role: "ACA", label: "💼 ACA 3 (Minh Trang)" },
+];
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (!isAuthDisabled()) return;
-    const demo = getAuthBypassUser();
-    cacheAuthUser(demo);
-    if (typeof window !== "undefined") {
-      window.sessionStorage.setItem(LOGIN_QUOTE_POPUP_KEY, "1");
+    // If already logged in and not switching accounts, redirect directly to their dashboard
+    if (searchParams.get("switch") === "1") return;
+    const rawUser = typeof window !== "undefined" ? localStorage.getItem("xalo.auth.user") : null;
+    if (rawUser) {
+      try {
+        const user = JSON.parse(rawUser) as AuthUser;
+        router.replace(user.role === "HS" ? "/" : homePathForRole(user.role));
+      } catch {
+        // ignore
+      }
     }
-    router.replace("/");
-  }, [router]);
+  }, [router, searchParams]);
+
   const roleError = searchParams.get("error") === "role";
 
   const [email, setEmail] = useState("");
@@ -36,6 +49,23 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(
     roleError ? "Tài khoản này không phải học viên. Dùng cổng ACA/Giáo viên nếu có." : null,
   );
+
+  const handleQuickLogin = (prof: typeof DEMO_PROFILES[0]) => {
+    const userPayload: AuthUser = {
+      id: prof.role === "HS" ? "demo-student-id" : `aca-id-${prof.name.toLowerCase().replace(/\s+/g, "-")}`,
+      email: prof.email,
+      name: prof.name,
+      role: prof.role,
+      status: "active",
+      createdAt: new Date().toISOString(),
+    };
+    cacheAuthUser(userPayload);
+    setAuthToken("demo-bypass-token");
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(LOGIN_QUOTE_POPUP_KEY, "1");
+    }
+    router.replace(prof.role === "HS" ? "/" : homePathForRole(prof.role));
+  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,14 +102,24 @@ export function LoginForm() {
               Chào mừng bạn quay trở lại hệ thống học tập
             </h1>
             <p className="mt-4 text-sm text-zinc-300 leading-relaxed">
-              Đăng nhập để tiếp tục theo dõi tiến độ, xem tài liệu và cập nhật trạng thái học tập của bạn.
+              Đăng nhập bằng tài khoản hoặc nhấp vào các nút **Đăng nhập nhanh (Quick Login)** để kiểm tra/đổi lịch thi của các ACA khác nhau.
             </p>
           </div>
-          <ul className="space-y-3 text-sm text-zinc-300">
-            <li>• Theo dõi nội dung đã học</li>
-            <li>• Tìm tài liệu nhanh trong thư viện</li>
-            <li>• Tiếp tục học tại vị trí đang dở</li>
-          </ul>
+          <div className="space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-wider text-white">Đăng nhập nhanh cho kiểm thử:</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {DEMO_PROFILES.map((prof) => (
+                <button
+                  key={prof.email}
+                  type="button"
+                  onClick={() => handleQuickLogin(prof)}
+                  className="px-3 py-2 bg-white/10 hover:bg-white/20 border border-white/15 rounded-xl text-[11px] font-black text-left text-white transition-all"
+                >
+                  {prof.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </section>
 
         <section className="p-8 sm:p-10">
@@ -87,7 +127,7 @@ export function LoginForm() {
             <div className="text-center lg:text-left">
               <h2 className="text-2xl font-bold text-zinc-900">Đăng nhập</h2>
               <p className="mt-2 text-sm text-zinc-500">
-                Nhập tài khoản học viên (HS) do học vụ cấp.
+                Nhập tài khoản của bạn hoặc dùng bảng đăng nhập nhanh bên trái.
               </p>
             </div>
 
@@ -109,7 +149,7 @@ export function LoginForm() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nguyenduong939705@gmail.com"
+                  placeholder="aca@xaloenglish.vn"
                   className="mt-2 w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-800 outline-none focus:border-[#6a5acd]"
                 />
               </div>
@@ -154,10 +194,22 @@ export function LoginForm() {
               </button>
             </form>
 
-            <p className="mt-6 text-center text-xs text-zinc-500">
-              Tài khoản demo (sau khi seed backend): email trong STUDENT_SEED_EMAIL, mật khẩu
-              STUDENT_SEED_PASSWORD.
-            </p>
+            {/* Quick login list for Mobile view */}
+            <div className="mt-8 lg:hidden space-y-3">
+              <h3 className="text-xs font-bold text-zinc-500 uppercase">Đăng nhập nhanh</h3>
+              <div className="grid grid-cols-1 gap-2">
+                {DEMO_PROFILES.map((prof) => (
+                  <button
+                    key={prof.email}
+                    type="button"
+                    onClick={() => handleQuickLogin(prof)}
+                    className="px-3 py-2 border border-zinc-200 hover:bg-zinc-50 rounded-xl text-xs font-bold text-left text-zinc-700"
+                  >
+                    {prof.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
       </div>

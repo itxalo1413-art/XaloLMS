@@ -509,24 +509,27 @@ export default function Lop11Page() {
     // Helper: extract day values like ["2","4","6"] from schedule text
     const parseDaysFromText = (text: string): string[] => {
       const days: string[] = [];
-      const ORDER = ["2","3","4","5","6","7"];
-      ORDER.forEach(d => {
-        if (new RegExp(`t${d}(?!\\d)`, 'i').test(text) || new RegExp(`[^a-z0-9]${d}[^0-9]`).test(text)) {
-          // "t2", "t246" matches
+      const upper = text.toUpperCase();
+      
+      // 1. Check for CN
+      if (/\bCN\b|CHỦ\s*NHẬT/i.test(upper)) {
+        days.push("CN");
+      }
+      
+      // 2. Strip all time patterns to avoid digit collision
+      const cleanText = upper
+        .replace(/\d+\s*[H:]\s*\d*/g, "") // remove "19H30", "19:", "9H"
+        .replace(/\d+\s*-\s*\d+\s*H/g, "") // remove "9-11H"
+        // remove hours like "9-11", "20-22", "19-21" without lookbehind
+        .replace(/(^|[^\d])((?:1\d|2[0-3]|[7-9])\s*-\s*(?:1\d|2[0-3]|[7-9]))(?=$|[^\d])/g, "$1");
+         
+      // 3. Any remaining digit 2-7 is a class day
+      for (let d = 2; d <= 7; d++) {
+        if (cleanText.includes(String(d))) {
+          days.push(String(d));
         }
-      });
-      // Parse compact form like "T246" or "T35"
-      const compact = text.match(/\bT([2-7]+)\b/i);
-      if (compact) {
-        compact[1].split('').forEach(d => { if (!days.includes(d)) days.push(d); });
       }
-      // Parse "T2,4,6" or "T2,T4,T6"
-      const csv = text.match(/T?(\d)(?:[,\/]\s*T?(\d))+/ig);
-      if (csv) {
-        const digits = text.match(/(?<=T|,)([2-7])/ig);
-        if (digits) digits.forEach(d => { if (!days.includes(d)) days.push(d); });
-      }
-      if (/\bcn\b|chủ\s*nhật/i.test(text) && !days.includes("CN")) days.push("CN");
+      
       return days;
     };
 

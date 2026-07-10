@@ -97,8 +97,8 @@ export class PracticeClassService {
       const registeredSlotIds = new Set(registrations.map(r => r.slotId));
 
       // Determine the values for scheduleTue, scheduleSat, scheduleSun based on registrations
-      const scheduleTue = registeredSlotIds.has('tue-lrw') ? 'Ca 1 (18h-20h)' : 'Không học';
-      const scheduleSat = registeredSlotIds.has('sat-speaking') ? 'Ca 1 (18h-20h)' : 'Không học';
+      const scheduleTue = registeredSlotIds.has('tue-lrw') ? 'Ca 1 (19h45-21h45)' : 'Không học';
+      const scheduleSat = registeredSlotIds.has('sat-speaking') ? 'Ca 1 (19h-21h30)' : 'Không học';
       const scheduleSun = registeredSlotIds.has('sun-lrw') ? 'Có tham gia' : 'Không học';
 
       // 5. Look for AcaPracticeStudent entry for this user
