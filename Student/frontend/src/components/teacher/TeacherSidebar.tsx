@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { clearAuthToken, isAuthDisabled } from "@/lib/auth";
 
 const items = [
   { href: "/teacher", label: "Danh sách lớp" },
@@ -12,6 +13,16 @@ const items = [
 
 export function TeacherSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const handleLogout = () => {
+    if (isAuthDisabled()) {
+      router.replace("/");
+      return;
+    }
+    clearAuthToken();
+    router.replace("/login");
+  };
 
   return (
     <aside className="fixed left-0 top-0 z-50 hidden h-screen w-72 p-4 transition-all duration-300 md:block">
@@ -100,6 +111,18 @@ export function TeacherSidebar() {
               </div>
               <span className="text-xs font-bold">Hồ sơ GV</span>
             </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-muted transition-all duration-200 hover:bg-background hover:text-foreground"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-muted transition-all group-hover:text-foreground">
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </div>
+              <span className="text-xs font-bold">Đăng xuất</span>
+            </button>
           </div>
         </nav>
       </div>

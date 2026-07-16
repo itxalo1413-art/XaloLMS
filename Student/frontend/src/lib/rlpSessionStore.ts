@@ -49,6 +49,7 @@ function saveLocal(rows: RlpSession[]) {
   if (typeof window === "undefined") return;
   localStorage.setItem(RLP_SESSIONS_STORAGE_KEY, JSON.stringify(rows));
   sessionsCache = rows;
+  setActiveRlpSessions(rows);
   dispatchRlpUpdate();
 }
 
@@ -70,16 +71,16 @@ export async function refreshRlpSessions(classId?: string): Promise<RlpSession[]
       const rows = await fetchRlpSessionsForTeacher(classId);
       saveLocal(rows);
       return rows;
-    } catch {
-      // try student fetcher next
+    } catch (e) {
+      console.warn("fetchRlpSessionsForTeacher failed, trying student fetcher next:", e);
     }
 
     try {
       const rows = await fetchRlpSessionsForStudent();
       saveLocal(rows);
       return rows;
-    } catch {
-      // ignore
+    } catch (e) {
+      console.error("fetchRlpSessionsForStudent failed:", e);
     }
   }
   const local = loadLocal();

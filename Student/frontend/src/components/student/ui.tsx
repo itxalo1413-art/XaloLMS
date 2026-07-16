@@ -108,8 +108,14 @@ export function NativeSelectChevron({
     <div className="relative group">
       <select
         {...rest}
+        style={{
+          appearance: "none",
+          WebkitAppearance: "none",
+          MozAppearance: "none",
+          ...rest.style,
+        }}
         className={[
-          "w-full cursor-pointer appearance-none rounded-2xl border border-zinc-200 bg-white pl-4 pr-10 text-sm font-bold text-foreground shadow-sm outline-none transition-all focus:border-primary/40 focus:ring-2 focus:ring-primary/10",
+          "w-full cursor-pointer appearance-none rounded-2xl border border-zinc-200 bg-white pl-4 pr-10 text-sm font-bold text-foreground shadow-sm outline-none transition-all focus:border-primary/45 focus:ring-2 focus:ring-primary/10",
           className,
         ]
           .filter(Boolean)
@@ -142,6 +148,11 @@ export function Select({
       <select
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
+        style={{
+          appearance: "none",
+          WebkitAppearance: "none",
+          MozAppearance: "none",
+        }}
         className="h-11 w-full cursor-pointer appearance-none rounded-2xl border border-zinc-200 bg-white pl-4 pr-10 text-sm font-bold text-foreground shadow-sm outline-none transition-all focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
       >
         <option value="" disabled>

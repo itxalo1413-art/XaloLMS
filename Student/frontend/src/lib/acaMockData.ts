@@ -46,7 +46,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 7,
     nextPhaseStartDate: "29/06/2026",
     nextPhase: "W-L",
-    slotsToEnroll: 5,
+    slotsToEnroll: 12,
   },
   {
     id: "cls_m5_2",
@@ -60,7 +60,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 4,
     nextPhaseStartDate: "26/06/2026",
     nextPhase: "W-L",
-    slotsToEnroll: 8,
+    slotsToEnroll: 12,
   },
   {
     id: "cls_m5_3",
@@ -74,7 +74,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 3,
     nextPhaseStartDate: "01/07/2026",
     nextPhase: "S-R",
-    slotsToEnroll: 9,
+    slotsToEnroll: 12,
   },
   {
     id: "cls_m5_4",
@@ -88,7 +88,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 5,
     nextPhaseStartDate: "10/07/2026",
     nextPhase: "S-R",
-    slotsToEnroll: 7,
+    slotsToEnroll: 12,
   },
   {
     id: "cls_m5_5",
@@ -102,7 +102,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 5,
     nextPhaseStartDate: "14/07/2026",
     nextPhase: "S-R",
-    slotsToEnroll: 5,
+    slotsToEnroll: 10,
   },
   {
     id: "cls_m5_6",
@@ -116,7 +116,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 3,
     nextPhaseStartDate: "29/06/2026",
     nextPhase: "W-L",
-    slotsToEnroll: 7,
+    slotsToEnroll: 10,
   },
   {
     id: "cls_m5_7",
@@ -130,7 +130,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 1,
     nextPhaseStartDate: "02/07/2026",
     nextPhase: "S-R",
-    slotsToEnroll: 11,
+    slotsToEnroll: 12,
   },
   {
     id: "cls_m5_8",
@@ -144,7 +144,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 3,
     nextPhaseStartDate: "01/07/2026",
     nextPhase: "S-R",
-    slotsToEnroll: 9,
+    slotsToEnroll: 12,
   },
   {
     id: "cls_m5_9",
@@ -158,7 +158,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 2,
     nextPhaseStartDate: "04/07/2026",
     nextPhase: "W-L",
-    slotsToEnroll: 10,
+    slotsToEnroll: 12,
   },
 
   // --- THÁNG 6 ---
@@ -174,7 +174,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 2,
     nextPhaseStartDate: "12/06/2026",
     nextPhase: "W-L",
-    slotsToEnroll: 10,
+    slotsToEnroll: 12,
   },
   {
     id: "cls_m6_2",
@@ -188,7 +188,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 2,
     nextPhaseStartDate: "07/08/2026",
     nextPhase: "S-R",
-    slotsToEnroll: 10,
+    slotsToEnroll: 12,
   },
   {
     id: "cls_m6_3",
@@ -202,7 +202,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 7,
     nextPhaseStartDate: "10/08/2026",
     nextPhase: "S-R",
-    slotsToEnroll: 5,
+    slotsToEnroll: 12,
   },
   {
     id: "cls_m6_4",
@@ -216,7 +216,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 3,
     nextPhaseStartDate: "12/08/2026",
     nextPhase: "W-L",
-    slotsToEnroll: 9,
+    slotsToEnroll: 12,
   },
   {
     id: "cls_m6_5",
@@ -230,7 +230,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 5,
     nextPhaseStartDate: "21/08/2026",
     nextPhase: "W-L",
-    slotsToEnroll: 7,
+    slotsToEnroll: 12,
   },
   {
     id: "cls_m6_6",
@@ -244,7 +244,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 4,
     nextPhaseStartDate: "12/09/2026",
     nextPhase: "W-L",
-    slotsToEnroll: 8,
+    slotsToEnroll: 12,
   },
   {
     id: "cls_m6_7",
@@ -258,7 +258,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 3,
     nextPhaseStartDate: "15/06/2026",
     nextPhase: "W-L",
-    slotsToEnroll: 7,
+    slotsToEnroll: 10,
   },
   {
     id: "cls_m6_8",
@@ -272,7 +272,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 2,
     nextPhaseStartDate: "10/08/2026",
     nextPhase: "S-R",
-    slotsToEnroll: 8,
+    slotsToEnroll: 10,
   },
   {
     id: "cls_m6_9",
@@ -286,7 +286,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 1,
     nextPhaseStartDate: "06/10/2026",
     nextPhase: "W-L",
-    slotsToEnroll: 9,
+    slotsToEnroll: 10,
   },
   {
     id: "cls_m6_10",
@@ -300,7 +300,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 4,
     nextPhaseStartDate: "11/06/2026",
     nextPhase: "S-R",
-    slotsToEnroll: 6,
+    slotsToEnroll: 10,
   },
   {
     id: "cls_m6_11",
@@ -314,7 +314,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 2,
     nextPhaseStartDate: "21/08/2026",
     nextPhase: "S-R",
-    slotsToEnroll: 10,
+    slotsToEnroll: 12,
   },
   {
     id: "cls_m6_12",
@@ -328,7 +328,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 2,
     nextPhaseStartDate: "12/08/2026",
     nextPhase: "W-L",
-    slotsToEnroll: 10,
+    slotsToEnroll: 12,
   },
   {
     id: "cls_m6_13",
@@ -342,7 +342,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 2,
     nextPhaseStartDate: "15/08/2026",
     nextPhase: "S-R",
-    slotsToEnroll: 10,
+    slotsToEnroll: 12,
   },
   {
     id: "cls_m6_14",
@@ -356,7 +356,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 3,
     nextPhaseStartDate: "13/08/2026",
     nextPhase: "W-L",
-    slotsToEnroll: 9,
+    slotsToEnroll: 12,
   },
   {
     id: "cls_m6_15",
@@ -370,7 +370,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 2,
     nextPhaseStartDate: "03/08/2026",
     nextPhase: "W-L",
-    slotsToEnroll: 8,
+    slotsToEnroll: 10,
   },
   {
     id: "cls_m6_16",
@@ -384,7 +384,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 6,
     nextPhaseStartDate: "15/06/2026",
     nextPhase: "CORE 2",
-    slotsToEnroll: 6,
+    slotsToEnroll: 12,
   },
   {
     id: "cls_m6_17",
@@ -398,7 +398,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 3,
     nextPhaseStartDate: "11/06/2026",
     nextPhase: "CORE 2",
-    slotsToEnroll: 9,
+    slotsToEnroll: 12,
   },
   {
     id: "cls_m6_18",
@@ -412,7 +412,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 3,
     nextPhaseStartDate: "17/07/2026",
     nextPhase: "CORE 2",
-    slotsToEnroll: 9,
+    slotsToEnroll: 12,
   },
   {
     id: "cls_m6_19",
@@ -426,7 +426,7 @@ export const ACA_CLASSES: AcaClass[] = [
     phaseStudents: 4,
     nextPhaseStartDate: "18/07/2026",
     nextPhase: "CORE 2",
-    slotsToEnroll: 8,
+    slotsToEnroll: 12,
   },
   {
     id: "cls_m6_20",

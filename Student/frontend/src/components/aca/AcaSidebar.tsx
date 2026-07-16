@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getCachedAuthUser } from "@/lib/auth";
+import { getCachedAuthUser, clearAuthToken, isAuthDisabled } from "@/lib/auth";
 
 const requiredLists = [
   { href: "/aca/quan-ly/lop-theo-thang", label: "Lớp theo tháng", desc: "DS & số lượng lớp" },
@@ -23,14 +23,34 @@ const systemModules = [
 
 export function AcaSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   // Keep SSR + first client paint identical; resolve role only after mount.
   const [ready, setReady] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const [isKhanhThi, setIsKhanhThi] = useState(false);
 
+  const handleLogout = () => {
+    if (isAuthDisabled()) {
+      router.replace("/");
+      return;
+    }
+    clearAuthToken();
+    router.replace("/login");
+  };
+
   useEffect(() => {
-    const user = getCachedAuthUser();
+    const loggedInUser = getCachedAuthUser();
+    setUser(loggedInUser);
+    
+    const name = (loggedInUser?.name || "").trim().toLowerCase();
+    const email = (loggedInUser?.email || "").trim().toLowerCase();
+    
     setIsKhanhThi(
-      user?.name === "Lê Nguyễn Khánh Thi" || user?.email === "aca@xaloenglish.vn",
+      name === "lê nguyễn khánh thi" ||
+        name === "aca_1" ||
+        name === "aca 1" ||
+        email === "aca@xaloenglish.vn" ||
+        email === "aca_1@gmail.com",
     );
     setReady(true);
   }, [pathname]);
@@ -123,20 +143,80 @@ export function AcaSidebar() {
           </div>
 
           <div className="mt-2 shrink-0 space-y-0.5 border-t border-zinc-100 bg-white pt-3">
+            {ready && user && (
+              <div className="mb-3 mx-1 px-3 py-2.5 bg-zinc-50/60 border border-zinc-100 rounded-xl flex items-center gap-2.5">
+                <div className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-black text-primary uppercase shadow-sm">
+                  {user.name.charAt(0)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-xs font-black text-foreground">{user.name}</div>
+                  <div className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider">{user.role}</div>
+                </div>
+              </div>
+            )}
+
             <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted opacity-60">
               Tài khoản
             </div>
             <Link
               href="/aca/profile"
               className={[
-                "flex items-center rounded-xl px-3 py-2.5 transition-all duration-200",
+                "group flex items-center gap-2.5 rounded-xl px-3 py-2 transition-all duration-200",
                 pathname.startsWith("/aca/profile")
                   ? "bg-primary text-white shadow-premium"
                   : "text-muted hover:bg-primary-soft/70 hover:text-foreground",
               ].join(" ")}
             >
-              <span className="text-xs font-bold">Hồ sơ ACA</span>
+              <div
+                className={[
+                  "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg shadow-sm transition-all duration-200",
+                  pathname.startsWith("/aca/profile")
+                    ? "bg-white/15 text-white"
+                    : "bg-white text-primary group-hover:bg-primary-soft group-hover:text-primary",
+                ].join(" ")}
+              >
+                <svg
+                  className="h-3.5 w-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={pathname.startsWith("/aca/profile") ? "2.5" : "2"}
+                >
+                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" />
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div
+                  className={`truncate text-xs font-bold leading-tight ${
+                    pathname.startsWith("/aca/profile") ? "text-white" : "text-muted"
+                  }`}
+                >
+                  Hồ sơ ACA
+                </div>
+              </div>
             </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-muted transition-all duration-200 hover:bg-primary-soft/70 hover:text-foreground"
+            >
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white text-primary group-hover:bg-primary-soft group-hover:text-primary shadow-sm transition-all duration-200">
+                <svg
+                  className="h-3.5 w-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </div>
+              <div className="min-w-0 flex-1 text-left">
+                <div className="truncate text-xs font-bold leading-tight">
+                  Đăng xuất
+                </div>
+              </div>
+            </button>
           </div>
         </nav>
       </div>

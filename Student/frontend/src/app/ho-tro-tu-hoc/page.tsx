@@ -66,7 +66,8 @@ type PageDialog =
   | { kind: "confirm-practice"; slotId: PracticeSlotId }
   | { kind: "success-practice"; slotId: PracticeSlotId }
   | { kind: "duplicate-mock" }
-  | { kind: "alert"; message: string };
+  | { kind: "alert"; message: string }
+  | { kind: "success-mock"; message: string };
 
 type DateObj = { day: number; month: number; year: number };
 
@@ -109,7 +110,7 @@ export default function HoTroTuHocPage() {
     const sortedApproved = [...myRequests]
       .filter((r) => r.status === "approved" && isSpeakingMockTest(r.skill))
       .sort((a, b) => new Date(b.requestedAt || "").getTime() - new Date(a.requestedAt || "").getTime());
-    const match = sortedApproved.find((r) => r.examTeacher && r.examTeacher !== "ACA" && r.examTeacher !== "");
+    const match = sortedApproved.find((r) => r.examTeacher && r.examTeacher !== "ACA" && r.examTeacher !== "GV Speaking" && r.examTeacher !== "");
     return match ? match.examTeacher : null;
   }, [myRequests]);
 
@@ -409,6 +410,13 @@ export default function HoTroTuHocPage() {
         await updateAcaFreeSlot(availableSlot.id, { status: "booked" });
         await loadFreeSlots();
       }
+
+      setDialog({
+        kind: "success-mock",
+        message: "Đăng ký ca test Speaking thành công! Đang chờ duyệt.",
+      });
+      setFromDate(null);
+      setToDate(null);
     } catch (err) {
       setDialog({
         kind: "alert",
@@ -594,12 +602,12 @@ export default function HoTroTuHocPage() {
                 {/* Hint prompts */}
                 {!fromDate && (
                   <div className="mt-4 text-center text-xs font-bold text-zinc-400 py-2">
-                    📅 Click chọn ngày bắt đầu, sau đó click ngày kết thúc — Hệ thống sẽ hiển thị các ca test khả dụng trong khoảng đó
+                    Click chọn ngày bắt đầu, sau đó click ngày kết thúc — Hệ thống sẽ hiển thị các ca test khả dụng trong khoảng đó
                   </div>
                 )}
                 {fromDate && !toDate && (
                   <div className="mt-4 text-center text-xs font-bold text-zinc-400 py-2">
-                    ✅ Ngày bắt đầu: <strong className="text-primary">{fromDate.day}/{fromDate.month + 1}/{fromDate.year}</strong>
+                    Ngày bắt đầu: <strong className="text-primary">{fromDate.day}/{fromDate.month + 1}/{fromDate.year}</strong>
                     {" "}— Tiếp tục click ngày kết thúc trên lịch
                   </div>
                 )}
@@ -625,9 +633,6 @@ export default function HoTroTuHocPage() {
                           <div className="flex items-center gap-3 mb-3">
                             <div className="h-px flex-1 bg-zinc-100" />
                             <div className="flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-wider text-zinc-600 shadow-sm">
-                              <svg className="h-3 w-3 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
                               {["CN","T2","T3","T4","T5","T6","T7"][new Date(daySlot.date.year, daySlot.date.month, daySlot.date.day).getDay()]}
                               &nbsp;—&nbsp;
                               {daySlot.date.day} Tháng {daySlot.date.month + 1}, {daySlot.date.year}
@@ -641,21 +646,14 @@ export default function HoTroTuHocPage() {
                               return (
                                 <div key={`${g.time}_${g.mode}`} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
                                   <div className="flex items-start gap-2.5 mb-4">
-                                    <svg className="h-4 w-4 text-primary mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
                                     <div>
-                                      <div className="text-sm font-black text-foreground">Xa Lộ English — Cơ sở Thủ Đức</div>
-                                      <div className="text-[11px] text-zinc-400 font-medium mt-0.5">50 Lê Văn Việt, Hiệp Phú, Thủ Đức, TP. HCM</div>
+                                      <div className="text-sm font-black text-foreground">Xa Lộ English — Cơ sở Phú Nhuận</div>
+                                      <div className="text-[11px] text-zinc-400 font-medium mt-0.5">250 Nguyễn Đình Chính, Phường 11, Phú Nhuận, TP. HCM</div>
                                     </div>
                                   </div>
 
                                   <div className="rounded-xl border border-zinc-100 bg-zinc-50/30 p-4 space-y-3">
                                     <div className="flex items-center gap-2.5">
-                                      <svg className="h-4 w-4 text-zinc-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
-                                      </svg>
                                       <span className="text-sm font-black text-foreground">Speaking</span>
                                       <span className={`rounded-md px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide ${
                                         g.mode === "Offline" ? "bg-blue-50 text-blue-600" : "bg-purple-50 text-purple-700"
@@ -663,15 +661,9 @@ export default function HoTroTuHocPage() {
                                     </div>
                                     <div className="rounded-lg bg-primary-soft/20 border border-primary/10 p-3 space-y-2">
                                       <div className="flex items-center gap-2 text-xs font-bold text-zinc-700">
-                                        <svg className="h-3.5 w-3.5 text-primary shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                        </svg>
                                         <span>{daySlot.date.day} Tháng {daySlot.date.month + 1}, {daySlot.date.year}</span>
                                       </div>
                                       <div className="flex items-center gap-2 text-xs font-bold text-zinc-700">
-                                        <svg className="h-3.5 w-3.5 text-primary shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
                                         <span>{g.time}</span>
                                       </div>
                                     </div>
@@ -681,14 +673,6 @@ export default function HoTroTuHocPage() {
                                         GV phụ trách cố định: {assignedAca}
                                       </div>
                                     )}
-                                  </div>
-
-                                  <div className="mt-4 pt-4 border-t border-zinc-100 flex items-center justify-between">
-                                    <div>
-                                      <span className="text-xs font-bold text-zinc-500">Lệ phí</span>
-                                      <span className="ml-2 text-sm font-black text-foreground">Miễn phí</span>
-                                    </div>
-                                    <div className="text-[10px] font-bold text-zinc-400">Còn {count} chỗ</div>
                                   </div>
 
                                   <button
@@ -1025,6 +1009,14 @@ export default function HoTroTuHocPage() {
         tone="warning"
         title="Không thể đăng ký"
         message="Bạn đã có đăng ký cho kỹ năng và ngày này. Vui lòng chọn ngày hoặc kỹ năng khác."
+        onClose={() => setDialog(null)}
+      />
+
+      <StudentDialog
+        open={dialog?.kind === "success-mock"}
+        tone="success"
+        title="Đăng ký thành công"
+        message={dialog?.kind === "success-mock" ? dialog.message : ""}
         onClose={() => setDialog(null)}
       />
 

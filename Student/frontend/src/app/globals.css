@@ -142,13 +142,13 @@ select.h-8:focus, select.inline-select:focus {
   background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPScyNCcgaGVpZ2h0PScyNCcgdmlld0JveD0nMCAwIDI0IDI0JyBmaWxsPSdub25lJyBzdHJva2U9JyM3YjYxZmYnIHN0cm9rZS13aWR0aD0nMycgc3Ryb2tlLWxpbmVjYXA9J3JvdW5kJyBzdHJva2UtbGluZWpvaW49J3JvdW5kJz48cG9seWxpbmUgcG9pbnRzPSc2IDkgMTIgMTUgMTggOSc+PC9wb2x5bGluZT48L3N2Zz4=");
 }
 
-/* Disable custom background chevron on student side to prevent double chevrons */
+/* Disable custom background chevron on student side or on any select explicitly using appearance-none to prevent double chevrons */
+select.appearance-none,
 .flat-card-scope select {
   appearance: none !important;
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
   background-image: none !important;
-  padding-right: inherit !important;
 }
 
 /* Map all bold and black font-weights to semibold (600) for clean Montserrat typography */

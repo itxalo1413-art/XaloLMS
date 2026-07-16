@@ -22,10 +22,13 @@ export type LoginResponse = {
 
 /** Tạm thời bỏ qua login — bật lại: đặt `NEXT_PUBLIC_AUTH_DISABLED=false` rồi build lại. */
 export function isAuthDisabled(): boolean {
+  if (typeof window !== "undefined" && localStorage.getItem(AUTH_TOKEN_KEY)) {
+    return false;
+  }
   const flag = process.env.NEXT_PUBLIC_AUTH_DISABLED;
   if (flag === "false") return false;
   if (flag === "true") return true;
-  return true;
+  return false;
 }
 
 export function getAuthBypassUser(): AuthUser {

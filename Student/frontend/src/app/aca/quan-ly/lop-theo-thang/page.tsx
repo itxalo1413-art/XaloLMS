@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { getCachedAuthUser } from "@/lib/auth";
 import { AcaLayout } from "@/components/aca/AcaLayout";
 import { AcaTopbar } from "@/components/aca/AcaTopbar";
 import { NativeSelectChevron } from "@/components/student/ui";
@@ -851,7 +852,58 @@ const isRecruitedForNextPhase = (st: AcaStudent, c: AcaClass, selectedYear: numb
   return matchesNextCycle;
 };
 
+const getDefaultSlotsToEnroll = (className: string): number => {
+  const name = className.toLowerCase();
+  if (
+    name.includes("upstream") ||
+    name.includes("soar") ||
+    name.includes("precore") ||
+    name.includes("pre core") ||
+    (name.includes("core") && !name.includes("precore") && !name.includes("pre core"))
+  ) {
+    return 12;
+  }
+  if (
+    name.includes("momentum") ||
+    name.includes("advanced") ||
+    name.includes("foundation")
+  ) {
+    return 10;
+  }
+  return 0;
+};
+
+const getDefaultSlotsToEnrollFromCode = (classCode: string): number => {
+  if (!classCode) return 0;
+  const firstChar = classCode.trim().charAt(0).toUpperCase();
+  if (firstChar === "U" || firstChar === "S" || firstChar === "C") {
+    return 12;
+  }
+  if (firstChar === "M" || firstChar === "A" || firstChar === "F") {
+    return 10;
+  }
+  return 0;
+};
+
 export default function LopTheoThangPage() {
+  const [ready, setReady] = useState(false);
+  const [isKhanhThi, setIsKhanhThi] = useState(false);
+
+  useEffect(() => {
+    const user = getCachedAuthUser();
+    const name = (user?.name || "").trim().toLowerCase();
+    const email = (user?.email || "").trim().toLowerCase();
+    
+    setIsKhanhThi(
+      name === "lê nguyễn khánh thi" ||
+        name === "aca_1" ||
+        name === "aca 1" ||
+        email === "aca@xaloenglish.vn" ||
+        email === "aca_1@gmail.com",
+    );
+    setReady(true);
+  }, []);
+
   const NOW_Y = new Date().getFullYear();
   const NOW_M = new Date().getMonth() + 1;
   const [selectedYear, setSelectedYear] = useState<number>(NOW_Y);
@@ -860,8 +912,10 @@ export default function LopTheoThangPage() {
   const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedMonth, selectedYear]);
+    if (ready && isKhanhThi) {
+      setCurrentPage(1);
+    }
+  }, [selectedMonth, selectedYear, ready, isKhanhThi]);
 
   const [activeTab, setActiveTab] = useState<"calendar" | "list">("calendar");
   const [selectedClass, setSelectedClass] = useState<AcaClass | Aca11Class | null>(null);
@@ -877,20 +931,22 @@ export default function LopTheoThangPage() {
   const [selectedPhaseIndex, setSelectedPhaseIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    setShowHistoryInTimeline(false);
-    if (selectedClass && !("className" in selectedClass)) {
-      const projected = getProjectedPhasesForYear(selectedClass as AcaClass, selectedYear);
-      const active = projected.find(p => p.isCurrent);
-      if (active) {
-        setSelectedPhaseIndex(active.phaseIndex);
+    if (ready && isKhanhThi) {
+      setShowHistoryInTimeline(false);
+      if (selectedClass && !("className" in selectedClass)) {
+        const projected = getProjectedPhasesForYear(selectedClass as AcaClass, selectedYear);
+        const active = projected.find(p => p.isCurrent);
+        if (active) {
+          setSelectedPhaseIndex(active.phaseIndex);
+        } else {
+          setSelectedPhaseIndex(0);
+        }
       } else {
-        setSelectedPhaseIndex(0);
+        setSelectedPhaseIndex(null);
       }
-    } else {
-      setSelectedPhaseIndex(null);
     }
-  }, [selectedClass, selectedYear]);
-  
+  }, [selectedClass, selectedYear, ready, isKhanhThi]);
+
   const [classes, setClasses] = useState<AcaClass[]>([]);
   const [classes11, setClasses11] = useState<Aca11Class[]>([]);
   const [students, setStudents] = useState<AcaStudent[]>([]);
@@ -942,6 +998,7 @@ export default function LopTheoThangPage() {
   const [fOpenDateHistory, setFOpenDateHistory] = useState<string[]>([]);
 
   useEffect(() => {
+    if (!ready || !isKhanhThi) return;
     async function loadData() {
       try {
         if (!canUseAcaApi()) {
@@ -967,7 +1024,7 @@ export default function LopTheoThangPage() {
       }
     }
     loadData();
-  }, []);
+  }, [ready, isKhanhThi]);
 
   // Open add class modal
   const openAddModal = () => {
@@ -1485,6 +1542,39 @@ export default function LopTheoThangPage() {
       return parseDate(a.startDate) - parseDate(b.startDate);
     });
   }, [classes, classes11, selectedMonth, selectedYear]);
+
+  if (!ready) {
+    return (
+      <AcaLayout>
+        <AcaTopbar title="Lớp theo tháng" subtitle="Đang tải quyền truy cập..." />
+        <main className="mx-auto max-w-7xl px-6 py-12 md:px-8 text-center text-sm text-zinc-500">
+          Đang kiểm tra quyền truy cập...
+        </main>
+      </AcaLayout>
+    );
+  }
+
+  if (!isKhanhThi) {
+    return (
+      <AcaLayout>
+        <AcaTopbar
+          title="Không có quyền truy cập"
+          subtitle="Trang web giới hạn quyền hạn truy cập của nhân viên."
+        />
+        <main className="mx-auto max-w-7xl px-6 py-12 md:px-8 text-center space-y-4">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600">
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-bold text-zinc-900">Quyền truy cập bị từ chối</h2>
+          <p className="text-sm text-zinc-500 max-w-md mx-auto">
+            Chỉ tài khoản của **Lê Nguyễn Khánh Thi** mới được quyền xem và thực hiện thao tác trên trang này.
+          </p>
+        </main>
+      </AcaLayout>
+    );
+  }
 
   return (
     <AcaLayout>
@@ -2273,7 +2363,14 @@ export default function LopTheoThangPage() {
                     type="text"
                     required
                     value={fClassCode}
-                    onChange={(e) => setFClassCode(e.target.value.toUpperCase())}
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase();
+                      setFClassCode(val);
+                      const def = getDefaultSlotsToEnrollFromCode(val);
+                      if (def > 0) {
+                        setFSlotsToEnroll(def);
+                      }
+                    }}
                     placeholder="Ví dụ: U246C2 (hoặc F246C1_070926 cho Foundation)"
                     className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-black text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10 tracking-wide"
                   />
@@ -2302,7 +2399,14 @@ export default function LopTheoThangPage() {
                   type="text"
                   required
                   value={fName}
-                  onChange={(e) => setFName(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFName(val);
+                    const def = getDefaultSlotsToEnroll(val);
+                    if (def > 0) {
+                      setFSlotsToEnroll(def);
+                    }
+                  }}
                   placeholder="XLE RLP_Upstream - 246 - C2 - GV ..."
                   className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10"
                 />

@@ -51,8 +51,15 @@ export default function MockTestApprovalPage() {
 
   useEffect(() => {
     const user = getCachedAuthUser();
+    const name = (user?.name || "").trim().toLowerCase();
+    const email = (user?.email || "").trim().toLowerCase();
+    
     setIsKhanhThi(
-      user?.name === "Lê Nguyễn Khánh Thi" || user?.email === "aca@xaloenglish.vn",
+      name === "lê nguyễn khánh thi" ||
+        name === "aca_1" ||
+        name === "aca 1" ||
+        email === "aca@xaloenglish.vn" ||
+        email === "aca_1@gmail.com",
     );
     setReady(true);
   }, []);

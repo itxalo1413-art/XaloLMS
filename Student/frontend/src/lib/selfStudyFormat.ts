@@ -103,17 +103,5 @@ export function getDemoSpeakingMockTests(
       score: "7.0",
       examLink: DEMO_SPEAKING_LINK,
     },
-    {
-      id: "speaking-demo-2",
-      studentId,
-      studentName,
-      skill: "Speaking Mock Test",
-      day: 12,
-      month: 4,
-      year: 2026,
-      status: "pending",
-      requestedAt: "2026-05-10T10:00:00.000Z",
-      examTime: "14:30",
-    },
   ];
 }

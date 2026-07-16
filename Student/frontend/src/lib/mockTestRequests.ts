@@ -14,7 +14,7 @@ import {
   rejectMockTestApi,
 } from "@/lib/mockTestApi";
 import { DEFAULT_STUDENT_ID } from "@/lib/studentIds";
-import { isSpeakingMockTest } from "@/lib/selfStudyFormat";
+import { isSpeakingMockTest, getDemoSpeakingMockTests } from "@/lib/selfStudyFormat";
 
 export type MockTestRequestStatus = "pending" | "approved" | "rejected";
 
@@ -93,9 +93,15 @@ export async function refreshMockTestRequestsForStudent(
       // fall through
     }
   }
-  const local = loadLocal().filter((r) => r.studentId === studentId);
-  applyMockTestCache(loadLocal());
-  return local;
+  let local = loadLocal();
+  if (local.length === 0) {
+    const demo = getDemoSpeakingMockTests(studentId, "Dương Ngọc Khôi Nguyên");
+    saveLocal(demo);
+    local = demo;
+  }
+  const filtered = local.filter((r) => r.studentId === studentId);
+  applyMockTestCache(local);
+  return filtered;
 }
 
 export async function refreshMockTestRequestsForAca(): Promise<MockTestRequest[]> {
@@ -105,7 +111,12 @@ export async function refreshMockTestRequestsForAca(): Promise<MockTestRequest[]
     dispatchMockTestUpdate();
     return rows;
   }
-  const local = loadLocal();
+  let local = loadLocal();
+  if (local.length === 0) {
+    const demo = getDemoSpeakingMockTests(DEFAULT_STUDENT_ID, "Dương Ngọc Khôi Nguyên");
+    saveLocal(demo);
+    local = demo;
+  }
   applyMockTestCache(local);
   return local;
 }

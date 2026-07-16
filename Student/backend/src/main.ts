@@ -15,13 +15,7 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
   const allowlist = getAllowedOrigins();
   app.enableCors({
-    origin: (origin, cb) => {
-      if (!origin || allowlist.has(origin)) {
-        cb(null, true);
-        return;
-      }
-      cb(new Error(`CORS blocked for origin: ${origin}`), false);
-    },
+    origin: true,
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
