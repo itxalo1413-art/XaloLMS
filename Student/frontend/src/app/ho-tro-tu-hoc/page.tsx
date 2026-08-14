@@ -1460,7 +1460,7 @@ export default function HoTroTuHocPage() {
               topContent={
                 <div className="space-y-4">
                   {/* ── Weekly Writing quota card ── */}
-                  <div className="rounded-2xl border border-zinc-100 bg-gradient-to-br from-secondary/5 to-transparent p-5 flex items-center justify-between gap-4 flex-wrap">
+                  <div className="rounded-2xl border border-zinc-100 bg-[#595082] p-5 flex items-center justify-between gap-4 flex-wrap">
                     <div className="flex items-center gap-4">
                       {/* Circular progress */}
                       <div className="relative h-16 w-16 shrink-0">
@@ -1468,42 +1468,42 @@ export default function HoTroTuHocPage() {
                           <circle
                             cx="18" cy="18" r="15.9"
                             fill="none"
-                            stroke="#e4e4e7"
+                            stroke="#8578b8"
                             strokeWidth="3"
                           />
                           <circle
                             cx="18" cy="18" r="15.9"
                             fill="none"
-                            stroke={submittedWritingThisWeek >= MAX_WRITING_WEEKLY ? "#10b981" : "#ec4899"}
+                            stroke={submittedWritingThisWeek >= MAX_WRITING_WEEKLY ? "#10b981" : "#f8c662"}
                             strokeWidth="3"
                             strokeDasharray={`${(Math.min(submittedWritingThisWeek, MAX_WRITING_WEEKLY) / MAX_WRITING_WEEKLY) * 100} 100`}
                             strokeLinecap="round"
                           />
                         </svg>
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <span className="text-sm font-black text-foreground tabular-nums">
+                          <span className="text-sm font-black text-[#f8c662] tabular-nums">
                             {Math.min(submittedWritingThisWeek, MAX_WRITING_WEEKLY)}/{MAX_WRITING_WEEKLY}
                           </span>
                         </div>
                       </div>
                       <div>
-                        <div className="text-sm font-black text-foreground">Bài Writing tuần này</div>
+                        <div className="text-sm font-black text-[#f8c662]">Bài Writing tuần này</div>
                         {submittedWritingThisWeek === 0 && (
-                          <div className="text-xs text-zinc-500 font-medium mt-0.5">
+                          <div className="text-xs text-[#f8c662]/90 font-medium mt-0.5">
                             Chưa nộp bài nào tuần này
                           </div>
                         )}
                         {submittedWritingThisWeek > 0 && submittedWritingThisWeek < MAX_WRITING_WEEKLY && (
-                          <div className="text-xs text-secondary font-bold mt-0.5">
+                          <div className="text-xs text-[#f8c662] font-bold mt-0.5">
                             Còn {MAX_WRITING_WEEKLY - submittedWritingThisWeek} bài có thể nộp
                           </div>
                         )}
                         {submittedWritingThisWeek >= MAX_WRITING_WEEKLY && (
-                          <div className="text-xs text-emerald-600 font-bold mt-0.5">
+                          <div className="text-xs text-emerald-400 font-bold mt-0.5">
                             Đã đủ {MAX_WRITING_WEEKLY} bài tuần này
                           </div>
                         )}
-                        <div className="text-[10px] text-zinc-400 font-medium mt-0.5">
+                        <div className="text-[10px] text-[#f8c662]/80 font-medium mt-0.5">
                           Tối đa 6 bài 1 tuần
                         </div>
                       </div>
@@ -1553,7 +1553,7 @@ export default function HoTroTuHocPage() {
             >
               <div className="space-y-6">
                 {/* Submit link input — Appears when clicking Đăng ký ngay */}
-                <div className="flex flex-col gap-2 rounded-2xl border border-primary/15 bg-secondary/5 p-4">
+                <div className="flex flex-col gap-2 rounded-2xl border border-primary/20 bg-primary/5 p-4 shadow-2xs">
                   <label className="text-[10px] font-black text-primary uppercase tracking-widest">Link bài làm (Google Docs)</label>
                   <div className="flex gap-2">
                     <input
@@ -1562,7 +1562,7 @@ export default function HoTroTuHocPage() {
                       value={writingLink}
                       onChange={(e) => setWritingLink(e.target.value)}
                       placeholder="Dán link Google Docs vào đây..."
-                      className="flex-1 h-11 rounded-xl border border-zinc-200 bg-white px-4 text-xs font-medium focus:ring-2 focus:ring-secondary/20 outline-none transition-all"
+                      className="flex-1 h-11 rounded-xl border border-primary/20 bg-white px-4 text-xs font-medium focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                     />
                     <button
                       type="button"
@@ -1587,7 +1587,7 @@ export default function HoTroTuHocPage() {
                             });
                           });
                       }}
-                      className="h-11 rounded-xl bg-secondary px-5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-secondary/90 shadow-2xs"
+                      className="h-11 rounded-xl bg-primary px-6 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-primary/90 shadow-2xs cursor-pointer active:scale-[0.98]"
                     >
                       Gửi bài
                     </button>
@@ -1679,19 +1679,19 @@ export default function HoTroTuHocPage() {
               topContent={
                 <div className="space-y-4">
                   {/* ── Weekly Practice Class info card ── */}
-                  <div className="rounded-2xl border border-zinc-100 bg-gradient-to-br from-primary/5 to-transparent p-5 flex items-center justify-between gap-4 flex-wrap">
+                  <div className="rounded-2xl border border-zinc-100 bg-[#595082] p-5 flex items-center justify-between gap-4 flex-wrap">
                     <div className="flex items-center gap-4">
                       {/* Week badge */}
-                      <div className="relative h-16 w-16 shrink-0 rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/20 flex flex-col items-center justify-center border border-primary/20 shadow-2xs">
-                        <span className="text-[9px] font-black uppercase text-primary tracking-wider">Đề tuần</span>
-                        <span className="text-xl font-black text-foreground tabular-nums leading-none mt-0.5">38</span>
+                      <div className="relative h-16 w-16 shrink-0 rounded-2xl bg-[#6a6096] flex flex-col items-center justify-center border border-[#8578b8]/40 shadow-2xs">
+                        <span className="text-[9px] font-black uppercase text-[#f8c662] tracking-wider">Đề tuần</span>
+                        <span className="text-xl font-black text-[#f8c662] tabular-nums leading-none mt-0.5">38</span>
                       </div>
                       <div>
-                        <div className="text-sm font-black text-foreground">Đề theo tuần (Tuần này là đề số 38)</div>
-                        <div className="text-xs text-primary font-bold mt-0.5">
+                        <div className="text-sm font-black text-[#f8c662]">Đề theo tuần (Tuần này là đề số 38)</div>
+                        <div className="text-xs text-[#f8c662] font-bold mt-0.5">
                           Bộ đề thi thử L-R-W & Speaking cập nhật mới mỗi tuần
                         </div>
-                        <div className="text-[10px] text-zinc-400 font-medium mt-0.5">
+                        <div className="text-[10px] text-[#f8c662]/80 font-medium mt-0.5">
                           Đăng ký lại lịch luyện đề hàng tuần tại đây
                         </div>
                       </div>

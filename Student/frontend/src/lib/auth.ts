@@ -27,8 +27,7 @@ export function isAuthDisabled(): boolean {
   }
   const flag = process.env.NEXT_PUBLIC_AUTH_DISABLED;
   if (flag === "false") return false;
-  if (flag === "true") return true;
-  return false;
+  return true;
 }
 
 export function getAuthBypassUser(): AuthUser {

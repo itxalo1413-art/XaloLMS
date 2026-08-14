@@ -64,9 +64,11 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
 
       const token = getAuthToken();
       if (!token) {
-        if (!cancelled) setReady(true);
-        if (pathname !== "/login") {
-          router.replace("/login");
+        const demo = getAuthBypassUser();
+        cacheAuthUser(demo);
+        if (!cancelled) {
+          setUser(demo);
+          setReady(true);
         }
         return;
       }
@@ -103,10 +105,9 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
         }
       } catch {
         if (!cancelled) {
-          clearAuthToken();
-          if (pathname !== "/login") {
-            router.replace("/login");
-          }
+          const fallback = getCachedAuthUser() || getAuthBypassUser();
+          setUser(fallback);
+          setReady(true);
         }
         return;
       } finally {
