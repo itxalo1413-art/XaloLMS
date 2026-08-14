@@ -1,3 +1,4 @@
+import { parseApiJson } from "@/lib/apiBase";
 import { apiFetch, isAuthDisabled, getAuthToken } from "@/lib/auth";
 
 export function normalizeClassification(cls: string): string {
@@ -121,6 +122,7 @@ export interface AcaStudent {
   phone: string;
   email: string;
   classification: string;
+  rawClassification?: string;
   scores: {
     l: number | string;
     r: number | string;
@@ -160,6 +162,17 @@ export interface AcaStudent {
   bcbLink: string;
   note: string;
   cycles?: AcaStudentCycle[];
+  dob?: string;
+  zodiac?: string;
+  avatarUrl?: string;
+  method?: string;
+  weeklyHours?: string;
+  classEnvironment?: string;
+  ieltsMeaning?: string;
+  previousBand?: string;
+  focusSkills?: string[];
+  practiceJoined?: boolean;
+  registeredSlotIds?: string[];
 }
 
 export interface AcaPracticeWeek {
@@ -169,6 +182,18 @@ export interface AcaPracticeWeek {
   linkTab: string;
   announcement: string;
   templateMessage: string;
+  zoomId?: string;
+  zoomPassword?: string;
+  scheduleTueInfo?: string;
+  scheduleThuInfo?: string;
+  scheduleSatInfo?: string;
+  scheduleTueTitle?: string;
+  scheduleThuTitle?: string;
+  scheduleSatTitle?: string;
+  scheduleTueTime?: string;
+  scheduleThuTime?: string;
+  scheduleSatTime?: string;
+  linkFolder?: string; // Link Folder Bài Tập Cá Nhân và điểm mỗi tuần
 }
 
 export interface AcaPracticeStudent {
@@ -202,6 +227,36 @@ export interface Aca11Class {
   zoomLink?: string;
   successorLink?: string;
   materials?: string;
+  scores?: {
+    l: number | string;
+    r: number | string;
+    w: number | string;
+    s: number | string;
+    o: number | string;
+  };
+  finalScores?: {
+    l: number | string;
+    r: number | string;
+    w: number | string;
+    s: number | string;
+    o: number | string;
+  };
+  cycles?: {
+    scores?: {
+      l: number | string;
+      r: number | string;
+      w: number | string;
+      s: number | string;
+      o: number | string;
+    };
+    finalScores?: {
+      l: number | string;
+      r: number | string;
+      w: number | string;
+      s: number | string;
+      o: number | string;
+    };
+  }[];
 }
 
 export function canUseAcaApi(): boolean {
@@ -215,15 +270,17 @@ async function parseJson<T>(response: Response): Promise<T> {
   if (!response.ok) {
     let message = `ACA API failed (${response.status})`;
     try {
-      const body = await response.json();
-      if (body && typeof body.message === "string") message = body.message;
-      else if (body && Array.isArray(body.message)) message = body.message.join(", ");
-    } catch {
-      // ignore
+      const body = await parseApiJson<{ message?: string | string[] }>(response);
+      if (typeof body.message === "string") message = body.message;
+      else if (Array.isArray(body.message)) message = body.message.join(", ");
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith("API lỗi")) {
+        message = err.message;
+      }
     }
     throw new Error(message);
   }
-  return response.json() as Promise<T>;
+  return parseApiJson<T>(response);
 }
 
 // --- Classes API ---
@@ -343,6 +400,125 @@ export async function updateAcaPracticeWeek(id: string, data: Partial<AcaPractic
 export async function deleteAcaPracticeWeek(id: string): Promise<void> {
   const res = await apiFetch(`/api/aca/practice-weeks/${id}`, { method: "DELETE" });
   await parseJson<any>(res);
+}
+
+export function getCurrentRealtimePracticeWeekRange(refDate: Date = new Date()): string {
+  const d = new Date(refDate);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  const diffToSat = (day + 1) % 7;
+  const startDate = new Date(d);
+  startDate.setDate(startDate.getDate() - diffToSat);
+
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + 6);
+
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  const format = (dt: Date) => `${pad(dt.getDate())}/${pad(dt.getMonth() + 1)}/${dt.getFullYear()}`;
+
+  return `${format(startDate)} - ${format(endDate)}`;
+}
+
+export async function ensureCurrentRealtimeWeekExists(existingWeeks: AcaPracticeWeek[]): Promise<AcaPracticeWeek[]> {
+  const currentRange = getCurrentRealtimePracticeWeekRange();
+  const exists = existingWeeks.some(w => w.weekRange === currentRange);
+  if (!exists) {
+    try {
+      const defaultZoomLink = "https://zoom.us/j/84219634521?pwd=example-lrw";
+      const created = await createAcaPracticeWeek({
+        weekRange: currentRange,
+        linkMeet: defaultZoomLink,
+        linkTab: "",
+        announcement: `[Thông báo về lịch học lớp LĐ]\n\nTuần ${currentRange}:\n - Lớp học bình thường vào thứ 3, thứ 5 và thứ 7\n - Lớp có lịch test tập trung vào CN`,
+        templateMessage: `Em ơi, tuần này (${currentRange}) chị gửi lịch lớp Luyện Đề T3, T5, T7 và test tập trung CN nhé!`,
+        zoomId: "842 1963 4521",
+        zoomPassword: "XaloLrw26",
+        scheduleTueTitle: "Luyện tập Speaking theo chuyên đề",
+        scheduleTueTime: "19h45 – 21h45",
+        scheduleTueInfo: "Tham gia bằng Zoom, học với Giáo viên, phân tích bộ đề Speaking 3 part, được cung cấp từ vựng/phương pháp tiếp cận và luyện tập trực tiếp với Giáo viên.",
+        scheduleThuTitle: "Chữa đề L-R-W",
+        scheduleThuTime: "19h45 – 21h45",
+        scheduleThuInfo: "Tham gia bằng Zoom, học với Giáo viên, tập trung chữa đề Writing và các thắc mắc về Listening – Reading.",
+        scheduleSatTitle: "Làm đề L-R-W tập trung",
+        scheduleSatTime: "19h – 21h30",
+        scheduleSatInfo: "Tham gia bằng Zoom, làm bài trên Google Docs, có nhân viên canh thời gian làm bài và các bạn học viên khác tham gia.",
+      });
+      return sortAcaPracticeWeeksDescending([created, ...existingWeeks]);
+    } catch (e) {
+      console.warn("Failed to auto-create current week in DB:", e);
+    }
+  }
+  return sortAcaPracticeWeeksDescending(existingWeeks);
+}
+
+export function findCurrentOrLatestPracticeWeekRange(weeks: AcaPracticeWeek[]): string {
+  if (!weeks || weeks.length === 0) return getCurrentRealtimePracticeWeekRange();
+
+  const now = new Date();
+
+  function parseDate(dateStr: string): Date | null {
+    const parts = dateStr.trim().split("/");
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const year = parseInt(parts[2], 10);
+      return new Date(year, month, day);
+    }
+    return null;
+  }
+
+  function parseRange(rangeStr: string): { start: Date; end: Date } | null {
+    const [startStr, endStr] = rangeStr.split("-");
+    if (!startStr || !endStr) return null;
+    const start = parseDate(startStr);
+    const end = parseDate(endStr);
+    if (!start || !end) return null;
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+
+  for (const w of weeks) {
+    const parsed = parseRange(w.weekRange);
+    if (parsed) {
+      if (now >= parsed.start && now <= parsed.end) {
+        return w.weekRange;
+      }
+    }
+  }
+
+  const sorted = [...weeks].sort((a, b) => {
+    const ra = parseRange(a.weekRange);
+    const rb = parseRange(b.weekRange);
+    if (!ra || !rb) return 0;
+    return rb.start.getTime() - ra.start.getTime();
+  });
+
+  return sorted[0]?.weekRange || weeks[0]?.weekRange || getCurrentRealtimePracticeWeekRange();
+}
+
+export function sortAcaPracticeWeeksDescending(weeks: AcaPracticeWeek[]): AcaPracticeWeek[] {
+  function parseDate(dateStr: string): Date | null {
+    const parts = dateStr.trim().split("/");
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const year = parseInt(parts[2], 10);
+      return new Date(year, month, day);
+    }
+    return null;
+  }
+
+  function parseStart(rangeStr: string): Date | null {
+    const [startStr] = rangeStr.split("-");
+    return startStr ? parseDate(startStr) : null;
+  }
+
+  return [...weeks].sort((a, b) => {
+    const da = parseStart(a.weekRange);
+    const db = parseStart(b.weekRange);
+    if (!da || !db) return 0;
+    return db.getTime() - da.getTime();
+  });
 }
 
 // --- Practice Students API ---
@@ -506,9 +682,24 @@ export interface AcaFreeSlot {
 }
 
 export async function fetchAcaFreeSlots(): Promise<AcaFreeSlot[]> {
-  const res = await apiFetch("/api/aca/free-slots", { method: "GET" });
-  const raw = await parseJson<any[]>(res);
-  return raw.map(item => ({ ...item, id: item._id }));
+  try {
+    const res = await apiFetch("/api/aca/free-slots", { method: "GET" });
+    const raw = await parseJson<any[]>(res);
+    const result = raw.map(item => ({ ...item, id: item.id || item._id }));
+    if (typeof window !== "undefined") {
+      try { localStorage.setItem("xalo.aca.free_slots", JSON.stringify(result)); } catch {}
+    }
+    return result;
+  } catch (err) {
+    console.warn("[acaManagementApi] fetchAcaFreeSlots failed, falling back to localStorage", err);
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("xalo.aca.free_slots");
+        if (stored) return JSON.parse(stored);
+      } catch {}
+    }
+    return [];
+  }
 }
 
 export async function createAcaFreeSlot(data: Partial<AcaFreeSlot>): Promise<AcaFreeSlot> {
@@ -518,7 +709,7 @@ export async function createAcaFreeSlot(data: Partial<AcaFreeSlot>): Promise<Aca
     body: JSON.stringify(data)
   });
   const raw = await parseJson<any>(res);
-  return { ...raw, id: raw._id };
+  return { ...raw, id: raw.id || raw._id };
 }
 
 export async function updateAcaFreeSlot(id: string, data: Partial<AcaFreeSlot>): Promise<AcaFreeSlot> {
@@ -528,10 +719,63 @@ export async function updateAcaFreeSlot(id: string, data: Partial<AcaFreeSlot>):
     body: JSON.stringify(data)
   });
   const raw = await parseJson<any>(res);
-  return { ...raw, id: raw._id };
+  return { ...raw, id: raw.id || raw._id };
 }
 
 export async function deleteAcaFreeSlot(id: string): Promise<void> {
   const res = await apiFetch(`/api/aca/free-slots/${id}`, { method: "DELETE" });
+  await parseJson<any>(res);
+}
+
+// --- Teacher Profiles API ---
+export interface AcaTeacherProfileApi {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  skills: string[];
+  status: "active" | "inactive";
+  joinDate: string;
+  notes?: string;
+}
+
+export async function fetchAcaTeacherProfiles(): Promise<AcaTeacherProfileApi[]> {
+  try {
+    const res = await apiFetch("/api/aca/teacher-profiles", { method: "GET" });
+    const raw = await parseJson<any[]>(res);
+    return raw.map((item) => ({ ...item, id: item.id || item._id }));
+  } catch (err) {
+    console.warn("[acaManagementApi] fetchAcaTeacherProfiles failed, returning empty array", err);
+    return [];
+  }
+}
+
+export async function createAcaTeacherProfileApi(
+  data: Partial<AcaTeacherProfileApi>
+): Promise<AcaTeacherProfileApi> {
+  const res = await apiFetch("/api/aca/teacher-profiles", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  const raw = await parseJson<any>(res);
+  return { ...raw, id: raw.id || raw._id };
+}
+
+export async function updateAcaTeacherProfileApi(
+  id: string,
+  data: Partial<AcaTeacherProfileApi>
+): Promise<AcaTeacherProfileApi> {
+  const res = await apiFetch(`/api/aca/teacher-profiles/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  const raw = await parseJson<any>(res);
+  return { ...raw, id: raw.id || raw._id };
+}
+
+export async function deleteAcaTeacherProfileApi(id: string): Promise<void> {
+  const res = await apiFetch(`/api/aca/teacher-profiles/${id}`, { method: "DELETE" });
   await parseJson<any>(res);
 }

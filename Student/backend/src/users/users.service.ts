@@ -20,6 +20,8 @@ export type PublicUser = {
   name: string;
   role: Role;
   status: UserStatus;
+  phone?: string;
+  title?: string;
   createdAt: string;
 };
 
@@ -29,6 +31,8 @@ type UserLean = {
   name: string;
   role: Role;
   status: UserStatus;
+  phone?: string;
+  title?: string;
   createdAt?: Date;
 };
 
@@ -47,6 +51,7 @@ export class UsersService implements OnModuleInit {
       .exec();
     await this.ensureSeedAca();
     await this.ensureSeedStudent();
+    await this.ensureSeedTeachers();
   }
 
   private normalizeEmail(email: string): string {
@@ -60,26 +65,68 @@ export class UsersService implements OnModuleInit {
       name: doc.name,
       role: doc.role,
       status: doc.status ?? 'ACTIVE',
+      phone: doc.phone ?? '',
+      title: doc.title ?? '',
       createdAt: doc.createdAt?.toISOString() ?? new Date(0).toISOString(),
     };
   }
 
-  async ensureSeedAca(): Promise<void> {
-    const email = this.normalizeEmail(
-      process.env.ACA_SEED_EMAIL ?? 'aca@xalo.internal',
-    );
-    const existing = await this.userModel.findOne({ email }).exec();
-    if (existing) return;
+  async getProfileByUserId(userId: string): Promise<PublicUser> {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new NotFoundException('User not found');
+    }
+    const doc = await this.userModel.findById(userId).lean().exec();
+    if (!doc) {
+      throw new NotFoundException('User not found');
+    }
+    return this.toPublic(doc as UserLean);
+  }
 
-    const password = process.env.ACA_SEED_PASSWORD ?? 'ChangeMe_Aca1!';
-    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-    await this.userModel.create({
-      email,
-      name: process.env.ACA_SEED_NAME ?? 'Quản trị ACA',
-      role: 'ACA',
-      status: 'ACTIVE',
-      passwordHash,
-    });
+  async updateProfileByUserId(
+    userId: string,
+    payload: { name?: string; phone?: string; title?: string },
+  ): Promise<PublicUser> {
+    if (!Types.ObjectId.isValid(userId)) {
+      throw new NotFoundException('User not found');
+    }
+    const updateData: Record<string, unknown> = {};
+    if (payload.name !== undefined) updateData.name = payload.name.trim();
+    if (payload.phone !== undefined) updateData.phone = payload.phone.trim();
+    if (payload.title !== undefined) updateData.title = payload.title.trim();
+
+    const doc = await this.userModel
+      .findByIdAndUpdate(userId, { $set: updateData }, { new: true })
+      .lean()
+      .exec();
+
+    if (!doc) {
+      throw new NotFoundException('User not found');
+    }
+    return this.toPublic(doc as UserLean);
+  }
+
+  async ensureSeedAca(): Promise<void> {
+    const acaAccounts = [
+      { name: "Bộ phận Học vụ (ACA 1)", email: "aca_1@gmail.com" },
+      { name: "Bộ phận Học vụ (ACA 2)", email: "aca_2@gmail.com" },
+      { name: "Quản lý Học vụ", email: "aca@xaloenglish.vn" },
+      { name: "Học vụ Hệ thống", email: "aca@xalo.internal" },
+    ];
+    const passwordHash = await bcrypt.hash("test@123!", SALT_ROUNDS);
+
+    for (const a of acaAccounts) {
+      const email = this.normalizeEmail(a.email);
+      const existing = await this.userModel.findOne({ email }).exec();
+      if (!existing) {
+        await this.userModel.create({
+          email,
+          name: a.name,
+          role: "ACA",
+          status: "ACTIVE",
+          passwordHash,
+        });
+      }
+    }
   }
 
   async ensureSeedStudent(): Promise<void> {
@@ -98,6 +145,34 @@ export class UsersService implements OnModuleInit {
       status: 'ACTIVE',
       passwordHash,
     });
+  }
+
+  async ensureSeedTeachers(): Promise<void> {
+    const defaultTeachers = [
+      { name: 'Lê Nguyễn Khánh Thi', email: 'khanhthi.le@xalo.edu.vn' },
+      { name: 'Lê Thị Diệu Linh', email: 'dieulinh.le@xalo.edu.vn' },
+      { name: 'Nghiêm Doãn Quỳnh Châu', email: 'quynhchau.nghiem@xalo.edu.vn' },
+      { name: 'Lê Minh Trang', email: 'minhtrang.le@xalo.edu.vn' },
+      { name: 'Phạm Hoàng An', email: 'hoangan.pham@xalo.edu.vn' },
+      { name: 'Trần Thu Lan', email: 'thulan.tran@xalo.edu.vn' },
+      { name: 'Lê Thanh Tâm', email: 'thanhtam.le@xalo.edu.vn' }, // GV lớp luyện đề
+    ];
+
+    const defaultPasswordHash = await bcrypt.hash('Teacher@123!', SALT_ROUNDS);
+
+    for (const t of defaultTeachers) {
+      const email = this.normalizeEmail(t.email);
+      const existing = await this.userModel.findOne({ email }).exec();
+      if (!existing) {
+        await this.userModel.create({
+          email,
+          name: t.name,
+          role: 'GV',
+          status: 'ACTIVE',
+          passwordHash: defaultPasswordHash,
+        });
+      }
+    }
   }
 
   async findByEmail(email: string): Promise<UserDocument | null> {

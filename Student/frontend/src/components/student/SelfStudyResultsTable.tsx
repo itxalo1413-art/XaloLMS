@@ -11,17 +11,19 @@ type Column<T> = {
 };
 
 type Props<T> = {
-  title: string;
+  title: ReactNode;
+  headerRight?: ReactNode;
   columns: Column<T>[];
   rows: T[];
   emptyMessage: string;
   getRowKey: (row: T) => string;
-  /** Chia đều độ rộ cột (mặc định: true nếu không có cột nào khai báo width). */
+  /** Chia đều độ rộng cột (mặc định: true nếu không có cột nào khai báo width). */
   equalColumns?: boolean;
 };
 
 export function SelfStudyResultsTable<T>({
   title,
+  headerRight,
   columns,
   rows,
   emptyMessage,
@@ -35,8 +37,11 @@ export function SelfStudyResultsTable<T>({
 
   return (
     <div className="mt-5">
-      <div className="mb-3 text-[10px] font-black uppercase tracking-widest text-muted">
-        {title}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="text-[10px] font-black uppercase tracking-widest text-muted">
+          {title}
+        </div>
+        {headerRight ? <div>{headerRight}</div> : null}
       </div>
       <div className="overflow-x-auto rounded-2xl border border-primary/10 bg-card">
         <table className="w-full table-fixed border-separate border-spacing-0">
@@ -126,7 +131,7 @@ export function StatusBadge({
   );
 }
 
-export function ExamLinkCell({ href }: { href: string | null }) {
+export function ExamLinkCell({ href, label = "Link" }: { href: string | null; label?: string }) {
   if (!href) return <span className="font-medium text-muted">—</span>;
   return (
     <a
@@ -135,7 +140,7 @@ export function ExamLinkCell({ href }: { href: string | null }) {
       rel="noopener noreferrer"
       className="inline-block max-w-full truncate font-semibold text-primary underline-offset-2 hover:underline"
     >
-      Mở đề
+      {label}
     </a>
   );
 }

@@ -57,6 +57,11 @@ export declare class AcaManagementController {
         _id: import("mongoose").Types.ObjectId;
     }>) | null>;
     getAllStudents(): Promise<{
+        registeredWriting: boolean;
+        homeworkPercent: string;
+        attendanceCount: string;
+        cycles: any[];
+        rawClassification: string;
         classification: string;
         _id: import("mongoose").Types.ObjectId;
         $locals: Record<string, unknown>;
@@ -88,11 +93,8 @@ export declare class AcaManagementController {
             o: string | number;
         };
         entrance: string;
-        registeredWriting: boolean;
         registeredMocktest: boolean;
         registeredLuyenDe: boolean;
-        homeworkPercent: string;
-        attendanceCount: string;
         registeredWriting2: boolean;
         registeredMocktest2: boolean;
         registeredLuyenDe2: boolean;
@@ -111,29 +113,17 @@ export declare class AcaManagementController {
         f3: string;
         bcbLink: string;
         note: string;
-        cycles: {
-            classCode: string;
-            finalScore: string;
-            registeredWriting: boolean;
-            registeredMocktest: boolean;
-            registeredLuyenDe: boolean;
-            homeworkPercent: string;
-            attendanceCount: string;
-            scores: {
-                l: string | number;
-                r: string | number;
-                w: string | number;
-                s: string | number;
-                o: string | number;
-            };
-            finalScores: {
-                l: string | number;
-                r: string | number;
-                w: string | number;
-                s: string | number;
-                o: string | number;
-            };
-        }[];
+        dob: string;
+        zodiac: string;
+        avatarUrl: string;
+        method: string;
+        weeklyHours: string;
+        classEnvironment: string;
+        ieltsMeaning: string;
+        previousBand: string;
+        focusSkills: string[];
+        practiceJoined: boolean;
+        registeredSlotIds: string[];
         __v: number;
         id: string;
     }[]>;
@@ -498,6 +488,188 @@ export declare class AcaManagementController {
     } & {
         id: string;
     }, {}, import("mongoose").DefaultSchemaOptions> & import("mongoose").Document<unknown, {}, import("./schemas/aca-free-slot.schema").AcaFreeSlot, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/aca-free-slot.schema").AcaFreeSlot & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    } & {
+        id: string;
+    } & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }>) | null>;
+    getAllTeacherProfiles(): Promise<(import("mongoose").Document<unknown, {}, import("./schemas/aca-teacher-profile.schema").AcaTeacherProfile, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/aca-teacher-profile.schema").AcaTeacherProfile & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    } & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }>)[] | (Omit<import("mongoose").Document<unknown, {}, import("mongoose").Document<unknown, {}, import("./schemas/aca-teacher-profile.schema").AcaTeacherProfile, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/aca-teacher-profile.schema").AcaTeacherProfile & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, {}, import("mongoose").DefaultSchemaOptions> & import("mongoose").Document<unknown, {}, import("./schemas/aca-teacher-profile.schema").AcaTeacherProfile, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/aca-teacher-profile.schema").AcaTeacherProfile & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    } & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }>, "name" | "id" | "status" | "phone" | "email" | "skills" | "joinDate" | "notes"> & Omit<{
+        id: string;
+        name: string;
+        email: string;
+        phone: string;
+        skills: string[];
+        status: "active";
+        joinDate: string;
+        notes: string;
+    } | {
+        id: string;
+        name: string;
+        email: string;
+        phone: string;
+        skills: string[];
+        status: "inactive";
+        joinDate: string;
+        notes: string;
+    }, "_id">)[]>;
+    createTeacherProfile(data: any): Promise<import("mongoose").Document<unknown, {}, import("mongoose").Document<unknown, {}, import("./schemas/aca-teacher-profile.schema").AcaTeacherProfile, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/aca-teacher-profile.schema").AcaTeacherProfile & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, {}, import("mongoose").DefaultSchemaOptions> & import("mongoose").Document<unknown, {}, import("./schemas/aca-teacher-profile.schema").AcaTeacherProfile, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/aca-teacher-profile.schema").AcaTeacherProfile & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    } & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }>>;
+    updateTeacherProfile(id: string, data: any): Promise<import("mongoose").Document<unknown, {}, import("mongoose").Document<unknown, {}, import("./schemas/aca-teacher-profile.schema").AcaTeacherProfile, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/aca-teacher-profile.schema").AcaTeacherProfile & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, {}, import("mongoose").DefaultSchemaOptions> & import("mongoose").Document<unknown, {}, import("./schemas/aca-teacher-profile.schema").AcaTeacherProfile, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/aca-teacher-profile.schema").AcaTeacherProfile & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    } & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }>>;
+    deleteTeacherProfile(id: string): Promise<(import("mongoose").Document<unknown, {}, import("mongoose").Document<unknown, {}, import("./schemas/aca-teacher-profile.schema").AcaTeacherProfile, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/aca-teacher-profile.schema").AcaTeacherProfile & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, {}, import("mongoose").DefaultSchemaOptions> & import("mongoose").Document<unknown, {}, import("./schemas/aca-teacher-profile.schema").AcaTeacherProfile, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/aca-teacher-profile.schema").AcaTeacherProfile & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    } & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }>) | null>;
+    getDailyNote(): Promise<import("mongoose").Document<unknown, {}, import("mongoose").Document<unknown, {}, import("./schemas/daily-note.schema").DailyNote, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/daily-note.schema").DailyNote & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    } & {
+        id: string;
+    }, {}, import("mongoose").DefaultSchemaOptions> & import("mongoose").Document<unknown, {}, import("./schemas/daily-note.schema").DailyNote, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/daily-note.schema").DailyNote & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    } & {
+        id: string;
+    } & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }>>;
+    updateDailyNote(data: any): Promise<(import("mongoose").Document<unknown, {}, import("mongoose").Document<unknown, {}, import("./schemas/daily-note.schema").DailyNote, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/daily-note.schema").DailyNote & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    } & {
+        id: string;
+    }, {}, import("mongoose").DefaultSchemaOptions> & import("mongoose").Document<unknown, {}, import("./schemas/daily-note.schema").DailyNote, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/daily-note.schema").DailyNote & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    } & {
+        id: string;
+    } & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }>) | null>;
+    getAllMockTestRequests(): Promise<(import("mongoose").Document<unknown, {}, import("./schemas/mock-test-request.schema").MockTestRequest, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/mock-test-request.schema").MockTestRequest & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    } & {
+        id: string;
+    } & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }>)[]>;
+    createMockTestRequest(data: any): Promise<import("mongoose").Document<unknown, {}, import("mongoose").Document<unknown, {}, import("./schemas/mock-test-request.schema").MockTestRequest, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/mock-test-request.schema").MockTestRequest & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    } & {
+        id: string;
+    }, {}, import("mongoose").DefaultSchemaOptions> & import("mongoose").Document<unknown, {}, import("./schemas/mock-test-request.schema").MockTestRequest, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/mock-test-request.schema").MockTestRequest & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    } & {
+        id: string;
+    } & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }>>;
+    updateMockTestRequest(id: string, data: any): Promise<(import("mongoose").Document<unknown, {}, import("mongoose").Document<unknown, {}, import("./schemas/mock-test-request.schema").MockTestRequest, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/mock-test-request.schema").MockTestRequest & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    } & {
+        id: string;
+    }, {}, import("mongoose").DefaultSchemaOptions> & import("mongoose").Document<unknown, {}, import("./schemas/mock-test-request.schema").MockTestRequest, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/mock-test-request.schema").MockTestRequest & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    } & {
+        id: string;
+    } & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }>) | null>;
+    deleteMockTestRequest(id: string): Promise<(import("mongoose").Document<unknown, {}, import("mongoose").Document<unknown, {}, import("./schemas/mock-test-request.schema").MockTestRequest, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/mock-test-request.schema").MockTestRequest & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    } & {
+        id: string;
+    }, {}, import("mongoose").DefaultSchemaOptions> & import("mongoose").Document<unknown, {}, import("./schemas/mock-test-request.schema").MockTestRequest, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/mock-test-request.schema").MockTestRequest & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    } & {
+        id: string;
+    } & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }>) | null>;
+    getCourseSettings(): Promise<import("mongoose").Document<unknown, {}, import("mongoose").Document<unknown, {}, import("./schemas/course-settings.schema").CourseSettings, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/course-settings.schema").CourseSettings & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    } & {
+        id: string;
+    }, {}, import("mongoose").DefaultSchemaOptions> & import("mongoose").Document<unknown, {}, import("./schemas/course-settings.schema").CourseSettings, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/course-settings.schema").CourseSettings & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    } & {
+        id: string;
+    } & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }>>;
+    updateCourseSettings(data: any): Promise<(import("mongoose").Document<unknown, {}, import("mongoose").Document<unknown, {}, import("./schemas/course-settings.schema").CourseSettings, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/course-settings.schema").CourseSettings & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    } & {
+        id: string;
+    }, {}, import("mongoose").DefaultSchemaOptions> & import("mongoose").Document<unknown, {}, import("./schemas/course-settings.schema").CourseSettings, {}, import("mongoose").DefaultSchemaOptions> & import("./schemas/course-settings.schema").CourseSettings & {
         _id: import("mongoose").Types.ObjectId;
     } & {
         __v: number;

@@ -117,9 +117,6 @@ let MockTestService = class MockTestService {
             !Number.isInteger(year)) {
             throw new common_1.BadRequestException('Ngày tháng không hợp lệ');
         }
-        if (await this.hasDuplicateSlot(studentId, skill, day, month, year)) {
-            throw new common_1.ConflictException('Bạn đã có đăng ký cho kỹ năng và ngày này');
-        }
         let studentName = 'Học viên';
         try {
             const user = await this.users.getPublicById(studentId);
@@ -145,8 +142,11 @@ let MockTestService = class MockTestService {
         if (doc.studentId.toString() !== studentId) {
             throw new common_1.NotFoundException('Không tìm thấy yêu cầu');
         }
-        if (doc.status !== 'pending') {
-            throw new common_1.BadRequestException('Chỉ huỷ được yêu cầu đang chờ duyệt');
+        if (doc.status !== 'pending' && doc.status !== 'approved') {
+            throw new common_1.BadRequestException('Chỉ huỷ được yêu cầu đang chờ duyệt hoặc đã duyệt');
+        }
+        if (doc.score) {
+            throw new common_1.BadRequestException('Không thể huỷ yêu cầu đã có điểm');
         }
         await this.model.deleteOne({ _id: doc._id }).exec();
     }

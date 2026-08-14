@@ -15,14 +15,7 @@ export function getRosterStudent(studentId: string): StudentSummary | undefined 
 /** Id học viên đang xem trên portal Student (auth → roster → mặc định). */
 export function resolveActiveStudentId(): string {
   const user = getCachedAuthUser();
-  if (user) {
-    const byId = students.find((s) => s.id === user.id);
-    if (byId) return byId.id;
-    const email = user.email?.trim().toLowerCase();
-    if (email) {
-      const byEmail = students.find((s) => s.email.trim().toLowerCase() === email);
-      if (byEmail) return byEmail.id;
-    }
+  if (user?.id) {
     return user.id;
   }
   return DEFAULT_STUDENT_ID;

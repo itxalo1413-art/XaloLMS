@@ -14,15 +14,13 @@ export default function Home() {
 
     const isKhanhThi =
       name === "lê nguyễn khánh thi" ||
-      name === "aca_1" ||
-      name === "aca 1" ||
-      email === "aca@xaloenglish.vn" ||
-      email === "aca_1@gmail.com";
+      name.includes("khánh thi") ||
+      email === "aca@xaloenglish.vn";
 
     if (isKhanhThi) {
       router.replace("/aca/quan-ly/lop-theo-thang");
     } else {
-      router.replace("/aca/quan-ly/lich-ranh");
+      router.replace("/aca/quan-ly/cham-writing");
     }
   }, [router]);
 

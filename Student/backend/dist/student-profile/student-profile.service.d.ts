@@ -5,13 +5,15 @@ import { UpdateStudentProfileDto } from './dto/update-student-profile.dto';
 import { type StudentProfileStoreDocument } from './schemas/student-profile-store.schema';
 import { type StudentProfile } from './student-profile.types';
 import { AcaStudentDocument } from '../aca/schemas/aca-student.schema';
+import { AcaClassDocument } from '../aca/schemas/aca-class.schema';
 export declare class StudentProfileService {
     private readonly store;
     private readonly acaStudentModel;
+    private readonly acaClassModel;
     private readonly users;
     private readonly cloudinary;
     private readonly logger;
-    constructor(store: Model<StudentProfileStoreDocument>, acaStudentModel: Model<AcaStudentDocument>, users: UsersService, cloudinary: CloudinaryService);
+    constructor(store: Model<StudentProfileStoreDocument>, acaStudentModel: Model<AcaStudentDocument>, acaClassModel: Model<AcaClassDocument>, users: UsersService, cloudinary: CloudinaryService);
     private mergeWithDefaults;
     private defaultForUser;
     getProfile(userId: string): Promise<StudentProfile>;
@@ -39,4 +41,17 @@ export declare class StudentProfileService {
             overall: number;
         };
     } | null>;
+    getClassInfoForStudent(email: string): Promise<{
+        course: string;
+        instructor: string;
+        room: string;
+        zoomPassword: string;
+        schedule: string[];
+        phases: {
+            name: string;
+            date: string;
+        }[];
+        openDate: string;
+        endDate: string;
+    }>;
 }

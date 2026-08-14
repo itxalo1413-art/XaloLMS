@@ -133,10 +133,27 @@ function computeOverall(scores: Omit<SkillScores, "overall">): number {
   return Math.round(avg * 2) / 2;
 }
 
+const dynamicScoresCache = new Map<string, SkillScores>();
+
+export function registerDynamicStudentScores(studentId: string, rawScores: any) {
+  if (!studentId || !rawScores) return;
+  const l = Number(rawScores.l) || 0;
+  const r = Number(rawScores.r) || 0;
+  const w = Number(rawScores.w) || 0;
+  const s = Number(rawScores.s) || 0;
+  const o = Number(rawScores.o) || computeOverall({ listening: l, reading: r, writing: w, speaking: s });
+
+  dynamicScoresCache.set(studentId, { listening: l, reading: r, writing: w, speaking: s, overall: o });
+}
+
 function buildDefaultDiagnosis(studentId: string): StudentDiagnosisRecord {
   const base = structuredClone(DEFAULT_STUDENT_DIAGNOSIS);
+  const dynamic = dynamicScoresCache.get(studentId);
   const rosterScores = studentScores[studentId];
-  if (rosterScores) {
+
+  if (dynamic) {
+    base.scores = { ...dynamic };
+  } else if (rosterScores) {
     const partial = {
       listening: rosterScores.listening,
       reading: rosterScores.reading,

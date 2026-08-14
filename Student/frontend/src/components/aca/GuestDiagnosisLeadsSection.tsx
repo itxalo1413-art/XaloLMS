@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { NativeSelectChevron } from "@/components/student/ui";
 import {
+  fetchAcaClasses,
+  createAcaStudent,
+  type AcaClass,
+} from "@/lib/acaManagementApi";
+import {
   GUEST_DIAGNOSIS_LEADS_EVENT,
   GUEST_LEAD_STATUS_LABEL,
   listGuestDiagnosisLeads,
@@ -27,10 +32,12 @@ function formatSubmittedAt(iso: string) {
 
 export function GuestDiagnosisLeadsSection() {
   const [rows, setRows] = useState<GuestDiagnosisLead[]>([]);
+  const [classes, setClasses] = useState<AcaClass[]>([]);
   const [statusFilter, setStatusFilter] = useState<"all" | GuestDiagnosisLeadStatus>("all");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [statusDraft, setStatusDraft] = useState<GuestDiagnosisLeadStatus>("new");
+  const [classDraft, setClassDraft] = useState<string>("");
 
   const sync = useCallback(() => {
     setRows(listGuestDiagnosisLeads());
@@ -41,6 +48,18 @@ export function GuestDiagnosisLeadsSection() {
     const onUpdate = () => sync();
     window.addEventListener(GUEST_DIAGNOSIS_LEADS_EVENT, onUpdate);
     window.addEventListener("storage", onUpdate);
+
+    // Load available classes for assignment
+    async function loadClasses() {
+      try {
+        const data = await fetchAcaClasses();
+        if (data && data.length > 0) setClasses(data);
+      } catch (err) {
+        console.warn("Could not load ACA classes for guest assignment:", err);
+      }
+    }
+    void loadClasses();
+
     return () => {
       window.removeEventListener(GUEST_DIAGNOSIS_LEADS_EVENT, onUpdate);
       window.removeEventListener("storage", onUpdate);
@@ -58,11 +77,35 @@ export function GuestDiagnosisLeadsSection() {
     setActiveId(row.id);
     setNoteDraft(row.note);
     setStatusDraft(row.status);
+    setClassDraft(row.assignedClassId || "");
   };
 
-  const saveLead = () => {
-    if (!activeId) return;
-    updateGuestDiagnosisLead(activeId, { status: statusDraft, note: noteDraft });
+  const saveLead = async () => {
+    if (!activeId || !active) return;
+    const selectedClass = classes.find((c) => c.id === classDraft);
+    const className = selectedClass ? selectedClass.name : "";
+
+    updateGuestDiagnosisLead(activeId, {
+      status: statusDraft,
+      note: noteDraft,
+      assignedClassId: classDraft,
+      assignedClassName: className,
+    });
+
+    // If converted or class assigned, register student profile to LMS
+    if (classDraft || statusDraft === "converted") {
+      try {
+        await createAcaStudent({
+          name: active.name,
+          email: `${active.phone.replace(/\s+/g, "")}@student.xalo.vn`,
+          phone: active.phone,
+          classId: classDraft || "",
+        });
+      } catch (err) {
+        console.warn("Auto-register student error:", err);
+      }
+    }
+
     sync();
     setActiveId(null);
   };
@@ -89,12 +132,13 @@ export function GuestDiagnosisLeadsSection() {
 
       <div className="overflow-hidden rounded-2xl border border-primary/10 bg-white shadow-soft">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-[720px] text-left text-sm">
             <thead>
               <tr className="border-b border-primary/10 bg-background text-[10px] font-black uppercase tracking-widest text-muted">
                 <th className="px-4 py-3">Họ tên</th>
                 <th className="px-4 py-3">SĐT</th>
                 <th className="px-4 py-3">Mục tiêu</th>
+                <th className="px-4 py-3">Lớp gán (Học viên)</th>
                 <th className="px-4 py-3">Trạng thái</th>
                 <th className="px-4 py-3">Gửi lúc</th>
                 <th className="px-4 py-3 text-right">Thao tác</th>
@@ -103,7 +147,7 @@ export function GuestDiagnosisLeadsSection() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-muted">
+                  <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted">
                     Chưa có lead tư vấn.
                   </td>
                 </tr>
@@ -117,6 +161,17 @@ export function GuestDiagnosisLeadsSection() {
                     <td className="px-4 py-3 tabular-nums">{row.phone}</td>
                     <td className="px-4 py-3">{row.aim}</td>
                     <td className="px-4 py-3">
+                      {row.assignedClassName ? (
+                        <span className="inline-flex rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 text-xs font-bold">
+                          {row.assignedClassName}
+                        </span>
+                      ) : (
+                        <span className="inline-flex rounded-full bg-zinc-100 text-zinc-500 px-2.5 py-0.5 text-xs font-medium">
+                          Chưa gán lớp
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
                       <span className="text-xs font-bold">{GUEST_LEAD_STATUS_LABEL[row.status]}</span>
                     </td>
                     <td className="px-4 py-3 text-xs text-muted">
@@ -128,7 +183,7 @@ export function GuestDiagnosisLeadsSection() {
                         onClick={() => openLead(row)}
                         className="rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-white hover:bg-primary/90"
                       >
-                        Xử lý
+                        Gán Lớp & Xử lý
                       </button>
                     </td>
                   </tr>
@@ -147,6 +202,27 @@ export function GuestDiagnosisLeadsSection() {
               {active.phone} · {active.aim}
             </p>
             <div className="mt-5 space-y-4">
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted">
+                  Gán Lớp Học Viên (Chuyển Guest sang Học viên)
+                </span>
+                <div className="group relative mt-1">
+                  <select
+                    value={classDraft}
+                    onChange={(e) => setClassDraft(e.target.value)}
+                    className="h-11 w-full cursor-pointer appearance-none rounded-xl border border-primary/15 bg-white px-3 pr-10 text-sm font-semibold"
+                  >
+                    <option value="">-- Chưa gán lớp (Tự do) --</option>
+                    {classes.map((cls) => (
+                      <option key={cls.id} value={cls.id}>
+                        {cls.name} {cls.classCode ? `(${cls.classCode})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <NativeSelectChevron />
+                </div>
+              </label>
+
               <label className="block">
                 <span className="text-xs font-bold uppercase tracking-wider text-muted">
                   Trạng thái
@@ -170,6 +246,7 @@ export function GuestDiagnosisLeadsSection() {
                   <NativeSelectChevron />
                 </div>
               </label>
+
               <label className="block">
                 <span className="text-xs font-bold uppercase tracking-wider text-muted">
                   Ghi chú nội bộ
@@ -177,9 +254,9 @@ export function GuestDiagnosisLeadsSection() {
                 <textarea
                   value={noteDraft}
                   onChange={(e) => setNoteDraft(e.target.value)}
-                  rows={4}
+                  rows={3}
                   className="mt-1 w-full resize-y rounded-xl border border-primary/15 px-3 py-2 text-sm"
-                  placeholder="Đã gọi, hẹn test lại…"
+                  placeholder="Đã gọi tư vấn, xếp vào lớp..."
                 />
               </label>
             </div>
@@ -196,7 +273,7 @@ export function GuestDiagnosisLeadsSection() {
                 onClick={saveLead}
                 className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-white hover:bg-primary/90"
               >
-                Lưu
+                Lưu & Chuyển Học Viên
               </button>
             </div>
           </div>

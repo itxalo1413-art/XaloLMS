@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Aca11ClassSchema = exports.Aca11Class = void 0;
 const mongoose_1 = require("@nestjs/mongoose");
+const mongoose_2 = require("mongoose");
 let Aca11Class = class Aca11Class {
     status;
     className;
@@ -25,6 +26,9 @@ let Aca11Class = class Aca11Class {
     zoomLink;
     successorLink;
     materials;
+    scores;
+    finalScores;
+    cycles;
 };
 exports.Aca11Class = Aca11Class;
 __decorate([
@@ -79,6 +83,18 @@ __decorate([
     (0, mongoose_1.Prop)({ trim: true, default: '' }),
     __metadata("design:type", String)
 ], Aca11Class.prototype, "materials", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: mongoose_2.Schema.Types.Mixed, default: () => ({ l: '-', r: '-', w: '-', s: '-', o: '-' }) }),
+    __metadata("design:type", Object)
+], Aca11Class.prototype, "scores", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: mongoose_2.Schema.Types.Mixed, default: () => ({ l: '-', r: '-', w: '-', s: '-', o: '-' }) }),
+    __metadata("design:type", Object)
+], Aca11Class.prototype, "finalScores", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: mongoose_2.Schema.Types.Mixed, default: () => [] }),
+    __metadata("design:type", Array)
+], Aca11Class.prototype, "cycles", void 0);
 exports.Aca11Class = Aca11Class = __decorate([
     (0, mongoose_1.Schema)({ collection: 'aca_11_classes', timestamps: true })
 ], Aca11Class);

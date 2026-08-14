@@ -5,9 +5,9 @@ import { usePathname } from "next/navigation";
 
 const items = [
   { href: "/aca/quan-ly/lop-theo-thang", label: "Lớp tháng" },
-  { href: "/aca/quan-ly/lop-luyen-de", label: "Luyện đề" },
-  { href: "/aca/quan-ly/mock-test", label: "Mock" },
-  { href: "/aca/phan-tich", label: "Phân tích" },
+  { href: "/aca/quan-ly/hoc-vien-lop", label: "Học viên" },
+  { href: "/aca/quan-ly/cham-writing", label: "Chấm W" },
+  { href: "/aca/quan-ly/diem-dau-vao-cuoi-khoa", label: "Bảng điểm" },
 ];
 
 export function AcaMobileNav() {

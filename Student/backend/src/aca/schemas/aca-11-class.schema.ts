@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Schema as MongooseSchema } from 'mongoose';
 
 export type Aca11ClassDocument = HydratedDocument<Aca11Class>;
 
@@ -43,6 +43,15 @@ export class Aca11Class {
 
   @Prop({ trim: true, default: '' })
   materials: string;
+
+  @Prop({ type: MongooseSchema.Types.Mixed, default: () => ({ l: '-', r: '-', w: '-', s: '-', o: '-' }) })
+  scores: Record<string, any>;
+
+  @Prop({ type: MongooseSchema.Types.Mixed, default: () => ({ l: '-', r: '-', w: '-', s: '-', o: '-' }) })
+  finalScores: Record<string, any>;
+
+  @Prop({ type: MongooseSchema.Types.Mixed, default: () => [] })
+  cycles: Record<string, any>[];
 }
 
 export const Aca11ClassSchema = SchemaFactory.createForClass(Aca11Class);

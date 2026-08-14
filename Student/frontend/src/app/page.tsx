@@ -171,7 +171,7 @@ export default function Home() {
   const [habitForm, setHabitForm] = useState<StudyHabitForm>({ ...defaultStudyHabitForm });
 
   // Diagnosis interactive states
-  const [activeDiagTab, setActiveDiagTab] = useState<"listening" | "reading" | "writing" | "speaking" | "grammar">("listening");
+  const [activeDiagTab, setActiveDiagTab] = useState<"listening" | "reading" | "writing" | "speaking">("listening");
   const [grammarFilter, setGrammarFilter] = useState<"all" | "red" | "yellow">("all");
   const [expandedGrammarId, setExpandedGrammarId] = useState<string | null>(null);
   
@@ -405,63 +405,32 @@ export default function Home() {
                             {formatBandScore(diagnosis.scores.overall)} Overall
                           </div>
                         </div>
-                        {diagnosis.bcbLink ? (
-                          <a
-                            href={diagnosis.bcbLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="group flex min-h-[7.5rem] h-full flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-primary bg-white px-4 py-3 text-center shadow-sm ring-1 ring-primary/10 transition-all hover:bg-primary hover:shadow-md md:h-full"
-                          >
-                            <svg
-                              className="h-5 w-5 shrink-0 text-primary transition-colors group-hover:text-white"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.25"
-                              aria-hidden
-                            >
-                              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                            </svg>
-                            <span className="text-[11px] font-black uppercase tracking-widest text-primary transition-colors group-hover:text-white">
-                              BCB Archive
-                            </span>
-                            <span className="text-[9px] font-semibold leading-tight text-muted transition-colors group-hover:text-white/85">
-                              Mở Driver Bảng Chẩn Bệnh
-                            </span>
-                          </a>
-                        ) : (
-                          <Link
-                            href="#bcb-archive"
-                            className="group flex min-h-[7.5rem] h-full flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-primary bg-white px-4 py-3 text-center shadow-sm ring-1 ring-primary/10 transition-all hover:bg-primary hover:shadow-md md:h-full"
-                          >
-                            <svg
-                              className="h-5 w-5 shrink-0 text-primary transition-colors group-hover:text-white"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.25"
-                              aria-hidden
-                            >
-                              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                            </svg>
-                            <span className="text-[11px] font-black uppercase tracking-widest text-primary transition-colors group-hover:text-white">
-                              BCB Archive
-                            </span>
-                            <span className="text-[9px] font-semibold leading-tight text-muted transition-colors group-hover:text-white/85">
-                              Mở bảng chẩn đoán
-                            </span>
-                          </Link>
-                        )}
+                        <Link
+                          href="#bcb-archive"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            const target = document.getElementById("bcb-archive");
+                            if (target) {
+                              target.scrollIntoView({ behavior: "smooth", block: "start" });
+                            }
+                          }}
+                          className="group flex min-h-[7.5rem] h-full flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-primary bg-white px-4 py-3 text-center shadow-sm ring-1 ring-primary/10 transition-all hover:bg-primary hover:shadow-md md:h-full cursor-pointer"
+                        >
+                          <span className="text-[20px] font-black uppercase tracking-widest text-primary transition-colors group-hover:text-[#ed0915] group-hover:text-bold">
+                            BCB - Bảng chẩn bệnh
+                          </span>
+                          <span className="text-[11px] font-semibold leading-tight text-muted transition-colors group-hover:text-black/85">
+                            Xem Bảng Chẩn Bệnh Chi Tiết (BCB)
+                          </span>
+                        </Link>
                       </div>
 
                       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:items-stretch">
                         {[
-                          { k: "Listening", v: diagnosis.scores.listening },
-                          { k: "Reading", v: diagnosis.scores.reading },
-                          { k: "Writing", v: diagnosis.scores.writing },
-                          { k: "Speaking", v: diagnosis.scores.speaking },
+                          { k: "Listening", v: formatBandScore(diagnosis.scores.listening) },
+                          { k: "Reading", v: formatBandScore(diagnosis.scores.reading) },
+                          { k: "Writing", v: formatBandScore(diagnosis.scores.writing) },
+                          { k: "Speaking", v: formatBandScore(diagnosis.scores.speaking) },
                         ].map((s) => (
                           <div
                             key={s.k}
@@ -588,7 +557,7 @@ export default function Home() {
             </div>
 
             {/* Section: BCB Grading & Diagnosis */}
-            <section id="bcb-archive">
+            <section id="bcb-archive" className="scroll-mt-24">
               <Panel 
                 title="Bảng Chẩn Bệnh Chi Tiết (BCB)"
               >
@@ -597,8 +566,6 @@ export default function Home() {
                   <div className="flex w-full flex-col gap-6 sm:flex-row sm:items-start sm:gap-8">
                     <div className="relative flex shrink-0 items-center justify-center self-center sm:self-start">
                       <svg className="h-24 w-24 -rotate-90 transform">
-                        <circle cx="48" cy="48" r="40" stroke="#ffeef2" strokeWidth="6" fill="transparent" />
-                        <circle cx="48" cy="48" r="40" stroke="#fe7789" strokeWidth="6" fill="transparent" strokeDasharray="251.2" strokeDashoffset="62.8" strokeLinecap="round" />
                       </svg>
                       <svg className="absolute h-20 w-20 -rotate-90 transform">
                         <circle cx="40" cy="40" r="32" stroke="#eeebff" strokeWidth="6" fill="transparent" />
@@ -630,7 +597,6 @@ export default function Home() {
                     { id: "reading", label: "Reading", score: formatBandScore(diagnosis.scores.reading) },
                     { id: "writing", label: "Writing", score: formatBandScore(diagnosis.scores.writing) },
                     { id: "speaking", label: "Speaking", score: formatBandScore(diagnosis.scores.speaking) },
-                    { id: "grammar", label: "Ngữ pháp", score: null as string | null },
                   ].map((tab) => {
                     const active = activeDiagTab === tab.id;
                     return (
@@ -728,25 +694,6 @@ export default function Home() {
                       <div className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Chi tiết tiêu chí Speaking</div>
                       <SpeakingCriteriaPanel scores={diagnosis.speakingCriteria} />
                     </div>
-                  </div>
-                )}
-
-                {activeDiagTab === "grammar" && (
-                  <div className="space-y-6 animate-in fade-in duration-200">
-                    <div className="p-5 rounded-2xl border border-zinc-100 bg-zinc-50/50">
-                      <div className="text-[10px] font-black uppercase tracking-widest text-muted">
-                        Tổng quan lỗi ngữ pháp (Writing & Speaking)
-                      </div>
-                      <p className="mt-2 text-xs font-medium leading-relaxed text-foreground">
-                        Phát hiện {diagnosis.bcbGrammar.reduce((s, r) => s + r.errorCount, 0)} lỗi ngữ pháp
-                        trên {diagnosis.bcbGrammar.length} chuyên đề.
-                      </p>
-                    </div>
-                    <BcbGrammarTable
-                      rows={diagnosis.bcbGrammar}
-                      filter={grammarFilter}
-                      onFilterChange={setGrammarFilter}
-                    />
                   </div>
                 )}
 

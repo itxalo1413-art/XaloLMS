@@ -28,7 +28,7 @@ export class RolesGuard implements CanActivate {
     }
     if (!required.includes(user.role)) {
       throw new ForbiddenException(
-        'Chỉ tài khoản ACA mới được thực hiện thao tác này',
+        `Chỉ tài khoản ${required.join(' hoặc ')} mới được thực hiện thao tác này`,
       );
     }
     return true;

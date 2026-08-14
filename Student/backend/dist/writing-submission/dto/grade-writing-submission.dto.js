@@ -11,6 +11,7 @@ class GradeWritingSubmissionDto {
     task1;
     task2;
     note;
+    assignedGrader;
 }
 exports.GradeWritingSubmissionDto = GradeWritingSubmissionDto;
 //# sourceMappingURL=grade-writing-submission.dto.js.map

@@ -35,7 +35,7 @@ export function getAuthBypassUser(): AuthUser {
   const cached = getCachedAuthUser();
   if (cached?.role === "HS") return cached;
   return {
-    id: DEMO_STUDENT.id,
+    id: "6a0d62e43376dcbcd0b1d76f",
     email: "student.demo@xalo.local",
     name: DEMO_STUDENT.name,
     role: "HS",

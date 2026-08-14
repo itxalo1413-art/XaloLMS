@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   type AuthUser,
   cacheAuthUser,
@@ -10,6 +10,7 @@ import {
   getAuthBypassUser,
   getAuthToken,
   getCachedAuthUser,
+  homePathForRole,
   isAuthDisabled,
 } from "@/lib/auth";
 
@@ -23,6 +24,7 @@ const StudentAuthContext = React.createContext<StudentAuthContextValue | null>(n
 
 export function StudentAuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = React.useState<AuthUser | null>(null);
   const [ready, setReady] = React.useState(false);
 
@@ -72,9 +74,23 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
         if (cancelled) return;
         cacheAuthUser(me);
         setUser(me);
-        if (me.role !== "HS") {
-          clearAuthToken();
-          router.replace("/login?error=role");
+
+        // Role-based path guard: redirect to the correct home if on the wrong portal
+        const home = homePathForRole(me.role);
+        const onStudentPath = !pathname.startsWith("/teacher") && !pathname.startsWith("/aca");
+        const onTeacherPath = pathname.startsWith("/teacher");
+        const onAcaPath = pathname.startsWith("/aca");
+
+        if (me.role === "HS" && !onStudentPath) {
+          router.replace("/");
+          return;
+        }
+        if (me.role === "GV" && !onTeacherPath) {
+          router.replace(home);
+          return;
+        }
+        if (me.role === "ACA" && !onAcaPath) {
+          router.replace(home);
           return;
         }
       } catch {
@@ -92,6 +108,7 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
     return () => {
       cancelled = true;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   if (!ready || !user) {

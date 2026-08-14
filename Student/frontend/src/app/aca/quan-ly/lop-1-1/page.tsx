@@ -341,6 +341,7 @@ export default function Lop11Page() {
     }));
   };
 
+  type ScoreGroup = { l: string; r: string; w: string; s: string; o: string };
   const [runs, setRuns] = useState<{
     classDays: string[];     // e.g. ["2","4","6"] = T2,T4,T6
     dayTimes: Record<string, { startHour: string; startMinute: string; endHour: string; endMinute: string }>;
@@ -348,7 +349,13 @@ export default function Lop11Page() {
     totalSessions: string;   // e.g. "18"
     sessionsPerWeek: string; // auto-synced from classDays.length
     startDate: string;
-  }[]>([{ classDays: [], dayTimes: {}, totalHours: "", totalSessions: "", sessionsPerWeek: "", startDate: "" }]);
+    scores: ScoreGroup;
+    finalScores: ScoreGroup;
+  }[]>([{
+    classDays: [], dayTimes: {}, totalHours: "", totalSessions: "", sessionsPerWeek: "", startDate: "",
+    scores: { l: "-", r: "-", w: "-", s: "-", o: "-" },
+    finalScores: { l: "-", r: "-", w: "-", s: "-", o: "-" },
+  }]);
 
   // Toggle a day in a run's classDays; auto-syncs sessionsPerWeek & dayTimes
   const toggleClassDay = (runIndex: number, dayVal: string) => {
@@ -433,6 +440,8 @@ export default function Lop11Page() {
   const [formSuccessorLink, setFormSuccessorLink] = useState("");
   const [formMaterials, setFormMaterials] = useState("");
   const [formStatus, setFormStatus] = useState<"Đang diễn ra" | "Bảo lưu" | "Đã kết thúc">("Đang diễn ra");
+  const [formScores, setFormScores] = useState<ScoreGroup>({ l: "-", r: "-", w: "-", s: "-", o: "-" });
+  const [formFinalScores, setFormFinalScores] = useState<ScoreGroup>({ l: "-", r: "-", w: "-", s: "-", o: "-" });
 
   useEffect(() => {
     async function loadData() {
@@ -478,7 +487,13 @@ export default function Lop11Page() {
     setFormSuccessorLink("");
     setFormMaterials("");
     setFormStatus("Đang diễn ra");
-    setRuns([{ classDays: [], dayTimes: {}, totalHours: "", totalSessions: "", sessionsPerWeek: "", startDate: "" }]);
+    setFormScores({ l: "-", r: "-", w: "-", s: "-", o: "-" });
+    setFormFinalScores({ l: "-", r: "-", w: "-", s: "-", o: "-" });
+    setRuns([{
+      classDays: [], dayTimes: {}, totalHours: "", totalSessions: "", sessionsPerWeek: "", startDate: "",
+      scores: { l: "-", r: "-", w: "-", s: "-", o: "-" },
+      finalScores: { l: "-", r: "-", w: "-", s: "-", o: "-" },
+    }]);
     setIsFormOpen(true);
   };
 
@@ -499,6 +514,20 @@ export default function Lop11Page() {
     setFormSuccessorLink(c.successorLink || "");
     setFormMaterials(c.materials || "");
     setFormStatus(c.status);
+    setFormScores({
+      l: String(c.scores?.l ?? "-"),
+      r: String(c.scores?.r ?? "-"),
+      w: String(c.scores?.w ?? "-"),
+      s: String(c.scores?.s ?? "-"),
+      o: String(c.scores?.o ?? "-"),
+    });
+    setFormFinalScores({
+      l: String(c.finalScores?.l ?? "-"),
+      r: String(c.finalScores?.r ?? "-"),
+      w: String(c.finalScores?.w ?? "-"),
+      s: String(c.finalScores?.s ?? "-"),
+      o: String(c.finalScores?.o ?? "-"),
+    });
 
     // Parse existing compound runs — decode structured prefix [Xh|Ybuổi|Zb/w] if present
     const lines = parseScheduleLines(c.schedule);
@@ -511,19 +540,15 @@ export default function Lop11Page() {
       const days: string[] = [];
       const upper = text.toUpperCase();
       
-      // 1. Check for CN
       if (/\bCN\b|CHỦ\s*NHẬT/i.test(upper)) {
         days.push("CN");
       }
       
-      // 2. Strip all time patterns to avoid digit collision
       const cleanText = upper
-        .replace(/\d+\s*[H:]\s*\d*/g, "") // remove "19H30", "19:", "9H"
-        .replace(/\d+\s*-\s*\d+\s*H/g, "") // remove "9-11H"
-        // remove hours like "9-11", "20-22", "19-21" without lookbehind
+        .replace(/\d+\s*[H:]\s*\d*/g, "")
+        .replace(/\d+\s*-\s*\d+\s*H/g, "")
         .replace(/(^|[^\d])((?:1\d|2[0-3]|[7-9])\s*-\s*(?:1\d|2[0-3]|[7-9]))(?=$|[^\d])/g, "$1");
          
-      // 3. Any remaining digit 2-7 is a class day
       for (let d = 2; d <= 7; d++) {
         if (cleanText.includes(String(d))) {
           days.push(String(d));
@@ -537,9 +562,35 @@ export default function Lop11Page() {
       const cleanSched = getCleanSchedule(lines[i] || "");
       const structMatch = cleanSched.match(/^\[(\d*)h\|(\d*)buổi\|(\d*)b\/w\]\s*(.*)/i);
       const rawDayTime = structMatch ? structMatch[4].trim() : cleanSched;
-      // Extract classDays from the day/time portion
       const classDays = parseDaysFromText(rawDayTime);
       const dayTimes = parseDayTimesFromText(rawDayTime, classDays);
+
+      // Decoded per-run scores
+      const runCycles = c.cycles?.[i];
+      const prevRunCycles = i > 0 ? c.cycles?.[i - 1] : null;
+
+      const sc = runCycles?.scores || (i === maxLen - 1 ? c.scores : undefined);
+      const fc = runCycles?.finalScores || (i === maxLen - 1 ? c.finalScores : undefined);
+
+      const defaultEntO = i > 0 && prevRunCycles?.finalScores?.o && prevRunCycles.finalScores.o !== "-"
+        ? String(prevRunCycles.finalScores.o)
+        : String(sc?.o ?? "-");
+
+      const runScores: ScoreGroup = {
+        l: String(sc?.l ?? "-"),
+        r: String(sc?.r ?? "-"),
+        w: String(sc?.w ?? "-"),
+        s: String(sc?.s ?? "-"),
+        o: defaultEntO,
+      };
+
+      const runFinalScores: ScoreGroup = {
+        l: String(fc?.l ?? "-"),
+        r: String(fc?.r ?? "-"),
+        w: String(fc?.w ?? "-"),
+        s: String(fc?.s ?? "-"),
+        o: String(fc?.o ?? "-"),
+      };
 
       if (structMatch) {
         parsedRuns.push({
@@ -549,6 +600,8 @@ export default function Lop11Page() {
           classDays,
           dayTimes,
           startDate: startDates[i] || "",
+          scores: runScores,
+          finalScores: runFinalScores,
         });
       } else {
         const spwMatch = cleanSched.match(/(\d+)\s*buổi\s*\/\s*tuần/i);
@@ -559,6 +612,8 @@ export default function Lop11Page() {
           classDays,
           dayTimes,
           startDate: startDates[i] || "",
+          scores: runScores,
+          finalScores: runFinalScores,
         });
       }
     }
@@ -632,6 +687,23 @@ export default function Lop11Page() {
     // Auto-compute end date from structured fields for each run
     const computedEndDate = runs.map(r => computeEndDateFromRun(r)).join(" • ");
 
+    const cyclesPayload = runs.map((r, i) => {
+      const prevR = i > 0 ? runs[i - 1] : null;
+      const autoEntO = i > 0 && prevR?.finalScores?.o && prevR.finalScores.o !== "-"
+        ? prevR.finalScores.o
+        : r.scores.o;
+      return {
+        scores: { ...r.scores, o: autoEntO },
+        finalScores: r.finalScores,
+      };
+    });
+
+    const latestR = runs[runs.length - 1] || { scores: formScores, finalScores: formFinalScores };
+    const prevLatestR = runs.length > 1 ? runs[runs.length - 2] : null;
+    const latestEntO = runs.length > 1 && prevLatestR?.finalScores?.o && prevLatestR.finalScores.o !== "-"
+      ? prevLatestR.finalScores.o
+      : latestR.scores.o;
+
     const payload = {
       className: formClassName,
       inputNeed: formInputNeed,
@@ -646,6 +718,9 @@ export default function Lop11Page() {
       successorLink: formSuccessorLink,
       materials: formMaterials,
       status: formStatus,
+      scores: { ...latestR.scores, o: latestEntO },
+      finalScores: latestR.finalScores,
+      cycles: cyclesPayload,
     };
 
     try {
@@ -1025,6 +1100,8 @@ export default function Lop11Page() {
                         <th className="px-6 py-4 min-w-[150px]">Trạng thái</th>
                         <th className="px-6 py-4 min-w-[320px]">Tên lớp / RLP (Click xem chi tiết)</th>
                         <th className="px-6 py-4 min-w-[150px]">Đầu vào / Nhu cầu</th>
+                        <th className="px-6 py-4 text-center min-w-[140px]">Điểm Entrance</th>
+                        <th className="px-6 py-4 text-center min-w-[140px]">Điểm Final</th>
                         <th className="px-6 py-4 min-w-[180px]">Giáo viên phụ trách</th>
                         <th className="px-6 py-4 min-w-[280px]">Lịch học</th>
                         <th className="px-6 py-4 min-w-[180px]">Ngày khai giảng</th>
@@ -1109,6 +1186,36 @@ export default function Lop11Page() {
                                   </div>
                                 </td>
                                 <td className="px-6 py-4 text-zinc-700 min-w-[150px] font-bold whitespace-pre-line">{item.inputNeed}</td>
+                                <td className="px-6 py-4 text-center font-bold tabular-nums text-zinc-800 whitespace-nowrap">
+                                  {(() => {
+                                    const cycles = item.cycles || [];
+                                    const mainCycle = cycles[lines.length - 1] || { scores: item.scores };
+                                    const prevCycle = lines.length > 1 ? (cycles[lines.length - 2] || { finalScores: item.finalScores }) : null;
+                                    const entO = prevCycle?.finalScores?.o && prevCycle.finalScores.o !== "-"
+                                      ? prevCycle.finalScores.o
+                                      : (mainCycle.scores?.o ?? item.scores?.o ?? "-");
+                                    const sc: any = mainCycle.scores || item.scores || {};
+                                    return (
+                                      <>
+                                        {sc.l ?? "-"}/{sc.r ?? "-"}/{sc.w ?? "-"}/{sc.s ?? "-"}/
+                                        <span className="font-black text-primary ml-0.5">{entO}</span>
+                                      </>
+                                    );
+                                  })()}
+                                </td>
+                                <td className="px-6 py-4 text-center font-bold tabular-nums text-zinc-800 whitespace-nowrap">
+                                  {(() => {
+                                    const cycles = item.cycles || [];
+                                    const mainCycle = cycles[lines.length - 1] || { finalScores: item.finalScores };
+                                    const fc: any = mainCycle.finalScores || item.finalScores || {};
+                                    return (
+                                      <>
+                                        {fc.l ?? "-"}/{fc.r ?? "-"}/{fc.w ?? "-"}/{fc.s ?? "-"}/
+                                        <span className="font-black text-success ml-0.5">{fc.o ?? "-"}</span>
+                                      </>
+                                    );
+                                  })()}
+                                </td>
                                 <td className="px-6 py-4 text-zinc-800 min-w-[180px] font-black whitespace-pre-line">{item.teacher}</td>
                                 <td className="px-6 py-4 text-zinc-650 min-w-[280px] font-medium leading-relaxed whitespace-pre-line">
                                   {getCleanSchedule(latestSchedule)}
@@ -1166,6 +1273,38 @@ export default function Lop11Page() {
                                       </td>
                                       {/* Đầu vào */}
                                       <td className="px-6 py-3 text-zinc-300 font-medium">—</td>
+                                      {/* Điểm Entrance */}
+                                      <td className="px-6 py-3 text-center font-bold tabular-nums text-zinc-700 whitespace-nowrap">
+                                        {(() => {
+                                          const cycles = item.cycles || [];
+                                          const thisCycle = cycles[lineIdx] || {};
+                                          const prevCycle = lineIdx > 0 ? cycles[lineIdx - 1] : null;
+                                          const entO = lineIdx > 0
+                                            ? (prevCycle?.finalScores?.o && prevCycle.finalScores.o !== "-" ? prevCycle.finalScores.o : (thisCycle.scores?.o ?? "-"))
+                                            : (thisCycle.scores?.o ?? item.scores?.o ?? "-");
+                                          const sc: any = thisCycle.scores || (lineIdx === 0 ? item.scores : {}) || {};
+                                          return (
+                                            <>
+                                              {sc.l ?? "-"}/{sc.r ?? "-"}/{sc.w ?? "-"}/{sc.s ?? "-"}/
+                                              <span className="font-black text-primary ml-0.5">{entO}</span>
+                                            </>
+                                          );
+                                        })()}
+                                      </td>
+                                      {/* Điểm Final */}
+                                      <td className="px-6 py-3 text-center font-bold tabular-nums text-zinc-700 whitespace-nowrap">
+                                        {(() => {
+                                          const cycles = item.cycles || [];
+                                          const thisCycle = cycles[lineIdx] || {};
+                                          const fc: any = thisCycle.finalScores || {};
+                                          return (
+                                            <>
+                                              {fc.l ?? "-"}/{fc.r ?? "-"}/{fc.w ?? "-"}/{fc.s ?? "-"}/
+                                              <span className="font-black text-success ml-0.5">{fc.o ?? "-"}</span>
+                                            </>
+                                          );
+                                        })()}
+                                      </td>
                                       {/* Giáo viên */}
                                       <td className="px-6 py-3 text-zinc-300 font-medium">—</td>
                                       {/* Lịch học */}
@@ -1188,7 +1327,7 @@ export default function Lop11Page() {
                         })
                       ) : (
                         <tr>
-                          <td colSpan={10} className="px-6 py-8 text-center text-zinc-400 font-medium">
+                          <td colSpan={12} className="px-6 py-8 text-center text-zinc-400 font-medium">
                             Không tìm thấy lớp học 1:1 nào phù hợp.
                           </td>
                         </tr>
@@ -1288,6 +1427,20 @@ export default function Lop11Page() {
                   <div className="flex justify-between">
                     <span className="text-zinc-500 font-bold">Đầu ra / Kết quả:</span>
                     <span className="font-black text-zinc-800 text-right whitespace-pre-line">{selectedClass.output}</span>
+                  </div>
+                  <div className="flex justify-between pt-1 border-t border-zinc-200/60">
+                    <span className="text-zinc-500 font-bold">Điểm Entrance:</span>
+                    <span className="font-black text-primary tabular-nums">
+                      {selectedClass.scores?.l ?? "-"}/{selectedClass.scores?.r ?? "-"}/{selectedClass.scores?.w ?? "-"}/{selectedClass.scores?.s ?? "-"}/
+                      <span className="font-black text-primary ml-0.5">{selectedClass.scores?.o ?? "-"}</span>
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500 font-bold">Điểm Final:</span>
+                    <span className="font-black text-success tabular-nums">
+                      {selectedClass.finalScores?.l ?? "-"}/{selectedClass.finalScores?.r ?? "-"}/{selectedClass.finalScores?.w ?? "-"}/{selectedClass.finalScores?.s ?? "-"}/
+                      <span className="font-black text-success ml-0.5">{selectedClass.finalScores?.o ?? "-"}</span>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1417,13 +1570,66 @@ export default function Lop11Page() {
                 </div>
               </div>
 
+              {/* Điểm Entrance */}
+              <div className="bg-primary/5 p-3.5 rounded-2xl border border-primary/15 space-y-2">
+                <h4 className="text-[10px] font-black uppercase text-primary tracking-wider">Điểm Entrance (Đầu vào)</h4>
+                <div className="grid grid-cols-5 gap-2">
+                  {(["l", "r", "w", "s", "o"] as const).map((k) => (
+                    <div key={`form-ent-${k}`}>
+                      <label className="block text-[9px] font-black uppercase text-zinc-500 text-center mb-1">
+                        {k.toUpperCase()}
+                      </label>
+                      <input
+                        type="text"
+                        value={formScores[k] || "-"}
+                        onChange={(e) => setFormScores(prev => ({ ...prev, [k]: e.target.value }))}
+                        placeholder="-"
+                        className="h-9 w-full rounded-xl border border-zinc-200 text-center font-bold text-foreground text-xs outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10 bg-white"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Điểm Final */}
+              <div className="bg-emerald-50/50 p-3.5 rounded-2xl border border-emerald-200/60 space-y-2">
+                <h4 className="text-[10px] font-black uppercase text-emerald-700 tracking-wider">Điểm Final (Đầu ra)</h4>
+                <div className="grid grid-cols-5 gap-2">
+                  {(["l", "r", "w", "s", "o"] as const).map((k) => (
+                    <div key={`form-fin-${k}`}>
+                      <label className="block text-[9px] font-black uppercase text-zinc-500 text-center mb-1">
+                        {k.toUpperCase()}
+                      </label>
+                      <input
+                        type="text"
+                        value={formFinalScores[k] || "-"}
+                        onChange={(e) => setFormFinalScores(prev => ({ ...prev, [k]: e.target.value }))}
+                        placeholder="-"
+                        className="h-9 w-full rounded-xl border border-zinc-200 text-center font-bold text-foreground text-xs outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10 bg-white"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* ─── DYNAMIC RUNS EDITOR ─── */}
               <div className="space-y-3.5 border-t border-zinc-150 pt-4">
                 <div className="flex items-center justify-between">
                   <h4 className="text-[10px] font-black uppercase text-zinc-400 tracking-widest">Danh sách các khóa học (Runs)</h4>
                   <button
                     type="button"
-                     onClick={() => setRuns(prev => [...prev, { classDays: [], dayTimes: {}, totalHours: "", totalSessions: "", sessionsPerWeek: "", startDate: "" }])}
+                    onClick={() => setRuns(prev => {
+                      const prevR = prev[prev.length - 1];
+                      const autoEntO = prevR?.finalScores?.o && prevR.finalScores.o !== "-" ? prevR.finalScores.o : "-";
+                      return [
+                        ...prev,
+                        {
+                          classDays: [], dayTimes: {}, totalHours: "", totalSessions: "", sessionsPerWeek: "", startDate: "",
+                          scores: { l: "-", r: "-", w: "-", s: "-", o: autoEntO },
+                          finalScores: { l: "-", r: "-", w: "-", s: "-", o: "-" },
+                        }
+                      ];
+                    })}
                     className="px-2.5 py-1 text-[9px] font-black uppercase bg-primary/10 hover:bg-primary/15 text-primary rounded-xl transition-all"
                   >
                     + Thêm khóa học
@@ -1450,6 +1656,65 @@ export default function Lop11Page() {
                             Xóa khóa này
                           </button>
                         )}
+                      </div>
+
+                      {/* Điểm số Khóa K{index + 1} */}
+                      <div className="grid grid-cols-2 gap-2 bg-white p-2.5 rounded-xl border border-zinc-200/60">
+                        <div>
+                          <span className="text-[8.5px] font-black uppercase text-primary block">
+                            {index === 0 ? "Entrance K1" : `Entrance K${index + 1} (Tự động từ Final K${index})`}
+                          </span>
+                          <div className="flex gap-1 mt-1">
+                            {(["l", "r", "w", "s", "o"] as const).map((k) => {
+                              const prevR = index > 0 ? runs[index - 1] : null;
+                              const autoO = index > 0 && prevR?.finalScores?.o && prevR.finalScores.o !== "-"
+                                ? prevR.finalScores.o
+                                : (run.scores?.[k] || "-");
+                              const displayVal = k === "o" && index > 0 ? autoO : (run.scores?.[k] || "-");
+                              return (
+                                <div key={`run-${index}-ent-${k}`} className="flex-1 text-center">
+                                  <span className="text-[7.5px] font-bold text-zinc-400 block">{k.toUpperCase()}</span>
+                                  <input
+                                    type="text"
+                                    value={displayVal}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setRuns(prev => prev.map((r, i) => i === index ? { ...r, scores: { ...r.scores, [k]: val } } : r));
+                                    }}
+                                    className="h-7 w-full rounded border border-zinc-200 text-center font-bold text-[10px] bg-zinc-50"
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-[8.5px] font-black uppercase text-emerald-700 block">Final K{index + 1}</span>
+                          <div className="flex gap-1 mt-1">
+                            {(["l", "r", "w", "s", "o"] as const).map((k) => (
+                              <div key={`run-${index}-fin-${k}`} className="flex-1 text-center">
+                                <span className="text-[7.5px] font-bold text-zinc-400 block">{k.toUpperCase()}</span>
+                                <input
+                                  type="text"
+                                  value={run.finalScores?.[k] || "-"}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setRuns(prev => prev.map((r, i) => {
+                                      if (i === index) {
+                                        return { ...r, finalScores: { ...r.finalScores, [k]: val } };
+                                      }
+                                      if (i === index + 1 && k === "o") {
+                                        return { ...r, scores: { ...r.scores, o: val } };
+                                      }
+                                      return r;
+                                    }));
+                                  }}
+                                  className="h-7 w-full rounded border border-zinc-200 text-center font-bold text-[10px] bg-zinc-50"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       </div>
 
                       {/* Ngày khai giảng */}

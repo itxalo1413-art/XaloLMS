@@ -25,6 +25,7 @@ const student_profile_study_options_1 = require("./student-profile-study-options
 const focus_skills_util_1 = require("./focus-skills.util");
 const student_profile_types_1 = require("./student-profile.types");
 const aca_student_schema_1 = require("../aca/schemas/aca-student.schema");
+const aca_class_schema_1 = require("../aca/schemas/aca-class.schema");
 const STUDY_FIELDS = [
     'method',
     'weeklyHours',
@@ -36,12 +37,14 @@ const STUDY_FIELDS = [
 let StudentProfileService = StudentProfileService_1 = class StudentProfileService {
     store;
     acaStudentModel;
+    acaClassModel;
     users;
     cloudinary;
     logger = new common_1.Logger(StudentProfileService_1.name);
-    constructor(store, acaStudentModel, users, cloudinary) {
+    constructor(store, acaStudentModel, acaClassModel, users, cloudinary) {
         this.store = store;
         this.acaStudentModel = acaStudentModel;
+        this.acaClassModel = acaClassModel;
         this.users = users;
         this.cloudinary = cloudinary;
     }
@@ -178,13 +181,103 @@ let StudentProfileService = StudentProfileService_1 = class StudentProfileServic
             }
         };
     }
+    async getClassInfoForStudent(email) {
+        const defaultInfo = {
+            course: 'Offline Momentum',
+            instructor: 'Nghiêm Doãn Quỳnh Châu',
+            room: 'Phòng 3.1',
+            zoomPassword: '—',
+            schedule: [
+                'Thứ 3: 19h45 - 21h30',
+                'Thứ 5: 19h45 - 21h30',
+                'Thứ 7: 19h45 - 21h30',
+            ],
+            phases: [
+                { name: 'Chặng 1: Speaking - Reading', date: '09/10/2025' },
+                { name: 'Chặng 2: Writing - Listening', date: '30/04/2026' },
+            ],
+            openDate: '09/10/2025',
+            endDate: '27/05/2026',
+        };
+        if (!email)
+            return defaultInfo;
+        const student = await this.acaStudentModel
+            .findOne({ email: email.trim().toLowerCase() })
+            .lean()
+            .exec();
+        if (!student) {
+            return defaultInfo;
+        }
+        let cls = null;
+        if (student.classId && mongoose_2.Types.ObjectId.isValid(student.classId)) {
+            cls = await this.acaClassModel.findById(student.classId).lean().exec();
+        }
+        if (!cls && (student.l1 || student.l2 || student.l3)) {
+            const code = (student.l1 || student.l2 || student.l3 || '').trim();
+            const codeBase = code.replace(/-\d+$/i, '');
+            if (codeBase) {
+                cls = await this.acaClassModel
+                    .findOne({
+                    $or: [
+                        { classCode: new RegExp(`^${codeBase}$`, 'i') },
+                        { name: new RegExp(codeBase, 'i') },
+                    ],
+                })
+                    .lean()
+                    .exec();
+            }
+        }
+        const phases = [];
+        if (cls) {
+            if (cls.currentPhase || cls.phaseStartDate || cls.openDate) {
+                phases.push({
+                    name: cls.currentPhase || 'Chặng 1: Speaking - Reading',
+                    date: cls.phaseStartDate || cls.openDate || '09/10/2025',
+                });
+            }
+            if (cls.nextPhase || cls.nextPhaseStartDate) {
+                phases.push({
+                    name: cls.nextPhase || 'Chặng 2: Writing - Listening',
+                    date: cls.nextPhaseStartDate || '30/04/2026',
+                });
+            }
+        }
+        if (phases.length === 0) {
+            phases.push({ name: 'Chặng 1: Speaking - Reading', date: cls?.openDate || '09/10/2025' }, { name: 'Chặng 2: Writing - Listening', date: '30/04/2026' });
+        }
+        const className = cls?.name || cls?.classCode || '';
+        const is357 = className.includes('357');
+        const classSchedule = is357
+            ? [
+                'Thứ 3: 19h45 - 21h30',
+                'Thứ 5: 19h45 - 21h30',
+                'Thứ 7: 19h45 - 21h30',
+            ]
+            : [
+                'Thứ 2: 19h45 - 21h30',
+                'Thứ 4: 19h45 - 21h30',
+                'Thứ 6: 19h45 - 21h30',
+            ];
+        return {
+            course: cls?.name || 'Offline Momentum',
+            instructor: cls?.teacher || 'Nghiêm Doãn Quỳnh Châu',
+            room: 'Phòng 3.1',
+            zoomPassword: '—',
+            schedule: classSchedule,
+            phases,
+            openDate: cls?.openDate || '09/10/2025',
+            endDate: cls?.endDate || '27/05/2026',
+        };
+    }
 };
 exports.StudentProfileService = StudentProfileService;
 exports.StudentProfileService = StudentProfileService = StudentProfileService_1 = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(student_profile_store_schema_1.StudentProfileStore.name)),
     __param(1, (0, mongoose_1.InjectModel)(aca_student_schema_1.AcaStudent.name)),
+    __param(2, (0, mongoose_1.InjectModel)(aca_class_schema_1.AcaClass.name)),
     __metadata("design:paramtypes", [mongoose_2.Model,
+        mongoose_2.Model,
         mongoose_2.Model,
         users_service_1.UsersService,
         cloudinary_service_1.CloudinaryService])

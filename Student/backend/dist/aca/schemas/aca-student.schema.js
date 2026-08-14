@@ -127,15 +127,27 @@ let AcaStudent = class AcaStudent {
     f3;
     bcbLink;
     note;
+    rawClassification;
     cycles;
+    dob;
+    zodiac;
+    avatarUrl;
+    method;
+    weeklyHours;
+    classEnvironment;
+    ieltsMeaning;
+    previousBand;
+    focusSkills;
+    practiceJoined;
+    registeredSlotIds;
 };
 exports.AcaStudent = AcaStudent;
 __decorate([
-    (0, mongoose_1.Prop)({ required: true, trim: true }),
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
     __metadata("design:type", String)
 ], AcaStudent.prototype, "classId", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ required: true }),
+    (0, mongoose_1.Prop)({ type: Number, default: 0 }),
     __metadata("design:type", Number)
 ], AcaStudent.prototype, "stt", void 0);
 __decorate([
@@ -259,9 +271,57 @@ __decorate([
     __metadata("design:type", String)
 ], AcaStudent.prototype, "note", void 0);
 __decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaStudent.prototype, "rawClassification", void 0);
+__decorate([
     (0, mongoose_1.Prop)({ type: [AcaStudentCycleSchema], default: () => [] }),
     __metadata("design:type", Array)
 ], AcaStudent.prototype, "cycles", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaStudent.prototype, "dob", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaStudent.prototype, "zodiac", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaStudent.prototype, "avatarUrl", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaStudent.prototype, "method", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaStudent.prototype, "weeklyHours", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaStudent.prototype, "classEnvironment", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaStudent.prototype, "ieltsMeaning", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaStudent.prototype, "previousBand", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: [String], default: [] }),
+    __metadata("design:type", Array)
+], AcaStudent.prototype, "focusSkills", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: Boolean, default: false }),
+    __metadata("design:type", Boolean)
+], AcaStudent.prototype, "practiceJoined", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: [String], default: [] }),
+    __metadata("design:type", Array)
+], AcaStudent.prototype, "registeredSlotIds", void 0);
 exports.AcaStudent = AcaStudent = __decorate([
     (0, mongoose_1.Schema)({ collection: 'aca_students', timestamps: true })
 ], AcaStudent);

@@ -8,6 +8,8 @@ export type GuestDiagnosisLead = {
   submittedAt: string;
   status: GuestDiagnosisLeadStatus;
   note: string;
+  assignedClassId?: string;
+  assignedClassName?: string;
 };
 
 const STORAGE_KEY = "xalo.guestDiagnosis.leads.v1";
@@ -16,7 +18,7 @@ export const GUEST_DIAGNOSIS_LEADS_EVENT = "xalo-guest-diagnosis-leads-updated";
 export const GUEST_LEAD_STATUS_LABEL: Record<GuestDiagnosisLeadStatus, string> = {
   new: "Mới",
   contacted: "Đã liên hệ",
-  converted: "Chốt học",
+  converted: "Chốt học (Học viên)",
   closed: "Đóng",
 };
 
@@ -87,7 +89,7 @@ export function submitGuestDiagnosisLead(input: {
 
 export function updateGuestDiagnosisLead(
   id: string,
-  patch: Partial<Pick<GuestDiagnosisLead, "status" | "note">>,
+  patch: Partial<Pick<GuestDiagnosisLead, "status" | "note" | "assignedClassId" | "assignedClassName">>,
 ): GuestDiagnosisLead {
   let updated: GuestDiagnosisLead | null = null;
   const next = loadAll().map((row) => {
@@ -96,6 +98,8 @@ export function updateGuestDiagnosisLead(
       ...row,
       ...(patch.status !== undefined ? { status: patch.status } : {}),
       ...(patch.note !== undefined ? { note: patch.note } : {}),
+      ...(patch.assignedClassId !== undefined ? { assignedClassId: patch.assignedClassId } : {}),
+      ...(patch.assignedClassName !== undefined ? { assignedClassName: patch.assignedClassName } : {}),
     };
     return updated;
   });

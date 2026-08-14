@@ -17,6 +17,17 @@ let AcaPracticeWeek = class AcaPracticeWeek {
     linkTab;
     announcement;
     templateMessage;
+    zoomId;
+    zoomPassword;
+    scheduleTueInfo;
+    scheduleThuInfo;
+    scheduleSatInfo;
+    scheduleTueTitle;
+    scheduleThuTitle;
+    scheduleSatTitle;
+    scheduleTueTime;
+    scheduleThuTime;
+    scheduleSatTime;
 };
 exports.AcaPracticeWeek = AcaPracticeWeek;
 __decorate([
@@ -39,8 +50,52 @@ __decorate([
     (0, mongoose_1.Prop)({ trim: true, default: '' }),
     __metadata("design:type", String)
 ], AcaPracticeWeek.prototype, "templateMessage", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '842 1963 4521' }),
+    __metadata("design:type", String)
+], AcaPracticeWeek.prototype, "zoomId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: 'XaloLrw26' }),
+    __metadata("design:type", String)
+], AcaPracticeWeek.prototype, "zoomPassword", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaPracticeWeek.prototype, "scheduleTueInfo", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaPracticeWeek.prototype, "scheduleThuInfo", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaPracticeWeek.prototype, "scheduleSatInfo", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaPracticeWeek.prototype, "scheduleTueTitle", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaPracticeWeek.prototype, "scheduleThuTitle", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaPracticeWeek.prototype, "scheduleSatTitle", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaPracticeWeek.prototype, "scheduleTueTime", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaPracticeWeek.prototype, "scheduleThuTime", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaPracticeWeek.prototype, "scheduleSatTime", void 0);
 exports.AcaPracticeWeek = AcaPracticeWeek = __decorate([
-    (0, mongoose_1.Schema)({ collection: 'aca_practice_weeks', timestamps: true })
+    (0, mongoose_1.Schema)({ collection: 'aca_practice_weeks', timestamps: true, strict: false })
 ], AcaPracticeWeek);
 exports.AcaPracticeWeekSchema = mongoose_1.SchemaFactory.createForClass(AcaPracticeWeek);
 //# sourceMappingURL=aca-practice-week.schema.js.map

@@ -10,6 +10,7 @@ export declare class RlpService {
     private readonly classModel;
     constructor(storeModel: Model<RlpCourseStoreDocument>, studentModel: Model<AcaStudentDocument>, classModel: Model<AcaClassDocument>);
     private cloneDefaults;
+    private generateClassScheduleDates;
     private ensureStoreForClass;
     private ensureStore;
     private normalizeSessions;

@@ -30,6 +30,19 @@ export declare class StudentProfileController {
             overall: number;
         };
     } | null>;
+    getClassInfo(req: AuthedRequest): Promise<{
+        course: string;
+        instructor: string;
+        room: string;
+        zoomPassword: string;
+        schedule: string[];
+        phases: {
+            name: string;
+            date: string;
+        }[];
+        openDate: string;
+        endDate: string;
+    }>;
     updateProfile(req: AuthedRequest, payload: UpdateStudentProfileDto): Promise<import("./student-profile.types").StudentProfile>;
     uploadAvatar(req: AuthedRequest, file: Express.Multer.File): Promise<import("./student-profile.types").StudentProfile>;
 }

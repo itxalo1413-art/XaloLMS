@@ -123,7 +123,7 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
         <Sidebar onOpenProfile={openProfile} />
 
         {/* Main Content Area */}
-        <div className="flex h-screen min-w-0 flex-1 flex-col overflow-y-auto md:pl-72">
+        <div className="flex h-screen min-w-0 flex-1 flex-col overflow-y-auto md:pl-20 transition-all duration-300">
           
           {/* Mobile Topbar */}
           <header className="sticky top-0 z-40 flex w-full items-center justify-between border-b border-primary/10 bg-white/80 px-6 py-[18px] backdrop-blur-md md:hidden">
@@ -223,8 +223,8 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
             </div>
 
             {/* Folder Body Card */}
-            <div className="relative z-0 flex-1 bg-white border border-primary/10 rounded-b-3xl rounded-tr-3xl shadow-soft p-6 md:p-8 min-h-[600px] flex flex-col">
-              <div className="flex-1 w-full min-w-0">
+            <div className="relative flex-1 bg-white border border-primary/10 rounded-b-3xl rounded-tr-3xl shadow-soft p-6 md:p-8 min-h-[600px] flex flex-col">
+              <div key={pathname} className="tab-page-transition flex-1 w-full min-w-0 flex flex-col">
                 {children}
               </div>
             </div>

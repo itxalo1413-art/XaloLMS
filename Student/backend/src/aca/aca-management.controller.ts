@@ -186,4 +186,68 @@ export class AcaManagementController {
   async deleteFreeSlot(@Param('id') id: string) {
     return this.service.deleteFreeSlot(id);
   }
+
+  // --- Teacher Profiles ---
+  @Get('teacher-profiles')
+  async getAllTeacherProfiles() {
+    return this.service.findAllTeacherProfiles();
+  }
+
+  @Post('teacher-profiles')
+  async createTeacherProfile(@Body() data: any) {
+    return this.service.createTeacherProfile(data);
+  }
+
+  @Put('teacher-profiles/:id')
+  async updateTeacherProfile(@Param('id') id: string, @Body() data: any) {
+    return this.service.updateTeacherProfile(id, data);
+  }
+
+  @Delete('teacher-profiles/:id')
+  async deleteTeacherProfile(@Param('id') id: string) {
+    return this.service.deleteTeacherProfile(id);
+  }
+
+  // --- Daily Notes & Quotes ---
+  @Get('daily-notes')
+  async getDailyNote() {
+    return this.service.getDailyNote();
+  }
+
+  @Put('daily-notes')
+  async updateDailyNote(@Body() data: any) {
+    return this.service.updateDailyNote(data);
+  }
+
+  // --- Mock Test Requests ---
+  @Get('mock-test-requests')
+  async getAllMockTestRequests() {
+    return this.service.findAllMockTestRequests();
+  }
+
+  @Post('mock-test-requests')
+  async createMockTestRequest(@Body() data: any) {
+    return this.service.createMockTestRequest(data);
+  }
+
+  @Put('mock-test-requests/:id')
+  async updateMockTestRequest(@Param('id') id: string, @Body() data: any) {
+    return this.service.updateMockTestRequest(id, data);
+  }
+
+  @Delete('mock-test-requests/:id')
+  async deleteMockTestRequest(@Param('id') id: string) {
+    return this.service.deleteMockTestRequest(id);
+  }
+
+  // --- Course Settings ---
+  @Get('course-settings')
+  async getCourseSettings() {
+    return this.service.getCourseSettings();
+  }
+
+  @Put('course-settings')
+  async updateCourseSettings(@Body() data: any) {
+    return this.service.updateCourseSettings(data);
+  }
 }

@@ -21,13 +21,6 @@ export function loadScheduleViewState(): ScheduleViewState {
     const savedYear = typeof parsed.year === "number" ? parsed.year : DEFAULT_SCHEDULE_VIEW.year;
     const savedMonth = typeof parsed.month === "number" ? parsed.month : DEFAULT_SCHEDULE_VIEW.month;
     
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
-    if (savedYear < currentYear || (savedYear === currentYear && savedMonth < currentMonth)) {
-      return DEFAULT_SCHEDULE_VIEW;
-    }
-
     return {
       year: savedYear,
       month: savedMonth,

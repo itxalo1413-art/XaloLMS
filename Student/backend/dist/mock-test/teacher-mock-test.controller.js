@@ -55,7 +55,7 @@ __decorate([
 exports.TeacherMockTestController = TeacherMockTestController = __decorate([
     (0, common_1.Controller)('teacher/mock-tests'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
-    (0, roles_decorator_1.Roles)('GV'),
+    (0, roles_decorator_1.Roles)('GV', 'ACA'),
     __metadata("design:paramtypes", [mock_test_service_1.MockTestService])
 ], TeacherMockTestController);
 //# sourceMappingURL=teacher-mock-test.controller.js.map

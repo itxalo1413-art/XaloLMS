@@ -67,8 +67,11 @@ export async function fetchPracticeRegistrations(): Promise<PracticeRegistration
   const response = await apiFetch("/api/student/practice-class/registrations", {
     method: "GET",
   });
-  const data = await parseJson<{ registrations: PracticeSlotRegistration[] }>(response);
-  return { registrations: data.registrations ?? [] };
+  const data = await parseJson<
+    PracticeSlotRegistration[] | { registrations: PracticeSlotRegistration[] }
+  >(response);
+  const registrations = Array.isArray(data) ? data : (data?.registrations ?? []);
+  return { registrations };
 }
 
 export async function registerPracticeSlotApi(

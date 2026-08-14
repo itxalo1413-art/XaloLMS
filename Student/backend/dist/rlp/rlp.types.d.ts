@@ -1,4 +1,4 @@
-export type HomeworkStatus = 'submitted' | 'in_progress' | 'overdue' | 'not_assigned';
+export type HomeworkStatus = 'submitted' | 'submitted_waiting' | 'in_progress' | 'overdue' | 'not_assigned';
 export type Attendance = 'present' | 'absent';
 export type RlpSessionRecord = {
     no: number;
@@ -10,4 +10,6 @@ export type RlpSessionRecord = {
     homeworkStatus: HomeworkStatus;
     attendance: Attendance;
     lessonFileUrl?: string;
+    homeworkFileUrl?: string;
+    recordingUrl?: string;
 };

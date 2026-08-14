@@ -1,5 +1,7 @@
 "use client";
 
+import { getGraderMeetLink, saveGraderMeetLink, GRADER_MEET_LINKS_EVENT } from "@/lib/graderMeetLinks";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   loadMockTestRequests,
@@ -39,6 +41,23 @@ export function MockTestScheduleSection() {
   const [saving, setSaving] = useState(false);
 
   const teacherName = LOGGED_IN_TEACHER_NAME;
+
+  const [graderMeetUrl, setGraderMeetUrl] = useState(() => getGraderMeetLink(teacherName));
+
+  useEffect(() => {
+    const update = () => setGraderMeetUrl(getGraderMeetLink(teacherName));
+    window.addEventListener(GRADER_MEET_LINKS_EVENT, update);
+    window.addEventListener("storage", update);
+    return () => {
+      window.removeEventListener(GRADER_MEET_LINKS_EVENT, update);
+      window.removeEventListener("storage", update);
+    };
+  }, [teacherName]);
+
+  const handleSaveMeetUrl = (url: string) => {
+    setGraderMeetUrl(url);
+    saveGraderMeetLink(teacherName, url);
+  };
 
   const sync = useCallback(async () => {
     setLoading(true);
@@ -125,9 +144,30 @@ export function MockTestScheduleSection() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-primary/15 bg-primary/5 px-4 py-3 text-xs font-medium text-foreground">
-        Giáo viên demo: <strong>{teacherName}</strong>. ACA cần chọn đúng tên GV khi duyệt để ca
-        hiển thị tại đây.
+      <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4 space-y-3">
+        <div className="text-xs font-medium text-foreground">
+          Giáo viên demo: <strong>{teacherName}</strong>. Grader cần chọn đúng tên GV khi duyệt để ca hiển thị tại đây.
+        </div>
+        <div className="flex items-center gap-2 text-xs font-bold text-emerald-900 flex-wrap">
+          <span className="shrink-0 font-black text-[11px] uppercase tracking-wider text-emerald-800">
+            Link Google Meet cố định:
+          </span>
+          <input
+            type="url"
+            value={graderMeetUrl}
+            onChange={(e) => handleSaveMeetUrl(e.target.value)}
+            placeholder="https://meet.google.com/..."
+            className="h-8 flex-1 min-w-[220px] rounded-lg border border-emerald-300 bg-white px-3 text-xs font-semibold text-emerald-900 outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-200"
+          />
+          <a
+            href={graderMeetUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="h-8 inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-3 text-xs font-black text-white hover:bg-emerald-800 shadow-2xs shrink-0"
+          >
+            Mở Meet ↗
+          </a>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -167,7 +207,7 @@ export function MockTestScheduleSection() {
           </p>
           <p className="mt-2 mx-auto max-w-lg text-sm leading-relaxed text-zinc-500">
             {rows.length === 0
-              ? "Các ca sẽ hiển thị sau khi học viên đăng ký Speaking và ACA duyệt, giao cho bạn."
+              ? "Các ca sẽ hiển thị sau khi học viên đăng ký Speaking và Grader duyệt, giao cho bạn."
               : "Chọn bộ lọc khác hoặc nhập kết quả cho ca đang chờ."}
           </p>
         </div>
@@ -226,16 +266,30 @@ export function MockTestScheduleSection() {
                         </span>
                       ) : null}
                     </div>
-                    {r.examLink ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-3">
+                      {r.examLink ? (
+                        <a
+                          href={r.examLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-bold text-primary underline-offset-2 hover:underline"
+                        >
+                          {hasResult ? "Mở bài chấm" : "Link đăng ký / bài làm"}
+                        </a>
+                      ) : null}
                       <a
-                        href={r.examLink}
+                        href={getGraderMeetLink(r.examTeacher || teacherName)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="mt-2 inline-block text-xs font-bold text-primary underline-offset-2 hover:underline"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition-all shadow-2xs"
+                        title="Link Google Meet cố định của Grader (Link test spk)"
                       >
-                        {hasResult ? "Mở bài chấm" : "Link đăng ký / bài làm"}
+                        <svg className="h-3.5 w-3.5 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        Link test spk (Meet) ↗
                       </a>
-                    ) : null}
+                    </div>
                   </div>
                   <button
                     type="button"
@@ -247,7 +301,13 @@ export function MockTestScheduleSection() {
                 </div>
 
                 {activeId === r.id ? (
-                  <div className="mt-4 grid gap-3 border-t border-zinc-100 pt-4 md:grid-cols-2">
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void saveResult(r);
+                    }}
+                    className="mt-4 grid gap-3 border-t border-zinc-100 pt-4 md:grid-cols-2"
+                  >
                     <div>
                       <label className="text-[10px] font-black uppercase tracking-widest text-muted">
                         Điểm Speaking
@@ -272,12 +332,11 @@ export function MockTestScheduleSection() {
                     </div>
                     <div className="flex flex-wrap gap-2 md:col-span-2">
                       <button
-                        type="button"
+                        type="submit"
                         disabled={saving}
-                        onClick={() => void saveResult(r)}
                         className="rounded-xl bg-primary px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white hover:bg-primary/90 disabled:opacity-50"
                       >
-                        {saving ? "Đang lưu…" : "Lưu kết quả"}
+                        {saving ? "Đang lưu…" : "Lưu kết quả (Enter ↵)"}
                       </button>
                       <button
                         type="button"
@@ -287,7 +346,7 @@ export function MockTestScheduleSection() {
                         Đóng
                       </button>
                     </div>
-                  </div>
+                  </form>
                 ) : null}
               </li>
             );

@@ -57,10 +57,10 @@ const AcaStudentCycleSchema = SchemaFactory.createForClass(AcaStudentCycle);
 
 @Schema({ collection: 'aca_students', timestamps: true })
 export class AcaStudent {
-  @Prop({ required: true, trim: true })
+  @Prop({ trim: true, default: '' })
   classId: string;
 
-  @Prop({ required: true })
+  @Prop({ type: Number, default: 0 })
   stt: number;
 
   @Prop({ required: true, trim: true })
@@ -153,8 +153,44 @@ export class AcaStudent {
   @Prop({ trim: true, default: '' })
   note: string;
 
+  @Prop({ trim: true, default: '' })
+  rawClassification: string;
+
   @Prop({ type: [AcaStudentCycleSchema], default: () => [] })
   cycles: AcaStudentCycle[];
+
+  @Prop({ trim: true, default: '' })
+  dob: string;
+
+  @Prop({ trim: true, default: '' })
+  zodiac: string;
+
+  @Prop({ trim: true, default: '' })
+  avatarUrl: string;
+
+  @Prop({ trim: true, default: '' })
+  method: string;
+
+  @Prop({ trim: true, default: '' })
+  weeklyHours: string;
+
+  @Prop({ trim: true, default: '' })
+  classEnvironment: string;
+
+  @Prop({ trim: true, default: '' })
+  ieltsMeaning: string;
+
+  @Prop({ trim: true, default: '' })
+  previousBand: string;
+
+  @Prop({ type: [String], default: [] })
+  focusSkills: string[];
+
+  @Prop({ type: Boolean, default: false })
+  practiceJoined: boolean;
+
+  @Prop({ type: [String], default: [] })
+  registeredSlotIds: string[];
 }
 
 export const AcaStudentSchema = SchemaFactory.createForClass(AcaStudent);

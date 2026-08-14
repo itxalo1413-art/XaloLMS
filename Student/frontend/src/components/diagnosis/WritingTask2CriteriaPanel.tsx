@@ -28,7 +28,7 @@ export function WritingTask2CriteriaPanel({ scores }: Props) {
               <div className="min-w-0">
                 <h5 className="text-sm font-bold text-foreground">{criterion.name}</h5>
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">
-                  Band {Math.round(band)} · {criterion.label}
+                  Band {formatBandScore(band)} · {criterion.label}
                 </p>
               </div>
             </div>

@@ -10,6 +10,7 @@ class CreateWritingSubmissionDto {
     task1;
     task2;
     note;
+    assignedGrader;
 }
 exports.CreateWritingSubmissionDto = CreateWritingSubmissionDto;
 //# sourceMappingURL=create-writing-submission.dto.js.map

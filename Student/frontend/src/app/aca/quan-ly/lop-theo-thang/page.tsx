@@ -554,106 +554,52 @@ const getProjectedEventsForMonth = (
   // 3. Regular Rolling classes: alternates W-L and S-R every 45 days infinitely
   const dOpen = parseDate(cls.openDate);
   const dCurr = parseDate(cls.phaseStartDate);
-  const dNext = parseDate(cls.nextPhaseStartDate);
 
   const schedule = parseClassSchedule(cls.name, cls.classCode);
   const classDays = schedule.days;
+  const offsetDays = getPhaseDurationDays(cls.name, cls.classCode, cls.phaseDurationDays);
 
-  // Fix: targetEnd = last ms of last day of the target month
-  const targetEnd = new Date(targetYear, targetMonth - 1 + 1, 0, 23, 59, 59);
+  const anchorDateRaw = dCurr || dOpen;
+  if (!anchorDateRaw) return events;
 
-  // Find the best anchor: the LATEST known phase date that is still <= targetEnd
-  // We prefer the most recent anchor so projections are accurate.
-  let baseDate: Date | null = null;
-  let basePhaseType: "open" | "wl" | "sr" = "open";
-
-  // Start from the earliest known point (openDate) and walk forward to find
-  // the anchor closest-but-not-past targetEnd.
-  if (dOpen) {
-    baseDate = dOpen;
-    basePhaseType = "open";
+  let anchorIsWL = true;
+  if (dCurr && cls.currentPhase) {
+    const cp = cls.currentPhase.toUpperCase();
+    anchorIsWL = cp.includes("W") || cp.includes("L");
+  } else if (cls.currentPhase) {
+    const cp = cls.currentPhase.toUpperCase();
+    anchorIsWL = cp.includes("W") || cp.includes("L");
   }
 
-  // If phaseStartDate is defined and not in the future past target, prefer it
-  if (dCurr && dCurr <= targetEnd) {
-    // Only override openDate if phaseStartDate is more recent
-    if (!baseDate || dCurr >= baseDate) {
-      baseDate = dCurr;
-      const currPhaseLower = (cls.currentPhase || "").toLowerCase();
-      basePhaseType = (currPhaseLower.includes("w") || currPhaseLower.includes("l")) ? "wl" : "sr";
+  const anchorDate = adjustToClassDay(anchorDateRaw, classDays);
+
+  for (let k = -12; k <= 24; k++) {
+    const date = new Date(anchorDate.getTime());
+    if (k !== 0) {
+      date.setDate(date.getDate() + k * offsetDays);
     }
-  }
+    const adjusted = adjustToClassDay(date, classDays);
 
-  // If nextPhaseStartDate is defined and not in the future past target, prefer it
-  if (dNext && dNext <= targetEnd) {
-    if (!baseDate || dNext >= baseDate) {
-      baseDate = dNext;
-      const nextPhaseLower = (cls.nextPhase || "").toLowerCase();
-      basePhaseType = (nextPhaseLower.includes("w") || nextPhaseLower.includes("l")) ? "wl" : "sr";
-    }
-  }
-
-  if (!baseDate) return events;
-
-  // Determine the phase identity of step 0 so we can alternate correctly
-  let step0isWL = false; // if false -> step 0 is S-R (or open)
-  if (basePhaseType === "wl") {
-    step0isWL = true;
-  } else if (basePhaseType === "open") {
-    // Determine which phase the class opens with
-    const firstPhaseIsWL = !(cls.currentPhase && (cls.currentPhase.toUpperCase().includes("S") || cls.currentPhase.toUpperCase().includes("R")));
-    step0isWL = firstPhaseIsWL;
-  }
-
-  let currentDate = new Date(baseDate.getTime());
-  currentDate = adjustToClassDay(currentDate, classDays);
-
-  let step = 0;
-  const maxSteps = 150;
-
-  while (step < maxSteps) {
-    if (stopAt && currentDate >= stopAt) {
-      break;
-    }
-    if (currentDate > targetEnd) {
-      break;
-    }
+    if (stopAt && adjusted >= stopAt) continue;
 
     if (
-      currentDate.getFullYear() === targetYear &&
-      (currentDate.getMonth() + 1) === targetMonth
+      adjusted.getFullYear() === targetYear &&
+      (adjusted.getMonth() + 1) === targetMonth
     ) {
-      const day = currentDate.getDate();
-      const month = currentDate.getMonth() + 1;
-      const year = currentDate.getFullYear();
+      const day = adjusted.getDate();
+      const month = adjusted.getMonth() + 1;
+      const year = adjusted.getFullYear();
       const dateStr = `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
 
-      if (step === 0 && basePhaseType === "open") {
-        events.push({
-          dateStr,
-          type: "open",
-          label: `KG: ${displayClassCode(cls.classCode) || cls.name}`,
-          day
-        });
-      } else {
-        // Alternate: step 0 phase is known, each +1 step flips phase
-        // step 0 = basePhaseType (unless open), step 1 = opposite, step 2 = same as 0...
-        const effectiveStep = basePhaseType === "open" ? step - 1 : step;
-        const isWL = effectiveStep < 0 ? step0isWL : (step0isWL ? (effectiveStep % 2 === 0) : (effectiveStep % 2 !== 0));
-        events.push({
-          dateStr,
-          type: isWL ? "wl" : "sr",
-          label: isWL ? `W-L: ${displayClassCode(cls.classCode) || cls.name}` : `S-R: ${displayClassCode(cls.classCode) || cls.name}`,
-          day
-        });
-      }
-    }
+      const isWL = (Math.abs(k) % 2 === 0) ? anchorIsWL : !anchorIsWL;
 
-    let nextDate = new Date(currentDate.getTime());
-    const offsetDays = getPhaseDurationDays(cls.name, cls.classCode, cls.phaseDurationDays);
-    nextDate.setDate(nextDate.getDate() + offsetDays);
-    currentDate = adjustToClassDay(nextDate, classDays);
-    step++;
+      events.push({
+        dateStr,
+        type: isWL ? "wl" : "sr",
+        label: isWL ? `W-L: ${displayClassCode(cls.classCode) || cls.name}` : `S-R: ${displayClassCode(cls.classCode) || cls.name}`,
+        day,
+      });
+    }
   }
 
   return events;
@@ -696,18 +642,19 @@ const getProjectedPhasesForYear = (
                     codeUpper.includes("PRE IELTS") || codeUpper.includes("PREIELTS") || codeUpper.includes("CORE");
 
   const dOpen = parseDate(cls.openDate);
-  if (!dOpen) return [];
 
   const phases: ProjectedPhase[] = [];
 
   // 1. Foundation: Only 1 phase
   if (isFoundation) {
-    phases.push({
-      phaseName: "Foundation",
-      startDateStr: cls.openDate,
-      phaseIndex: 0,
-      isCurrent: true
-    });
+    if (cls.openDate) {
+      phases.push({
+        phaseName: "Foundation",
+        startDateStr: cls.openDate,
+        phaseIndex: 0,
+        isCurrent: true
+      });
+    }
     return phases;
   }
 
@@ -717,90 +664,56 @@ const getProjectedPhasesForYear = (
       phaseName: cls.currentPhase || "S-R",
       startDateStr: cls.phaseStartDate || cls.openDate,
       phaseIndex: 0,
-      isCurrent: (cls.currentPhase || "").toUpperCase().includes("CORE") || !(cls.nextPhase || "").toUpperCase().includes("CORE")
+      isCurrent: true
     });
     if (cls.nextPhase && cls.nextPhase !== "-") {
       phases.push({
         phaseName: cls.nextPhase,
         startDateStr: cls.nextPhaseStartDate || "",
         phaseIndex: 1,
-        isCurrent: !phases[0].isCurrent
+        isCurrent: false
       });
     }
     return phases;
   }
 
   // 3. Regular rolling class
-  const firstPhaseIsWL = !(cls.currentPhase && (cls.currentPhase.toUpperCase().includes("S") || cls.currentPhase.toUpperCase().includes("R")));
-  const step0isWL = firstPhaseIsWL;
+  const dCurr = parseDate(cls.phaseStartDate);
+  const anchorDateRaw = dCurr || dOpen;
+  if (!anchorDateRaw) return [];
 
   const schedule = parseClassSchedule(cls.name, cls.classCode);
   const classDays = schedule.days;
+  const offsetDays = getPhaseDurationDays(cls.name, cls.classCode, cls.phaseDurationDays);
 
-  let currentDate = new Date(dOpen.getTime());
-  currentDate = adjustToClassDay(currentDate, classDays);
+  let anchorIsWL = true;
+  if (cls.currentPhase) {
+    const cp = cls.currentPhase.toUpperCase();
+    anchorIsWL = cp.includes("W") || cp.includes("L");
+  }
 
+  const anchorDate = adjustToClassDay(anchorDateRaw, classDays);
   const targetEnd = new Date(selectedYear, 11, 31, 23, 59, 59);
 
-  let step = 0;
-  while (currentDate <= targetEnd && step < 100) {
-    const isWL = step % 2 === 0 ? step0isWL : !step0isWL;
+  for (let k = -10; k <= 20; k++) {
+    const date = new Date(anchorDate.getTime());
+    if (k !== 0) {
+      date.setDate(date.getDate() + k * offsetDays);
+    }
+    const adjusted = adjustToClassDay(date, classDays);
+
+    if (adjusted > targetEnd) break;
+    if (adjusted.getFullYear() < selectedYear && k < 0) continue;
+
+    const isWL = (Math.abs(k) % 2 === 0) ? anchorIsWL : !anchorIsWL;
     const phaseName = isWL ? "W-L" : "S-R";
-    const startDateStr = formatDDMMYYYY(currentDate);
+    const startDateStr = formatDDMMYYYY(adjusted);
 
     phases.push({
       phaseName,
       startDateStr,
-      phaseIndex: step,
-      isCurrent: false
-    });
-
-    const nextDate = new Date(currentDate.getTime());
-    const offsetDays = getPhaseDurationDays(cls.name, cls.classCode, cls.phaseDurationDays);
-    nextDate.setDate(nextDate.getDate() + offsetDays);
-    currentDate = adjustToClassDay(nextDate, classDays);
-    step++;
-  }
-
-  // Dynamic today-based check to identify the current running phase
-  if (phases.length > 0) {
-    const today = new Date();
-    const todayTime = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
-
-    const mapped = phases.map((p) => {
-      const d = parseDate(p.startDateStr) || new Date(2000, 0, 1);
-      return {
-        phase: p,
-        time: new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
-      };
-    }).sort((a, b) => a.time - b.time);
-
-    let activeIndex = 0;
-    // Find if today falls inside any phase's interval
-    let foundToday = false;
-    for (let i = 0; i < mapped.length; i++) {
-      const start = mapped[i].time;
-      const end = i < mapped.length - 1 ? mapped[i + 1].time : Infinity;
-      if (todayTime >= start && todayTime < end) {
-        activeIndex = mapped[i].phase.phaseIndex;
-        foundToday = true;
-        break;
-      }
-    }
-
-    // If today is before the first phase or after the last, fall back to matching class's phaseStartDate or currentPhase
-    if (!foundToday) {
-      const currName = (cls.currentPhase || "").toUpperCase();
-      const matchByName = phases.find(p => p.phaseName.toUpperCase() === currName);
-      if (matchByName) {
-        activeIndex = matchByName.phaseIndex;
-      } else {
-        activeIndex = phases[0].phaseIndex;
-      }
-    }
-
-    phases.forEach((p) => {
-      p.isCurrent = p.phaseIndex === activeIndex;
+      phaseIndex: k,
+      isCurrent: k === 0,
     });
   }
 
@@ -896,10 +809,8 @@ export default function LopTheoThangPage() {
     
     setIsKhanhThi(
       name === "lê nguyễn khánh thi" ||
-        name === "aca_1" ||
-        name === "aca 1" ||
-        email === "aca@xaloenglish.vn" ||
-        email === "aca_1@gmail.com",
+        name.includes("khánh thi") ||
+        email === "aca@xaloenglish.vn",
     );
     setReady(true);
   }, []);
@@ -1082,36 +993,50 @@ export default function LopTheoThangPage() {
 
     setFOpenDate(val);
 
-    // Only auto-calculate phase/end dates in ADD mode.
-    // In EDIT mode the existing phaseStartDate and nextPhaseStartDate are kept as-is.
-    if (crudMode === "add") {
-      const openD = parseDDMMYYYY(val);
-      if (openD) {
-        const offsetDays = getPhaseDurationDays(fName, fClassCode);
-        const pIndex = getClassPhaseIndex(fClassCode);
-        const daysOffset = pIndex * offsetDays;
-        const sched = parseClassSchedule(fName, fClassCode);
-        const targetPhaseStart = new Date(openD.getTime());
-        targetPhaseStart.setDate(targetPhaseStart.getDate() + daysOffset);
-        const adjustedPhaseStart = adjustToClassDay(targetPhaseStart, sched.days);
-        setFPhaseStartDate(formatDDMMYYYY(adjustedPhaseStart));
-        const targetNextPhaseStart = new Date(adjustedPhaseStart.getTime());
-        targetNextPhaseStart.setDate(targetNextPhaseStart.getDate() + offsetDays);
-        const adjustedNextPhaseStart = adjustToClassDay(targetNextPhaseStart, sched.days);
-        setFNextPhaseStartDate(formatDDMMYYYY(adjustedNextPhaseStart));
-        const nameUpper = fName.toUpperCase();
-        const codeUpper = fClassCode.toUpperCase();
-        const isFoundation = nameUpper.includes("FOU") || nameUpper.includes("FOUND") || codeUpper.includes("FOU") || codeUpper.includes("FOUND");
-        const isPreCore = nameUpper.includes("PRE CORE") || nameUpper.includes("PCORE") || nameUpper.includes("PRECORE") ||
-                          nameUpper.includes("PRE IELTS") || nameUpper.includes("PREIELTS") || nameUpper.includes("CORE") ||
-                          codeUpper.includes("PRE CORE") || codeUpper.includes("PCORE") || codeUpper.includes("PRECORE") ||
-                          codeUpper.includes("PRE IELTS") || codeUpper.includes("PREIELTS") || codeUpper.includes("CORE") ||
-                          codeUpper.startsWith("PC");
-        const totalDays = isFoundation ? 105 : (isPreCore ? 120 : 90);
-        const endD = new Date(openD.getTime());
-        endD.setDate(endD.getDate() + totalDays);
-        setFEndDate(formatDDMMYYYY(endD));
-      }
+    // Auto-calculate phase/end dates whenever openDate changes (both ADD and EDIT mode).
+    const openD = parseDDMMYYYY(val);
+    if (openD) {
+      const offsetDays = getPhaseDurationDays(fName, fClassCode);
+      const pIndex = getClassPhaseIndex(fClassCode);
+      const daysOffset = pIndex * offsetDays;
+      const sched = parseClassSchedule(fName, fClassCode);
+      const targetPhaseStart = new Date(openD.getTime());
+      targetPhaseStart.setDate(targetPhaseStart.getDate() + daysOffset);
+      const adjustedPhaseStart = adjustToClassDay(targetPhaseStart, sched.days);
+      setFPhaseStartDate(formatDDMMYYYY(adjustedPhaseStart));
+      const targetNextPhaseStart = new Date(adjustedPhaseStart.getTime());
+      targetNextPhaseStart.setDate(targetNextPhaseStart.getDate() + offsetDays);
+      const adjustedNextPhaseStart = adjustToClassDay(targetNextPhaseStart, sched.days);
+      setFNextPhaseStartDate(formatDDMMYYYY(adjustedNextPhaseStart));
+      const nameUpper = fName.toUpperCase();
+      const codeUpper = fClassCode.toUpperCase();
+      const isFoundation = nameUpper.includes("FOU") || nameUpper.includes("FOUND") || codeUpper.includes("FOU") || codeUpper.includes("FOUND");
+      const isPreCore = nameUpper.includes("PRE CORE") || nameUpper.includes("PCORE") || nameUpper.includes("PRECORE") ||
+                        nameUpper.includes("PRE IELTS") || nameUpper.includes("PREIELTS") || nameUpper.includes("CORE") ||
+                        codeUpper.includes("PRE CORE") || codeUpper.includes("PCORE") || codeUpper.includes("PRECORE") ||
+                        codeUpper.includes("PRE IELTS") || codeUpper.includes("PREIELTS") || codeUpper.includes("CORE") ||
+                        codeUpper.startsWith("PC");
+      const totalDays = isFoundation ? 105 : (isPreCore ? 120 : 90);
+      const endD = new Date(openD.getTime());
+      endD.setDate(endD.getDate() + totalDays);
+      setFEndDate(formatDDMMYYYY(endD));
+    }
+  };
+
+  const handlePhaseStartDateChange = (val: string) => {
+    setFPhaseStartDate(val);
+    const phaseD = parseDDMMYYYY(val);
+    if (phaseD) {
+      const offsetDays = getPhaseDurationDays(
+        fName,
+        fClassCode,
+        isAcaClass(selectedClass) ? selectedClass.phaseDurationDays : undefined,
+      );
+      const sched = parseClassSchedule(fName, fClassCode);
+      const targetNextPhaseStart = new Date(phaseD.getTime());
+      targetNextPhaseStart.setDate(targetNextPhaseStart.getDate() + offsetDays);
+      const adjustedNextPhaseStart = adjustToClassDay(targetNextPhaseStart, sched.days);
+      setFNextPhaseStartDate(formatDDMMYYYY(adjustedNextPhaseStart));
     }
   };
 
@@ -2514,14 +2439,14 @@ export default function LopTheoThangPage() {
                     <input
                       type="text"
                       value={fPhaseStartDate}
-                      onChange={(e) => setFPhaseStartDate(e.target.value)}
+                      onChange={(e) => handlePhaseStartDateChange(e.target.value)}
                       placeholder="dd/mm/yyyy"
                       className="h-10 w-full rounded-xl border border-zinc-200 pl-4 pr-10 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10"
                     />
                     <input
                       type="date"
                       value={toYYYYMMDD(fPhaseStartDate)}
-                      onChange={(e) => setFPhaseStartDate(toDDMMYYYY(e.target.value))}
+                      onChange={(e) => handlePhaseStartDateChange(toDDMMYYYY(e.target.value))}
                       className="absolute opacity-0 pointer-events-none w-0 h-0"
                     />
                     <button

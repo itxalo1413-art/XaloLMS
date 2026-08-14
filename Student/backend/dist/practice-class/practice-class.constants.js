@@ -33,8 +33,8 @@ exports.PRACTICE_SLOT_DEFINITIONS = [
         dayLabel: 'Thứ 7',
         time: '19h – 21h30',
         title: 'Làm đề L-R-W tập trung',
-        detail: 'Tham gia bằng link Google Meet, làm bài trên Google Docs, có nhân viên canh thời gian làm bài và các bạn học viên khác tham gia.',
-        platform: 'Google Meet',
+        detail: 'Tham gia bằng Zoom, làm bài trên Google Docs, có nhân viên canh thời gian làm bài và các bạn học viên khác tham gia.',
+        platform: 'Zoom',
     },
 ];
 function isPracticeSlotId(value) {

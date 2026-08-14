@@ -26,6 +26,7 @@ import {
   refreshMockTestRequestsForStudent,
   type MockTestRequest,
 } from "@/lib/mockTestRequests";
+import { getGraderMeetLink, GRADER_MEET_LINKS_EVENT } from "@/lib/graderMeetLinks";
 import {
   DEFAULT_SCHEDULE_VIEW,
   loadScheduleViewState,
@@ -33,10 +34,12 @@ import {
 } from "@/lib/scheduleViewState";
 import { getStudentIdentity } from "@/lib/studentIdentity";
 import {
+  getCourseRlpSessions,
   refreshRlpSessions,
   RLP_SESSIONS_UPDATE_EVENT,
 } from "@/lib/rlpSessionStore";
 import { useClientToday } from "@/hooks/useClientToday";
+import { getCachedAuthUser } from "@/lib/auth";
 
 export function useStudentSchedule() {
   const clientToday = useClientToday();
@@ -91,6 +94,44 @@ export function useStudentSchedule() {
     saveScheduleViewState(viewState);
   }, [viewState]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hasUserSavedState = Boolean(sessionStorage.getItem("xalo.student.scheduleView.v1"));
+    if (hasUserSavedState) return;
+
+    const sessions = getCourseRlpSessions();
+    if (!sessions.length) return;
+
+    const currentMonthHasSessions = sessions.some((s) => {
+      const p = parseSessionDateString(s.date);
+      return p && p.month === viewState.month && p.year === viewState.year;
+    });
+
+    if (!currentMonthHasSessions) {
+      let nearestMonth = viewState.month;
+      let nearestYear = viewState.year;
+      let minDiff = Infinity;
+      const nowTime = new Date().getTime();
+
+      for (const s of sessions) {
+        const p = parseSessionDateString(s.date);
+        if (p) {
+          const sTime = new Date(p.year, p.month, p.day).getTime();
+          const diff = Math.abs(nowTime - sTime);
+          if (diff < minDiff) {
+            minDiff = diff;
+            nearestMonth = p.month;
+            nearestYear = p.year;
+          }
+        }
+      }
+
+      if (nearestMonth !== viewState.month || nearestYear !== viewState.year) {
+        setViewState({ year: nearestYear, month: nearestMonth, selectedDay: null });
+      }
+    }
+  }, [rlpVersion, viewState.month, viewState.year]);
+
   const viewDate = useMemo(
     () => new Date(viewState.year, viewState.month, 1),
     [viewState.year, viewState.month],
@@ -115,10 +156,15 @@ export function useStudentSchedule() {
     [student.id, practiceSlotVersion],
   );
 
-  const myRequests = useMemo(
-    () => requests.filter((r) => r.studentId === student.id),
-    [requests, student.id],
-  );
+  const myRequests = useMemo(() => {
+    const user = getCachedAuthUser();
+    return requests.filter(
+      (r) =>
+        r.studentId === student.id ||
+        (user?.id && r.studentId === user.id) ||
+        (user?.name && r.studentName === user.name),
+    );
+  }, [requests, student.id]);
   const approvedTests = useMemo(
     () => myRequests.filter((r) => r.status === "approved"),
     [myRequests],
@@ -154,6 +200,14 @@ export function useStudentSchedule() {
   const daysInMonth = getDaysInMonth(month, year);
   const prevMonthPadding = getPrevMonthPadding(month, year);
 
+  const [meetLinksVersion, setMeetLinksVersion] = useState(0);
+
+  useEffect(() => {
+    const onMeetUpdate = () => setMeetLinksVersion((v) => v + 1);
+    window.addEventListener(GRADER_MEET_LINKS_EVENT, onMeetUpdate);
+    return () => window.removeEventListener(GRADER_MEET_LINKS_EVENT, onMeetUpdate);
+  }, []);
+
   const selectedDayEvents = useMemo(() => {
     if (!selectedDay) return [];
     const approvedEvents = approvedTests
@@ -162,6 +216,7 @@ export function useStudentSchedule() {
         type: "mock" as const,
         label: t.skill,
         detail: `Giờ ${t.examTime ?? "—"} · ${t.examTeacher ?? "GV —"}`,
+        meetLink: getGraderMeetLink(t.examTeacher),
       }));
 
     const rlpSessions = findSessionsOnDay(selectedDay, month, year);
@@ -169,6 +224,7 @@ export function useStudentSchedule() {
       type: "rlp" as const,
       label: `Buổi ${s.no} · ${s.skill}`,
       detail: `${s.date} · ${s.attendance === "absent" ? "Vắng học" : "Đi học"} · ${s.contents.slice(0, 72)}…`,
+      meetLink: undefined as string | undefined,
     }));
 
     const practiceRegs = getRegisteredPracticeSlotsOnCalendarDay(
@@ -183,11 +239,12 @@ export function useStudentSchedule() {
         type: "practice" as const,
         label: slot?.title ?? "Lớp luyện đề",
         detail: slot ? `${slot.dayLabel} · ${slot.time} · ${slot.platform}` : "—",
+        meetLink: undefined as string | undefined,
       };
     });
 
     return [...rlpEvents, ...practiceEvents, ...approvedEvents];
-  }, [approvedTests, month, rlpVersion, selectedDay, student.id, year]);
+  }, [approvedTests, month, rlpVersion, selectedDay, student.id, year, meetLinksVersion]);
 
   return {
     clientToday,
@@ -209,6 +266,9 @@ export function useStudentSchedule() {
     myRequests,
     approvedTests,
     pendingTests,
+    refreshMockTests: syncRequests,
+    appendRequest: (row: MockTestRequest) =>
+      setRequests((prev) => (prev.some((r) => r.id === row.id) ? prev : [row, ...prev])),
     months: SCHEDULE_MONTH_LABELS,
     getSessionsDayStyle: (daySessions: Parameters<typeof getSessionsDayStyle>[0]) =>
       getSessionsDayStyle(daySessions, clientToday),

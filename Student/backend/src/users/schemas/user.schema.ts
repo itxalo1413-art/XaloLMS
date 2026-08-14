@@ -24,6 +24,12 @@ export class User {
 
   @Prop({ required: true, enum: ['ACTIVE', 'INACTIVE'], default: 'ACTIVE' })
   status: UserStatus;
+
+  @Prop({ trim: true, default: '' })
+  phone?: string;
+
+  @Prop({ trim: true, default: '' })
+  title?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

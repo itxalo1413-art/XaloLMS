@@ -1,13 +1,16 @@
 /**
- * Danh sách GV khi duyệt Mock Test.
- * Đồng bộ với Teacher/frontend `src/components/teacher/mockTestTeachers.ts` (cùng thứ tự / cùng chuỗi).
+ * Danh sách GV / Grader khi duyệt Mock Test.
  */
 export const MOCK_TEST_TEACHER_OPTIONS = [
+  "Grader 1",
+  "Grader 2",
+  "Quản lý Grader",
+  "Grader Hệ thống",
   "Lê Nguyễn Khánh Thi",
   "Lê Thị Diệu Linh",
-  "ACA",
   "Nghiêm Doãn Quỳnh Châu",
   "Lê Minh Trang",
   "Phạm Hoàng An",
   "Trần Thu Lan",
+  "Grader",
 ] as const;

@@ -22,9 +22,6 @@ import {
 
 export const PRACTICE_CLASS_SKILL = "Lớp luyện đề tập trung";
 
-export const PRACTICE_CLASS_DESCRIPTION =
-  "Lớp Luyện đề có nội dung học tập tập trung hoàn toàn vào chữa đề actual test và đề mà giáo viên đánh giá là tiệm cận với xu hướng ra đề hiện tại.";
-
 /** Hiển thị trên tab đăng ký lớp luyện đề (Hỗ trợ tự học) */
 export const PRACTICE_CLASS_WEEKLY_REREGISTER_WARNING =
   "Lưu ý: Bạn phải đăng ký lại lịch lớp luyện đề mỗi tuần tại tab này. Đăng ký tuần trước không được giữ sang tuần mới.";
@@ -38,20 +35,60 @@ export type PracticeMeetingAccess = {
   joinUrl: string;
 };
 
-/** Phòng Zoom chung cho mọi buổi luyện đề trên Zoom — không đổi theo từng slot. */
+const PRACTICE_ZOOM_INFO_KEY = "lms_practice_zoom_info_v1";
+
+export function getPracticeZoomInfo(): { zoomId: string; zoomPassword: string } {
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(PRACTICE_ZOOM_INFO_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.zoomId && parsed.zoomPassword) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return {
+    zoomId: "842 1963 4521",
+    zoomPassword: "XaloLrw26",
+  };
+}
+
+export function setPracticeZoomInfo(info: { zoomId: string; zoomPassword: string }): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(PRACTICE_ZOOM_INFO_KEY, JSON.stringify(info));
+    window.dispatchEvent(new Event(PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT));
+  } catch {
+    // ignore
+  }
+}
+
+/** Phòng Zoom chung cho mọi buổi luyện đề trên Zoom — đồng bộ với thiết lập của ACA. */
 export const PRACTICE_CLASS_ZOOM_ROOM: PracticeMeetingAccess = {
-  meetingId: "842 1963 4521",
-  password: "XaloLrw26",
-  joinUrl: "https://zoom.us/j/84219634521?pwd=example-lrw",
+  get meetingId() { return getPracticeZoomInfo().zoomId; },
+  get password() { return getPracticeZoomInfo().zoomPassword; },
+  get joinUrl() {
+    const cleanId = getPracticeZoomInfo().zoomId.replace(/\s+/g, "");
+    return `https://zoom.us/j/${cleanId}?pwd=example-lrw`;
+  },
 };
 
 export function isPracticeZoomPlatform(platform: string): boolean {
   return platform.toLowerCase().includes("zoom");
 }
 
-export function resolvePracticeMeetingAccess(slot: PracticeClassSlot): PracticeMeetingAccess {
-  if (isPracticeZoomPlatform(slot.platform)) return PRACTICE_CLASS_ZOOM_ROOM;
-  return slot.meeting;
+export function resolvePracticeMeetingAccess(_slot?: PracticeClassSlot): PracticeMeetingAccess {
+  const current = getPracticeZoomInfo();
+  const cleanId = current.zoomId.replace(/\s+/g, "");
+  return {
+    meetingId: current.zoomId,
+    password: current.zoomPassword,
+    joinUrl: `https://zoom.us/j/${cleanId}?pwd=example-lrw`,
+  };
 }
 
 export type PracticeClassSlot = {
@@ -63,6 +100,7 @@ export type PracticeClassSlot = {
   detail: string;
   platform: string;
   dateNote?: string;
+  materialsUrl?: string;
   meeting: PracticeMeetingAccess;
 };
 
@@ -96,13 +134,9 @@ const DEFAULT_PRACTICE_CLASS_WEEKLY_SCHEDULE: PracticeClassSlot[] = [
     time: "19h – 21h30",
     title: "Làm đề L-R-W tập trung",
     detail:
-      "Tham gia bằng link Google Meet, làm bài trên Google Docs, có nhân viên canh thời gian làm bài và các bạn học viên khác tham gia.",
-    platform: "Google Meet",
-    meeting: {
-      meetingId: "meet-lrw-sat",
-      password: "Không cần mật khẩu",
-      joinUrl: "https://meet.google.com/abc-defg-hij",
-    },
+      "Tham gia bằng Zoom, làm bài trên Google Docs, có nhân viên canh thời gian làm bài và các bạn học viên khác tham gia.",
+    platform: "Zoom",
+    meeting: PRACTICE_CLASS_ZOOM_ROOM,
   },
 ];
 
@@ -110,6 +144,12 @@ export type PracticeSlotScheduleOverride = {
   dayLabel: string;
   time: string;
   dateNote?: string;
+  title?: string;
+  detail?: string;
+  platform?: string;
+  meetingId?: string;
+  password?: string;
+  joinUrl?: string;
 };
 
 export type PracticeClassScheduleStore = {
@@ -235,6 +275,8 @@ export function isPracticeClassJoined(studentId: string): boolean {
   }
 }
 
+import { updateAcaStudent } from "@/lib/acaManagementApi";
+
 export function setPracticeClassJoined(studentId: string, joined: boolean): void {
   if (typeof window === "undefined") return;
   try {
@@ -246,6 +288,9 @@ export function setPracticeClassJoined(studentId: string, joined: boolean): void
     // ignore
   }
   dispatchPracticeEvents();
+  void updateAcaStudent(studentId, { practiceJoined: joined }).catch((err) =>
+    console.warn("Could not sync practiceJoined state to backend", err)
+  );
 }
 
 export function clearPracticeClassJoined(studentId?: string): void {
@@ -270,20 +315,13 @@ export function clearPracticeClassJoined(studentId?: string): void {
 
 function normalizePracticeSlot(slot: PracticeClassSlot): PracticeClassSlot {
   const base = DEFAULT_PRACTICE_CLASS_WEEKLY_SCHEDULE.find((s) => s.id === slot.id);
-  const fallback = base?.meeting ?? {
-    meetingId: "—",
-    password: "—",
-    joinUrl: "—",
-  };
   const merged: PracticeClassSlot = {
     ...base,
     ...slot,
-    meeting: slot.meeting ?? fallback,
+    platform: "Zoom",
+    meeting: PRACTICE_CLASS_ZOOM_ROOM,
   };
-  return {
-    ...merged,
-    meeting: resolvePracticeMeetingAccess(merged),
-  };
+  return merged;
 }
 
 export function applyPracticeScheduleCache(res: PracticeScheduleResponse) {
@@ -327,9 +365,17 @@ function mergeScheduleFromLocalStore(): PracticeScheduleResponse {
     if (!override) return { ...base };
     return {
       ...base,
-      dayLabel: override.dayLabel.trim() || base.dayLabel,
-      time: override.time.trim() || base.time,
+      dayLabel: override.dayLabel?.trim() || base.dayLabel,
+      time: override.time?.trim() || base.time,
       dateNote: override.dateNote?.trim() || undefined,
+      title: override.title?.trim() || base.title,
+      detail: override.detail?.trim() || base.detail,
+      platform: override.platform?.trim() || base.platform,
+      meeting: {
+        meetingId: override.meetingId?.trim() || base.meeting.meetingId,
+        password: override.password?.trim() || base.meeting.password,
+        joinUrl: override.joinUrl?.trim() || base.meeting.joinUrl,
+      },
     };
   });
   return {
@@ -357,7 +403,6 @@ export async function refreshPracticeScheduleForStudent(): Promise<PracticeSched
     try {
       const res = await fetchPracticeScheduleForStudent();
       applyPracticeScheduleCache(res);
-      dispatchPracticeEvents();
       return res;
     } catch {
       // fall through to local
@@ -372,7 +417,6 @@ export async function refreshPracticeScheduleForAca(): Promise<PracticeScheduleR
   if (canUsePracticeClassApi()) {
     const res = await fetchPracticeScheduleForAca();
     applyPracticeScheduleCache(res);
-    dispatchPracticeEvents();
     return res;
   }
   const local = mergeScheduleFromLocalStore();
@@ -384,15 +428,6 @@ export async function savePracticeScheduleFromAca(
   weekRangeLabel: string,
   slotDrafts: Record<PracticeSlotId, PracticeSlotScheduleOverride>,
 ): Promise<PracticeScheduleResponse> {
-  if (canUsePracticeClassApi()) {
-    const res = await savePracticeScheduleForAca(weekRangeLabel, slotDrafts);
-    applyPracticeScheduleCache(res);
-    dispatchPracticeEvents();
-    return res;
-  }
-  if (typeof window === "undefined") {
-    return mergeScheduleFromLocalStore();
-  }
   const slots = {} as Record<PracticeSlotId, PracticeSlotScheduleOverride>;
   for (const id of PRACTICE_SLOT_IDS) {
     const d = slotDrafts[id];
@@ -401,18 +436,43 @@ export async function savePracticeScheduleFromAca(
       dayLabel: d?.dayLabel?.trim() || base.dayLabel,
       time: d?.time?.trim() || base.time,
       dateNote: d?.dateNote?.trim() || undefined,
+      title: d?.title?.trim() || base.title,
+      detail: d?.detail?.trim() || base.detail,
+      platform: d?.platform?.trim() || base.platform,
+      meetingId: d?.meetingId?.trim() || base.meeting.meetingId,
+      password: d?.password?.trim() || base.meeting.password,
+      joinUrl: d?.joinUrl?.trim() || base.meeting.joinUrl,
     };
   }
-  const store: PracticeClassScheduleStore = {
-    weekRangeLabel: weekRangeLabel.trim(),
-    updatedAt: new Date().toISOString(),
-    slots,
-  };
-  localStorage.setItem(SCHEDULE_KEY, JSON.stringify(store));
-  const merged = mergeScheduleFromLocalStore();
-  applyPracticeScheduleCache(merged);
+
+  if (typeof window !== "undefined") {
+    try {
+      const store: PracticeClassScheduleStore = {
+        weekRangeLabel: weekRangeLabel.trim(),
+        updatedAt: new Date().toISOString(),
+        slots,
+      };
+      localStorage.setItem(SCHEDULE_KEY, JSON.stringify(store));
+    } catch {
+      // ignore
+    }
+  }
+
+  if (canUsePracticeClassApi()) {
+    try {
+      const res = await savePracticeScheduleForAca(weekRangeLabel, slotDrafts);
+      applyPracticeScheduleCache(res);
+      dispatchPracticeEvents();
+      return res;
+    } catch (err) {
+      console.warn("savePracticeScheduleForAca failed, using local store:", err);
+    }
+  }
+
+  const local = mergeScheduleFromLocalStore();
+  applyPracticeScheduleCache(local);
   dispatchPracticeEvents();
-  return merged;
+  return local;
 }
 
 function resolveStudentNameForAca(studentId: string): string {
@@ -462,27 +522,38 @@ export async function refreshAllPracticeRegistrationsForAca(): Promise<
     );
 }
 
+function filterCurrentWeekRegistrations(list: PracticeSlotRegistration[]): PracticeSlotRegistration[] {
+  const latestResetMarker = getLatestWeeklyResetMarker(new Date());
+  return list.filter((r) => {
+    if (!r.registeredAt) return false;
+    const time = new Date(r.registeredAt).getTime();
+    return !isNaN(time) && time >= latestResetMarker;
+  });
+}
+
 export async function refreshPracticeRegistrations(
   studentId: string,
 ): Promise<PracticeSlotRegistration[]> {
   if (canUsePracticeClassApi()) {
     try {
       const { registrations } = await fetchPracticeRegistrations();
-      applyPracticeRegistrationsCache(studentId, registrations);
-      dispatchPracticeEvents();
+      const validCurrentWeek = filterCurrentWeekRegistrations(registrations);
+      applyPracticeRegistrationsCache(studentId, validCurrentWeek);
       return registrationsCache;
     } catch {
       // fall through
     }
   }
-  registrationsCache = loadPracticeSlotRegistrationsLocal().filter(
-    (r) => r.studentId === studentId,
+  registrationsCache = filterCurrentWeekRegistrations(
+    loadPracticeSlotRegistrationsLocal().filter((r) => r.studentId === studentId),
   );
   return registrationsCache;
 }
 
 export function getPracticeSlotsForStudent(studentId: string): PracticeSlotRegistration[] {
-  return registrationsCache.filter((r) => r.studentId === studentId);
+  return filterCurrentWeekRegistrations(
+    registrationsCache.filter((r) => r.studentId === studentId),
+  );
 }
 
 export function isPracticeSlotRegistered(
@@ -506,10 +577,24 @@ export function clearPracticeClassRegistrations(studentId?: string): void {
   dispatchPracticeEvents();
 }
 
-export function resetPracticeClassTestState(studentId: string): void {
+export async function resetPracticeClassTestState(studentId: string): Promise<void> {
   if (typeof window === "undefined") return;
+  
+  if (canUsePracticeClassApi()) {
+    try {
+      const slots = getPracticeSlotsForStudent(studentId);
+      for (const s of slots) {
+        await unregisterPracticeSlotApi(s.slotId).catch(() => {});
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   clearPracticeClassJoined(studentId);
   clearPracticeClassRegistrations(studentId);
+  setPracticeClassJoined(studentId, false);
+
   const next = loadMockTestRequests().filter(
     (r) => r.studentId !== studentId || !r.skill.startsWith(PRACTICE_CLASS_SKILL),
   );
@@ -519,6 +604,7 @@ export function resetPracticeClassTestState(studentId: string): void {
   } catch {
     // ignore
   }
+  dispatchPracticeEvents();
   window.dispatchEvent(new Event(MOCK_TEST_UPDATE_EVENT));
 }
 
@@ -534,6 +620,9 @@ function registerPracticeSlotLocal(studentId: string, slotId: PracticeSlotId): v
   localStorage.setItem(REGISTRATIONS_KEY, JSON.stringify(next));
   registrationsCache = [...registrationsCache.filter((r) => r.studentId !== studentId), ...next.filter((r) => r.studentId === studentId)];
   dispatchPracticeEvents();
+
+  const slotIds = registrationsCache.filter((r) => r.studentId === studentId).map((r) => r.slotId);
+  void updateAcaStudent(studentId, { practiceJoined: true, registeredSlotIds: slotIds }).catch(() => {});
 }
 
 function unregisterPracticeSlotLocal(studentId: string, slotId: PracticeSlotId): void {
@@ -545,34 +634,134 @@ function unregisterPracticeSlotLocal(studentId: string, slotId: PracticeSlotId):
     (r) => !(r.studentId === studentId && r.slotId === slotId),
   );
   dispatchPracticeEvents();
+
+  const slotIds = registrationsCache.filter((r) => r.studentId === studentId).map((r) => r.slotId);
+  void updateAcaStudent(studentId, { registeredSlotIds: slotIds }).catch(() => {});
 }
 
 export async function registerPracticeSlot(
   studentId: string,
   slotId: PracticeSlotId,
 ): Promise<void> {
-  if (canUsePracticeClassApi()) {
-    await registerPracticeSlotApi(slotId);
-    await refreshPracticeRegistrations(studentId);
-    return;
-  }
   registerPracticeSlotLocal(studentId, slotId);
+  if (canUsePracticeClassApi()) {
+    try {
+      await registerPracticeSlotApi(slotId);
+      await refreshPracticeRegistrations(studentId);
+      dispatchPracticeEvents();
+    } catch (err) {
+      console.warn("registerPracticeSlotApi warning:", err);
+    }
+  }
 }
 
 export async function unregisterPracticeSlot(
   studentId: string,
   slotId: PracticeSlotId,
 ): Promise<void> {
-  if (canUsePracticeClassApi()) {
-    await unregisterPracticeSlotApi(slotId);
-    await refreshPracticeRegistrations(studentId);
-    return;
-  }
   unregisterPracticeSlotLocal(studentId, slotId);
+  if (canUsePracticeClassApi()) {
+    try {
+      await unregisterPracticeSlotApi(slotId);
+      await refreshPracticeRegistrations(studentId);
+      dispatchPracticeEvents();
+    } catch (err) {
+      console.warn("unregisterPracticeSlotApi warning:", err);
+    }
+  }
 }
 
 export function getPracticeSlotById(slotId: PracticeSlotId): PracticeClassSlot | undefined {
   return getPracticeWeeklySchedule().find((s) => s.id === slotId);
+}
+
+export function getSaturdayRotatedWeekNumber(date: Date = new Date()): number {
+  const d = new Date(date.getTime());
+  const day = d.getDay(); // 0 = Sun, 6 = Sat
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  let weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  if (!weekNo) weekNo = 38;
+  // Rotate exam link on Saturday (day 6) or Sunday (day 0)
+  if (day === 6 || day === 0) {
+    weekNo += 1;
+  }
+  return weekNo;
+}
+
+const PRACTICE_STUDENT_FOLDERS_KEY = "lms_practice_student_folders_v1";
+
+export function getStudentPracticeFolderUrl(studentId: string): string {
+  if (typeof window === "undefined" || !studentId) return "";
+  try {
+    const raw = localStorage.getItem(PRACTICE_STUDENT_FOLDERS_KEY);
+    if (raw) {
+      const map = JSON.parse(raw);
+      if (map[studentId]) return map[studentId];
+    }
+  } catch {
+    // ignore
+  }
+  return `https://drive.google.com/drive/folders/1_XaloPractice_${studentId}`;
+}
+
+export function setStudentPracticeFolderUrl(studentId: string, url: string): void {
+  if (typeof window === "undefined" || !studentId) return;
+  try {
+    const raw = localStorage.getItem(PRACTICE_STUDENT_FOLDERS_KEY);
+    const map = raw ? JSON.parse(raw) : {};
+    map[studentId] = url;
+    localStorage.setItem(PRACTICE_STUDENT_FOLDERS_KEY, JSON.stringify(map));
+    window.dispatchEvent(new Event(PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT));
+  } catch {
+    // ignore
+  }
+}
+
+const PRACTICE_SLOT_MATERIALS_KEY = "lms_practice_slot_materials_v1";
+
+export function getPracticeSlotMaterialsUrl(slotId: string, defaultUrl?: string): string {
+  if (typeof window === "undefined" || !slotId) return defaultUrl || "https://drive.google.com";
+  try {
+    const raw = localStorage.getItem(PRACTICE_SLOT_MATERIALS_KEY);
+    if (raw) {
+      const map = JSON.parse(raw);
+      if (map[slotId]) return map[slotId];
+    }
+  } catch {
+    // ignore
+  }
+  return defaultUrl || "https://drive.google.com";
+}
+
+export function setPracticeSlotMaterialsUrl(slotId: string, url: string): void {
+  if (typeof window === "undefined" || !slotId) return;
+  try {
+    const raw = localStorage.getItem(PRACTICE_SLOT_MATERIALS_KEY);
+    const map = raw ? JSON.parse(raw) : {};
+    map[slotId] = url;
+    localStorage.setItem(PRACTICE_SLOT_MATERIALS_KEY, JSON.stringify(map));
+    window.dispatchEvent(new Event(PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT));
+  } catch {
+    // ignore
+  }
+}
+
+export function getISOWeekKey(date: Date): string {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const week1 = new Date(d.getFullYear(), 0, 4);
+  const weekNum =
+    1 +
+    Math.round(
+      ((d.getTime() - week1.getTime()) / 86400000 -
+        3 +
+        ((week1.getDay() + 6) % 7)) /
+        7,
+    );
+  return `${d.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
 }
 
 export function getRegisteredPracticeSlotsOnCalendarDay(
@@ -581,7 +770,16 @@ export function getRegisteredPracticeSlotsOnCalendarDay(
   month: number,
   year: number,
 ): PracticeSlotRegistration[] {
-  const dayOfWeek = new Date(year, month, day).getDay();
+  const targetDate = new Date(year, month, day);
+  const now = new Date();
+
+  // Lớp luyện đề đăng ký theo tuần và reset hàng tuần.
+  // Chỉ hiển thị highlight trên Thời khóa biểu đối với các ngày thuộc TUẦN HIỆN TẠI.
+  if (getISOWeekKey(targetDate) !== getISOWeekKey(now)) {
+    return [];
+  }
+
+  const dayOfWeek = targetDate.getDay();
   return getPracticeSlotsForStudent(studentId).filter((reg) => {
     const slot = getPracticeSlotById(reg.slotId);
     return slot?.dayOfWeek === dayOfWeek;

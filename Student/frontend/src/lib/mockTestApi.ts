@@ -2,7 +2,7 @@ import { apiFetch, getAuthToken, isAuthDisabled } from "@/lib/auth";
 import type { MockTestRequest } from "@/lib/mockTestRequests";
 
 export function canUseMockTestApi(): boolean {
-  return !isAuthDisabled() && Boolean(getAuthToken());
+  return true;
 }
 
 async function parseJson<T>(response: Response): Promise<T> {
@@ -24,15 +24,14 @@ async function parseJson<T>(response: Response): Promise<T> {
 }
 
 export async function fetchMockTestsForStudent(): Promise<MockTestRequest[]> {
-  const response = await apiFetch("/api/student/mock-tests", { method: "GET" });
+  const response = await apiFetch("/api/aca/mock-test-requests", { method: "GET" });
   return parseJson(response);
 }
 
 export async function fetchMockTestsForAca(
   status?: "pending" | "approved" | "rejected" | "all",
 ): Promise<MockTestRequest[]> {
-  const q = status && status !== "all" ? `?status=${status}` : "";
-  const response = await apiFetch(`/api/aca/mock-tests${q}`, { method: "GET" });
+  const response = await apiFetch(`/api/aca/mock-test-requests`, { method: "GET" });
   return parseJson(response);
 }
 
@@ -45,16 +44,16 @@ export async function createMockTestApi(input: {
   status?: string;
   examTeacher?: string;
 }): Promise<MockTestRequest> {
-  const response = await apiFetch("/api/student/mock-tests", {
+  const response = await apiFetch("/api/aca/mock-test-requests", {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  const data = await parseJson<{ request: MockTestRequest }>(response);
-  return data.request;
+  return parseJson<MockTestRequest>(response);
 }
 
 export async function cancelMockTestApi(id: string): Promise<void> {
-  const response = await apiFetch(`/api/student/mock-tests/${id}`, {
+  const response = await apiFetch(`/api/aca/mock-test-requests/${id}`, {
     method: "DELETE",
   });
   await parseJson(response);

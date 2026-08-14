@@ -44,6 +44,9 @@ export class WritingSubmission {
 
   @Prop({ trim: true, default: '' })
   note?: string;
+
+  @Prop({ trim: true, default: '' })
+  assignedGrader?: string;
 }
 
 export const WritingSubmissionSchema =

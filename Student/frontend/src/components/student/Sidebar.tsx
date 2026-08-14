@@ -28,111 +28,80 @@ export function Sidebar({ onOpenProfile }: { onOpenProfile?: () => void }) {
   const { logout } = useStudentAuth();
 
   return (
-    <aside className="fixed left-0 top-0 z-50 hidden h-screen w-72 p-4 transition-all duration-300 md:block">
-      <div className="h-full bg-white rounded-2xl shadow-soft flex flex-col overflow-hidden">
-        {/* Logo Section */}
+    <aside className="fixed left-0 top-0 z-50 hidden h-screen w-20 p-3 md:block">
+      <div className="flex h-full flex-col items-center rounded-2xl bg-white shadow-xl border border-zinc-100/80 py-5">
+        {/* Logo Section (Icon only) */}
         <Link
           href="/"
           aria-label="Về trang chủ"
-          className="mx-6 my-6 flex items-center gap-3 rounded-xl transition-opacity hover:opacity-80"
+          className="relative group mb-6 flex h-10 w-10 items-center justify-center rounded-xl transition-transform hover:scale-105"
         >
           <img
             src="/Logo_XLE.svg"
             alt="Logo XLE"
-            className="h-8 w-auto object-contain"
+            className="h-8 w-8 object-contain"
           />
-          <p className="text-bold">XA LỘ ENGLISH</p>
+          {/* Tooltip on Logo hover */}
+          <div className="absolute left-full ml-3 px-3 py-1.5 bg-zinc-900 text-white text-xs font-bold rounded-xl whitespace-nowrap shadow-xl opacity-0 pointer-events-none -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 z-50 flex items-center">
+            <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-zinc-900 rotate-45" />
+            <span className="relative z-10">XA LỘ ENGLISH</span>
+          </div>
         </Link>
 
-        <div className="h-px w-full bg-gradient-to-r from-transparent via-background to-transparent mb-4"></div>
+        <div className="mb-6 h-px w-10 bg-gradient-to-r from-transparent via-zinc-200 to-transparent"></div>
 
-        {/* Navigation: links grow; account block pinned to bottom */}
-        <nav className="flex min-h-0 flex-1 flex-col px-3 pb-4">
-          <div className="min-h-0 flex-1 space-y-2">
-            <div className="mb-2 px-4 text-[10px] font-bold uppercase tracking-widest text-muted opacity-60">
-              Học tập
-            </div>
-
-            {navItems.map(({ href, label, Icon }) => {
-              const active = isActivePath(pathname, href);
-              return (
-                <Link
-                  key={href}
-                  href={href}
+        {/* Navigation items (Icons only with hover tooltip label) */}
+        <nav className="flex min-h-0 flex-1 flex-col items-center gap-3 w-full px-2">
+          {navItems.map(({ href, label, Icon }) => {
+            const active = isActivePath(pathname, href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className="group relative flex h-11 w-11 items-center justify-center rounded-xl transition-all"
+              >
+                <div
                   className={[
-                    "group flex items-center gap-3 rounded-xl px-4 py-3 transition-all duration-200",
+                    "flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-200 shadow-2xs",
                     active
-                      ? "bg-primary text-white shadow-soft"
-                      : "text-muted hover:bg-background hover:text-foreground",
+                      ? "bg-primary text-white shadow-md shadow-primary/20 scale-105"
+                      : "bg-zinc-50 text-zinc-500 hover:bg-primary/10 hover:text-primary hover:scale-105",
                   ].join(" ")}
                 >
-                  <div
-                    className={[
-                      "flex h-8 w-8 items-center justify-center rounded-lg transition-all",
-                      active
-                        ? "bg-white/20 text-white"
-                        : "bg-white text-primary shadow-sm group-hover:bg-primary-soft",
-                    ].join(" ")}
-                  >
-                    <Icon className="h-4 w-4" strokeWidth={active ? 2.5 : 2} />
-                  </div>
-                  <span className="text-xs font-bold">{label}</span>
-                </Link>
-              );
-            })}
-          </div>
+                  <Icon className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />
+                </div>
 
-          <div className="shrink-0 space-y-1 border-t border-zinc-100 pt-4">
-            <div className="mb-2 px-4 text-[10px] font-bold uppercase tracking-widest text-muted opacity-60">
-              Tài khoản
-            </div>
-            {/* <button
-              type="button"
-              onClick={onOpenProfile}
-              className="w-full group flex items-center gap-3 rounded-xl px-4 py-3 text-muted hover:text-foreground hover:bg-background transition-all duration-200"
-            >
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-white text-muted group-hover:text-foreground transition-all">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-              <span className="text-xs font-bold">Trang cá nhân</span>
-            </button> */}
+                {/* Floating Tooltip Label on Hover */}
+                <div className="absolute left-full ml-3 px-3 py-1.5 bg-zinc-900 text-white text-xs font-bold rounded-xl whitespace-nowrap shadow-xl opacity-0 pointer-events-none -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 z-50 flex items-center">
+                  <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-zinc-900 rotate-45" />
+                  <span className="relative z-10">{label}</span>
+                </div>
+              </Link>
+            );
+          })}
+
+          {/* Bottom Logout Button */}
+          <div className="mt-auto pt-4 border-t border-zinc-100 w-full flex justify-center">
             <button
               type="button"
               onClick={logout}
-              className="group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-muted transition-all duration-200 hover:bg-background hover:text-foreground"
+              className="group relative flex h-11 w-11 items-center justify-center rounded-xl transition-all"
             >
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-muted transition-all group-hover:text-foreground">
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-zinc-50 text-zinc-400 transition-all duration-200 hover:bg-rose-50 hover:text-rose-600 hover:scale-105 shadow-2xs">
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                 </svg>
               </div>
-              <span className="text-xs font-bold">Đăng xuất</span>
+
+              {/* Floating Tooltip Label on Hover */}
+              <div className="absolute left-full ml-3 px-3 py-1.5 bg-rose-600 text-white text-xs font-bold rounded-xl whitespace-nowrap shadow-xl opacity-0 pointer-events-none -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 z-50 flex items-center">
+                <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-rose-600 rotate-45" />
+                <span className="relative z-10">Đăng xuất</span>
+              </div>
             </button>
           </div>
         </nav>
-
-        {/* Footer Support Card */}
-        {/* <div className="p-4 mt-auto">
-          <div className="relative rounded-2xl bg-primary p-5 shadow-premium overflow-hidden group">
-            <div className="absolute -top-10 -right-10 w-24 h-24 bg-white/5 rounded-full blur-2xl group-hover:bg-white/10 transition-all duration-700"></div>
-            <div className="relative z-10">
-              <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center mb-3 text-white">
-                <IconInfo className="w-4 h-4" />
-              </div>
-              <h4 className="text-white text-xs font-bold mb-1">Cần hỗ trợ?</h4>
-              <p className="text-white/50 text-[10px] leading-relaxed mb-4">
-                Đội ngũ Xalo luôn sẵn sàng giải đáp thắc mắc của bạn.
-              </p>
-              <button className="w-full py-2 bg-white text-primary text-[10px] font-black uppercase tracking-widest rounded-xl shadow-lg hover:shadow-2xl hover:-translate-y-0.5 transition-all active:scale-95">
-                Nhắn tin ngay
-              </button>
-            </div>
-          </div>
-        </div> */}
       </div>
     </aside>
   );
 }
-

@@ -52,6 +52,16 @@ export function sortMockTestsByDateDesc(rows: MockTestRequest[]): MockTestReques
   });
 }
 
+export function formatExternalUrl(url?: string): string {
+  if (!url || !url.trim()) return "";
+  const trimmed = url.trim();
+  if (trimmed === "#") return "";
+  if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+    return trimmed;
+  }
+  return `https://${trimmed}`;
+}
+
 const DEMO_SPEAKING_LINK = "https://docs.google.com/document/d/demo-speaking-mock";
 
 export function speakingResultScore(row: MockTestRequest): string {
@@ -59,7 +69,8 @@ export function speakingResultScore(row: MockTestRequest): string {
 }
 
 export function speakingResultExamLink(row: MockTestRequest): string | null {
-  return row.examLink || null;
+  const url = formatExternalUrl(row.examLink);
+  return url || null;
 }
 
 export function isSpeakingMockTest(skill: string): boolean {

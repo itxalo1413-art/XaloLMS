@@ -16,7 +16,7 @@ import { useGuestDiagnosis } from "@/hooks/useGuestDiagnosis";
 
 export default function GuestDiagnosisPage() {
   const { diagnosis: guest, writingBands } = useGuestDiagnosis();
-  const [activeDiagTab, setActiveDiagTab] = useState<"listening" | "reading" | "writing" | "speaking" | "grammar">("listening");
+  const [activeDiagTab, setActiveDiagTab] = useState<"listening" | "reading" | "writing" | "speaking">("listening");
   const [grammarFilter, setGrammarFilter] = useState<"all" | "red" | "yellow">("all");
   const [writingTaskMode, setWritingTaskMode] = useState<"task1" | "task2">("task1");
 
@@ -133,8 +133,6 @@ export default function GuestDiagnosisPage() {
               <div className="flex w-full flex-col gap-6 sm:flex-row sm:items-start sm:gap-8">
                 <div className="relative flex shrink-0 items-center justify-center self-center sm:self-start">
                   <svg className="h-24 w-24 -rotate-90 transform">
-                    <circle cx="48" cy="48" r="40" stroke="#ffeef2" strokeWidth="6" fill="transparent" />
-                    <circle cx="48" cy="48" r="40" stroke="#fe7789" strokeWidth="6" fill="transparent" strokeDasharray="251.2" strokeDashoffset="62.8" strokeLinecap="round" />
                   </svg>
                   <svg className="absolute h-20 w-20 -rotate-90 transform">
                     <circle cx="40" cy="40" r="32" stroke="#eeebff" strokeWidth="6" fill="transparent" />
@@ -162,7 +160,6 @@ export default function GuestDiagnosisPage() {
                 { id: "reading", label: "Reading", score: formatBandScore(guest.scores.reading) },
                 { id: "writing", label: "Writing", score: formatBandScore(guest.scores.writing) },
                 { id: "speaking", label: "Speaking", score: formatBandScore(guest.scores.speaking) },
-                { id: "grammar", label: "Ngữ pháp", score: null },
               ].map((tab) => {
                 const active = activeDiagTab === tab.id;
                 return (
@@ -263,26 +260,6 @@ export default function GuestDiagnosisPage() {
                   <div className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Chi tiết tiêu chí Speaking</div>
                   <SpeakingCriteriaPanel scores={guest.speakingCriteria} />
                 </div>
-              </div>
-            )}
-
-            {/* TAB CONTENT: GRAMMAR */}
-            {activeDiagTab === "grammar" && (
-              <div className="space-y-6 animate-in fade-in duration-200">
-                <div className="p-5 rounded-2xl border border-zinc-100 bg-zinc-50/50">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-muted">
-                    Tổng quan lỗi ngữ pháp (Writing & Speaking)
-                  </div>
-                  <p className="mt-2 text-xs font-medium leading-relaxed text-foreground">
-                    Phát hiện {guest.bcbGrammar.reduce((s, r) => s + r.errorCount, 0)} lỗi ngữ pháp
-                    trên {guest.bcbGrammar.length} chuyên đề.
-                  </p>
-                </div>
-                <BcbGrammarTable
-                  rows={guest.bcbGrammar}
-                  filter={grammarFilter}
-                  onFilterChange={setGrammarFilter}
-                />
               </div>
             )}
 

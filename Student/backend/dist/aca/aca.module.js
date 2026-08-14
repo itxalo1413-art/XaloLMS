@@ -24,8 +24,15 @@ const aca_11_class_schema_1 = require("./schemas/aca-11-class.schema");
 const aca_weekly_doc_schema_1 = require("./schemas/aca-weekly-doc.schema");
 const aca_teacher_assignment_schema_1 = require("./schemas/aca-teacher-assignment.schema");
 const aca_free_slot_schema_1 = require("./schemas/aca-free-slot.schema");
+const aca_teacher_profile_schema_1 = require("./schemas/aca-teacher-profile.schema");
+const writing_submission_schema_1 = require("../writing-submission/schemas/writing-submission.schema");
+const rlp_course_store_schema_1 = require("../rlp/schemas/rlp-course-store.schema");
+const users_module_1 = require("../users/users.module");
 const aca_management_service_1 = require("./aca-management.service");
 const aca_management_controller_1 = require("./aca-management.controller");
+const daily_note_schema_1 = require("./schemas/daily-note.schema");
+const mock_test_request_schema_1 = require("./schemas/mock-test-request.schema");
+const course_settings_schema_1 = require("./schemas/course-settings.schema");
 let AcaModule = class AcaModule {
 };
 exports.AcaModule = AcaModule;
@@ -33,6 +40,7 @@ exports.AcaModule = AcaModule = __decorate([
     (0, common_1.Module)({
         imports: [
             auth_guards_module_1.AuthGuardsModule,
+            users_module_1.UsersModule,
             mongoose_1.MongooseModule.forFeature([
                 { name: content_schema_1.Content.name, schema: content_schema_1.ContentSchema },
                 { name: category_schema_1.Category.name, schema: category_schema_1.CategorySchema },
@@ -44,6 +52,12 @@ exports.AcaModule = AcaModule = __decorate([
                 { name: aca_weekly_doc_schema_1.AcaWeeklyDoc.name, schema: aca_weekly_doc_schema_1.AcaWeeklyDocSchema },
                 { name: aca_teacher_assignment_schema_1.AcaTeacherAssignment.name, schema: aca_teacher_assignment_schema_1.AcaTeacherAssignmentSchema },
                 { name: aca_free_slot_schema_1.AcaFreeSlot.name, schema: aca_free_slot_schema_1.AcaFreeSlotSchema },
+                { name: aca_teacher_profile_schema_1.AcaTeacherProfile.name, schema: aca_teacher_profile_schema_1.AcaTeacherProfileSchema },
+                { name: writing_submission_schema_1.WritingSubmission.name, schema: writing_submission_schema_1.WritingSubmissionSchema },
+                { name: rlp_course_store_schema_1.RlpCourseStore.name, schema: rlp_course_store_schema_1.RlpCourseStoreSchema },
+                { name: daily_note_schema_1.DailyNote.name, schema: daily_note_schema_1.DailyNoteSchema },
+                { name: mock_test_request_schema_1.MockTestRequest.name, schema: mock_test_request_schema_1.MockTestRequestSchema },
+                { name: course_settings_schema_1.CourseSettings.name, schema: course_settings_schema_1.CourseSettingsSchema },
             ]),
         ],
         controllers: [

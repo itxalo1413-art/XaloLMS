@@ -12,19 +12,48 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.WritingSubmissionService = void 0;
+exports.WritingSubmissionService = exports.ACA_GRADERS = void 0;
 const common_1 = require("@nestjs/common");
 const mongoose_1 = require("@nestjs/mongoose");
 const mongoose_2 = require("mongoose");
 const users_service_1 = require("../users/users.service");
 const writing_submission_constants_1 = require("./writing-submission.constants");
 const writing_submission_schema_1 = require("./schemas/writing-submission.schema");
+exports.ACA_GRADERS = [
+    'Grader 1',
+    'Grader 2',
+    'Grader 3',
+];
 let WritingSubmissionService = class WritingSubmissionService {
     model;
     users;
     constructor(model, users) {
         this.model = model;
         this.users = users;
+    }
+    async onModuleInit() {
+        await this.model.deleteMany({});
+    }
+    async selectNextGrader() {
+        const allSubmissions = await this.model.find().lean().exec();
+        const counts = {};
+        for (const g of exports.ACA_GRADERS) {
+            counts[g] = 0;
+        }
+        for (const s of allSubmissions) {
+            if (s.assignedGrader && counts[s.assignedGrader] !== undefined) {
+                counts[s.assignedGrader]++;
+            }
+        }
+        let minCount = Infinity;
+        let selected = exports.ACA_GRADERS[0];
+        for (const g of exports.ACA_GRADERS) {
+            if (counts[g] < minCount) {
+                minCount = counts[g];
+                selected = g;
+            }
+        }
+        return selected;
     }
     toPublic(doc) {
         const status = (0, writing_submission_constants_1.isWritingSubmissionStatus)(doc.status)
@@ -46,6 +75,7 @@ let WritingSubmissionService = class WritingSubmissionService {
             task1: doc.task1,
             task2: doc.task2,
             note: doc.note,
+            assignedGrader: doc.assignedGrader || '',
         };
     }
     async findByIdOrThrow(id) {
@@ -79,6 +109,11 @@ let WritingSubmissionService = class WritingSubmissionService {
         return rows.map((r) => this.toPublic(r));
     }
     async listForTeacher(status) {
+        const unassigned = await this.model.find({ $or: [{ assignedGrader: { $exists: false } }, { assignedGrader: '' }] }).exec();
+        for (const doc of unassigned) {
+            doc.assignedGrader = await this.selectNextGrader();
+            await doc.save();
+        }
         const filter = {};
         if (status && status !== 'all' && (0, writing_submission_constants_1.isWritingSubmissionStatus)(status)) {
             filter.status = status;
@@ -98,6 +133,35 @@ let WritingSubmissionService = class WritingSubmissionService {
         const now = new Date();
         const testDateTime = payload.testDateTime?.trim() || now.toISOString();
         const name = await this.resolveStudentName(studentId, studentName);
+        const existing = await this.model
+            .findOne({ studentId, status: { $in: ['pending', 'grading'] } })
+            .sort({ createdAt: -1 })
+            .exec();
+        if (existing) {
+            existing.examLink = examLink;
+            existing.testDateTime = testDateTime;
+            existing.status = 'pending';
+            existing.score = undefined;
+            existing.gradedAt = undefined;
+            if (!existing.assignedGrader) {
+                existing.assignedGrader = await this.selectNextGrader();
+            }
+            const updated = await existing.save();
+            return this.toPublic(updated.toObject());
+        }
+        const assignedGrader = payload.assignedGrader?.trim() || await this.selectNextGrader();
+        const startOfWeek = new Date();
+        startOfWeek.setHours(0, 0, 0, 0);
+        const day = startOfWeek.getDay();
+        const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
+        startOfWeek.setDate(diff);
+        const countThisWeek = await this.model.countDocuments({
+            studentId,
+            createdAt: { $gte: startOfWeek },
+        });
+        if (countThisWeek >= 6) {
+            throw new common_1.BadRequestException('Bạn đã đạt hạn ngạch tối đa 6 bài Writing trong tuần này.');
+        }
         const created = await this.model.create({
             studentId,
             studentName: name,
@@ -110,6 +174,7 @@ let WritingSubmissionService = class WritingSubmissionService {
             task1: payload.task1?.trim() || '',
             task2: payload.task2?.trim() || '',
             note: payload.note?.trim() || '',
+            assignedGrader,
         });
         return this.toPublic(created.toObject());
     }
@@ -127,6 +192,7 @@ let WritingSubmissionService = class WritingSubmissionService {
         const task1 = payload.task1?.trim() !== undefined ? payload.task1.trim() : doc.task1;
         const task2 = payload.task2?.trim() !== undefined ? payload.task2.trim() : doc.task2;
         const note = payload.note?.trim() !== undefined ? payload.note.trim() : doc.note;
+        const assignedGrader = payload.assignedGrader?.trim() !== undefined ? payload.assignedGrader.trim() : doc.assignedGrader;
         if (nextStatus === 'graded' && !score) {
             throw new common_1.BadRequestException('Cần nhập điểm khi chấm xong');
         }
@@ -148,6 +214,7 @@ let WritingSubmissionService = class WritingSubmissionService {
                 task1,
                 task2,
                 note,
+                assignedGrader,
             },
         }, { returnDocument: 'after' })
             .lean()

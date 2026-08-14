@@ -20,11 +20,10 @@ const montserrat = Montserrat({
 export const metadata: Metadata = {
   title: "Student Dashboard",
   description: "Student learning dashboard",
-  icons: {
-    icon: "/Logo_XLE.svg",
-    shortcut: "/Logo_XLE.svg",
-    apple: "/Logo_XLE.svg",
-  },
+  icons: [
+    { rel: "icon", url: "/Logo_XLE.svg", type: "image/svg+xml" },
+    { rel: "apple-touch-icon", url: "/Logo_XLE.svg" },
+  ],
 };
 
 export default function RootLayout({

@@ -5,16 +5,24 @@ import type { ReactNode } from "react";
 import { AcaSidebar } from "./AcaSidebar";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { clearAuthToken, isAuthDisabled, getCachedAuthUser } from "@/lib/auth";
+import { clearAuthToken, getCachedAuthUser, getAuthToken, isAuthDisabled } from "@/lib/auth";
 
 const RESTRICTED_PATHS = [
   "/aca/quan-ly/lop-theo-thang",
   "/aca/quan-ly/hoc-vien-lop",
   "/aca/quan-ly/diem-dau-vao-cuoi-khoa",
+  "/aca/quan-ly/bcb",
+  "/aca/quan-ly/phan-tich-final-test",
   "/aca/quan-ly/lop-1-1",
   "/aca/quan-ly/lop-luyen-de-tuan",
-  "/aca/quan-ly/thong-ke-luyen-de",
-  "/aca/quan-ly/mock-test"
+  "/aca/quan-ly/giao-vien",
+  "/aca/quan-ly/khoa-hoc",
+  "/aca/quan-ly/noi-dung",
+  "/aca/quan-ly/note",
+  "/aca/quan-ly/lop-luyen-de",
+  "/aca/quan-ly/chan-doan-khach",
+  "/aca/he-thong",
+  "/aca/phan-tich",
 ];
 
 export function AcaLayout({ children }: { children: ReactNode }) {
@@ -24,6 +32,30 @@ export function AcaLayout({ children }: { children: ReactNode }) {
 
   const [ready, setReady] = useState(false);
   const [isKhanhThi, setIsKhanhThi] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
+
+  // Auth guard: only ACA role allowed
+  useEffect(() => {
+    if (isAuthDisabled()) {
+      setAuthReady(true);
+      return;
+    }
+    const token = getAuthToken();
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+    const user = getCachedAuthUser();
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+    if (user.role !== "ACA") {
+      router.replace("/login");
+      return;
+    }
+    setAuthReady(true);
+  }, [router]);
 
   useEffect(() => {
     const user = getCachedAuthUser();
@@ -32,10 +64,8 @@ export function AcaLayout({ children }: { children: ReactNode }) {
     
     setIsKhanhThi(
       name === "lê nguyễn khánh thi" ||
-        name === "aca_1" ||
-        name === "aca 1" ||
-        email === "aca@xaloenglish.vn" ||
-        email === "aca_1@gmail.com",
+        name.includes("khánh thi") ||
+        email === "aca@xaloenglish.vn",
     );
     setReady(true);
   }, []);
@@ -110,13 +140,11 @@ export function AcaLayout({ children }: { children: ReactNode }) {
               </div>
 
               <div className="text-[10px] font-bold uppercase tracking-widest text-muted opacity-60 px-2">
-                Hệ thống & Module
+                Hỗ trợ W-S
               </div>
 
               <nav className="space-y-1.5">
                 {[
-                  { href: "/aca/quan-ly/mock-test", label: "Duyệt Mock Test" },
-                  { href: "/aca/quan-ly/lich-ranh", label: "Lịch rảnh ACA" },
                   { href: "/aca/quan-ly/cham-writing", label: "Chấm Writing" },
                   { href: "/aca/profile", label: "Hồ sơ ACA" },
                 ].map((item) => {
@@ -159,7 +187,11 @@ export function AcaLayout({ children }: { children: ReactNode }) {
       {/* Main Content Area */}
       <div className="md:pl-72">
         <div className="min-h-screen">
-          {ready && !isKhanhThi && RESTRICTED_PATHS.some(path => pathname.startsWith(path)) ? (
+          {!authReady ? (
+            <div className="flex min-h-screen items-center justify-center text-sm font-medium text-zinc-400">
+              Đang xác thực...
+            </div>
+          ) : ready && !isKhanhThi && RESTRICTED_PATHS.some(path => pathname.startsWith(path)) ? (
             <div className="min-h-screen flex flex-col bg-white">
               <header className="sticky top-0 z-30 hidden h-[73px] w-full items-center justify-between border-b border-zinc-100 bg-white/80 px-8 backdrop-blur-md md:flex">
                 <div>

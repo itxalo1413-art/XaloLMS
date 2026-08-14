@@ -1,9 +1,11 @@
+import { OnModuleInit } from '@nestjs/common';
 import { Model } from 'mongoose';
 import { UsersService } from '../users/users.service';
 import { CreateWritingSubmissionDto } from './dto/create-writing-submission.dto';
 import { GradeWritingSubmissionDto } from './dto/grade-writing-submission.dto';
 import { type WritingSubmissionStatus } from './writing-submission.constants';
 import { type WritingSubmissionDocument } from './schemas/writing-submission.schema';
+export declare const ACA_GRADERS: readonly ["Grader 1", "Grader 2", "Grader 3"];
 export type WritingSubmissionPublic = {
     id: string;
     studentId: string;
@@ -20,11 +22,14 @@ export type WritingSubmissionPublic = {
     task1?: string;
     task2?: string;
     note?: string;
+    assignedGrader?: string;
 };
-export declare class WritingSubmissionService {
+export declare class WritingSubmissionService implements OnModuleInit {
     private readonly model;
     private readonly users;
     constructor(model: Model<WritingSubmissionDocument>, users: UsersService);
+    onModuleInit(): Promise<void>;
+    private selectNextGrader;
     private toPublic;
     private findByIdOrThrow;
     private resolveStudentName;

@@ -9,7 +9,7 @@ export default function AcaProfilePage() {
       <main className="mx-auto max-w-3xl px-6 py-6 pb-16 md:px-8">
         <PortalProfileSection
           role="aca"
-          heading="Cập nhật thông tin hiển thị trên portal ACA (demo localStorage)."
+          heading="Cập nhật thông tin tài khoản hiển thị trên portal ACA."
         />
       </main>
     </AcaLayout>

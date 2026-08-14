@@ -17,6 +17,8 @@ let User = class User {
     name;
     role;
     status;
+    phone;
+    title;
 };
 exports.User = User;
 __decorate([
@@ -39,6 +41,14 @@ __decorate([
     (0, mongoose_1.Prop)({ required: true, enum: ['ACTIVE', 'INACTIVE'], default: 'ACTIVE' }),
     __metadata("design:type", String)
 ], User.prototype, "status", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], User.prototype, "phone", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], User.prototype, "title", void 0);
 exports.User = User = __decorate([
     (0, mongoose_1.Schema)({
         collection: 'users',

@@ -882,7 +882,7 @@ export type AcaPracticeWeekInfo = {
 export const ACA_PRACTICE_WEEKS: AcaPracticeWeekInfo[] = [
   {
     weekRange: "20/04/2026 - 26/04/2026",
-    linkMeet: "https://meet.google.com/abc-defg-hij",
+    linkMeet: "https://zoom.us/j/84219634521?pwd=example-lrw",
     linkTab: "https://docs.google.com/spreadsheets/d/1track-practice-test-1",
     announcement: `[Thông báo về lịch học lớp LĐ]
 
@@ -895,7 +895,7 @@ Nhận được tin thì em react/confirm giúp chị nhé`,
   },
   {
     weekRange: "27/04/2026 - 03/05/2026",
-    linkMeet: "https://meet.google.com/abc-defg-hij",
+    linkMeet: "https://zoom.us/j/84219634521?pwd=example-lrw",
     linkTab: "https://docs.google.com/spreadsheets/d/1track-practice-test-2",
     announcement: `[Thông báo về lịch học lớp LĐ]
 
@@ -908,7 +908,7 @@ Nhận được tin thì em react/confirm giúp chị nhé`,
   },
   {
     weekRange: "08/06/2026 - 14/06/2026",
-    linkMeet: "https://meet.google.com/xyz-uvwx-yza",
+    linkMeet: "https://zoom.us/j/84219634521?pwd=example-lrw",
     linkTab: "https://docs.google.com/spreadsheets/d/1track-practice-test-3",
     announcement: `[Thông báo về lịch học lớp LĐ]
 

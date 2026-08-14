@@ -10,6 +10,12 @@ import {
   gradeWritingSubmissionApi,
 } from "@/lib/writingSubmissionApi";
 
+export const ACA_GRADERS = [
+  "Grader 1",
+  "Grader 2",
+  "Grader 3",
+] as const;
+
 export type WritingSubmissionStatus = "pending" | "grading" | "graded";
 
 export type WritingSubmission = {
@@ -28,12 +34,87 @@ export type WritingSubmission = {
   task1?: string;
   task2?: string;
   note?: string;
+  assignedGrader?: string;
 };
 
 export const WRITING_SUBMISSIONS_KEY = "xalo.student.writingSubmissions.v1";
 export const WRITING_SUBMISSIONS_EVENT = "xalo-writing-submissions-updated";
 
 let submissionsCache: WritingSubmission[] = [];
+
+export function isRealWritingSubmission(r: WritingSubmission): boolean {
+  if (!r || !r.id) return false;
+  if (r.id.startsWith("wr-demo") || r.id.startsWith("wr-seed")) return false;
+  if ((r.examLink || "").includes("demo-writing")) return false;
+  return true;
+}
+
+export function selectNextAcaGrader(existingRows: WritingSubmission[]): string {
+  const counts: Record<string, number> = {};
+  for (const g of ACA_GRADERS) {
+    counts[g] = 0;
+  }
+  for (const r of existingRows) {
+    if (r.assignedGrader && counts[r.assignedGrader] !== undefined) {
+      counts[r.assignedGrader]++;
+    }
+  }
+  let minCount = Infinity;
+  let selected: string = ACA_GRADERS[0];
+  for (const g of ACA_GRADERS) {
+    if (counts[g] < minCount) {
+      minCount = counts[g];
+      selected = g;
+    }
+  }
+  return selected;
+}
+
+export function deduplicateWritingSubmissions(rows: WritingSubmission[]): WritingSubmission[] {
+  const seenIds = new Set<string>();
+  const seenContent = new Set<string>();
+  const result: WritingSubmission[] = [];
+
+  for (const r of rows) {
+    if (!r || !r.id) continue;
+    if (!isRealWritingSubmission(r)) continue;
+    if (seenIds.has(r.id)) continue;
+    seenIds.add(r.id);
+
+    const contentKey = `${r.studentId}_${(r.examLink || "").trim()}_${r.testDateTime}_${r.status}_${r.score || ""}`;
+    if (seenContent.has(contentKey)) continue;
+    seenContent.add(contentKey);
+
+    const clone = { ...r };
+    if (!clone.assignedGrader || !ACA_GRADERS.includes(clone.assignedGrader as any)) {
+      clone.assignedGrader = selectNextAcaGrader(result);
+    }
+
+    result.push(clone);
+  }
+  return result;
+}
+
+export function rebalanceWritingSubmissions(rows: WritingSubmission[]): WritingSubmission[] {
+  const counts: Record<string, number> = {};
+  for (const g of ACA_GRADERS) counts[g] = 0;
+
+  const result = rows.map((r) => {
+    let minCount = Infinity;
+    let chosen: string = ACA_GRADERS[0];
+    for (const g of ACA_GRADERS) {
+      if (counts[g] < minCount) {
+        minCount = counts[g];
+        chosen = g;
+      }
+    }
+    counts[chosen]++;
+    return { ...r, assignedGrader: chosen };
+  });
+
+  saveLocal(result);
+  return result;
+}
 
 function dispatchWritingUpdate() {
   if (typeof window === "undefined") return;
@@ -44,7 +125,7 @@ function parse(raw: string | null): WritingSubmission[] {
   if (!raw) return [];
   try {
     const data = JSON.parse(raw) as WritingSubmission[];
-    return Array.isArray(data) ? data : [];
+    return Array.isArray(data) ? deduplicateWritingSubmissions(data) : [];
   } catch {
     return [];
   }
@@ -57,17 +138,27 @@ function loadLocal(): WritingSubmission[] {
 
 function saveLocal(rows: WritingSubmission[]) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(WRITING_SUBMISSIONS_KEY, JSON.stringify(rows));
-  submissionsCache = rows;
+  const deduped = deduplicateWritingSubmissions(rows);
+  window.localStorage.setItem(WRITING_SUBMISSIONS_KEY, JSON.stringify(deduped));
+  submissionsCache = deduped;
   dispatchWritingUpdate();
 }
 
 export function applyWritingSubmissionsCache(rows: WritingSubmission[]) {
-  submissionsCache = rows;
+  submissionsCache = deduplicateWritingSubmissions(rows);
+}
+
+export function clearAllWritingSubmissions() {
+  submissionsCache = [];
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(WRITING_SUBMISSIONS_KEY);
+    dispatchWritingUpdate();
+  }
 }
 
 export function loadWritingSubmissions(): WritingSubmission[] {
-  return submissionsCache.length > 0 ? submissionsCache : loadLocal();
+  const cache = submissionsCache.length > 0 ? submissionsCache : loadLocal();
+  return deduplicateWritingSubmissions(cache);
 }
 
 export function saveWritingSubmissions(rows: WritingSubmission[]) {
@@ -79,8 +170,11 @@ export function createWritingSubmission(input: {
   studentName?: string;
   examLink: string;
   testDateTime?: string;
+  assignedGrader?: string;
 }): WritingSubmission {
   const now = new Date();
+  const local = loadLocal();
+  const assigned = input.assignedGrader?.trim() || selectNextAcaGrader(local);
   return {
     id: `wr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     studentId: input.studentId,
@@ -89,6 +183,7 @@ export function createWritingSubmission(input: {
     testDateTime: input.testDateTime ?? now.toISOString(),
     submittedAt: now.toISOString(),
     status: "pending",
+    assignedGrader: assigned,
   };
 }
 
@@ -98,42 +193,41 @@ export async function refreshWritingSubmissionsForStudent(
   if (canUseWritingSubmissionApi()) {
     try {
       const rows = await fetchWritingSubmissionsForStudent();
-      const others = loadLocal().filter((r) => r.studentId !== studentId);
-      const merged = [...rows, ...others];
-      applyWritingSubmissionsCache(merged);
-      saveLocal(merged);
-      return rows;
+      const deduped = deduplicateWritingSubmissions(rows);
+      applyWritingSubmissionsCache(deduped);
+      return deduped;
     } catch {
       // fall through
     }
   }
-  const local = loadLocal().filter((r) => r.studentId === studentId);
-  const merged =
-    local.length > 0 ? local : getDefaultWritingSubmissions(studentId);
-  applyWritingSubmissionsCache(merged);
-  return merged;
+  const local = loadLocal();
+  const filtered = deduplicateWritingSubmissions(local.filter((r) => r.studentId === studentId));
+  applyWritingSubmissionsCache(filtered);
+  return filtered;
 }
 
 export async function refreshWritingSubmissionsForTeacher(
   status?: WritingSubmissionStatus | "all",
 ): Promise<WritingSubmission[]> {
+  const filterStatus = status ?? "all";
   if (canUseWritingSubmissionApi()) {
     try {
-      const rows = await fetchWritingSubmissionsForTeacher(status);
-      applyWritingSubmissionsCache(rows);
-      saveLocal(rows);
-      return rows;
+      const rows = await fetchWritingSubmissionsForTeacher(filterStatus === "all" ? undefined : filterStatus);
+      const deduped = deduplicateWritingSubmissions(rows);
+      applyWritingSubmissionsCache(deduped);
+      return deduped;
     } catch {
       // fall through
     }
   }
   const local = loadLocal();
   const filtered =
-    status && status !== "all"
-      ? local.filter((r) => r.status === status)
+    filterStatus !== "all"
+      ? local.filter((r) => r.status === filterStatus)
       : local;
-  applyWritingSubmissionsCache(filtered);
-  return filtered;
+  const deduped = deduplicateWritingSubmissions(filtered);
+  applyWritingSubmissionsCache(deduped);
+  return deduped;
 }
 
 export async function submitWritingSubmission(input: {
@@ -147,16 +241,47 @@ export async function submitWritingSubmission(input: {
       examLink: input.examLink,
       testDateTime: input.testDateTime,
     });
-    const next = [
-      remote,
-      ...loadLocal().filter((r) => r.id !== remote.id),
-    ];
-    saveLocal(next);
+    // After submitting, do a full refresh from server so the local
+    // cache exactly matches what's in the DB (no stale local rows).
+    try {
+      const fresh = await fetchWritingSubmissionsForStudent();
+      const deduped = deduplicateWritingSubmissions(fresh);
+      // Wipe localStorage before saving fresh data
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem(WRITING_SUBMISSIONS_KEY);
+      }
+      submissionsCache = [];
+      saveLocal(deduped);
+    } catch {
+      // Fallback: at least replace any stale copy of the same record
+      const local = loadLocal().filter((r) => r.id !== remote.id && r.studentId !== input.studentId);
+      saveLocal([remote, ...local]);
+    }
     return remote;
   }
 
+  const local = loadLocal();
+  const existingPending = local.find(
+    (r) => r.studentId === input.studentId && (r.status === "pending" || r.status === "grading"),
+  );
+
+  if (existingPending) {
+    const updated: WritingSubmission = {
+      ...existingPending,
+      examLink: input.examLink,
+      testDateTime: input.testDateTime ?? new Date().toISOString(),
+      submittedAt: new Date().toISOString(),
+      status: "pending",
+      score: undefined,
+      gradedAt: undefined,
+    };
+    const next = local.map((r) => (r.id === existingPending.id ? updated : r));
+    saveLocal(next);
+    return updated;
+  }
+
   const row = createWritingSubmission(input);
-  saveLocal([row, ...loadLocal()]);
+  saveLocal([row, ...local]);
   return row;
 }
 
@@ -172,6 +297,7 @@ export async function gradeWritingSubmission(
     task1?: string;
     task2?: string;
     note?: string;
+    assignedGrader?: string;
   },
 ): Promise<WritingSubmission> {
   if (canUseWritingSubmissionApi()) {
@@ -199,6 +325,7 @@ export async function gradeWritingSubmission(
       task1: payload.task1?.trim() !== undefined ? payload.task1.trim() : r.task1,
       task2: payload.task2?.trim() !== undefined ? payload.task2.trim() : r.task2,
       note: payload.note?.trim() !== undefined ? payload.note.trim() : r.note,
+      assignedGrader: payload.assignedGrader?.trim() !== undefined ? payload.assignedGrader.trim() : r.assignedGrader,
       gradedAt: payload.status === "graded" ? now : r.gradedAt,
     };
     return updated;
@@ -210,37 +337,11 @@ export async function gradeWritingSubmission(
 
 export function loadWritingSubmissionsForStudent(studentId: string): WritingSubmission[] {
   const stored = loadWritingSubmissions().filter((r) => r.studentId === studentId);
-  if (stored.length > 0) {
-    return [...stored].sort(
-      (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
-    );
-  }
-  return getDefaultWritingSubmissions(studentId);
+  return [...stored].sort(
+    (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
+  );
 }
 
-function getDefaultWritingSubmissions(studentId: string): WritingSubmission[] {
-  return [
-    {
-      id: "wr-demo-1",
-      studentId,
-      studentName: "Dương Ngọc Khôi Nguyên",
-      testDateTime: "2026-05-02T09:00:00.000Z",
-      submittedAt: "2026-05-02T10:15:00.000Z",
-      status: "graded",
-      score: "6.0",
-      examLink: "https://docs.google.com/document/d/demo-writing-task1",
-      gradedAt: "2026-05-05T14:00:00.000Z",
-    },
-    {
-      id: "wr-demo-2",
-      studentId,
-      studentName: "Dương Ngọc Khôi Nguyên",
-      testDateTime: "2026-05-08T14:00:00.000Z",
-      submittedAt: "2026-05-08T15:30:00.000Z",
-      status: "graded",
-      score: "6.5",
-      examLink: "https://docs.google.com/document/d/demo-writing-task2",
-      gradedAt: "2026-05-10T11:00:00.000Z",
-    },
-  ];
+function getDefaultWritingSubmissions(_studentId: string): WritingSubmission[] {
+  return [];
 }

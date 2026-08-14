@@ -20,6 +20,7 @@ import {
 } from "@/lib/mockTestRequests";
 import { fetchAcaStudents, type AcaStudent } from "@/lib/acaManagementApi";
 import { getCachedAuthUser } from "@/lib/auth";
+import { getGraderMeetLink, saveGraderMeetLink } from "@/lib/graderMeetLinks";
 
 function getMondayOfCurrentWeek(d: Date): Date {
   const day = d.getDay();
@@ -86,27 +87,6 @@ const BRUSH_TYPES = [
     color: "bg-[#dbeafe] hover:bg-[#bfdbfe] border-[#bfdbfe] text-[#1e40af]",
     legendColor: "bg-[#dbeafe] border-[#bfdbfe]",
     badgeText: "OFF"
-  },
-  {
-    type: "Test support",
-    label: "Test Support",
-    color: "bg-[#fee2e2] hover:bg-[#fecaca] border-[#fecaca] text-[#991b1b]",
-    legendColor: "bg-[#fee2e2] border-[#fecaca]",
-    badgeText: "SUP"
-  },
-  {
-    type: "Task ACA",
-    label: "Task ACA",
-    color: "bg-[#ffedd5] hover:bg-[#fed7aa] border-[#fed7aa] text-[#9a3412]",
-    legendColor: "bg-[#ffedd5] border-[#fed7aa]",
-    badgeText: "TSK"
-  },
-  {
-    type: "Teach",
-    label: "Teach",
-    color: "bg-[#dcfce7] hover:bg-[#bbf7d0] border-[#bbf7d0] text-[#166534]",
-    legendColor: "bg-[#dcfce7] border-[#bbf7d0]",
-    badgeText: "TCH"
   }
 ];
 
@@ -121,6 +101,17 @@ export default function AcaLichRanhPage() {
   const [selectedTeacher, setSelectedTeacher] = useState<string>(MOCK_TEST_TEACHER_OPTIONS[0]);
   const [currentWeekIndex, setCurrentWeekIndex] = useState<number>(0); // Default to current week
   const [activeBrush, setActiveBrush] = useState<string>("Nhận ca Test speaking/ chấm writing online");
+
+  const [graderMeetLink, setGraderMeetLink] = useState(() => getGraderMeetLink(selectedTeacher));
+
+  useEffect(() => {
+    setGraderMeetLink(getGraderMeetLink(selectedTeacher));
+  }, [selectedTeacher]);
+
+  const handleSaveMeetLink = (url: string) => {
+    setGraderMeetLink(url);
+    saveGraderMeetLink(selectedTeacher, url);
+  };
 
   useEffect(() => {
     const loggedInUser = getCachedAuthUser();
@@ -308,8 +299,8 @@ export default function AcaLichRanhPage() {
   return (
     <AcaLayout>
       <AcaTopbar
-        title="Lịch Rảnh ACA"
-        subtitle="Bảng lịch biểu tuần cấu hình ca rảnh của phòng ACA. Học viên đăng ký theo ca sẽ được tự động xếp lịch thi."
+        title="Lịch Rảnh Grader"
+        subtitle="Bảng lịch biểu tuần cấu hình ca rảnh của Grader. Học viên đăng ký theo ca sẽ được tự động xếp lịch thi."
       />
       <main className="mx-auto max-w-7xl px-4 py-4 pb-16 md:px-6 space-y-6">
         
@@ -321,13 +312,32 @@ export default function AcaLichRanhPage() {
 
         {/* Filters Top Bar */}
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Nhân viên ACA:</span>
-            <span className="text-xs font-black text-zinc-800 bg-zinc-100 border border-zinc-200 px-3 py-1.5 rounded-xl">
+          <div className="flex flex-wrap items-center gap-3 min-w-0 flex-1">
+            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider shrink-0">Nhân viên Grader:</span>
+            <span className="text-xs font-black text-zinc-800 bg-zinc-100 border border-zinc-200 px-3 py-1.5 rounded-xl shrink-0">
               {selectedTeacher}
             </span>
+
+            <div className="flex items-center gap-2 min-w-[240px] flex-1">
+              <span className="text-[10px] font-black uppercase text-emerald-800 shrink-0">Link Meet:</span>
+              <input
+                type="url"
+                value={graderMeetLink}
+                onChange={(e) => handleSaveMeetLink(e.target.value)}
+                placeholder="https://meet.google.com/..."
+                className="h-9 w-full min-w-[180px] rounded-xl border border-emerald-300 bg-emerald-50/50 px-3 text-xs font-bold text-emerald-900 outline-none focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-200"
+              />
+              <a
+                href={graderMeetLink}
+                target="_blank"
+                rel="noreferrer"
+                className="h-9 inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3 text-xs font-black text-white hover:bg-emerald-800 transition-all shrink-0"
+              >
+                Mở Meet ↗
+              </a>
+            </div>
           </div>
-          <div className="text-right">
+          <div className="text-right shrink-0">
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">Tuần đang cấu hình</span>
             <span className="text-sm font-black text-[#6a5acd]">{getWeekRangeLabel}</span>
           </div>
@@ -430,11 +440,6 @@ export default function AcaLichRanhPage() {
                                 {isChecked && (
                                   <span className="inline-flex items-center gap-0.5 text-[9px] font-black tracking-wider uppercase leading-none opacity-80">
                                     {labelText}
-                                    {isBooked && (
-                                      <svg className="w-2.5 h-2.5 text-zinc-500 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                                      </svg>
-                                    )}
                                   </span>
                                 )}
                               </div>
@@ -485,7 +490,7 @@ export default function AcaLichRanhPage() {
               <div>
                 <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Quy đổi định lượng</h3>
                 <p className="mt-1 text-[10px] text-zinc-500 leading-relaxed max-w-md">
-                  * Quy đổi tiêu chuẩn ACA: 1 ca test Speaking = 30p (0.5h) // 1 bài Writing đầy đủ = 60p (1h) // 1 ca dạy/học thử = 60p (1h).
+                  * Quy đổi tiêu chuẩn Grader: 1 ca test Speaking = 30p (0.5h) // 1 bài Writing đầy đủ = 60p (1h) // 1 ca dạy/học thử = 60p (1h).
                 </p>
               </div>
               <div className="text-center border-l border-zinc-100 pl-6 shrink-0 min-w-[120px]">

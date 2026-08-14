@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { AcaLayout } from "@/components/aca/AcaLayout";
 import { AcaTopbar } from "@/components/aca/AcaTopbar";
 import {
@@ -870,7 +871,11 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
     setFormPhone(student.phone);
     setFormEmail(student.email);
     setFormClassification(student.classification || "Lớp lẻ mới");
-    setFormEntrance(student.entrance || "");
+    setFormEntrance(
+      student.scores?.o && student.scores.o !== "-"
+        ? String(student.scores.o)
+        : student.entrance || ""
+    );
     
     setFormRegisteredWriting(!!student.registeredWriting);
     setFormRegisteredMocktest(!!student.registeredMocktest);
@@ -1267,7 +1272,9 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
                         </td>
                         <td className="px-4 py-4 tabular-nums text-zinc-500">{st.phone || "-"}</td>
                         <td className="px-4 py-4 text-zinc-500 truncate max-w-[180px]" title={st.email}>{st.email || "-"}</td>
-                        <td className="px-4 py-4 text-center text-foreground font-black tabular-nums">{st.entrance || "-"}</td>
+                        <td className="px-4 py-4 text-center text-foreground font-black tabular-nums">
+                          {st.scores?.o && st.scores.o !== "-" ? String(st.scores.o) : (st.entrance || "-")}
+                        </td>
                         
                         {/* L1 Class Badge */}
                         <td className="px-4 py-4 text-center">
@@ -1363,18 +1370,24 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
                         </td>
 
                         <td className="px-4 py-4">
-                          {st.bcbLink ? (
+                          <div className="flex items-center gap-2">
                             <a
-                              href={st.bcbLink}
+                              href={st.bcbLink || "/student#bcb-archive"}
                               target="_blank"
                               rel="noreferrer"
                               className="text-secondary hover:underline font-black"
+                              title="Mở Bảng Chẩn Bệnh Chi Tiết (BCB)"
                             >
-                              BCB ↗
+                              Xem ↗
                             </a>
-                          ) : (
-                            <span className="text-zinc-300 font-medium">-</span>
-                          )}
+                            <Link
+                              href={`/aca/quan-ly/bcb?studentId=${st.id}`}
+                              className="text-[10px] font-bold px-2 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                              title="Chỉnh sửa chi tiết BCB cho học viên này"
+                            >
+                              Sửa BCB
+                            </Link>
+                          </div>
                         </td>
                         <td className="px-4 py-4 text-zinc-500 font-medium max-w-[150px] truncate" title={st.note}>{st.note || "-"}</td>
                         <td className="px-4 py-4 text-center whitespace-nowrap">
@@ -1435,13 +1448,16 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
                                   (() => {
                                     const { name, teacher } = getClassInfoByCode(cyc.classCode);
                                     return (
-                                      <div className="flex flex-col items-center gap-0.5">
-                                        <span
-                                          className="inline-flex items-center gap-1 rounded-lg bg-secondary/10 px-2.5 py-0.5 font-black text-[10px] text-secondary cursor-default whitespace-nowrap"
-                                          title={name || displayClassCode(cyc.classCode)}
-                                        >
-                                          {displayClassCode(cyc.classCode)}
-                                        </span>
+                                      <div className="flex flex-col items-center gap-1">
+                                        {cyc.classCode.split('\n').map((line, lIdx) => (
+                                          <span
+                                            key={lIdx}
+                                            className="inline-flex items-center gap-1 rounded bg-secondary/10 px-2.5 py-0.5 font-black text-[10px] text-secondary cursor-default text-center break-words"
+                                            title={name || line}
+                                          >
+                                            {line.trim()}
+                                          </span>
+                                        ))}
                                         {teacher && (
                                           <span className="text-[9.5px] text-zinc-400 font-bold" title={`Giáo viên: ${teacher}`}>
                                             GV: {teacher}

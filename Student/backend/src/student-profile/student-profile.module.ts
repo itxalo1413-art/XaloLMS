@@ -7,6 +7,7 @@ import {
   StudentProfileStoreSchema,
 } from './schemas/student-profile-store.schema';
 import { AcaStudent, AcaStudentSchema } from '../aca/schemas/aca-student.schema';
+import { AcaClass, AcaClassSchema } from '../aca/schemas/aca-class.schema';
 import { StudentProfileController } from './student-profile.controller';
 import { StudentProfileService } from './student-profile.service';
 
@@ -15,6 +16,7 @@ import { StudentProfileService } from './student-profile.service';
     MongooseModule.forFeature([
       { name: StudentProfileStore.name, schema: StudentProfileStoreSchema },
       { name: AcaStudent.name, schema: AcaStudentSchema },
+      { name: AcaClass.name, schema: AcaClassSchema },
     ]),
     AuthGuardsModule,
     UsersModule,

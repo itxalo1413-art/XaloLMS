@@ -5,6 +5,7 @@ import { AVATAR_IMAGE_ACCEPT, isAllowedAvatarImageFile } from "@/lib/avatarImage
 import {
   DEFAULT_STUDENT_PROFILE,
   getStudentProfile,
+  registerStudentInfoCache,
   saveStudentProfile,
   STUDENT_PROFILE_UPDATE_EVENT,
   type StudentProfile,
@@ -15,18 +16,39 @@ import { resolveActiveStudentId } from "@/lib/studentRoster";
 type Props = {
   portalLabel: string;
   studentId: string;
+  studentData?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+  };
 };
 
 const inputClass =
   "w-full rounded-xl border border-primary/15 px-3 py-2 text-sm outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10";
 
-export function StudentProfileEditorSection({ portalLabel, studentId }: Props) {
+export function StudentProfileEditorSection({ portalLabel, studentId, studentData }: Props) {
   const [profile, setProfile] = useState<StudentProfile>(DEFAULT_STUDENT_PROFILE);
   const [saved, setSaved] = useState(false);
   const isActiveStudent = studentId === resolveActiveStudentId();
 
   const sync = useCallback(() => {
-    setProfile(getStudentProfile(studentId));
+    if (studentData) {
+      registerStudentInfoCache(studentId, studentData);
+    }
+    const current = getStudentProfile(studentId);
+    if (studentData) {
+      if (studentData.name && (!current.name || current.name === "Học viên mới")) {
+        current.name = studentData.name;
+      }
+      if (studentData.email && !current.email) {
+        current.email = studentData.email;
+      }
+      if (studentData.phone && !current.phone) {
+        current.phone = studentData.phone;
+      }
+    }
+    setProfile(current);
+
     if (isActiveStudent) {
       void fetchStudentProfile()
         .then((remote) => {
@@ -37,7 +59,7 @@ export function StudentProfileEditorSection({ portalLabel, studentId }: Props) {
         })
         .catch(() => {});
     }
-  }, [studentId, isActiveStudent]);
+  }, [studentId, isActiveStudent, studentData]);
 
   useEffect(() => {
     sync();
@@ -81,7 +103,7 @@ export function StudentProfileEditorSection({ portalLabel, studentId }: Props) {
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted">
-        Hồ sơ hiển thị trên trang chủ học viên <strong>{profile.name}</strong>. {portalLabel}{" "}
+        Hồ sơ hiển thị trên trang chủ học viên <strong>{profile.name || "Học viên"}</strong>. {portalLabel}{" "}
         chỉnh tại đây (theo từng học viên).
       </p>
       <div className="grid gap-4 rounded-2xl border border-primary/10 bg-white p-6 shadow-soft md:grid-cols-2">
@@ -91,7 +113,7 @@ export function StudentProfileEditorSection({ portalLabel, studentId }: Props) {
               <img src={profile.avatarUrl} alt="" className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-xl font-black text-primary">
-                {profile.name.slice(0, 1)}
+                {(profile.name || "H").slice(0, 1)}
               </div>
             )}
           </div>

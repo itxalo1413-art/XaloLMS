@@ -1,6 +1,8 @@
 import { PRACTICE_CLASS_WEEKLY_REREGISTER_WARNING } from "@/lib/practiceClass";
 
-export function PracticeClassWeeklyWarning() {
+export function PracticeClassWeeklyWarning({ announcement }: { announcement?: string }) {
+  const message = announcement?.trim() || PRACTICE_CLASS_WEEKLY_REREGISTER_WARNING;
+
   return (
     <div
       className="mt-5 flex gap-3 rounded-2xl border border-warning/35 bg-warning/10 p-4"
@@ -14,10 +16,10 @@ export function PracticeClassWeeklyWarning() {
       </div>
       <div className="min-w-0">
         <div className="text-[10px] font-black uppercase tracking-widest text-warning">
-          Đăng ký hàng tuần
+          Lưu ý & Thông báo từ Học vụ
         </div>
-        <p className="mt-1 text-sm font-semibold leading-relaxed text-foreground">
-          {PRACTICE_CLASS_WEEKLY_REREGISTER_WARNING}
+        <p className="mt-1 text-sm font-semibold leading-relaxed text-foreground whitespace-pre-wrap">
+          {message}
         </p>
       </div>
     </div>

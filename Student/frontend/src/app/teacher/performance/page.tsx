@@ -79,24 +79,45 @@ const parseClassSchedule = (name: string): ClassSchedule => {
   return { days, daysLabel, timeRange, duration, cleanName };
 };
 
+import { getCachedAuthUser } from "@/lib/auth";
+import {
+  refreshWritingSubmissionsForTeacher,
+  type WritingSubmission,
+} from "@/lib/writingSubmissions";
+import {
+  refreshMockTestRequestsForAca,
+  type MockTestRequest,
+} from "@/lib/mockTestRequests";
+import { isSpeakingMockTest } from "@/lib/selfStudyFormat";
+
 export default function PerformancePage() {
   const [selectedMonth, setSelectedMonth] = useState<number>(6);
   const [classes, setClasses] = useState<AcaClass[]>([]);
   const [classes11, setClasses11] = useState<Aca11Class[]>([]);
+  const [submissions, setSubmissions] = useState<WritingSubmission[]>([]);
+  const [mockTests, setMockTests] = useState<MockTestRequest[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [cData, c11Data] = await Promise.all([
+        const loggedUser = getCachedAuthUser();
+        setCurrentUser(loggedUser);
+
+        const [cData, c11Data, subData, mtData] = await Promise.all([
           fetchAcaClasses(),
           fetchAca11Classes(),
+          refreshWritingSubmissionsForTeacher("all"),
+          refreshMockTestRequestsForAca(),
         ]);
         setClasses(cData);
         setClasses11(c11Data);
+        setSubmissions(subData);
+        setMockTests(mtData);
       } catch (err: any) {
-        setError(err.message || "Không tải được danh sách lớp.");
+        setError(err.message || "Không tải được dữ liệu hiệu suất.");
       } finally {
         setLoading(false);
       }
@@ -239,11 +260,36 @@ export default function PerformancePage() {
     return log.sort((a, b) => b.date.localeCompare(a.date));
   }, [filteredMyClasses]);
 
+  // Grader performance statistics (Grade Writing & Test Speaking)
+  const graderStats = useMemo(() => {
+    const uName = (currentUser?.name || TEACHER_NAME || "").trim().toLowerCase();
+    
+    // Count graded writing submissions
+    let writingGradedCount = 0;
+    submissions.forEach((s) => {
+      const gName = (s.assignedGrader || "").trim().toLowerCase();
+      if (s.status === "graded" && (gName === uName || !currentUser)) {
+        writingGradedCount++;
+      }
+    });
+
+    // Count completed speaking mock test sessions
+    let speakingDoneCount = 0;
+    mockTests.forEach((mt) => {
+      const tName = (mt.examTeacher || "").trim().toLowerCase();
+      if (isSpeakingMockTest(mt.skill) && mt.score?.trim() && (tName === uName || !currentUser)) {
+        speakingDoneCount++;
+      }
+    });
+
+    return { writingGradedCount, speakingDoneCount };
+  }, [submissions, mockTests, currentUser]);
+
   return (
     <TeacherLayout>
       <TeacherTopbar
         title="Performance & Thống kê"
-        subtitle={`Theo dõi giờ giảng dạy thực tế của giáo viên Nghiêm Doãn Quỳnh Châu.`}
+        subtitle={`Theo dõi giờ giảng dạy thực tế và hiệu suất chấm W, test S của giáo viên / Grader.`}
       />
       <main className="mx-auto max-w-6xl px-6 py-6 pb-16 md:px-8 space-y-6">
         {error ? (
@@ -275,8 +321,35 @@ export default function PerformancePage() {
           </div>
         ) : (
           <div className="grid gap-6 md:grid-cols-3">
-            {/* Left Column: Hours calculation summary */}
+            {/* Left Column: Hours calculation & Grader Performance summary */}
             <div className="md:col-span-1 space-y-6">
+              {/* Grader Performance Card */}
+              <div className="bg-white rounded-2xl border border-purple-200/80 p-5 shadow-sm space-y-4">
+                <div className="flex items-center justify-between border-b border-purple-100 pb-2">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-purple-950 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-purple-600 animate-pulse" />
+                    Hiệu suất Grader (Chấm W & Test S)
+                  </h3>
+                  <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200/60">
+                    Cộng dồn Performance
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div className="rounded-xl bg-purple-50/70 p-3.5 border border-purple-100 space-y-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-purple-900">Test Speaking (Test S)</span>
+                    <div className="text-xl font-black text-purple-900">{graderStats.speakingDoneCount} <span className="text-xs font-bold text-purple-600">ca đã xong</span></div>
+                    <p className="text-[10px] text-purple-700/80 font-medium">Tính trực tiếp vào Performance</p>
+                  </div>
+
+                  <div className="rounded-xl bg-indigo-50/70 p-3.5 border border-indigo-100 space-y-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-indigo-900">Chấm Writing (Grade W)</span>
+                    <div className="text-xl font-black text-indigo-900">{graderStats.writingGradedCount} <span className="text-xs font-bold text-indigo-600">bài đã chấm</span></div>
+                    <p className="text-[10px] text-indigo-700/80 font-medium">Tính trực tiếp vào Performance</p>
+                  </div>
+                </div>
+              </div>
+
               <div className="bg-white rounded-2xl border border-zinc-200 p-5 shadow-sm space-y-4">
                 <h3 className="text-xs font-black uppercase tracking-wider text-zinc-950 pb-2 border-b border-zinc-100">
                   Thống kê giờ dạy (Tháng {selectedMonth})
@@ -330,7 +403,7 @@ export default function PerformancePage() {
                       Điểm danh giáo viên & Khóa chỉnh sửa
                     </h3>
                     <p className="text-[10px] text-zinc-400 font-semibold mt-0.5">
-                      Check-in các buổi dạy đã giảng dạy. Lịch dạy tự động khóa sau 1 tuần.
+                      Giáo viên tự tích điểm danh các buổi dạy. Nếu sau 7 ngày chưa tích, hệ thống tự động ghi nhận Vắng mặt và khóa chỉnh sửa.
                     </p>
                   </div>
                 </div>

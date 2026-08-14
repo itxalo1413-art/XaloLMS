@@ -9,6 +9,8 @@ export type PublicUser = {
     name: string;
     role: Role;
     status: UserStatus;
+    phone?: string;
+    title?: string;
     createdAt: string;
 };
 export declare class UsersService implements OnModuleInit {
@@ -17,8 +19,15 @@ export declare class UsersService implements OnModuleInit {
     onModuleInit(): Promise<void>;
     private normalizeEmail;
     private toPublic;
+    getProfileByUserId(userId: string): Promise<PublicUser>;
+    updateProfileByUserId(userId: string, payload: {
+        name?: string;
+        phone?: string;
+        title?: string;
+    }): Promise<PublicUser>;
     ensureSeedAca(): Promise<void>;
     ensureSeedStudent(): Promise<void>;
+    ensureSeedTeachers(): Promise<void>;
     findByEmail(email: string): Promise<UserDocument | null>;
     findPublicById(id: string): Promise<PublicUser | undefined>;
     findNamesByIds(ids: string[]): Promise<Map<string, string>>;

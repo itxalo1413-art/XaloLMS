@@ -20,7 +20,7 @@ type AuthedRequest = Request & { user: JwtPayload };
 
 @Controller('teacher/mock-tests')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('GV')
+@Roles('GV', 'ACA')
 export class TeacherMockTestController {
   constructor(private readonly mockTests: MockTestService) {}
 

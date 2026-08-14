@@ -51,7 +51,19 @@ export declare class AcaStudent {
     f3: string;
     bcbLink: string;
     note: string;
+    rawClassification: string;
     cycles: AcaStudentCycle[];
+    dob: string;
+    zodiac: string;
+    avatarUrl: string;
+    method: string;
+    weeklyHours: string;
+    classEnvironment: string;
+    ieltsMeaning: string;
+    previousBand: string;
+    focusSkills: string[];
+    practiceJoined: boolean;
+    registeredSlotIds: string[];
 }
 export declare const AcaStudentSchema: MongooseSchema<AcaStudent, import("mongoose").Model<AcaStudent, any, any, any, any, any, AcaStudent>, {}, {}, {}, {}, import("mongoose").DefaultSchemaOptions, AcaStudent, import("mongoose").Document<unknown, {}, AcaStudent, {
     id: string;
@@ -350,7 +362,115 @@ export declare const AcaStudentSchema: MongooseSchema<AcaStudent, import("mongoo
     }, "id"> & {
         id: string;
     }> | undefined;
+    rawClassification?: import("mongoose").SchemaDefinitionProperty<string, AcaStudent, import("mongoose").Document<unknown, {}, AcaStudent, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<AcaStudent & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
     cycles?: import("mongoose").SchemaDefinitionProperty<AcaStudentCycle[], AcaStudent, import("mongoose").Document<unknown, {}, AcaStudent, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<AcaStudent & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    dob?: import("mongoose").SchemaDefinitionProperty<string, AcaStudent, import("mongoose").Document<unknown, {}, AcaStudent, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<AcaStudent & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    zodiac?: import("mongoose").SchemaDefinitionProperty<string, AcaStudent, import("mongoose").Document<unknown, {}, AcaStudent, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<AcaStudent & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    avatarUrl?: import("mongoose").SchemaDefinitionProperty<string, AcaStudent, import("mongoose").Document<unknown, {}, AcaStudent, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<AcaStudent & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    method?: import("mongoose").SchemaDefinitionProperty<string, AcaStudent, import("mongoose").Document<unknown, {}, AcaStudent, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<AcaStudent & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    weeklyHours?: import("mongoose").SchemaDefinitionProperty<string, AcaStudent, import("mongoose").Document<unknown, {}, AcaStudent, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<AcaStudent & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    classEnvironment?: import("mongoose").SchemaDefinitionProperty<string, AcaStudent, import("mongoose").Document<unknown, {}, AcaStudent, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<AcaStudent & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    ieltsMeaning?: import("mongoose").SchemaDefinitionProperty<string, AcaStudent, import("mongoose").Document<unknown, {}, AcaStudent, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<AcaStudent & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    previousBand?: import("mongoose").SchemaDefinitionProperty<string, AcaStudent, import("mongoose").Document<unknown, {}, AcaStudent, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<AcaStudent & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    focusSkills?: import("mongoose").SchemaDefinitionProperty<string[], AcaStudent, import("mongoose").Document<unknown, {}, AcaStudent, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<AcaStudent & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    practiceJoined?: import("mongoose").SchemaDefinitionProperty<boolean, AcaStudent, import("mongoose").Document<unknown, {}, AcaStudent, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<AcaStudent & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    registeredSlotIds?: import("mongoose").SchemaDefinitionProperty<string[], AcaStudent, import("mongoose").Document<unknown, {}, AcaStudent, {
         id: string;
     }, import("mongoose").DefaultSchemaOptions> & Omit<AcaStudent & {
         _id: import("mongoose").Types.ObjectId;

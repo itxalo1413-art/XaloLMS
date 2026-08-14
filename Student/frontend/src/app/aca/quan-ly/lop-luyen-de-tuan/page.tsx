@@ -5,49 +5,75 @@ import { AcaLayout } from "@/components/aca/AcaLayout";
 import { AcaTopbar } from "@/components/aca/AcaTopbar";
 import {
   fetchAcaPracticeWeeks,
-  fetchAcaPracticeStudents,
-  createAcaPracticeStudent,
-  updateAcaPracticeStudent,
-  deleteAcaPracticeStudent,
+  updateAcaPracticeWeek,
+  findCurrentOrLatestPracticeWeekRange,
+  ensureCurrentRealtimeWeekExists,
   AcaPracticeWeek,
-  AcaPracticeStudent,
 } from "@/lib/acaManagementApi";
+import { setPracticeZoomInfo, savePracticeScheduleFromAca } from "@/lib/practiceClass";
+import { fetchPracticeRegistrationsForAca, type PracticeRegistrationAcaRow } from "@/lib/practiceClassApi";
 
 export default function LopLuyenDeTuanPage() {
   const [weeksList, setWeeksList] = useState<AcaPracticeWeek[]>([]);
   const [selectedWeekRange, setSelectedWeekRange] = useState<string>("");
-  const [studentsList, setStudentsList] = useState<AcaPracticeStudent[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<"add" | "edit">("add");
-  const [currentId, setCurrentId] = useState<string | null>(null);
+  // Week Metadata Edit States
+  const [isEditingMeetingInfo, setIsEditingMeetingInfo] = useState(false);
+  const [editZoomId, setEditZoomId] = useState("842 1963 4521");
+  const [editZoomPassword, setEditZoomPassword] = useState("XaloLrw26");
+  const [editLinkMeet, setEditLinkMeet] = useState("");
+  const [editLinkTab, setEditLinkTab] = useState("");
 
-  // Form Field States
-  const [formName, setFormName] = useState("");
-  const [formPhone, setFormPhone] = useState("");
-  const [formRlp, setFormRlp] = useState("");
-  const [formScheduleTue, setFormScheduleTue] = useState("Không học");
-  const [formScheduleSat, setFormScheduleSat] = useState("Không học");
-  const [formScheduleSun, setFormScheduleSun] = useState("Có tham gia");
-  const [formParticipateLd28, setFormParticipateLd28] = useState(false);
-  const [formNote, setFormNote] = useState("");
+  const [isEditingAnnouncement, setIsEditingAnnouncement] = useState(false);
+  const [editAnnouncementText, setEditAnnouncementText] = useState("");
+
+  const [isEditingTemplateMessage, setIsEditingTemplateMessage] = useState(false);
+  const [editTemplateMessageText, setEditTemplateMessageText] = useState("");
+
+  // Full Slot Title, Time, and Description Detail States
+  const [isEditingScheduleDetails, setIsEditingScheduleDetails] = useState(false);
+  const [editTueTitle, setEditTueTitle] = useState("Luyện tập Speaking theo chuyên đề");
+  const [editTueTime, setEditTueTime] = useState("19h45 – 21h45");
+  const [editTueDetail, setEditTueDetail] = useState(
+    "Tham gia bằng Zoom, học với Giáo viên, phân tích bộ đề Speaking 3 part, được cung cấp từ vựng/phương pháp tiếp cận và luyện tập trực tiếp với Giáo viên."
+  );
+
+  const [editThuTitle, setEditThuTitle] = useState("Chữa đề L-R-W");
+  const [editThuTime, setEditThuTime] = useState("19h45 – 21h45");
+  const [editThuDetail, setEditThuDetail] = useState(
+    "Tham gia bằng Zoom, học với Giáo viên, tập trung chữa đề Writing và các thắc mắc về Listening – Reading."
+  );
+
+  const [editSatTitle, setEditSatTitle] = useState("Làm đề L-R-W tập trung");
+  const [editSatTime, setEditSatTime] = useState("19h – 21h30");
+  const [editSatDetail, setEditSatDetail] = useState(
+    "Tham gia bằng Zoom, làm bài trên Google Docs, có nhân viên canh thời gian làm bài và các bạn học viên khác tham gia."
+  );
+
+  // Registrations from student side
+  const [registrationsList, setRegistrationsList] = useState<PracticeRegistrationAcaRow[]>([]);
+
+  // Link folder bài tập cá nhân
+  const [editLinkFolder, setEditLinkFolder] = useState("");
 
   useEffect(() => {
     async function loadData() {
       try {
-        const [wData, sData] = await Promise.all([
-          fetchAcaPracticeWeeks(),
-          fetchAcaPracticeStudents(),
-        ]);
-        setWeeksList(wData);
-        setStudentsList(sData);
-        if (wData.length > 0) {
-          // Default to the last week range (usually the most recent one) or index 2
-          const defaultWeek = wData[2]?.weekRange || wData[0]?.weekRange || "";
+        const wData = await fetchAcaPracticeWeeks();
+        const sortedWeeks = await ensureCurrentRealtimeWeekExists(wData);
+        setWeeksList(sortedWeeks);
+        if (sortedWeeks.length > 0) {
+          const defaultWeek = findCurrentOrLatestPracticeWeekRange(sortedWeeks);
           setSelectedWeekRange(defaultWeek);
+        }
+        // Load student registrations from practice class system
+        try {
+          const regs = await fetchPracticeRegistrationsForAca();
+          setRegistrationsList(regs);
+        } catch (regErr) {
+          console.warn("Could not load student registrations:", regErr);
         }
       } catch (err) {
         console.error(err);
@@ -61,92 +87,60 @@ export default function LopLuyenDeTuanPage() {
   // Get active week info
   const activeWeekInfo = weeksList.find(w => w.weekRange === selectedWeekRange) || weeksList[0];
 
-  // Filter students based on week range and search query
-  const filteredStudents = studentsList.filter((st) => {
-    const matchesWeek = st.weekRange === selectedWeekRange;
-    const matchesSearch = st.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          st.rlp.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          st.phone.includes(searchQuery);
-    return matchesWeek && matchesSearch;
-  });
+  useEffect(() => {
+    if (activeWeekInfo) {
+      const zid = activeWeekInfo.zoomId || "842 1963 4521";
+      const zpass = activeWeekInfo.zoomPassword || "XaloLrw26";
+      setEditZoomId(zid);
+      setEditZoomPassword(zpass);
+      setEditLinkMeet(activeWeekInfo.linkMeet || "");
+      setEditLinkTab(activeWeekInfo.linkTab || "");
+      setEditLinkFolder(activeWeekInfo.linkFolder || "");
+      setEditAnnouncementText(activeWeekInfo.announcement || "");
+      setEditTemplateMessageText(activeWeekInfo.templateMessage || "");
+
+      if (activeWeekInfo.scheduleTueTitle) setEditTueTitle(activeWeekInfo.scheduleTueTitle);
+      if (activeWeekInfo.scheduleTueTime) setEditTueTime(activeWeekInfo.scheduleTueTime);
+      if (activeWeekInfo.scheduleTueInfo) setEditTueDetail(activeWeekInfo.scheduleTueInfo);
+
+      if (activeWeekInfo.scheduleThuTitle) setEditThuTitle(activeWeekInfo.scheduleThuTitle);
+      if (activeWeekInfo.scheduleThuTime) setEditThuTime(activeWeekInfo.scheduleThuTime);
+      if (activeWeekInfo.scheduleThuInfo) setEditThuDetail(activeWeekInfo.scheduleThuInfo);
+
+      if (activeWeekInfo.scheduleSatTitle) setEditSatTitle(activeWeekInfo.scheduleSatTitle);
+      if (activeWeekInfo.scheduleSatTime) setEditSatTime(activeWeekInfo.scheduleSatTime);
+      if (activeWeekInfo.scheduleSatInfo) setEditSatDetail(activeWeekInfo.scheduleSatInfo);
+
+      setPracticeZoomInfo({ zoomId: zid, zoomPassword: zpass });
+    }
+  }, [activeWeekInfo]);
+
+  const saveWeekPartial = async (partial: Partial<AcaPracticeWeek>) => {
+    if (!activeWeekInfo) return;
+    try {
+      const updated = await updateAcaPracticeWeek(activeWeekInfo.id, partial);
+      setWeeksList((prev) => prev.map((w) => (w.id === activeWeekInfo.id ? { ...w, ...updated } : w)));
+      if (partial.zoomId || partial.zoomPassword) {
+        setPracticeZoomInfo({
+          zoomId: partial.zoomId || editZoomId,
+          zoomPassword: partial.zoomPassword || editZoomPassword,
+        });
+      }
+      alert("Đã cập nhật thông tin thành công!");
+    } catch (err: any) {
+      alert("Lưu thất bại: " + err.message);
+    }
+  };
+
+  // Filter registrations by search query
+  const filteredRegistrations = registrationsList.filter((reg) =>
+    reg.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    reg.slotTitle.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     alert(`Đã sao chép ${label} vào clipboard!`);
-  };
-
-  const openAddModal = () => {
-    setModalMode("add");
-    setCurrentId(null);
-    setFormName("");
-    setFormPhone("");
-    setFormRlp("");
-    setFormScheduleTue("Không học");
-    setFormScheduleSat("Không học");
-    setFormScheduleSun("Có tham gia");
-    setFormParticipateLd28(false);
-    setFormNote("");
-    setIsModalOpen(true);
-  };
-
-  const openEditModal = (st: AcaPracticeStudent) => {
-    setModalMode("edit");
-    setCurrentId(st.id);
-    setFormName(st.name);
-    setFormPhone(st.phone);
-    setFormRlp(st.rlp);
-    setFormScheduleTue(st.scheduleTue || (st.scheduleTueSat?.toLowerCase().includes("t3") ? "Ca 1 (18h-20h)" : "Không học"));
-    setFormScheduleSat(st.scheduleSat || (st.scheduleTueSat?.toLowerCase().includes("t7") ? "Ca 1 (18h-20h)" : "Không học"));
-    setFormScheduleSun(st.scheduleSun || st.testScheduleSunday || "Có tham gia");
-    setFormParticipateLd28(st.participateLd28);
-    setFormNote(st.note);
-    setIsModalOpen(true);
-  };
-
-  const handleDelete = async (id: string) => {
-    if (confirm("Bạn có chắc chắn muốn xóa học viên luyện đề này?")) {
-      try {
-        await deleteAcaPracticeStudent(id);
-        setStudentsList((prev) => prev.filter((s) => s.id !== id));
-      } catch (err: any) {
-        alert("Xóa thất bại: " + err.message);
-      }
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const payload = {
-      name: formName,
-      phone: formPhone,
-      rlp: formRlp,
-      testScheduleSunday: formScheduleSun,
-      scheduleTueSat: `${formScheduleTue !== "Không học" ? `T3: ${formScheduleTue}` : ""}${formScheduleTue !== "Không học" && formScheduleSat !== "Không học" ? ", " : ""}${formScheduleSat !== "Không học" ? `T7: ${formScheduleSat}` : ""}`,
-      scheduleTue: formScheduleTue,
-      scheduleSat: formScheduleSat,
-      scheduleSun: formScheduleSun,
-      participateLd28: formParticipateLd28,
-      note: formNote,
-      weekRange: selectedWeekRange,
-    };
-
-    try {
-      if (modalMode === "add") {
-        const newStudent = await createAcaPracticeStudent({
-          ...payload,
-          stt: studentsList.length + 1,
-        });
-        setStudentsList((prev) => [...prev, newStudent]);
-      } else if (modalMode === "edit" && currentId) {
-        const updated = await updateAcaPracticeStudent(currentId, payload);
-        setStudentsList((prev) =>
-          prev.map((s) => (s.id === currentId ? updated : s))
-        );
-      }
-      setIsModalOpen(false);
-    } catch (err: any) {
-      alert("Lưu thất bại: " + err.message);
-    }
   };
 
   return (
@@ -187,14 +181,8 @@ export default function LopLuyenDeTuanPage() {
 
           <div className="flex items-center gap-3">
             <div className="text-xs font-black text-primary uppercase bg-primary/10 px-3 py-2 rounded-xl">
-              Sỉ số: {filteredStudents.length} học viên
+              Đã đăng ký: {filteredRegistrations.length} học viên
             </div>
-            <button
-              onClick={openAddModal}
-              className="h-10 rounded-xl bg-primary text-white px-5 text-xs font-black uppercase shadow-soft hover:shadow-hover hover:-translate-y-0.5 transition-all"
-            >
-              Thêm học viên +
-            </button>
           </div>
         </div>
 
@@ -205,50 +193,385 @@ export default function LopLuyenDeTuanPage() {
             {/* Left metadata panel */}
             <div className="space-y-6 md:col-span-1">
               
-              {/* Quick links */}
+              {/* Quick links & Zoom credentials */}
               <div className="bg-white rounded-2xl border border-zinc-200 p-5 shadow-sm space-y-4">
-                <h3 className="text-xs font-black uppercase tracking-wider text-foreground pb-2 border-b border-zinc-100">
-                  Phòng học & Tab theo dõi
-                </h3>
+                <div className="flex items-center justify-between pb-2 border-b border-zinc-100">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-foreground">
+                    Phòng học & Tab theo dõi
+                  </h3>
+                  <button
+                    onClick={() => {
+                      if (isEditingMeetingInfo) {
+                        saveWeekPartial({
+                          zoomId: editZoomId,
+                          zoomPassword: editZoomPassword,
+                          linkMeet: editLinkMeet,
+                          linkTab: editLinkTab,
+                          linkFolder: editLinkFolder,
+                        });
+                        setIsEditingMeetingInfo(false);
+                      } else {
+                        setIsEditingMeetingInfo(true);
+                      }
+                    }}
+                    className="text-[10px] font-black uppercase text-primary hover:underline"
+                  >
+                    {isEditingMeetingInfo ? "Lưu phòng" : "Chỉnh sửa"}
+                  </button>
+                </div>
+
                 <div className="space-y-3">
+                  {/* Zoom ID */}
                   <div>
-                    <div className="text-[10px] font-black uppercase text-muted tracking-wider mb-1">LINK MEET (Mail ACA)</div>
+                    <div className="text-[10px] font-black uppercase text-muted tracking-wider mb-1">ID PHÒNG ZOOM</div>
                     <div className="flex gap-2">
-                      <a
-                        href={activeWeekInfo.linkMeet}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex-1 h-9 rounded-xl bg-primary text-white flex items-center justify-center text-xs font-black hover:opacity-90"
-                      >
-                        Vào phòng học ↗
-                      </a>
+                      <input
+                        type="text"
+                        disabled={!isEditingMeetingInfo}
+                        value={editZoomId}
+                        onChange={(e) => setEditZoomId(e.target.value)}
+                        placeholder="842 1963 4521"
+                        className={`flex-1 h-9 rounded-xl border px-3 text-xs font-black outline-none ${
+                          isEditingMeetingInfo ? "border-primary bg-white text-zinc-900" : "border-zinc-200 bg-zinc-50 text-indigo-900"
+                        }`}
+                      />
                       <button
-                        onClick={() => handleCopy(activeWeekInfo.linkMeet, "Link Meet")}
-                        className="px-3 rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-50 text-xs font-bold"
+                        onClick={() => handleCopy(editZoomId, "ID phòng Zoom")}
+                        className="px-3 rounded-xl border border-zinc-200 text-zinc-600 hover:bg-zinc-50 text-xs font-bold shrink-0"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Zoom Password */}
+                  <div>
+                    <div className="text-[10px] font-black uppercase text-muted tracking-wider mb-1">MẬT KHẨU ZOOM</div>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        disabled={!isEditingMeetingInfo}
+                        value={editZoomPassword}
+                        onChange={(e) => setEditZoomPassword(e.target.value)}
+                        placeholder="XaloLrw26"
+                        className={`flex-1 h-9 rounded-xl border px-3 text-xs font-black outline-none ${
+                          isEditingMeetingInfo ? "border-primary bg-white text-zinc-900" : "border-zinc-200 bg-zinc-50 text-indigo-900"
+                        }`}
+                      />
+                      <button
+                        onClick={() => handleCopy(editZoomPassword, "Mật khẩu Zoom")}
+                        className="px-3 rounded-xl border border-zinc-200 text-zinc-600 hover:bg-zinc-50 text-xs font-bold shrink-0"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Link Meet */}
+                  <div>
+                    <div className="text-[10px] font-black uppercase text-muted tracking-wider mb-1">LINK MEET / ZOOM (MAIL ACA)</div>
+                    <div className="flex gap-2">
+                      {isEditingMeetingInfo ? (
+                        <input
+                          type="text"
+                          value={editLinkMeet}
+                          onChange={(e) => setEditLinkMeet(e.target.value)}
+                          placeholder="https://meet.google.com/..."
+                          className="flex-1 h-9 rounded-xl border border-primary bg-white px-3 text-xs font-bold outline-none"
+                        />
+                      ) : (
+                        <a
+                          href={activeWeekInfo.linkMeet}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex-1 h-9 rounded-xl bg-primary text-white flex items-center justify-center text-xs font-black hover:opacity-90 truncate px-2"
+                        >
+                          Vào phòng học ↗
+                        </a>
+                      )}
+                      <button
+                        onClick={() => handleCopy(editLinkMeet || activeWeekInfo.linkMeet, "Link Meet")}
+                        className="px-3 rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-50 text-xs font-bold shrink-0"
                       >
                         Copy
                       </button>
                     </div>
                   </div>
                   
+                  {/* Link Tab */}
                   <div>
-                    <div className="text-[10px] font-black uppercase text-muted tracking-wider mb-1">LINK TAB THEO DÕI</div>
+                    <div className="text-[10px] font-black uppercase text-muted tracking-wider mb-1">LINK TAB THEO DÕI (GOOGLE SHEET)</div>
                     <div className="flex gap-2">
-                      <a
-                        href={activeWeekInfo.linkTab}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex-1 h-9 rounded-xl bg-secondary text-white flex items-center justify-center text-xs font-black hover:opacity-90"
-                      >
-                        Mở link sheet ↗
-                      </a>
+                      {isEditingMeetingInfo ? (
+                        <input
+                          type="text"
+                          value={editLinkTab}
+                          onChange={(e) => setEditLinkTab(e.target.value)}
+                          placeholder="https://docs.google.com/spreadsheets/..."
+                          className="flex-1 h-9 rounded-xl border border-primary bg-white px-3 text-xs font-bold outline-none"
+                        />
+                      ) : (
+                        <a
+                          href={activeWeekInfo.linkTab}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex-1 h-9 rounded-xl bg-secondary text-white flex items-center justify-center text-xs font-black hover:opacity-90 truncate px-2"
+                        >
+                          Mở link sheet ↗
+                        </a>
+                      )}
                       <button
-                        onClick={() => handleCopy(activeWeekInfo.linkTab, "Link Tab")}
-                        className="px-3 rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-50 text-xs font-bold"
+                        onClick={() => handleCopy(editLinkTab || activeWeekInfo.linkTab, "Link Tab")}
+                        className="px-3 rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-50 text-xs font-bold shrink-0"
                       >
                         Copy
                       </button>
                     </div>
+                  </div>
+
+                  {/* Link Folder Bài Tập Cá Nhân */}
+                  <div>
+                    <div className="text-[10px] font-black uppercase text-muted tracking-wider mb-1">FOLDER BÀI TẬP CÁ NHÂN & ĐIỂM TUẦN</div>
+                    <div className="flex gap-2">
+                      {isEditingMeetingInfo ? (
+                        <input
+                          type="text"
+                          value={editLinkFolder}
+                          onChange={(e) => setEditLinkFolder(e.target.value)}
+                          placeholder="https://drive.google.com/drive/folders/..."
+                          className="flex-1 h-9 rounded-xl border border-primary bg-white px-3 text-xs font-bold outline-none"
+                        />
+                      ) : editLinkFolder ? (
+                        <a
+                          href={editLinkFolder}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex-1 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xs font-black hover:opacity-90 truncate px-2"
+                        >
+                          📁 Mở Folder Bài Tập ↗
+                        </a>
+                      ) : (
+                        <div className="flex-1 h-9 rounded-xl bg-zinc-100 flex items-center px-3 text-xs text-zinc-400 font-medium">
+                          Chưa có link folder
+                        </div>
+                      )}
+                      <button
+                        onClick={() => handleCopy(editLinkFolder, "Link Folder Bài Tập")}
+                        className="px-3 rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-50 text-xs font-bold shrink-0"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lịch Các Ca Trong Tuần */}
+              <div className="bg-white rounded-2xl border border-zinc-200 p-5 shadow-sm space-y-4">
+                <div className="flex justify-between items-center pb-2 border-b border-zinc-100">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-foreground">
+                    Lịch ca học tuần (T3 - T5 - T7)
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (isEditingScheduleDetails) {
+                        try {
+                          await savePracticeScheduleFromAca(selectedWeekRange, {
+                            "tue-lrw": {
+                              dayLabel: "Thứ 3",
+                              time: editTueTime,
+                              title: editTueTitle,
+                              detail: editTueDetail,
+                              platform: "Zoom",
+                            },
+                            "sun-lrw": {
+                              dayLabel: "Thứ 5",
+                              time: editThuTime,
+                              title: editThuTitle,
+                              detail: editThuDetail,
+                              platform: "Zoom",
+                            },
+                            "sat-speaking": {
+                              dayLabel: "Thứ 7",
+                              time: editSatTime,
+                              title: editSatTitle,
+                              detail: editSatDetail,
+                              platform: "Zoom",
+                            },
+                          });
+                          await saveWeekPartial({
+                            scheduleTueTitle: editTueTitle,
+                            scheduleTueTime: editTueTime,
+                            scheduleTueInfo: editTueDetail,
+                            scheduleThuTitle: editThuTitle,
+                            scheduleThuTime: editThuTime,
+                            scheduleThuInfo: editThuDetail,
+                            scheduleSatTitle: editSatTitle,
+                            scheduleSatTime: editSatTime,
+                            scheduleSatInfo: editSatDetail,
+                          });
+                          setIsEditingScheduleDetails(false);
+                          alert("Đã lưu thông tin chi tiết ca học thành công!");
+                        } catch (err: any) {
+                          alert("Lưu ca thất bại: " + err.message);
+                        }
+                      } else {
+                        setIsEditingScheduleDetails(true);
+                      }
+                    }}
+                    className="text-[10px] font-black uppercase text-primary hover:underline cursor-pointer"
+                  >
+                    {isEditingScheduleDetails ? "Lưu ca" : "Chỉnh sửa"}
+                  </button>
+                </div>
+
+                <div className="space-y-4 text-xs">
+                  {/* Slot 1: Thứ 3 */}
+                  <div className="p-3 rounded-xl border border-zinc-100 bg-zinc-50/50 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-primary block text-[10px] uppercase">[Thứ 3]</span>
+                      {!isEditingScheduleDetails && (
+                        <span className="text-[10px] font-bold text-muted">{editTueTime}</span>
+                      )}
+                    </div>
+                    {isEditingScheduleDetails ? (
+                      <div className="space-y-2">
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-muted block mb-0.5">Tên ca học (Title):</label>
+                          <input
+                            type="text"
+                            value={editTueTitle}
+                            onChange={(e) => setEditTueTitle(e.target.value)}
+                            placeholder="Luyện tập Speaking theo chuyên đề..."
+                            className="w-full rounded-lg border border-primary px-2.5 py-1 text-xs font-bold outline-none bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-muted block mb-0.5">Thời gian học (Time):</label>
+                          <input
+                            type="text"
+                            value={editTueTime}
+                            onChange={(e) => setEditTueTime(e.target.value)}
+                            placeholder="19h45 – 21h45..."
+                            className="w-full rounded-lg border border-primary px-2.5 py-1 text-xs font-semibold outline-none bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-muted block mb-0.5">Mô tả chi tiết nội dung (Detail):</label>
+                          <textarea
+                            rows={3}
+                            value={editTueDetail}
+                            onChange={(e) => setEditTueDetail(e.target.value)}
+                            placeholder="Mô tả nội dung bài học..."
+                            className="w-full rounded-lg border border-primary p-2 text-xs font-medium outline-none bg-white"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="font-bold text-foreground">{editTueTitle}</div>
+                        <div className="text-[11px] font-medium text-muted mt-0.5 leading-relaxed">{editTueDetail}</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Slot 2: Thứ 5 */}
+                  <div className="p-3 rounded-xl border border-zinc-100 bg-zinc-50/50 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-primary block text-[10px] uppercase">[Thứ 5]</span>
+                      {!isEditingScheduleDetails && (
+                        <span className="text-[10px] font-bold text-muted">{editThuTime}</span>
+                      )}
+                    </div>
+                    {isEditingScheduleDetails ? (
+                      <div className="space-y-2">
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-muted block mb-0.5">Tên ca học (Title):</label>
+                          <input
+                            type="text"
+                            value={editThuTitle}
+                            onChange={(e) => setEditThuTitle(e.target.value)}
+                            placeholder="Chữa đề L-R-W..."
+                            className="w-full rounded-lg border border-primary px-2.5 py-1 text-xs font-bold outline-none bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-muted block mb-0.5">Thời gian học (Time):</label>
+                          <input
+                            type="text"
+                            value={editThuTime}
+                            onChange={(e) => setEditThuTime(e.target.value)}
+                            placeholder="19h45 – 21h45..."
+                            className="w-full rounded-lg border border-primary px-2.5 py-1 text-xs font-semibold outline-none bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-muted block mb-0.5">Mô tả chi tiết nội dung (Detail):</label>
+                          <textarea
+                            rows={3}
+                            value={editThuDetail}
+                            onChange={(e) => setEditThuDetail(e.target.value)}
+                            placeholder="Mô tả nội dung bài học..."
+                            className="w-full rounded-lg border border-primary p-2 text-xs font-medium outline-none bg-white"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="font-bold text-foreground">{editThuTitle}</div>
+                        <div className="text-[11px] font-medium text-muted mt-0.5 leading-relaxed">{editThuDetail}</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Slot 3: Thứ 7 */}
+                  <div className="p-3 rounded-xl border border-zinc-100 bg-zinc-50/50 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-primary block text-[10px] uppercase">[Thứ 7]</span>
+                      {!isEditingScheduleDetails && (
+                        <span className="text-[10px] font-bold text-muted">{editSatTime}</span>
+                      )}
+                    </div>
+                    {isEditingScheduleDetails ? (
+                      <div className="space-y-2">
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-muted block mb-0.5">Tên ca học (Title):</label>
+                          <input
+                            type="text"
+                            value={editSatTitle}
+                            onChange={(e) => setEditSatTitle(e.target.value)}
+                            placeholder="Làm đề L-R-W tập trung..."
+                            className="w-full rounded-lg border border-primary px-2.5 py-1 text-xs font-bold outline-none bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-muted block mb-0.5">Thời gian học (Time):</label>
+                          <input
+                            type="text"
+                            value={editSatTime}
+                            onChange={(e) => setEditSatTime(e.target.value)}
+                            placeholder="19h – 21h30..."
+                            className="w-full rounded-lg border border-primary px-2.5 py-1 text-xs font-semibold outline-none bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase text-muted block mb-0.5">Mô tả chi tiết nội dung (Detail):</label>
+                          <textarea
+                            rows={3}
+                            value={editSatDetail}
+                            onChange={(e) => setEditSatDetail(e.target.value)}
+                            placeholder="Mô tả nội dung bài học..."
+                            className="w-full rounded-lg border border-primary p-2 text-xs font-medium outline-none bg-white"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="font-bold text-foreground">{editSatTitle}</div>
+                        <div className="text-[11px] font-medium text-muted mt-0.5 leading-relaxed">{editSatDetail}</div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -259,16 +582,41 @@ export default function LopLuyenDeTuanPage() {
                   <h3 className="text-xs font-black uppercase tracking-wider text-foreground">
                     Thông báo chung
                   </h3>
-                  <button
-                    onClick={() => handleCopy(activeWeekInfo.announcement, "Thông báo chung")}
-                    className="text-[10px] font-black uppercase text-primary hover:underline"
-                  >
-                    Copy tin nhắn
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        if (isEditingAnnouncement) {
+                          saveWeekPartial({ announcement: editAnnouncementText });
+                          setIsEditingAnnouncement(false);
+                        } else {
+                          setIsEditingAnnouncement(true);
+                        }
+                      }}
+                      className="text-[10px] font-black uppercase text-primary hover:underline"
+                    >
+                      {isEditingAnnouncement ? "Lưu tin" : "Chỉnh sửa"}
+                    </button>
+                    <span className="text-zinc-300">|</span>
+                    <button
+                      onClick={() => handleCopy(editAnnouncementText || activeWeekInfo.announcement, "Thông báo chung")}
+                      className="text-[10px] font-black uppercase text-primary hover:underline"
+                    >
+                      Copy tin nhắn
+                    </button>
+                  </div>
                 </div>
-                <pre className="text-xs font-semibold text-zinc-600 bg-zinc-50 p-3 rounded-xl overflow-x-auto whitespace-pre-wrap leading-relaxed font-sans max-h-[180px] overflow-y-auto">
-                  {activeWeekInfo.announcement}
-                </pre>
+                {isEditingAnnouncement ? (
+                  <textarea
+                    rows={6}
+                    value={editAnnouncementText}
+                    onChange={(e) => setEditAnnouncementText(e.target.value)}
+                    className="w-full rounded-xl border border-primary p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-primary/10"
+                  />
+                ) : (
+                  <pre className="text-xs font-semibold text-zinc-600 bg-zinc-50 p-3 rounded-xl overflow-x-auto whitespace-pre-wrap leading-relaxed font-sans max-h-[180px] overflow-y-auto">
+                    {editAnnouncementText || activeWeekInfo.announcement}
+                  </pre>
+                )}
               </div>
 
               {/* Individual Student notification message */}
@@ -277,113 +625,101 @@ export default function LopLuyenDeTuanPage() {
                   <h3 className="text-xs font-black uppercase tracking-wider text-foreground">
                     Tin nhắn gửi HV
                   </h3>
-                  <button
-                    onClick={() => handleCopy(activeWeekInfo.templateMessage, "Tin nhắn gửi học viên")}
-                    className="text-[10px] font-black uppercase text-primary hover:underline"
-                  >
-                    Copy tin nhắn
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        if (isEditingTemplateMessage) {
+                          saveWeekPartial({ templateMessage: editTemplateMessageText });
+                          setIsEditingTemplateMessage(false);
+                        } else {
+                          setIsEditingTemplateMessage(true);
+                        }
+                      }}
+                      className="text-[10px] font-black uppercase text-primary hover:underline"
+                    >
+                      {isEditingTemplateMessage ? "Lưu tin" : "Chỉnh sửa"}
+                    </button>
+                    <span className="text-zinc-300">|</span>
+                    <button
+                      onClick={() => handleCopy(editTemplateMessageText || activeWeekInfo.templateMessage, "Tin nhắn gửi học viên")}
+                      className="text-[10px] font-black uppercase text-primary hover:underline"
+                    >
+                      Copy tin nhắn
+                    </button>
+                  </div>
                 </div>
-                <div className="text-xs font-semibold text-zinc-600 bg-zinc-50 p-3 rounded-xl leading-relaxed max-h-[120px] overflow-y-auto">
-                  {activeWeekInfo.templateMessage}
-                </div>
+                {isEditingTemplateMessage ? (
+                  <textarea
+                    rows={4}
+                    value={editTemplateMessageText}
+                    onChange={(e) => setEditTemplateMessageText(e.target.value)}
+                    className="w-full rounded-xl border border-primary p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-primary/10"
+                  />
+                ) : (
+                  <div className="text-xs font-semibold text-zinc-600 bg-zinc-50 p-3 rounded-xl leading-relaxed max-h-[120px] overflow-y-auto">
+                    {editTemplateMessageText || activeWeekInfo.templateMessage}
+                  </div>
+                )}
               </div>
 
             </div>
 
-            {/* Right main student list panel */}
+            {/* Right main registrations panel */}
             <div className="md:col-span-2">
+
+              {/* Student Registrations from practice class system */}
               <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+                <div className="px-5 py-3 border-b border-zinc-100 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xs font-black uppercase tracking-wider text-foreground">Đăng ký lớp luyện đề từ học viên</h3>
+                    <p className="text-[10px] text-zinc-400 mt-0.5">Học viên tự đăng ký qua trang Hỗ Trợ Tự Học. Hiển thị tất cả đăng ký hiện tại trong hệ thống.</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const regs = await fetchPracticeRegistrationsForAca();
+                        setRegistrationsList(regs);
+                      } catch (err) {
+                        console.warn("Refresh failed:", err);
+                      }
+                    }}
+                    className="text-[10px] font-black text-primary hover:underline shrink-0"
+                  >
+                    ↻ Tải lại
+                  </button>
+                </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[1500px] border-collapse text-left text-xs">
+                  <table className="w-full min-w-[700px] border-collapse text-left text-xs">
                     <thead>
                       <tr className="border-b border-zinc-200 bg-zinc-50 text-[10px] font-black uppercase tracking-widest text-muted whitespace-nowrap">
-                        <th className="px-6 py-4 text-center min-w-[70px]">STT</th>
-                        <th className="px-6 py-4 min-w-[180px]">Tên học viên</th>
-                        <th className="px-6 py-4 min-w-[120px]">Số điện thoại</th>
-                        <th className="px-6 py-4 min-w-[240px]">Lớp RLP</th>
-                        <th className="px-6 py-4 min-w-[180px]">Thứ 3 (T3)</th>
-                        <th className="px-6 py-4 min-w-[180px]">Thứ 5 (T5)</th>
-                        <th className="px-6 py-4 min-w-[180px]">Thứ 7 (T7)</th>
-                        <th className="px-6 py-4 text-center min-w-[150px]">Tham gia test LĐ 28</th>
-                        <th className="px-6 py-4 min-w-[200px]">Ghi chú (Note)</th>
-                        <th className="px-6 py-4 text-center min-w-[140px]">Hành động</th>
+                        <th className="px-6 py-3 text-center min-w-[50px]">STT</th>
+                        <th className="px-6 py-3 min-w-[200px]">Tên học viên</th>
+                        <th className="px-6 py-3 min-w-[180px]">Ca đăng ký</th>
+                        <th className="px-6 py-3 min-w-[200px]">Lịch học</th>
+                        <th className="px-6 py-3 min-w-[180px]">Thời gian đăng ký</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-100 font-semibold text-zinc-700">
-                      {filteredStudents.length > 0 ? (
-                        filteredStudents.map((st, idx) => (
-                          <tr key={st.id} className="hover:bg-zinc-50/55 align-middle">
-                            <td className="px-6 py-4 text-center tabular-nums text-zinc-400">{idx + 1}</td>
-                            <td className="px-6 py-4 font-black text-foreground min-w-[180px]">{st.name}</td>
-                            <td className="px-6 py-4 tabular-nums text-zinc-500 min-w-[120px]">{st.phone}</td>
-                            <td className="px-6 py-4 font-medium text-zinc-800 min-w-[240px]">{st.rlp}</td>
-                            {/* T3 Schedule */}
-                            <td className="px-6 py-4 min-w-[180px]">
-                              <span className={`px-2 py-0.5 rounded-lg font-black text-[10px] ${
-                                st.scheduleTue === "Không học" || !st.scheduleTue
-                                  ? "bg-zinc-100 text-zinc-400"
-                                  : "bg-primary/10 text-primary"
-                              }`}>
-                                {st.scheduleTue || (st.scheduleTueSat?.toLowerCase().includes("t3") ? "Ca 1 (19h45-21h45)" : "Không học")}
+                      {filteredRegistrations.length > 0 ? (
+                        filteredRegistrations.map((reg, idx) => (
+                          <tr key={`${reg.studentId}-${reg.slotId}`} className="hover:bg-zinc-50/55 align-middle">
+                            <td className="px-6 py-3.5 text-center tabular-nums text-zinc-400">{idx + 1}</td>
+                            <td className="px-6 py-3.5 font-black text-foreground">{reg.studentName}</td>
+                            <td className="px-6 py-3.5">
+                              <span className="px-2 py-0.5 rounded-lg font-black text-[10px] bg-primary/10 text-primary">
+                                {reg.slotTitle}
                               </span>
                             </td>
-                            {/* T5 Schedule */}
-                            <td className="px-6 py-4 min-w-[180px]">
-                              <span className={`px-2 py-0.5 rounded-lg font-black text-[10px] ${
-                                st.scheduleSun === "Không học" || st.testScheduleSunday === "Không tham gia" || st.testScheduleSunday === "Không có/Chưa chọn"
-                                  ? "bg-zinc-100 text-zinc-400"
-                                  : st.scheduleSun === "Gửi đề vào T5" || st.testScheduleSunday === "Gửi đề vào T5"
-                                  ? "bg-blue-100 text-blue-700"
-                                  : st.scheduleSun === "Đăng ký lịch khác" || st.testScheduleSunday === "Đăng ký lịch khác"
-                                  ? "bg-amber-100 text-amber-700"
-                                  : "bg-success/10 text-success"
-                              }`}>
-                                {st.scheduleSun || st.testScheduleSunday || "Có tham gia"}
-                              </span>
-                            </td>
-                            {/* T7 Schedule */}
-                            <td className="px-6 py-4 min-w-[180px]">
-                              <span className={`px-2 py-0.5 rounded-lg font-black text-[10px] ${
-                                st.scheduleSat === "Không học" || !st.scheduleSat
-                                  ? "bg-zinc-100 text-zinc-400"
-                                  : "bg-primary/10 text-primary"
-                              }`}>
-                                {st.scheduleSat || (st.scheduleTueSat?.toLowerCase().includes("t7") ? "Ca 1 (19h-21h30)" : "Không học")}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-center min-w-[150px]">
-                              {st.participateLd28 ? (
-                                <span className="rounded-full bg-success/15 px-2.5 py-1 text-[9px] font-black uppercase text-success">
-                                  TRUE
-                                </span>
-                              ) : (
-                                <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[9px] font-black uppercase text-zinc-400">
-                                  FALSE
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 text-zinc-500 min-w-[200px] font-medium">{st.note || "-"}</td>
-                            <td className="px-6 py-4 text-center whitespace-nowrap min-w-[140px]">
-                              <button
-                                onClick={() => openEditModal(st)}
-                                className="text-primary hover:text-primary-soft mr-3 font-black"
-                              >
-                                Sửa
-                              </button>
-                              <button
-                                onClick={() => handleDelete(st.id)}
-                                className="text-danger hover:text-red-400 font-black"
-                              >
-                                Xóa
-                              </button>
+                            <td className="px-6 py-3.5 text-zinc-500">{reg.slotSchedule}</td>
+                            <td className="px-6 py-3.5 tabular-nums text-zinc-400 text-[10px]">
+                              {new Date(reg.registeredAt).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
                             </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={9} className="px-6 py-8 text-center text-zinc-400 font-medium">
-                            Không tìm thấy học viên nào trong tuần này.
+                          <td colSpan={5} className="px-6 py-8 text-center text-zinc-400 font-medium">
+                            Chưa có học viên nào đăng ký qua hệ thống.
                           </td>
                         </tr>
                       )}
@@ -391,6 +727,7 @@ export default function LopLuyenDeTuanPage() {
                   </table>
                 </div>
               </div>
+
             </div>
 
           </div>
@@ -398,132 +735,9 @@ export default function LopLuyenDeTuanPage() {
 
       </main>
 
-      {/* CRUD MODAL */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl border border-zinc-200 max-w-lg w-full p-6 shadow-2xl relative overflow-hidden animate-in zoom-in duration-200">
-            <h3 className="text-sm font-black uppercase tracking-widest text-foreground mb-4">
-              {modalMode === "add" ? "Thêm học viên vào lớp LĐ" : "Chỉnh sửa đăng ký lớp LĐ"}
-            </h3>
-            
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs font-semibold">
-              <div>
-                <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Họ và Tên</label>
-                <input
-                  type="text"
-                  required
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  placeholder="Nhập tên học viên..."
-                  className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Số điện thoại</label>
-                  <input
-                    type="text"
-                    value={formPhone}
-                    onChange={(e) => setFormPhone(e.target.value)}
-                    placeholder="SĐT..."
-                    className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Mã lớp RLP</label>
-                  <input
-                    type="text"
-                    value={formRlp}
-                    onChange={(e) => setFormRlp(e.target.value)}
-                    placeholder="RLP..."
-                    className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Lịch học Thứ 3 (T3)</label>
-                  <select
-                    value={formScheduleTue}
-                    onChange={(e) => setFormScheduleTue(e.target.value)}
-                    className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10 bg-white"
-                  >
-                    <option value="Không học">Không học</option>
-                    <option value="Ca 1 (19h45-21h45)">Ca 1 (19h45-21h45)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Lịch học Thứ 5 (T5)</label>
-                  <select
-                    value={formScheduleSun}
-                    onChange={(e) => setFormScheduleSun(e.target.value)}
-                    className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10 bg-white"
-                  >
-                    <option value="Có tham gia">Có tham gia (19h45-21h45)</option>
-                    <option value="Gửi đề vào T5">Gửi đề vào T5</option>
-                    <option value="Đăng ký lịch khác">Đăng ký lịch khác</option>
-                    <option value="Không học">Không học</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Lịch học Thứ 7 (T7)</label>
-                  <select
-                    value={formScheduleSat}
-                    onChange={(e) => setFormScheduleSat(e.target.value)}
-                    className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10 bg-white"
-                  >
-                    <option value="Không học">Không học</option>
-                    <option value="Ca 1 (19h-21h30)">Ca 1 (19h-21h30)</option>
-                  </select>
-                </div>
-                <div className="flex items-center pt-5 pl-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formParticipateLd28}
-                      onChange={(e) => setFormParticipateLd28(e.target.checked)}
-                      className="w-4 h-4 rounded text-primary border-zinc-300 focus:ring-primary"
-                    />
-                    <span className="text-[10px] font-black uppercase text-muted tracking-wider">Tham gia test LĐ 28</span>
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Ghi chú (Note)</label>
-                <input
-                  type="text"
-                  value={formNote}
-                  onChange={(e) => setFormNote(e.target.value)}
-                  placeholder="Ghi chú thêm..."
-                  className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3 border-t border-zinc-100">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="h-10 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 px-5 text-xs font-black uppercase"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="h-10 rounded-xl bg-primary text-white px-5 text-xs font-black uppercase shadow-soft hover:shadow-hover hover:-translate-y-0.5 transition-all"
-                >
-                  Lưu lại
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </AcaLayout>
   );
 }
+
+
+

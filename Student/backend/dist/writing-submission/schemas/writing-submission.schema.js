@@ -26,6 +26,7 @@ let WritingSubmission = class WritingSubmission {
     task1;
     task2;
     note;
+    assignedGrader;
 };
 exports.WritingSubmission = WritingSubmission;
 __decorate([
@@ -80,6 +81,10 @@ __decorate([
     (0, mongoose_1.Prop)({ trim: true, default: '' }),
     __metadata("design:type", String)
 ], WritingSubmission.prototype, "note", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], WritingSubmission.prototype, "assignedGrader", void 0);
 exports.WritingSubmission = WritingSubmission = __decorate([
     (0, mongoose_1.Schema)({ collection: 'writing_submissions', timestamps: true })
 ], WritingSubmission);

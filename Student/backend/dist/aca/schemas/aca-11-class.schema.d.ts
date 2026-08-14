@@ -1,4 +1,4 @@
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Schema as MongooseSchema } from 'mongoose';
 export type Aca11ClassDocument = HydratedDocument<Aca11Class>;
 export declare class Aca11Class {
     status: 'Đang diễn ra' | 'Bảo lưu' | 'Đã kết thúc';
@@ -14,8 +14,11 @@ export declare class Aca11Class {
     zoomLink: string;
     successorLink: string;
     materials: string;
+    scores: Record<string, any>;
+    finalScores: Record<string, any>;
+    cycles: Record<string, any>[];
 }
-export declare const Aca11ClassSchema: import("mongoose").Schema<Aca11Class, import("mongoose").Model<Aca11Class, any, any, any, any, any, Aca11Class>, {}, {}, {}, {}, import("mongoose").DefaultSchemaOptions, Aca11Class, import("mongoose").Document<unknown, {}, Aca11Class, {
+export declare const Aca11ClassSchema: MongooseSchema<Aca11Class, import("mongoose").Model<Aca11Class, any, any, any, any, any, Aca11Class>, {}, {}, {}, {}, import("mongoose").DefaultSchemaOptions, Aca11Class, import("mongoose").Document<unknown, {}, Aca11Class, {
     id: string;
 }, import("mongoose").DefaultSchemaOptions> & Omit<Aca11Class & {
     _id: import("mongoose").Types.ObjectId;
@@ -133,6 +136,33 @@ export declare const Aca11ClassSchema: import("mongoose").Schema<Aca11Class, imp
         id: string;
     }> | undefined;
     materials?: import("mongoose").SchemaDefinitionProperty<string, Aca11Class, import("mongoose").Document<unknown, {}, Aca11Class, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<Aca11Class & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    scores?: import("mongoose").SchemaDefinitionProperty<Record<string, any>, Aca11Class, import("mongoose").Document<unknown, {}, Aca11Class, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<Aca11Class & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    finalScores?: import("mongoose").SchemaDefinitionProperty<Record<string, any>, Aca11Class, import("mongoose").Document<unknown, {}, Aca11Class, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<Aca11Class & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    cycles?: import("mongoose").SchemaDefinitionProperty<Record<string, any>[], Aca11Class, import("mongoose").Document<unknown, {}, Aca11Class, {
         id: string;
     }, import("mongoose").DefaultSchemaOptions> & Omit<Aca11Class & {
         _id: import("mongoose").Types.ObjectId;

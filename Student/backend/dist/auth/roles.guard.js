@@ -31,7 +31,7 @@ let RolesGuard = class RolesGuard {
             throw new common_1.ForbiddenException();
         }
         if (!required.includes(user.role)) {
-            throw new common_1.ForbiddenException('Chỉ tài khoản ACA mới được thực hiện thao tác này');
+            throw new common_1.ForbiddenException(`Chỉ tài khoản ${required.join(' hoặc ')} mới được thực hiện thao tác này`);
         }
         return true;
     }

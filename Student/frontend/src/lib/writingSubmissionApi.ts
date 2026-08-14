@@ -49,6 +49,7 @@ export async function createWritingSubmissionApi(input: {
   task1?: string;
   task2?: string;
   note?: string;
+  assignedGrader?: string;
 }): Promise<WritingSubmission> {
   const response = await apiFetch("/api/student/writing-submissions", {
     method: "POST",
@@ -70,6 +71,7 @@ export async function gradeWritingSubmissionApi(
     task1?: string;
     task2?: string;
     note?: string;
+    assignedGrader?: string;
   },
 ): Promise<WritingSubmission> {
   const response = await apiFetch(`/api/teacher/writing-submissions/${id}/grade`, {

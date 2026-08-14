@@ -1,3 +1,5 @@
+import { apiFetch, getAuthToken, isAuthDisabled } from "@/lib/auth";
+
 export type CoursePhase = { name: string; date: string };
 
 export type CourseMetadata = {
@@ -7,6 +9,8 @@ export type CourseMetadata = {
   zoomPassword: string;
   schedule: string[];
   phases: CoursePhase[];
+  openDate?: string;
+  endDate?: string;
 };
 
 export const DEFAULT_COURSE_METADATA: CourseMetadata = {
@@ -20,8 +24,8 @@ export const DEFAULT_COURSE_METADATA: CourseMetadata = {
     "Thứ 7: 19h45 - 21h30",
   ],
   phases: [
-    { name: "Chặng 1", date: "21/04/2026" },
-    { name: "Chặng 2", date: "11/06/2026 (dự kiến)" },
+    { name: "Chặng 1: Speaking - Reading", date: "09/10/2025" },
+    { name: "Chặng 2: Writing - Listening", date: "30/04/2026" },
   ],
 };
 
@@ -64,16 +68,42 @@ export function saveCourseMetadata(next: CourseMetadata): CourseMetadata {
   if (typeof window !== "undefined") {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     dispatchUpdate();
+    void apiFetch("/api/aca/course-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(next),
+    }).catch((err) => console.warn("Failed to persist course settings to backend", err));
   }
   return next;
 }
 
+export async function fetchCourseMetadataFromApi(): Promise<CourseMetadata> {
+  const response = await apiFetch("/api/aca/course-settings", { method: "GET" });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch class info (${response.status})`);
+  }
+  return response.json();
+}
+
 export function refreshCourseMetadata(): CourseMetadata {
-  cache = loadLocal();
-  dispatchUpdate();
+  void fetchCourseMetadataFromApi()
+    .then((remote) => {
+      if (remote && remote.course) {
+        cache = remote;
+        if (typeof window !== "undefined") {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(remote));
+        }
+        dispatchUpdate();
+      }
+    })
+    .catch(() => {
+      cache = loadLocal();
+      dispatchUpdate();
+    });
   return cache;
 }
 
 if (typeof window !== "undefined") {
   cache = loadLocal();
+  refreshCourseMetadata();
 }

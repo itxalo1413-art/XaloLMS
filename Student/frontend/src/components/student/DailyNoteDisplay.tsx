@@ -27,8 +27,13 @@ export function DailyNoteDisplay({ note, className = "", dateLabel }: Props) {
             <h2 className="text-3xl font-black leading-none tracking-tight text-primary md:text-4xl">
               {note.word}
             </h2>
-            <p className="mt-4 max-w-md text-sm font-medium lowercase leading-relaxed text-muted md:text-base">
-              {note.meaning}
+            <p className="mt-4 max-w-md text-sm leading-relaxed md:text-base">
+              <span className="font-medium lowercase text-muted">{note.meaning}</span>
+              {note.author && (
+                <span className="ml-1.5 text-xs font-bold uppercase tracking-widest text-primary/70">
+                  — {note.author}
+                </span>
+              )}
             </p>
           </div>
           <div className="shrink-0 pt-1 text-[11px] font-black uppercase tracking-[0.2em] text-primary/80">

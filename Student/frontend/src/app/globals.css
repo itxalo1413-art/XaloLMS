@@ -28,6 +28,23 @@
   --animate-bounce-slow: bounce-slow 3s ease-in-out infinite;
 }
 
+/* Smooth Tab & Page Transition Animations */
+@keyframes tabFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tab-page-transition {
+  animation: tabFadeIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
 :root {
   --background: color-mix(in srgb, #fbf5ff 20%, #ffffff 80%);
   --card: #ffffff;

@@ -39,6 +39,12 @@ function overridesFromSlots(
       dayLabel: slot.dayLabel,
       time: slot.time,
       dateNote: slot.dateNote ?? "",
+      title: slot.title ?? "",
+      detail: slot.detail ?? "",
+      platform: slot.platform ?? "Zoom",
+      meetingId: slot.meeting?.meetingId ?? "842 1963 4521",
+      password: slot.meeting?.password ?? "XaloLrw26",
+      joinUrl: slot.meeting?.joinUrl ?? "",
     };
   }
   return out;
@@ -86,6 +92,14 @@ export function PracticeClassScheduleSection() {
         dayLabel: d.dayLabel.trim() || base.dayLabel,
         time: d.time.trim() || base.time,
         dateNote: d.dateNote?.trim() || undefined,
+        title: d.title?.trim() || base.title,
+        detail: d.detail?.trim() || base.detail,
+        platform: d.platform?.trim() || base.platform,
+        meeting: {
+          meetingId: d.meetingId?.trim() || base.meeting.meetingId,
+          password: d.password?.trim() || base.meeting.password,
+          joinUrl: d.joinUrl?.trim() || base.meeting.joinUrl,
+        },
       };
     });
   }, [slotDrafts]);
@@ -133,11 +147,9 @@ export function PracticeClassScheduleSection() {
   return (
     <div className="space-y-8">
       <section className="rounded-2xl border border-primary/15 bg-primary/5 p-5">
-        <h2 className="text-sm font-bold text-foreground">Lịch tuần — Lớp luyện đề tập trung</h2>
+        <h2 className="text-sm font-bold text-foreground">Lịch tuần & Thông tin Zoom/Meet — Lớp luyện đề tập trung</h2>
         <p className="mt-2 text-xs font-medium leading-relaxed text-muted">
-          Ngày và giờ từng buổi (vd. <strong>[Thứ 5] 19h45 – 21h45</strong>) thay đổi{" "}
-          <strong>mỗi tuần</strong>. Sau khi lưu, học viên thấy lịch mới ngay trên trang Hỗ trợ tự
-          học và Thời khoá biểu.
+          Cập nhật ngày, giờ học, <strong>ID phòng Zoom (vd: 842 1963 4521)</strong>, <strong>Mật khẩu Zoom (vd: XaloLrw26)</strong> và nội dung bài học. Sau khi bấm <strong>LƯU LỊCH TUẦN</strong>, học viên sẽ thấy ngay thông tin mới trên trang <strong>Hỗ trợ tự học</strong> và <strong>Thời khoá biểu</strong>.
         </p>
         {!canUsePracticeClassApi() ? (
           <p className="mt-2 text-xs font-bold text-amber-800">
@@ -190,64 +202,116 @@ export function PracticeClassScheduleSection() {
             />
           </section>
 
-          <div className="space-y-4">
+          <div className="space-y-6">
             {PRACTICE_SLOT_IDS.map((id) => {
               const base = defaults.find((s) => s.id === id)!;
               const draft = slotDrafts[id];
               return (
                 <div
                   key={id}
-                  className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm"
+                  className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm space-y-4"
                 >
-                  <div className="mb-4 border-b border-zinc-100 pb-3">
-                    <div className="text-sm font-bold text-zinc-900">{base.title}</div>
-                    <div className="mt-1 text-xs text-zinc-500">
-                      {base.platform} · Thứ cố định trên lịch:{" "}
-                      {base.dayOfWeek === 4
-                        ? "Thứ 5"
-                        : base.dayOfWeek === 2
-                          ? "Thứ 3"
-                          : "Thứ 7"}
+                  <div className="flex flex-wrap items-center justify-between border-b border-zinc-100 pb-3 gap-2">
+                    <div>
+                      <div className="text-sm font-bold text-zinc-900">{draft.title || base.title}</div>
+                      <div className="mt-0.5 text-xs font-semibold text-primary">
+                        {base.dayLabel} ({base.dayOfWeek === 4 ? "Thứ 5" : base.dayOfWeek === 2 ? "Thứ 3" : "Thứ 7"}) · {draft.time || base.time}
+                      </div>
                     </div>
+                    <span className="rounded-lg bg-zinc-100 px-2.5 py-1 text-[10px] font-black uppercase text-zinc-600 border border-zinc-200">
+                      {draft.platform || base.platform}
+                    </span>
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div>
                       <label className="text-[10px] font-bold uppercase text-zinc-500">
-                        Nhãn ngày (vd. CN)
+                        Tiêu đề buổi học
                       </label>
                       <input
                         type="text"
-                        value={draft.dayLabel}
-                        onChange={(e) => updateSlot(id, "dayLabel", e.target.value)}
-                        placeholder={base.dayLabel}
-                        className="mt-2 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm font-bold outline-none focus:border-primary/40"
+                        value={draft.title}
+                        onChange={(e) => updateSlot(id, "title", e.target.value)}
+                        placeholder={base.title}
+                        className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs font-bold outline-none focus:border-primary/40"
                       />
                     </div>
                     <div>
                       <label className="text-[10px] font-bold uppercase text-zinc-500">
-                        Giờ học
+                        Giờ học thực tế
                       </label>
                       <input
                         type="text"
                         value={draft.time}
                         onChange={(e) => updateSlot(id, "time", e.target.value)}
                         placeholder={base.time}
-                        className="mt-2 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm font-bold outline-none focus:border-primary/40"
+                        className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs font-bold outline-none focus:border-primary/40"
                       />
                     </div>
                     <div>
                       <label className="text-[10px] font-bold uppercase text-zinc-500">
-                        Ngày trong tuần (tuỳ chọn)
+                        Nền tảng học (Zoom / Meet)
                       </label>
                       <input
                         type="text"
-                        value={draft.dateNote ?? ""}
-                        onChange={(e) => updateSlot(id, "dateNote", e.target.value)}
-                        placeholder="vd. 18/05"
-                        className="mt-2 w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm font-bold outline-none focus:border-primary/40"
+                        value={draft.platform}
+                        onChange={(e) => updateSlot(id, "platform", e.target.value)}
+                        placeholder={base.platform}
+                        className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs font-bold outline-none focus:border-primary/40"
                       />
                     </div>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-zinc-500">
+                        ID phòng Zoom / Meet
+                      </label>
+                      <input
+                        type="text"
+                        value={draft.meetingId}
+                        onChange={(e) => updateSlot(id, "meetingId", e.target.value)}
+                        placeholder="842 1963 4521"
+                        className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs font-bold text-indigo-900 outline-none focus:border-primary/40"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-zinc-500">
+                        Mật khẩu Zoom / Passcode
+                      </label>
+                      <input
+                        type="text"
+                        value={draft.password}
+                        onChange={(e) => updateSlot(id, "password", e.target.value)}
+                        placeholder="XaloLrw26"
+                        className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs font-bold text-indigo-900 outline-none focus:border-primary/40"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-zinc-500">
+                        Link phòng học trực tiếp (Join URL)
+                      </label>
+                      <input
+                        type="text"
+                        value={draft.joinUrl}
+                        onChange={(e) => updateSlot(id, "joinUrl", e.target.value)}
+                        placeholder="https://zoom.us/j/84219634521?pwd=..."
+                        className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs font-bold outline-none focus:border-primary/40"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold uppercase text-zinc-500">
+                      Chi tiết mô tả lớp học (Mô tả hiển thị cho học viên)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={draft.detail}
+                      onChange={(e) => updateSlot(id, "detail", e.target.value)}
+                      placeholder={base.detail}
+                      className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs font-medium outline-none focus:border-primary/40"
+                    />
                   </div>
                 </div>
               );

@@ -14,6 +14,7 @@ export declare class WritingSubmission {
     task1?: string;
     task2?: string;
     note?: string;
+    assignedGrader?: string;
 }
 export declare const WritingSubmissionSchema: import("mongoose").Schema<WritingSubmission, import("mongoose").Model<WritingSubmission, any, any, any, any, any, WritingSubmission>, {}, {}, {}, {}, import("mongoose").DefaultSchemaOptions, WritingSubmission, import("mongoose").Document<unknown, {}, WritingSubmission, {
     id: string;
@@ -133,6 +134,15 @@ export declare const WritingSubmissionSchema: import("mongoose").Schema<WritingS
         id: string;
     }> | undefined;
     note?: import("mongoose").SchemaDefinitionProperty<string | undefined, WritingSubmission, import("mongoose").Document<unknown, {}, WritingSubmission, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<WritingSubmission & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    assignedGrader?: import("mongoose").SchemaDefinitionProperty<string | undefined, WritingSubmission, import("mongoose").Document<unknown, {}, WritingSubmission, {
         id: string;
     }, import("mongoose").DefaultSchemaOptions> & Omit<WritingSubmission & {
         _id: import("mongoose").Types.ObjectId;

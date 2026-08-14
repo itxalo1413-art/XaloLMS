@@ -116,6 +116,42 @@ let AcaManagementController = class AcaManagementController {
     async deleteFreeSlot(id) {
         return this.service.deleteFreeSlot(id);
     }
+    async getAllTeacherProfiles() {
+        return this.service.findAllTeacherProfiles();
+    }
+    async createTeacherProfile(data) {
+        return this.service.createTeacherProfile(data);
+    }
+    async updateTeacherProfile(id, data) {
+        return this.service.updateTeacherProfile(id, data);
+    }
+    async deleteTeacherProfile(id) {
+        return this.service.deleteTeacherProfile(id);
+    }
+    async getDailyNote() {
+        return this.service.getDailyNote();
+    }
+    async updateDailyNote(data) {
+        return this.service.updateDailyNote(data);
+    }
+    async getAllMockTestRequests() {
+        return this.service.findAllMockTestRequests();
+    }
+    async createMockTestRequest(data) {
+        return this.service.createMockTestRequest(data);
+    }
+    async updateMockTestRequest(id, data) {
+        return this.service.updateMockTestRequest(id, data);
+    }
+    async deleteMockTestRequest(id) {
+        return this.service.deleteMockTestRequest(id);
+    }
+    async getCourseSettings() {
+        return this.service.getCourseSettings();
+    }
+    async updateCourseSettings(data) {
+        return this.service.updateCourseSettings(data);
+    }
 };
 exports.AcaManagementController = AcaManagementController;
 __decorate([
@@ -342,6 +378,88 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], AcaManagementController.prototype, "deleteFreeSlot", null);
+__decorate([
+    (0, common_1.Get)('teacher-profiles'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AcaManagementController.prototype, "getAllTeacherProfiles", null);
+__decorate([
+    (0, common_1.Post)('teacher-profiles'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AcaManagementController.prototype, "createTeacherProfile", null);
+__decorate([
+    (0, common_1.Put)('teacher-profiles/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], AcaManagementController.prototype, "updateTeacherProfile", null);
+__decorate([
+    (0, common_1.Delete)('teacher-profiles/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], AcaManagementController.prototype, "deleteTeacherProfile", null);
+__decorate([
+    (0, common_1.Get)('daily-notes'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AcaManagementController.prototype, "getDailyNote", null);
+__decorate([
+    (0, common_1.Put)('daily-notes'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AcaManagementController.prototype, "updateDailyNote", null);
+__decorate([
+    (0, common_1.Get)('mock-test-requests'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AcaManagementController.prototype, "getAllMockTestRequests", null);
+__decorate([
+    (0, common_1.Post)('mock-test-requests'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AcaManagementController.prototype, "createMockTestRequest", null);
+__decorate([
+    (0, common_1.Put)('mock-test-requests/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], AcaManagementController.prototype, "updateMockTestRequest", null);
+__decorate([
+    (0, common_1.Delete)('mock-test-requests/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], AcaManagementController.prototype, "deleteMockTestRequest", null);
+__decorate([
+    (0, common_1.Get)('course-settings'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AcaManagementController.prototype, "getCourseSettings", null);
+__decorate([
+    (0, common_1.Put)('course-settings'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AcaManagementController.prototype, "updateCourseSettings", null);
 exports.AcaManagementController = AcaManagementController = __decorate([
     (0, common_1.Controller)('aca'),
     __metadata("design:paramtypes", [aca_management_service_1.AcaManagementService])

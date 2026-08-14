@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   HOMEWORK_STATUS_LABEL,
+  calculateGradingDeadline,
   type Attendance,
   type HomeworkStatus,
   type RlpSession,
@@ -21,6 +22,7 @@ const ATTENDANCE_OPTIONS: { value: Attendance; label: string }[] = [
 
 const HOMEWORK_OPTIONS: { value: HomeworkStatus; label: string }[] = [
   { value: "submitted", label: HOMEWORK_STATUS_LABEL.submitted },
+  { value: "submitted_waiting", label: HOMEWORK_STATUS_LABEL.submitted_waiting },
   { value: "in_progress", label: HOMEWORK_STATUS_LABEL.in_progress },
   { value: "overdue", label: HOMEWORK_STATUS_LABEL.overdue },
   { value: "not_assigned", label: HOMEWORK_STATUS_LABEL.not_assigned },
@@ -31,6 +33,7 @@ type Draft = {
   homeworkStatus: HomeworkStatus;
   teacherNote: string;
   lessonFileUrl: string;
+  homeworkFileUrl: string;
 };
 
 function resolveLessonFileToken(url: string) {
@@ -51,6 +54,7 @@ function draftFromRow(row: RlpSession): Draft {
     homeworkStatus: row.homeworkStatus,
     teacherNote: row.teacherNote === "—" ? "" : row.teacherNote,
     lessonFileUrl: row.lessonFileUrl?.trim() ?? "",
+    homeworkFileUrl: row.homeworkFileUrl?.trim() ?? "",
   };
 }
 
@@ -136,6 +140,7 @@ export function RlpEditorSection() {
         homeworkStatus: draft.homeworkStatus,
         teacherNote: draft.teacherNote.trim() || "—",
         lessonFileUrl: draft.lessonFileUrl.trim(),
+        homeworkFileUrl: draft.homeworkFileUrl.trim(),
       }, selectedClassId);
       await sync(selectedClassId);
       setActiveNo(null);
@@ -213,6 +218,8 @@ export function RlpEditorSection() {
                   <th className="px-4 py-3">Homework</th>
                   <th className="px-4 py-3">File bài học</th>
                   <th className="px-4 py-3">Ghi chú GV</th>
+                  <th className="px-4 py-3">Đề bài tập</th>
+                  <th className="px-4 py-3 text-primary">Hạn chấm bài</th>
                   <th className="px-4 py-3 text-right">Thao tác</th>
                 </tr>
               </thead>
@@ -259,6 +266,23 @@ export function RlpEditorSection() {
                     </td>
                     <td className="max-w-[200px] truncate px-4 py-3 text-muted" title={row.teacherNote}>
                       {row.teacherNote}
+                    </td>
+                    <td className="max-w-[140px] truncate px-4 py-3 text-xs text-muted">
+                      {row.homeworkFileUrl?.trim() ? (
+                        <a
+                          href={row.homeworkFileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+                        >
+                          Mở Docs
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="px-4 py-3 font-bold text-primary tabular-nums text-xs whitespace-nowrap">
+                      {calculateGradingDeadline(row.deadline)}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <button
@@ -343,6 +367,21 @@ export function RlpEditorSection() {
                     setDraft((d) => (d ? { ...d, lessonFileUrl: e.target.value } : d))
                   }
                   placeholder="https://drive.google.com/..."
+                  className="mt-1 w-full rounded-xl border border-primary/15 px-3 py-2 text-sm"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted">
+                  Link file bài tập (Google Docs)
+                </span>
+                <input
+                  type="url"
+                  value={draft.homeworkFileUrl}
+                  onChange={(e) =>
+                    setDraft((d) => (d ? { ...d, homeworkFileUrl: e.target.value } : d))
+                  }
+                  placeholder="https://docs.google.com/..."
                   className="mt-1 w-full rounded-xl border border-primary/15 px-3 py-2 text-sm"
                 />
               </label>

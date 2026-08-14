@@ -13,6 +13,7 @@ const auth_guards_module_1 = require("../auth/auth-guards.module");
 const users_module_1 = require("../users/users.module");
 const student_profile_store_schema_1 = require("./schemas/student-profile-store.schema");
 const aca_student_schema_1 = require("../aca/schemas/aca-student.schema");
+const aca_class_schema_1 = require("../aca/schemas/aca-class.schema");
 const student_profile_controller_1 = require("./student-profile.controller");
 const student_profile_service_1 = require("./student-profile.service");
 let StudentProfileModule = class StudentProfileModule {
@@ -24,6 +25,7 @@ exports.StudentProfileModule = StudentProfileModule = __decorate([
             mongoose_1.MongooseModule.forFeature([
                 { name: student_profile_store_schema_1.StudentProfileStore.name, schema: student_profile_store_schema_1.StudentProfileStoreSchema },
                 { name: aca_student_schema_1.AcaStudent.name, schema: aca_student_schema_1.AcaStudentSchema },
+                { name: aca_class_schema_1.AcaClass.name, schema: aca_class_schema_1.AcaClassSchema },
             ]),
             auth_guards_module_1.AuthGuardsModule,
             users_module_1.UsersModule,

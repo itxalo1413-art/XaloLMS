@@ -61,14 +61,15 @@ let PracticeClassService = class PracticeClassService {
             const query = {
                 weekRange: currentWeekRange,
             };
+            const escapedName = user.name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             if (phone) {
                 query.$or = [
                     { phone: phone },
-                    { name: { $regex: new RegExp(`^${user.name.trim()}$`, 'i') } }
+                    { name: { $regex: new RegExp(`^${escapedName}$`, 'i') } }
                 ];
             }
             else {
-                query.name = { $regex: new RegExp(`^${user.name.trim()}$`, 'i') };
+                query.name = { $regex: new RegExp(`^${escapedName}$`, 'i') };
             }
             const practiceStudent = await this.practiceStudentModel.findOne(query).exec();
             if (practiceStudent) {
@@ -92,6 +93,8 @@ let PracticeClassService = class PracticeClassService {
             ...base,
             dayLabel: override.dayLabel?.trim() || base.dayLabel,
             time: override.time?.trim() || base.time,
+            title: override.title?.trim() || base.title,
+            detail: override.detail?.trim() || base.detail,
             ...(dateNote ? { dateNote } : {}),
         };
     }
@@ -117,10 +120,14 @@ let PracticeClassService = class PracticeClassService {
             const raw = payload.slots?.[id];
             const dayLabel = raw?.dayLabel?.trim() || base.dayLabel;
             const time = raw?.time?.trim() || base.time;
+            const title = raw?.title?.trim() || base.title;
+            const detail = raw?.detail?.trim() || base.detail;
             const dateNote = raw?.dateNote?.trim();
             normalized[id] = {
                 dayLabel,
                 time,
+                title,
+                detail,
                 ...(dateNote ? { dateNote } : {}),
             };
         }
@@ -157,25 +164,30 @@ let PracticeClassService = class PracticeClassService {
         if (!(0, practice_class_constants_1.isPracticeSlotId)(slotId)) {
             throw new common_1.BadRequestException('slotId không hợp lệ');
         }
-        const existing = await this.registrationModel
+        let existing = await this.registrationModel
             .findOne({
             userId: new mongoose_2.Types.ObjectId(userId),
             slotId,
         })
             .lean()
             .exec();
-        if (existing) {
-            throw new common_1.ConflictException('Đã đăng ký buổi này');
+        if (!existing) {
+            const created = await this.registrationModel.create({
+                userId: new mongoose_2.Types.ObjectId(userId),
+                slotId,
+            });
+            existing = created.toObject();
         }
-        const created = await this.registrationModel.create({
-            userId: new mongoose_2.Types.ObjectId(userId),
-            slotId,
-        });
-        await this.syncStudentPracticeSchedule(userId);
-        const doc = created.toObject();
+        try {
+            await this.syncStudentPracticeSchedule(userId);
+        }
+        catch (err) {
+            console.warn('Warning during syncStudentPracticeSchedule:', err);
+        }
+        const doc = existing;
         return {
             slotId: doc.slotId,
-            registeredAt: doc.createdAt?.toISOString() ?? new Date().toISOString(),
+            registeredAt: doc.createdAt ? new Date(doc.createdAt).toISOString() : new Date().toISOString(),
         };
     }
     async listAllRegistrationsForAca() {
@@ -187,8 +199,8 @@ let PracticeClassService = class PracticeClassService {
         const names = await this.usersService.findNamesByIds(userIds);
         const slotById = Object.fromEntries(schedule.slots.map((slot) => [slot.id, slot]));
         return rows.map((row) => {
-            const slot = slotById[row.slotId];
             const studentId = row.userId.toString();
+            const slot = slotById[row.slotId];
             return {
                 studentId,
                 studentName: names.get(studentId) ?? studentId,
@@ -207,16 +219,18 @@ let PracticeClassService = class PracticeClassService {
         if (!(0, practice_class_constants_1.isPracticeSlotId)(slotId)) {
             throw new common_1.BadRequestException('slotId không hợp lệ');
         }
-        const result = await this.registrationModel
+        await this.registrationModel
             .deleteOne({
             userId: new mongoose_2.Types.ObjectId(userId),
             slotId,
         })
             .exec();
-        if (result.deletedCount === 0) {
-            throw new common_1.NotFoundException('Chưa đăng ký buổi này');
+        try {
+            await this.syncStudentPracticeSchedule(userId);
         }
-        await this.syncStudentPracticeSchedule(userId);
+        catch (err) {
+            console.warn('Warning during syncStudentPracticeSchedule:', err);
+        }
     }
 };
 exports.PracticeClassService = PracticeClassService;

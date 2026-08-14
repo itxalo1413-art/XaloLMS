@@ -7,4 +7,5 @@ export class CreateWritingSubmissionDto {
   task1?: string;
   task2?: string;
   note?: string;
+  assignedGrader?: string;
 }

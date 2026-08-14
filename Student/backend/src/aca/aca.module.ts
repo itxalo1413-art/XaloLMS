@@ -16,12 +16,21 @@ import { Aca11Class, Aca11ClassSchema } from './schemas/aca-11-class.schema';
 import { AcaWeeklyDoc, AcaWeeklyDocSchema } from './schemas/aca-weekly-doc.schema';
 import { AcaTeacherAssignment, AcaTeacherAssignmentSchema } from './schemas/aca-teacher-assignment.schema';
 import { AcaFreeSlot, AcaFreeSlotSchema } from './schemas/aca-free-slot.schema';
+import { AcaTeacherProfile, AcaTeacherProfileSchema } from './schemas/aca-teacher-profile.schema';
+import { WritingSubmission, WritingSubmissionSchema } from '../writing-submission/schemas/writing-submission.schema';
+import { RlpCourseStore, RlpCourseStoreSchema } from '../rlp/schemas/rlp-course-store.schema';
+import { UsersModule } from '../users/users.module';
 import { AcaManagementService } from './aca-management.service';
 import { AcaManagementController } from './aca-management.controller';
+
+import { DailyNote, DailyNoteSchema } from './schemas/daily-note.schema';
+import { MockTestRequest, MockTestRequestSchema } from './schemas/mock-test-request.schema';
+import { CourseSettings, CourseSettingsSchema } from './schemas/course-settings.schema';
 
 @Module({
   imports: [
     AuthGuardsModule,
+    UsersModule,
     MongooseModule.forFeature([
       { name: Content.name, schema: ContentSchema },
       { name: Category.name, schema: CategorySchema },
@@ -33,6 +42,12 @@ import { AcaManagementController } from './aca-management.controller';
       { name: AcaWeeklyDoc.name, schema: AcaWeeklyDocSchema },
       { name: AcaTeacherAssignment.name, schema: AcaTeacherAssignmentSchema },
       { name: AcaFreeSlot.name, schema: AcaFreeSlotSchema },
+      { name: AcaTeacherProfile.name, schema: AcaTeacherProfileSchema },
+      { name: WritingSubmission.name, schema: WritingSubmissionSchema },
+      { name: RlpCourseStore.name, schema: RlpCourseStoreSchema },
+      { name: DailyNote.name, schema: DailyNoteSchema },
+      { name: MockTestRequest.name, schema: MockTestRequestSchema },
+      { name: CourseSettings.name, schema: CourseSettingsSchema },
     ]),
   ],
   controllers: [

@@ -20,6 +20,8 @@ const practice_class_module_1 = require("./practice-class/practice-class.module"
 const student_profile_module_1 = require("./student-profile/student-profile.module");
 const users_module_1 = require("./users/users.module");
 const rlp_module_1 = require("./rlp/rlp.module");
+const practice_rlp_module_1 = require("./practice-rlp/practice-rlp.module");
+const teacher_module_1 = require("./teacher/teacher.module");
 const writing_submission_module_1 = require("./writing-submission/writing-submission.module");
 let AppModule = class AppModule {
 };
@@ -38,6 +40,8 @@ exports.AppModule = AppModule = __decorate([
             mock_test_module_1.MockTestModule,
             writing_submission_module_1.WritingSubmissionModule,
             rlp_module_1.RlpModule,
+            practice_rlp_module_1.PracticeRlpModule,
+            teacher_module_1.TeacherModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

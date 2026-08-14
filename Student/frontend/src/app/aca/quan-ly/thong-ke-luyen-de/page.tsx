@@ -6,6 +6,8 @@ import { AcaTopbar } from "@/components/aca/AcaTopbar";
 import { 
   fetchAcaPracticeWeeks,
   fetchAcaPracticeStudents,
+  findCurrentOrLatestPracticeWeekRange,
+  sortAcaPracticeWeeksDescending,
   AcaPracticeWeek,
   AcaPracticeStudent
 } from "@/lib/acaManagementApi";
@@ -23,10 +25,11 @@ export default function ThongKeLuyenDePage() {
           fetchAcaPracticeWeeks(),
           fetchAcaPracticeStudents(),
         ]);
-        setWeeksList(wData);
+        const sortedWeeks = sortAcaPracticeWeeksDescending(wData);
+        setWeeksList(sortedWeeks);
         setStudentsList(sData);
-        if (wData.length > 0) {
-          const defaultWeek = wData[2]?.weekRange || wData[0]?.weekRange || "";
+        if (sortedWeeks.length > 0) {
+          const defaultWeek = findCurrentOrLatestPracticeWeekRange(sortedWeeks);
           setSelectedWeekRange(defaultWeek);
         }
       } catch (err) {

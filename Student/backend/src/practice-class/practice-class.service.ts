@@ -105,13 +105,14 @@ export class PracticeClassService {
       const query: any = {
         weekRange: currentWeekRange,
       };
+      const escapedName = user.name.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       if (phone) {
         query.$or = [
           { phone: phone },
-          { name: { $regex: new RegExp(`^${user.name.trim()}$`, 'i') } }
+          { name: { $regex: new RegExp(`^${escapedName}$`, 'i') } }
         ];
       } else {
-        query.name = { $regex: new RegExp(`^${user.name.trim()}$`, 'i') };
+        query.name = { $regex: new RegExp(`^${escapedName}$`, 'i') };
       }
 
       const practiceStudent = await this.practiceStudentModel.findOne(query).exec();
@@ -140,6 +141,8 @@ export class PracticeClassService {
       ...base,
       dayLabel: override.dayLabel?.trim() || base.dayLabel,
       time: override.time?.trim() || base.time,
+      title: override.title?.trim() || base.title,
+      detail: override.detail?.trim() || base.detail,
       ...(dateNote ? { dateNote } : {}),
     };
   }
@@ -176,10 +179,14 @@ export class PracticeClassService {
       const raw = payload.slots?.[id];
       const dayLabel = raw?.dayLabel?.trim() || base.dayLabel;
       const time = raw?.time?.trim() || base.time;
+      const title = raw?.title?.trim() || base.title;
+      const detail = raw?.detail?.trim() || base.detail;
       const dateNote = raw?.dateNote?.trim();
       normalized[id] = {
         dayLabel,
         time,
+        title,
+        detail,
         ...(dateNote ? { dateNote } : {}),
       };
     }
@@ -230,27 +237,29 @@ export class PracticeClassService {
     if (!isPracticeSlotId(slotId)) {
       throw new BadRequestException('slotId không hợp lệ');
     }
-    const existing = await this.registrationModel
+    let existing = await this.registrationModel
       .findOne({
         userId: new Types.ObjectId(userId),
         slotId,
       })
       .lean()
       .exec();
-    if (existing) {
-      throw new ConflictException('Đã đăng ký buổi này');
+    if (!existing) {
+      const created = await this.registrationModel.create({
+        userId: new Types.ObjectId(userId),
+        slotId,
+      });
+      existing = created.toObject();
     }
-    const created = await this.registrationModel.create({
-      userId: new Types.ObjectId(userId),
-      slotId,
-    });
-    await this.syncStudentPracticeSchedule(userId);
-    const doc = created.toObject() as PracticeClassRegistration & {
-      createdAt?: Date;
-    };
+    try {
+      await this.syncStudentPracticeSchedule(userId);
+    } catch (err) {
+      console.warn('Warning during syncStudentPracticeSchedule:', err);
+    }
+    const doc = existing as PracticeClassRegistration & { createdAt?: Date };
     return {
       slotId: doc.slotId as PracticeSlotId,
-      registeredAt: doc.createdAt?.toISOString() ?? new Date().toISOString(),
+      registeredAt: doc.createdAt ? new Date(doc.createdAt).toISOString() : new Date().toISOString(),
     };
   }
 
@@ -264,8 +273,8 @@ export class PracticeClassService {
     const slotById = Object.fromEntries(schedule.slots.map((slot) => [slot.id, slot]));
 
     return rows.map((row) => {
-      const slot = slotById[row.slotId as PracticeSlotId];
       const studentId = row.userId.toString();
+      const slot = slotById[row.slotId as PracticeSlotId];
       return {
         studentId,
         studentName: names.get(studentId) ?? studentId,
@@ -286,15 +295,16 @@ export class PracticeClassService {
     if (!isPracticeSlotId(slotId)) {
       throw new BadRequestException('slotId không hợp lệ');
     }
-    const result = await this.registrationModel
+    await this.registrationModel
       .deleteOne({
         userId: new Types.ObjectId(userId),
         slotId,
       })
       .exec();
-    if (result.deletedCount === 0) {
-      throw new NotFoundException('Chưa đăng ký buổi này');
+    try {
+      await this.syncStudentPracticeSchedule(userId);
+    } catch (err) {
+      console.warn('Warning during syncStudentPracticeSchedule:', err);
     }
-    await this.syncStudentPracticeSchedule(userId);
   }
 }

@@ -19,6 +19,7 @@ import {
   type StudentProfile,
 } from './student-profile.types';
 import { AcaStudent, AcaStudentDocument } from '../aca/schemas/aca-student.schema';
+import { AcaClass, AcaClassDocument } from '../aca/schemas/aca-class.schema';
 
 const STUDY_FIELDS: StudySelectionField[] = [
   'method',
@@ -38,6 +39,8 @@ export class StudentProfileService {
     private readonly store: Model<StudentProfileStoreDocument>,
     @InjectModel(AcaStudent.name)
     private readonly acaStudentModel: Model<AcaStudentDocument>,
+    @InjectModel(AcaClass.name)
+    private readonly acaClassModel: Model<AcaClassDocument>,
     private readonly users: UsersService,
     private readonly cloudinary: CloudinaryService,
   ) {}
@@ -201,6 +204,105 @@ export class StudentProfileService {
         speaking: student.finalScores?.s !== undefined && student.finalScores?.s !== '-' ? Number(student.finalScores.s) : 0,
         overall: student.finalScores?.o !== undefined && student.finalScores?.o !== '-' ? Number(student.finalScores.o) : 0,
       }
+    };
+  }
+
+  async getClassInfoForStudent(email: string) {
+    const defaultInfo = {
+      course: 'Offline Momentum',
+      instructor: 'Nghiêm Doãn Quỳnh Châu',
+      room: 'Phòng 3.1',
+      zoomPassword: '—',
+      schedule: [
+        'Thứ 3: 19h45 - 21h30',
+        'Thứ 5: 19h45 - 21h30',
+        'Thứ 7: 19h45 - 21h30',
+      ],
+      phases: [
+        { name: 'Chặng 1: Speaking - Reading', date: '09/10/2025' },
+        { name: 'Chặng 2: Writing - Listening', date: '30/04/2026' },
+      ],
+      openDate: '09/10/2025',
+      endDate: '27/05/2026',
+    };
+
+    if (!email) return defaultInfo;
+
+    const student = await this.acaStudentModel
+      .findOne({ email: email.trim().toLowerCase() })
+      .lean()
+      .exec();
+
+    if (!student) {
+      return defaultInfo;
+    }
+
+    let cls: AcaClass | null = null;
+    if (student.classId && Types.ObjectId.isValid(student.classId)) {
+      cls = await this.acaClassModel.findById(student.classId).lean().exec();
+    }
+    if (!cls && (student.l1 || student.l2 || student.l3)) {
+      const code = (student.l1 || student.l2 || student.l3 || '').trim();
+      const codeBase = code.replace(/-\d+$/i, '');
+      if (codeBase) {
+        cls = await this.acaClassModel
+          .findOne({
+            $or: [
+              { classCode: new RegExp(`^${codeBase}$`, 'i') },
+              { name: new RegExp(codeBase, 'i') },
+            ],
+          })
+          .lean()
+          .exec();
+      }
+    }
+
+    const phases: { name: string; date: string }[] = [];
+    if (cls) {
+      if (cls.currentPhase || cls.phaseStartDate || cls.openDate) {
+        phases.push({
+          name: cls.currentPhase || 'Chặng 1: Speaking - Reading',
+          date: cls.phaseStartDate || cls.openDate || '09/10/2025',
+        });
+      }
+      if (cls.nextPhase || cls.nextPhaseStartDate) {
+        phases.push({
+          name: cls.nextPhase || 'Chặng 2: Writing - Listening',
+          date: cls.nextPhaseStartDate || '30/04/2026',
+        });
+      }
+    }
+
+    if (phases.length === 0) {
+      phases.push(
+        { name: 'Chặng 1: Speaking - Reading', date: cls?.openDate || '09/10/2025' },
+        { name: 'Chặng 2: Writing - Listening', date: '30/04/2026' },
+      );
+    }
+
+    const className = cls?.name || cls?.classCode || '';
+    const is357 = className.includes('357');
+    const classSchedule = is357
+      ? [
+          'Thứ 3: 19h45 - 21h30',
+          'Thứ 5: 19h45 - 21h30',
+          'Thứ 7: 19h45 - 21h30',
+        ]
+      : [
+          'Thứ 2: 19h45 - 21h30',
+          'Thứ 4: 19h45 - 21h30',
+          'Thứ 6: 19h45 - 21h30',
+        ];
+
+    return {
+      course: cls?.name || 'Offline Momentum',
+      instructor: cls?.teacher || 'Nghiêm Doãn Quỳnh Châu',
+      room: 'Phòng 3.1',
+      zoomPassword: '—',
+      schedule: classSchedule,
+      phases,
+      openDate: cls?.openDate || '09/10/2025',
+      endDate: cls?.endDate || '27/05/2026',
     };
   }
 }

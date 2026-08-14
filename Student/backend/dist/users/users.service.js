@@ -65,6 +65,7 @@ let UsersService = class UsersService {
             .exec();
         await this.ensureSeedAca();
         await this.ensureSeedStudent();
+        await this.ensureSeedTeachers();
     }
     normalizeEmail(email) {
         return email.trim().toLowerCase();
@@ -76,23 +77,62 @@ let UsersService = class UsersService {
             name: doc.name,
             role: doc.role,
             status: doc.status ?? 'ACTIVE',
+            phone: doc.phone ?? '',
+            title: doc.title ?? '',
             createdAt: doc.createdAt?.toISOString() ?? new Date(0).toISOString(),
         };
     }
+    async getProfileByUserId(userId) {
+        if (!mongoose_2.Types.ObjectId.isValid(userId)) {
+            throw new common_1.NotFoundException('User not found');
+        }
+        const doc = await this.userModel.findById(userId).lean().exec();
+        if (!doc) {
+            throw new common_1.NotFoundException('User not found');
+        }
+        return this.toPublic(doc);
+    }
+    async updateProfileByUserId(userId, payload) {
+        if (!mongoose_2.Types.ObjectId.isValid(userId)) {
+            throw new common_1.NotFoundException('User not found');
+        }
+        const updateData = {};
+        if (payload.name !== undefined)
+            updateData.name = payload.name.trim();
+        if (payload.phone !== undefined)
+            updateData.phone = payload.phone.trim();
+        if (payload.title !== undefined)
+            updateData.title = payload.title.trim();
+        const doc = await this.userModel
+            .findByIdAndUpdate(userId, { $set: updateData }, { new: true })
+            .lean()
+            .exec();
+        if (!doc) {
+            throw new common_1.NotFoundException('User not found');
+        }
+        return this.toPublic(doc);
+    }
     async ensureSeedAca() {
-        const email = this.normalizeEmail(process.env.ACA_SEED_EMAIL ?? 'aca@xalo.internal');
-        const existing = await this.userModel.findOne({ email }).exec();
-        if (existing)
-            return;
-        const password = process.env.ACA_SEED_PASSWORD ?? 'ChangeMe_Aca1!';
-        const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-        await this.userModel.create({
-            email,
-            name: process.env.ACA_SEED_NAME ?? 'Quản trị ACA',
-            role: 'ACA',
-            status: 'ACTIVE',
-            passwordHash,
-        });
+        const acaAccounts = [
+            { name: "Bộ phận Học vụ (ACA 1)", email: "aca_1@gmail.com" },
+            { name: "Bộ phận Học vụ (ACA 2)", email: "aca_2@gmail.com" },
+            { name: "Quản lý Học vụ", email: "aca@xaloenglish.vn" },
+            { name: "Học vụ Hệ thống", email: "aca@xalo.internal" },
+        ];
+        const passwordHash = await bcrypt.hash("test@123!", SALT_ROUNDS);
+        for (const a of acaAccounts) {
+            const email = this.normalizeEmail(a.email);
+            const existing = await this.userModel.findOne({ email }).exec();
+            if (!existing) {
+                await this.userModel.create({
+                    email,
+                    name: a.name,
+                    role: "ACA",
+                    status: "ACTIVE",
+                    passwordHash,
+                });
+            }
+        }
     }
     async ensureSeedStudent() {
         const email = this.normalizeEmail(process.env.STUDENT_SEED_EMAIL ?? 'nguyenduong939705@gmail.com');
@@ -108,6 +148,30 @@ let UsersService = class UsersService {
             status: 'ACTIVE',
             passwordHash,
         });
+    }
+    async ensureSeedTeachers() {
+        const defaultTeachers = [
+            { name: 'Lê Nguyễn Khánh Thi', email: 'khanhthi.le@xalo.edu.vn' },
+            { name: 'Lê Thị Diệu Linh', email: 'dieulinh.le@xalo.edu.vn' },
+            { name: 'Nghiêm Doãn Quỳnh Châu', email: 'quynhchau.nghiem@xalo.edu.vn' },
+            { name: 'Lê Minh Trang', email: 'minhtrang.le@xalo.edu.vn' },
+            { name: 'Phạm Hoàng An', email: 'hoangan.pham@xalo.edu.vn' },
+            { name: 'Trần Thu Lan', email: 'thulan.tran@xalo.edu.vn' },
+        ];
+        const defaultPasswordHash = await bcrypt.hash('Teacher@123!', SALT_ROUNDS);
+        for (const t of defaultTeachers) {
+            const email = this.normalizeEmail(t.email);
+            const existing = await this.userModel.findOne({ email }).exec();
+            if (!existing) {
+                await this.userModel.create({
+                    email,
+                    name: t.name,
+                    role: 'GV',
+                    status: 'ACTIVE',
+                    passwordHash: defaultPasswordHash,
+                });
+            }
+        }
     }
     async findByEmail(email) {
         return this.userModel.findOne({ email: this.normalizeEmail(email) }).exec();

@@ -15,7 +15,7 @@ import { WritingSubmissionService } from './writing-submission.service';
 
 @Controller('teacher/writing-submissions')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ACA')
+@Roles('GV', 'ACA')
 export class TeacherWritingSubmissionController {
   constructor(private readonly writing: WritingSubmissionService) {}
 

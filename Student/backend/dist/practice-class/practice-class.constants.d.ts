@@ -4,6 +4,8 @@ export type PracticeSlotId = (typeof PRACTICE_SLOT_IDS)[number];
 export type PracticeSlotOverride = {
     dayLabel: string;
     time: string;
+    title?: string;
+    detail?: string;
     dateNote?: string;
 };
 export type PracticeSlotDefinition = {

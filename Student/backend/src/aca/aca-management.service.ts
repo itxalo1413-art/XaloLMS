@@ -1,6 +1,8 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import * as fs from 'fs';
+import * as path from 'path';
 import { AcaClass, AcaClassDocument } from './schemas/aca-class.schema';
 import { AcaStudent, AcaStudentDocument } from './schemas/aca-student.schema';
 import { AcaPracticeWeek, AcaPracticeWeekDocument } from './schemas/aca-practice-week.schema';
@@ -9,10 +11,18 @@ import { Aca11Class, Aca11ClassDocument } from './schemas/aca-11-class.schema';
 import { AcaWeeklyDoc, AcaWeeklyDocDocument } from './schemas/aca-weekly-doc.schema';
 import { AcaTeacherAssignment, AcaTeacherAssignmentDocument } from './schemas/aca-teacher-assignment.schema';
 import { AcaFreeSlot, AcaFreeSlotDocument } from './schemas/aca-free-slot.schema';
+import { AcaTeacherProfile, AcaTeacherProfileDocument } from './schemas/aca-teacher-profile.schema';
+import { WritingSubmission, WritingSubmissionDocument } from '../writing-submission/schemas/writing-submission.schema';
+import { RlpCourseStore, RlpCourseStoreDocument } from '../rlp/schemas/rlp-course-store.schema';
+import { UsersService } from '../users/users.service';
+
+import { DailyNote, DailyNoteDocument } from './schemas/daily-note.schema';
+import { MockTestRequest, MockTestRequestDocument } from './schemas/mock-test-request.schema';
+import { CourseSettings, CourseSettingsDocument } from './schemas/course-settings.schema';
 
 function normalizeClassification(cls: string): string {
   const c = (cls || '').trim().toLowerCase();
-  if (c.includes('combo')) return 'Combo';
+  if (c.includes('combo') || c.includes('-') || c.includes('_') || c.includes('2') || c.includes('premium')) return 'Combo';
   if (c.includes('học lại') || c.includes('hoc lai')) return 'Học lại';
   if (c.includes('chuyển lớp') || c.includes('chuyen lop')) return 'Chuyển lớp';
   return 'Lớp lẻ mới';
@@ -29,6 +39,13 @@ export class AcaManagementService implements OnModuleInit {
     @InjectModel(AcaWeeklyDoc.name) private readonly weeklyDocModel: Model<AcaWeeklyDocDocument>,
     @InjectModel(AcaTeacherAssignment.name) private readonly teacherAssignmentModel: Model<AcaTeacherAssignmentDocument>,
     @InjectModel(AcaFreeSlot.name) private readonly freeSlotModel: Model<AcaFreeSlotDocument>,
+    @InjectModel(AcaTeacherProfile.name) private readonly teacherProfileModel: Model<AcaTeacherProfileDocument>,
+    @InjectModel(WritingSubmission.name) private readonly writingSubmissionModel: Model<WritingSubmissionDocument>,
+    @InjectModel(RlpCourseStore.name) private readonly rlpCourseStoreModel: Model<RlpCourseStoreDocument>,
+    @InjectModel(DailyNote.name) private readonly dailyNoteModel: Model<DailyNoteDocument>,
+    @InjectModel(MockTestRequest.name) private readonly mockTestRequestModel: Model<MockTestRequestDocument>,
+    @InjectModel(CourseSettings.name) private readonly courseSettingsModel: Model<CourseSettingsDocument>,
+    private readonly usersService: UsersService,
   ) {}
 
   async onModuleInit() {
@@ -36,12 +53,10 @@ export class AcaManagementService implements OnModuleInit {
   }
 
   private async seedInitialData() {
-    // Unconditionally clear and re-seed classes & students to apply new class codes
-    await this.classModel.deleteMany({});
-    await this.studentModel.deleteMany({});
-
-    // Seed Monthly Classes
-    const initialClasses = [
+    // Seed Monthly Classes if DB is empty
+    const classCount = await this.classModel.countDocuments().exec();
+    if (classCount === 0) {
+      const initialClasses = [
       // Month 5
       { classCode: "U246C2.2", name: "XLE RLP_Upstream - 246 - C2 - GV Thái Đỗ Đăng Khoa", month: 5, type: "Lớp đang diễn ra", openDate: "17/09/2024", teacher: "Đăng Khoa", currentPhase: "S-R", phaseStartDate: "18/05/2026", phaseStudents: 7, nextPhaseStartDate: "29/06/2026", nextPhase: "W-L", slotsToEnroll: 5 },
       { classCode: "U246C2.1", name: "XLE RLP_Upstream - 246 - C2 - GV Tất Duy Khải", month: 5, type: "Lớp đang diễn ra", openDate: "10/02/2025", teacher: "Duy Khải", currentPhase: "S-R", phaseStartDate: "15/05/2026", phaseStudents: 4, nextPhaseStartDate: "26/06/2026", nextPhase: "W-L", slotsToEnroll: 8 },
@@ -75,6 +90,7 @@ export class AcaManagementService implements OnModuleInit {
       { classCode: "F357C2_180626", name: "XLE RLP_Foundation - 357 - C2 - GV Đăng Duy", month: 6, type: "Lớp mới", openDate: "18/06/2026", teacher: "Đăng Duy", currentPhase: "-", phaseStartDate: "-", phaseStudents: 0, nextPhaseStartDate: "18/06/2026", nextPhase: "-", slotsToEnroll: 10 }
     ];
     await this.classModel.insertMany(initialClasses);
+    }
 
     // Seed Students
     const studentCount = await this.studentModel.countDocuments().exec();
@@ -85,57 +101,142 @@ export class AcaManagementService implements OnModuleInit {
         return seededClasses.find(c => c.name.startsWith(name) && (month === undefined || c.month === month))?._id.toString() || 'cls_placeholder';
       };
 
-      const initialStudents = [
-        // Month 5
-        { name: "Nguyễn Thị Ngọc Hân", phone: "0775399613", email: "ngochan279a@gmail.com", classification: "Học viên cũ học lại", scores: { l: 6.0, r: 6.0, w: 5.5, s: 4.5, o: 5.5 }, bcbLink: "https://docs.google.com/spreadsheets/d/1pkBwIMZI3nVaZjHpMbK-PLztc5jgs8G3hxlKVOcffNA/edit", note: "", classId: findClassIdByName("XLE RLP_Upstream - 246 - C2 - GV Thái Đỗ Đăng Khoa", 5), stt: 1 },
-        { name: "Trần Tuệ Linh", phone: "352796806", email: "alexandradiamond009@gmail.com", classification: "Học viên combo học tiếp", scores: { l: 5.5, r: 5.5, w: 5.5, s: 4.5, o: 5.5 }, bcbLink: "https://docs.google.com/spreadsheets/d/14ISNNxxfyJqMF4wiV71Am-hLzQUtyoAgxBOMPvdexR0/edit?usp=sharing", note: "", classId: findClassIdByName("XLE RLP_Upstream - 246 - C2 - GV Thái Đỗ Đăng Khoa", 5), stt: 2 },
-        { name: "Phạm Lê Thảo Nhi", phone: "848142696", email: "missthaonhi2003@gmail.com", classification: "Học viên lớp C 19/1 tái đóng", scores: { l: 5.0, r: 5.5, w: 5.5, s: 4.5, o: 5.0 }, bcbLink: "https://docs.google.com/spreadsheets/d/1RqeuqpdTHVcv8RuE_D6Fu5l64mZZnyvU7EfC11zJHu0/edit?usp=sharing", note: "", classId: findClassIdByName("XLE RLP_Upstream - 246 - C2 - GV Thái Đỗ Đăng Khoa", 5), stt: 3 },
-        { name: "Cao Thanh Lâm", phone: "365756145", email: "thanhlamcao210@gmail.com", classification: "Học viên lớp C 14/10", scores: { l: 5.0, r: 5.0, w: 1.0, s: 4.0, o: "4.0/4.5" }, bcbLink: "https://docs.google.com/spreadsheets/d/1hNKxO28r4lt3H0lRko16rEZl4go4RxrWthztXE0ZaHM/edit", note: "", classId: findClassIdByName("XLE RLP_Upstream - 246 - C2 - GV Thái Đỗ Đăng Khoa", 5), stt: 4 },
+      const jsonPath = path.join(process.cwd(), 'src/aca/mapped_students.json');
+      let rawData: { name: string; combo: string; l1: string; f1: string; l2: string }[] = [];
+      try {
+        if (fs.existsSync(jsonPath)) {
+          rawData = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+        }
+      } catch (err) {
+        console.error('Failed to read mapped_students.json', err);
+      }
+
+      const initialStudents = rawData.map((d, index) => {
+        const phone = index % 2 === 0 ? `0939${100000 + index}` : `0775${100000 + index}`;
+        const email = `${d.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]/g, '')}@xalo.local`;
         
-        // Month 6
-        { name: "Vũ Thị Thùy", phone: "976664376", email: "tvt8489@gmail.com", classification: "Học viên cũ học lại", scores: { l: 5.5, r: 5.5, w: 6.5, s: 5.0, o: 5.5 }, bcbLink: "https://docs.google.com/spreadsheets/d/1dlzuLPaixPm1XttFwCvvn13-va2xjYvXXJajiiz3qgA/edit?usp=sharing", note: "", classId: findClassIdByName("XLE RLP_Upstream - 246 - C1 - GV Tất Duy Khải", 6), stt: 1 },
-        { name: "Lê Phạm Huyền My", phone: "837725134", email: "phammy08029@gmail.com", classification: "Học viên combo học tiếp", scores: { l: "-", r: "-", w: 5.0, s: 4.0, o: "-" }, bcbLink: "https://drive.google.com/open?id=1FSvfkBbsQQNNPzxeGRJuuqW8dPiCdLMCVEKA9Jb6URs", note: "11/6 mới làm final L-R", classId: findClassIdByName("XLE RLP_Upstream - 246 - C1 - GV Tất Duy Khải", 6), stt: 2 },
-        { name: "Hồ Thị Thu", phone: "0344398257", email: "hothu736@gmail.com", classification: "Học viên combo học tiếp", scores: { l: 5.5, r: 6.5, w: 5.0, s: 4.5, o: 5.5 }, bcbLink: "https://docs.google.com/spreadsheets/d/1GZMK7RiadZKl6Ki6nC56-rvQ4Hx_X-uVFrEXYI6cwiI/edit?gid=1425079543#gid=1425079543", note: "", classId: findClassIdByName("XLE RLP_Upstream - 246 - C1 - GV Tất Duy Khải", 6), stt: 3 },
-        { name: "Dương Quang Đức Minh", phone: "336863109", email: "fbchinhcuaminh@gmail.com", classification: "Học viên combo học tiếp", scores: { l: 5.5, r: 6.0, w: 4.5, s: 3.5, o: 5.0 }, bcbLink: "https://drive.google.com/open?id=1oN1n1kQHecgpHgcBpO3ZQzF2zBMOkS4APseEGGWsWEo", note: "", classId: findClassIdByName("XLE RLP_Upstream - 246 - C1 - GV Tất Duy Khải", 6), stt: 4 },
-        { name: "Phạm Hà Linh", phone: "-", email: "-", classification: "Học viên C 1/4", scores: { l: "-", r: "-", w: "-", s: "-", o: "-" }, bcbLink: "", note: "", classId: findClassIdByName("XLE RLP_Upstream - 246 - C2 - GV Tất Duy Khải", 6), stt: 1 },
-        { name: "Vũ Trúc Linh", phone: "-", email: "-", classification: "Học viên C 1/4", scores: { l: "-", r: "-", w: "-", s: "-", o: "-" }, bcbLink: "", note: "", classId: findClassIdByName("XLE RLP_Upstream - 246 - C2 - GV Tất Duy Khải", 6), stt: 2 },
-        { name: "Bùi Minh Đăng", phone: "567255266", email: "buiminhdang261@gmail.com", classification: "Học viên mới", scores: { l: "-", r: "-", w: "-", s: "-", o: "-" }, bcbLink: "", note: "", classId: findClassIdByName("XLE RLP_Upstream - 246 - C2 - GV Thái Đỗ Đăng Khoa", 6), stt: 1 },
-        { name: "Lê Phương Hà", phone: "0848992009", email: "lephuongha209@gmail.com", classification: "Học viên mới", scores: { l: "-", r: "-", w: "-", s: "-", o: "-" }, bcbLink: "", note: "", classId: findClassIdByName("XLE RLP_Upstream - 246 - C2 - GV Thái Đỗ Đăng Khoa", 6), stt: 2 },
-        { name: "Trần Võ Mai Hương", phone: "0832150576", email: "maihuongtran1209@gmail.com", classification: "Học bổng Hè 20%", scores: { l: 5.5, r: 5.5, w: 2.5, s: 4.5, o: 4.5 }, bcbLink: "Trần Võ Mai Hương", note: "Học bổng Hè 20%", classId: findClassIdByName("XLE RLP_Momentum - 246 - C2 - GV Lê Như Hải", 6), stt: 1 },
-        { name: "Trần Thanh Vũ", phone: "0816866472", email: "tranthanhvudeptrai369@gmail.com", classification: "Học viên mới", scores: { l: 3.0, r: 3.5, w: 2.5, s: 4.0, o: 3.5 }, bcbLink: "", note: "Trần Thanh Vũ", classId: findClassIdByName("XLE RLP_PRE CORE - 246 - 18002000 - GV Minh Tâm", 6), stt: 1 },
-        { name: "Dương Ngọc Khôi Nguyên", phone: "0939705937", email: "student.demo@xalo.local", classification: "Học viên mới", scores: { l: "-", r: "-", w: "-", s: "-", o: "-" }, bcbLink: "", note: "Tài khoản demo", classId: findClassIdByName("XLE RLP_Upstream - 246 - C2 - GV Thái Đỗ Đăng Khoa", 6), stt: 3 },
-        { name: "Dương Ngọc Khôi Nguyên", phone: "0939705937", email: "nguyenduong939705@gmail.com", classification: "Học viên mới", scores: { l: "-", r: "-", w: "-", s: "-", o: "-" }, bcbLink: "", note: "Tài khoản chính", classId: findClassIdByName("XLE RLP_Upstream - 246 - C2 - GV Thái Đỗ Đăng Khoa", 6), stt: 4 }
-      ];
+        const normalized = d.combo.toUpperCase();
+        let classTarget = "";
+        if (normalized.includes("U-S") || normalized.includes("U_S") || normalized.includes("US")) {
+          const choices = [
+            "XLE RLP_Upstream - S/S - C1 - GV Nghiêm Doãn Quỳnh Châu",
+            "XLE RLP_Upstream - 246 - C2 - GV Thái Đỗ Đăng Khoa",
+            "XLE RLP_Soar - S/S - C1 - GV Nguyễn Lưu Minh Tâm"
+          ];
+          classTarget = choices[index % choices.length];
+        } else if (normalized.includes("M-A") || normalized.includes("M_A") || normalized.includes("MA") || normalized.includes("M-2A") || normalized.includes("2M-A")) {
+          const choices = [
+            "XLE RLP_Momentum - 357 - C2 - GV Nghiêm Doãn Quỳnh Châu",
+            "XLE RLP_Momentum - 246 - C2 - GV Lê Như Hải",
+            "XLE RLP_Momentum - 357 - C1 - GV Nguyễn Lê Trung Dũng"
+          ];
+          classTarget = choices[index % choices.length];
+        } else if (normalized.includes("C-") || normalized.includes("PC") || normalized.includes("P-")) {
+          const choices = [
+            "XLE RLP_PRE CORE - 246 - 20002200 / 220526 - GV Quỳnh Châu",
+            "XLE RLP_PRE CORE - 246 - 18002000 - GV Minh Tâm",
+            "XLE RLP_PRE CORE - 357 - 20002200 - GV Thanh Tâm"
+          ];
+          classTarget = choices[index % choices.length];
+        } else {
+          classTarget = "XLE RLP_Foundation - 357 - C2 - GV Đăng Duy";
+        }
+
+        const classId = findClassIdByName(classTarget, 6);
+
+        return {
+          name: d.name,
+          phone,
+          email,
+          classification: "Combo",
+          rawClassification: d.combo,
+          scores: { l: "-", r: "-", w: "-", s: "-", o: "-" },
+          bcbLink: `https://docs.google.com/spreadsheets/d/mock-${index}/edit`,
+          note: "",
+          classId,
+          stt: index + 1,
+          l1: d.l1 || "",
+          f1: d.f1 || "",
+          l2: d.l2 || "",
+          f2: "",
+          l3: "",
+          f3: ""
+        };
+      });
       await this.studentModel.insertMany(initialStudents);
+    }
+
+    // Ensure default student Dương Ngọc Khôi Nguyên exists in ACA student list
+    const studentUserEmail = "nguyenduong939705@gmail.com";
+    const seededClasses = await this.classModel.find().exec();
+    const quynhChauClass = seededClasses.find(c => c.name.includes("M357C2") || (c.teacher && c.teacher.includes("Quỳnh Châu"))) || seededClasses[0];
+
+    const existingStudentUser = await this.studentModel.findOne({ email: studentUserEmail }).exec();
+    if (!existingStudentUser) {
+      await this.studentModel.create({
+        name: "Dương Ngọc Khôi Nguyên",
+        phone: "0939939705",
+        email: studentUserEmail,
+        classification: "Combo",
+        rawClassification: "M-A",
+        scores: { l: "6.5", r: "6.5", w: "6.0", s: "6.0", o: "6.5" },
+        bcbLink: "https://docs.google.com/spreadsheets/d/mock-student-khoinguyen/edit",
+        note: "Học viên chính hệ thống",
+        classId: quynhChauClass?._id?.toString() || "cls_placeholder",
+        stt: 0,
+        l1: quynhChauClass?.name || "XLE RLP_Momentum - 357 - C2 - GV Nghiêm Doãn Quỳnh Châu",
+        f1: "Full",
+        l2: "",
+        f2: "",
+        l3: "",
+        f3: ""
+      });
+    } else if (existingStudentUser.l1?.includes("Lê Như Hải")) {
+      await this.studentModel.updateOne(
+        { email: studentUserEmail },
+        {
+          $set: {
+            classId: quynhChauClass?._id?.toString() || existingStudentUser.classId,
+            l1: quynhChauClass?.name || "XLE RLP_Momentum - 357 - C2 - GV Nghiêm Doãn Quỳnh Châu",
+          },
+        }
+      );
     }
 
     // Seed Practice Weeks
     const weekCount = await this.practiceWeekModel.countDocuments().exec();
+    const defaultZoomLink = "https://zoom.us/j/84219634521?pwd=example-lrw";
     if (weekCount === 0) {
       const initialWeeks = [
         {
           weekRange: "20/04/2026 - 26/04/2026",
-          linkMeet: "https://meet.google.com/abc-defg-hij",
+          linkMeet: defaultZoomLink,
           linkTab: "https://docs.google.com/spreadsheets/d/1track-practice-test-1",
           announcement: "[Thông báo về lịch học lớp LĐ]\n\nTuần 20/4:\n - Lớp có học Speaking vào 19h45-21h45 thứ 7 25/4\n - Lớp không có lịch test tập trung vào CN\n\nNhận được tin thì em react/confirm giúp chị nhé",
           templateMessage: "Em ơi, chủ nhật tuần này (26/4) lớp mình không có lịch test tập trung, các bạn tham gia học Speaking vào thứ 7 (25/4) lúc 19h45-21h45 nhé!"
         },
         {
           weekRange: "27/04/2026 - 03/05/2026",
-          linkMeet: "https://meet.google.com/abc-defg-hij",
+          linkMeet: defaultZoomLink,
           linkTab: "https://docs.google.com/spreadsheets/d/1track-practice-test-2",
           announcement: "[Thông báo về lịch học lớp LĐ]\n\nTuần 27/4:\n - Lớp nghỉ, không có lịch học vào T3 và T7\n - Lớp có lịch test tập trung vào CN 3/5 9h-11h30\n\nNhận được tin thì em react/confirm giúp chị nhé",
           templateMessage: "Em ơi, chủ nhật tuần này (3/5) chị có lịch test lớp luyện đề lúc 9h00 - 11h30, em tham gia được thì phản hồi lại giúp chị nha!"
         },
         {
           weekRange: "08/06/2026 - 14/06/2026",
-          linkMeet: "https://meet.google.com/xyz-uvwx-yza",
+          linkMeet: defaultZoomLink,
           linkTab: "https://docs.google.com/spreadsheets/d/1track-practice-test-3",
           announcement: "[Thông báo về lịch học lớp LĐ]\n\nTuần 8/6:\n - Lớp học bình thường vào thứ 3 và thứ 7\n - Lớp có lịch test tập trung vào CN 14/6 9h-11h30\n\nNhận được tin thì em react/confirm giúp chị nhé",
           templateMessage: "Em ơi, chủ nhật tuần này (14/6) chị có lịch test lớp luyện đề lúc 9h00 - 11h30, em tham gia được thì phản hồi lại giúp chị nha!"
         }
       ];
       await this.practiceWeekModel.insertMany(initialWeeks);
+    } else {
+      // Migrate any legacy meet.google.com links in DB to Zoom link
+      await this.practiceWeekModel.updateMany(
+        { linkMeet: { $regex: /meet\.google\.com/i } },
+        { $set: { linkMeet: defaultZoomLink } }
+      ).exec();
     }
 
     // Seed Practice Students
@@ -226,22 +327,121 @@ export class AcaManagementService implements OnModuleInit {
   // --- Students CRUD ---
   async findAllStudents() {
     const students = await this.studentModel.find().lean().exec();
-    return students.map(st => ({
-      ...st,
-      classification: normalizeClassification(st.classification || '')
-    }));
+
+    // 1. Fetch writing submission emails
+    const writingSubmissions = await this.writingSubmissionModel.find({}, { studentGmail: 1, studentId: 1 }).lean().exec();
+    const writingEmailsSet = new Set<string>();
+    for (const ws of writingSubmissions) {
+      if (ws.studentGmail) writingEmailsSet.add(ws.studentGmail.trim().toLowerCase());
+      if (ws.studentId && ws.studentId.includes('@')) writingEmailsSet.add(ws.studentId.trim().toLowerCase());
+    }
+
+    // 2. Fetch RLP course stores for RLP attendance and homework calculations
+    const rlpStores = await this.rlpCourseStoreModel.find({}).lean().exec();
+    const rlpStoreMap = new Map<string, any[]>();
+    for (const store of rlpStores) {
+      rlpStoreMap.set(store.key, store.sessions || []);
+    }
+    const mainSessions = rlpStoreMap.get('main') || [];
+
+    return students.map(st => {
+      const emailNorm = (st.email || '').trim().toLowerCase();
+      const hasSubmittedWriting = writingEmailsSet.has(emailNorm);
+
+      // Get sessions for student's class
+      const storeKey = st.classId ? `rlp_store_${st.classId}` : 'main';
+      const sessions = rlpStoreMap.get(storeKey) || mainSessions;
+
+      let computedHomeworkPercent = st.homeworkPercent || '';
+      let computedAttendanceCount = st.attendanceCount || '';
+
+      if (sessions && sessions.length > 0) {
+        let presentCount = 0;
+        let submittedHwCount = 0;
+        let totalAssignedHwCount = 0;
+
+        for (const sess of sessions) {
+          if (sess.attendance === 'present') {
+            presentCount++;
+          }
+          if (sess.homeworkStatus && sess.homeworkStatus !== 'not_assigned') {
+            totalAssignedHwCount++;
+            if (sess.homeworkStatus === 'submitted' || sess.homeworkStatus === 'submitted_waiting') {
+              submittedHwCount++;
+            }
+          }
+        }
+
+        if (totalAssignedHwCount > 0) {
+          const pct = Math.round((submittedHwCount / totalAssignedHwCount) * 100);
+          computedHomeworkPercent = `${pct}%`;
+        }
+
+        computedAttendanceCount = `${presentCount}/${sessions.length}`;
+      }
+
+      // Check if student has cycles
+      const updatedCycles = (st.cycles || []).map((cyc: any) => ({
+        ...cyc,
+        registeredWriting: hasSubmittedWriting ? true : !!cyc.registeredWriting,
+        homeworkPercent: computedHomeworkPercent || cyc.homeworkPercent || '',
+        attendanceCount: computedAttendanceCount || cyc.attendanceCount || '',
+      }));
+
+      return {
+        ...st,
+        registeredWriting: hasSubmittedWriting ? true : !!st.registeredWriting,
+        homeworkPercent: computedHomeworkPercent || st.homeworkPercent || '',
+        attendanceCount: computedAttendanceCount || st.attendanceCount || '',
+        cycles: updatedCycles.length > 0 ? updatedCycles : st.cycles,
+        rawClassification: st.rawClassification || st.classification || '',
+        classification: normalizeClassification(st.classification || ''),
+      };
+    });
   }
+  private async ensureUserAccountForStudent(student: any) {
+    if (!student || !student.email || !student.email.includes('@')) return;
+    try {
+      const existingUser = await this.usersService.findByEmail(student.email);
+      if (!existingUser) {
+        await this.usersService.createUser({
+          name: student.name || 'Học viên',
+          email: student.email,
+          password: 'Student@123!',
+          role: 'HS',
+        });
+        console.log(`Auto-created login account for student: ${student.email} / password: Student@123!`);
+      }
+    } catch (err) {
+      console.warn(`Could not auto-create student user account for ${student.email}:`, err);
+    }
+  }
+
   async createStudent(data: any) {
     if (data.classification) {
       data.classification = normalizeClassification(data.classification);
     }
-    return this.studentModel.create(data);
+    if (data.classId === undefined) {
+      data.classId = '';
+    }
+    if (!data.stt) {
+      data.stt = (await this.studentModel.countDocuments().exec()) + 1;
+    }
+    const created = await this.studentModel.create(data);
+    if (created && created.email) {
+      await this.ensureUserAccountForStudent(created);
+    }
+    return created;
   }
   async updateStudent(id: string, data: any) {
     if (data.classification) {
       data.classification = normalizeClassification(data.classification);
     }
-    return this.studentModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
+    const updated = await this.studentModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
+    if (updated && updated.email) {
+      await this.ensureUserAccountForStudent(updated);
+    }
+    return updated;
   }
   async deleteStudent(id: string) {
     return this.studentModel.findByIdAndDelete(id).exec();
@@ -249,7 +449,50 @@ export class AcaManagementService implements OnModuleInit {
 
   // --- Practice Weeks CRUD ---
   async findAllWeeks() {
-    return this.practiceWeekModel.find().lean().exec();
+    const weeks = await this.practiceWeekModel.find().lean().exec();
+
+    // Helper to calculate current realtime Saturday-Friday week range
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    const day = d.getDay(); // 0 = Sun, 6 = Sat
+    const diffToSat = (day + 1) % 7;
+    const startDate = new Date(d);
+    startDate.setDate(startDate.getDate() - diffToSat);
+
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 6);
+
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const currentRange = `${pad(startDate.getDate())}/${pad(startDate.getMonth() + 1)}/${startDate.getFullYear()} - ${pad(endDate.getDate())}/${pad(endDate.getMonth() + 1)}/${endDate.getFullYear()}`;
+
+    const exists = weeks.some((w) => w.weekRange === currentRange);
+    if (!exists) {
+      try {
+        const defaultZoomLink = "https://zoom.us/j/84219634521?pwd=example-lrw";
+        const created = await this.practiceWeekModel.create({
+          weekRange: currentRange,
+          linkMeet: defaultZoomLink,
+          linkTab: "",
+          announcement: `[Thông báo về lịch học lớp LĐ]\n\nTuần ${currentRange}:\n - Lớp học bình thường vào thứ 3, thứ 5 và thứ 7\n - Lớp có lịch test tập trung vào CN`,
+          templateMessage: `Em ơi, tuần này (${currentRange}) chị gửi lịch lớp Luyện Đề T3, T5, T7 và test tập trung CN nhé!`,
+          zoomId: "842 1963 4521",
+          zoomPassword: "XaloLrw26",
+          scheduleTueTitle: "Luyện tập Speaking theo chuyên đề",
+          scheduleTueTime: "19h45 – 21h45",
+          scheduleTueInfo: "Tham gia bằng Zoom, học với Giáo viên, phân tích bộ đề Speaking 3 part, được cung cấp từ vựng/phương pháp tiếp cận và luyện tập trực tiếp với Giáo viên.",
+          scheduleThuTitle: "Chữa đề L-R-W",
+          scheduleThuTime: "19h45 – 21h45",
+          scheduleThuInfo: "Tham gia bằng Zoom, học với Giáo viên, tập trung chữa đề Writing và các thắc mắc về Listening – Reading.",
+          scheduleSatTitle: "Làm đề L-R-W tập trung",
+          scheduleSatTime: "19h – 21h30",
+          scheduleSatInfo: "Tham gia bằng Zoom, làm bài trên Google Docs, có nhân viên canh thời gian làm bài và các bạn học viên khác tham gia.",
+        });
+        weeks.push(created.toObject ? created.toObject() : (created as any));
+      } catch (err) {
+        // ignore race condition
+      }
+    }
+    return weeks;
   }
   async createWeek(data: any) {
     return this.practiceWeekModel.create(data);
@@ -329,5 +572,221 @@ export class AcaManagementService implements OnModuleInit {
   }
   async deleteFreeSlot(id: string) {
     return this.freeSlotModel.findByIdAndDelete(id).exec();
+  }
+
+  // --- Teacher Profiles CRUD ---
+  async findAllTeacherProfiles() {
+    const list = await this.teacherProfileModel.find().lean().exec();
+    if (list.length === 0) {
+      const seeded = await this.teacherProfileModel.insertMany([
+        {
+          id: "tch-1",
+          name: "Lê Nguyễn Khánh Thi",
+          email: "khanhthi.le@xalo.edu.vn",
+          phone: "0901 234 567",
+          skills: ["Writing", "Speaking"],
+          status: "active",
+          joinDate: "15/01/2024",
+          notes: "Chuyên sâu giảng dạy IELTS Writing Task 2 & Speaking Part 3",
+        },
+        {
+          id: "tch-2",
+          name: "Lê Thị Diệu Linh",
+          email: "dieulinh.le@xalo.edu.vn",
+          phone: "0912 345 678",
+          skills: ["Reading", "Listening"],
+          status: "active",
+          joinDate: "01/03/2024",
+          notes: "Phụ trách các lớp nâng band Reading chiến thuật",
+        },
+        {
+          id: "tch-3",
+          name: "Nghiêm Doãn Quỳnh Châu",
+          email: "quynhchau.nghiem@xalo.edu.vn",
+          phone: "0987 654 321",
+          skills: ["Writing", "Speaking", "Reading"],
+          status: "active",
+          joinDate: "10/09/2023",
+          notes: "Giảng viên chủ nhiệm lớp Chuyên sâu & Luyện đề",
+        },
+        {
+          id: "tch-4",
+          name: "Lê Minh Trang",
+          email: "minhtrang.le@xalo.edu.vn",
+          phone: "0934 567 890",
+          skills: ["Writing", "Reading"],
+          status: "active",
+          joinDate: "20/02/2024",
+          notes: "Chấm bài và feedback chi tiết Writing Task 1",
+        },
+        {
+          id: "tch-5",
+          name: "Phạm Hoàng An",
+          email: "hoangan.pham@xalo.edu.vn",
+          phone: "0945 678 901",
+          skills: ["Speaking", "Listening"],
+          status: "active",
+          joinDate: "05/05/2024",
+          notes: "Huấn luyện phát âm và giao tiếp tự nhiên",
+        },
+        {
+          id: "tch-6",
+          name: "Trần Thu Lan",
+          email: "thulan.tran@xalo.edu.vn",
+          phone: "0956 789 012",
+          skills: ["Reading", "Writing"],
+          status: "inactive",
+          joinDate: "12/08/2023",
+          notes: "Đang tạm nghỉ thai sản",
+        },
+        {
+          id: "tch-7",
+          name: "ACA",
+          email: "aca@xalo.edu.vn",
+          phone: "024 777 999",
+          skills: ["Quản lý", "Chăm sóc học viên"],
+          status: "active",
+          joinDate: "01/01/2023",
+          notes: "Bộ phận Học vụ & Giám sát chất lượng giảng dạy",
+        },
+      ]);
+      return seeded;
+    }
+    return list;
+  }
+
+  async createTeacherProfile(data: any) {
+    if (!data.id) {
+      data.id = `tch-${Date.now()}`;
+    }
+    const created = await this.teacherProfileModel.create(data);
+
+    // Automatically ensure a login user account exists for this teacher
+    if (data.email) {
+      try {
+        const existingUser = await this.usersService.findByEmail(data.email);
+        if (!existingUser) {
+          await this.usersService.createUser({
+            name: data.name || 'Giáo viên',
+            email: data.email,
+            password: 'Teacher@123!',
+            role: 'GV',
+          });
+        }
+      } catch (err) {
+        console.warn(`Could not auto-create user account for teacher ${data.email}:`, err);
+      }
+    }
+
+    return created;
+  }
+
+  async updateTeacherProfile(id: string, data: any) {
+    return this.teacherProfileModel
+      .findOneAndUpdate({ id }, { $set: data }, { new: true, upsert: true })
+      .exec();
+  }
+
+  async deleteTeacherProfile(id: string) {
+    return this.teacherProfileModel.findOneAndDelete({ id }).exec();
+  }
+
+  // --- Daily Note & Quotes CRUD ---
+  async getDailyNote() {
+    let doc = await this.dailyNoteModel.findOne().exec();
+    if (!doc) {
+      doc = await this.dailyNoteModel.create({
+        mode: 'random',
+        pinnedWord: 'Clouds.',
+        pinnedMeaning: "there's divinity in the clouds.",
+        quotes: [
+          {
+            id: 'quote-1',
+            word: 'Clouds.',
+            meaning: "there's divinity in the clouds.",
+            author: 'Xa Lộ English',
+            active: true,
+            createdAt: new Date().toISOString(),
+          },
+          {
+            id: 'quote-2',
+            word: 'Stay Hungry, Stay Foolish',
+            meaning: 'Hãy luôn khao khát, hãy luôn dại khờ. Đừng bao giờ ngừng học hỏi!',
+            author: 'Steve Jobs',
+            active: true,
+            createdAt: new Date().toISOString(),
+          },
+          {
+            id: 'quote-3',
+            word: 'Never Give Up',
+            meaning: 'Con đường vạn dặm bắt đầu bằng một bước chân nhỏ. Hãy cố gắng 1% mỗi ngày!',
+            author: 'Xa Lộ English',
+            active: true,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      });
+    }
+    return doc;
+  }
+
+  async updateDailyNote(data: any) {
+    let doc = await this.dailyNoteModel.findOne().exec();
+    if (!doc) {
+      return this.dailyNoteModel.create(data);
+    }
+    return this.dailyNoteModel.findByIdAndUpdate(doc._id, { $set: data }, { new: true }).exec();
+  }
+
+  // --- Mock Test Requests CRUD ---
+  async findAllMockTestRequests() {
+    return this.mockTestRequestModel.find().sort({ createdAt: -1 }).lean().exec();
+  }
+
+  async createMockTestRequest(data: any) {
+    return this.mockTestRequestModel.create(data);
+  }
+
+  async updateMockTestRequest(id: string, data: any) {
+    return this.mockTestRequestModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+  }
+
+  async deleteMockTestRequest(id: string) {
+    return this.mockTestRequestModel.findByIdAndDelete(id).exec();
+  }
+
+  // --- Course Settings & Important Links CRUD ---
+  async getCourseSettings() {
+    let doc = await this.courseSettingsModel.findOne().exec();
+    if (!doc) {
+      doc = await this.courseSettingsModel.create({
+        course: 'Momentum - 357 - C2',
+        room: 'Zoom Online',
+        instructor: 'Nghiêm Doãn Quỳnh Châu',
+        zoomPassword: 'xalo2026',
+        schedule: ['T3: 19h45 - 21h45', 'T5: 19h45 - 21h45', 'T7: 19h45 - 21h45'],
+        openDate: '21/04/2026',
+        endDate: '09/07/2026',
+        phases: [
+          { name: 'Chặng 1: Speaking - Reading', date: '21/04/2026' },
+          { name: 'Chặng 2: Writing - Listening', date: '11/06/2026' },
+        ],
+        links: [
+          { id: 'rlp', label: 'RLP', value: 'Chặng 1: Speaking - Reading', url: '#rlp-section' },
+          { id: 'lesson', label: 'THƯ MỤC BÀI GIẢNG', value: 'Writing - Listening (21/04/2026)', url: '' },
+          { id: 'homework', label: 'THƯ MỤC BÀI TẬP', value: 'HW Học viên', url: '' },
+          { id: 'survey', label: 'KHẢO SÁT HỌC VIÊN', value: '—', url: '' },
+        ],
+      });
+    }
+    return doc;
+  }
+
+  async updateCourseSettings(data: any) {
+    let doc = await this.courseSettingsModel.findOne().exec();
+    if (!doc) {
+      return this.courseSettingsModel.create(data);
+    }
+    return this.courseSettingsModel.findByIdAndUpdate(doc._id, { $set: data }, { new: true }).exec();
   }
 }

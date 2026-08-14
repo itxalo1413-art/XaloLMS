@@ -11,6 +11,8 @@ import { PracticeClassModule } from './practice-class/practice-class.module';
 import { StudentProfileModule } from './student-profile/student-profile.module';
 import { UsersModule } from './users/users.module';
 import { RlpModule } from './rlp/rlp.module';
+import { PracticeRlpModule } from './practice-rlp/practice-rlp.module';
+import { TeacherModule } from './teacher/teacher.module';
 import { WritingSubmissionModule } from './writing-submission/writing-submission.module';
 
 @Module({
@@ -26,6 +28,8 @@ import { WritingSubmissionModule } from './writing-submission/writing-submission
     MockTestModule,
     WritingSubmissionModule,
     RlpModule,
+    PracticeRlpModule,
+    TeacherModule,
   ],
   controllers: [AppController],
   providers: [AppService],

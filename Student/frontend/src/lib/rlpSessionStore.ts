@@ -5,6 +5,8 @@ import {
 } from "@/lib/courseSchedule";
 import {
   canUseRlpSessionApi,
+  canUseStudentRlpApi,
+  canUseTeacherRlpApi,
   fetchRlpSessionsForStudent,
   fetchRlpSessionsForTeacher,
   updateRlpSessionApi,
@@ -45,12 +47,14 @@ function loadLocal(): RlpSession[] {
   return stored.length > 0 ? stored : [...DEFAULT_COURSE_RLP_SESSIONS];
 }
 
-function saveLocal(rows: RlpSession[]) {
+function saveLocal(rows: RlpSession[], silent = false) {
   if (typeof window === "undefined") return;
   localStorage.setItem(RLP_SESSIONS_STORAGE_KEY, JSON.stringify(rows));
   sessionsCache = rows;
   setActiveRlpSessions(rows);
-  dispatchRlpUpdate();
+  if (!silent) {
+    dispatchRlpUpdate();
+  }
 }
 
 export function applyRlpSessionsCache(rows: RlpSession[]) {
@@ -68,24 +72,17 @@ export function getCourseRlpSessions(): RlpSession[] {
 export async function refreshRlpSessions(classId?: string): Promise<RlpSession[]> {
   if (canUseRlpSessionApi()) {
     try {
-      const rows = await fetchRlpSessionsForTeacher(classId);
-      saveLocal(rows);
+      const rows = canUseTeacherRlpApi()
+        ? await fetchRlpSessionsForTeacher(classId)
+        : await fetchRlpSessionsForStudent();
+      saveLocal(rows, false);
       return rows;
-    } catch (e) {
-      console.warn("fetchRlpSessionsForTeacher failed, trying student fetcher next:", e);
-    }
-
-    try {
-      const rows = await fetchRlpSessionsForStudent();
-      saveLocal(rows);
-      return rows;
-    } catch (e) {
-      console.error("fetchRlpSessionsForStudent failed:", e);
+    } catch {
+      // Backend offline or token expired — fall back to local cache silently.
     }
   }
   const local = loadLocal();
   applyRlpSessionsCache(local);
-  dispatchRlpUpdate();
   return local;
 }
 
@@ -94,11 +91,15 @@ export async function updateRlpSession(
   payload: UpdateRlpSessionPayload,
   classId?: string,
 ): Promise<RlpSession> {
-  if (canUseRlpSessionApi()) {
-    const remote = await updateRlpSessionApi(no, payload, classId);
-    const next = getCourseRlpSessions().map((s) => (s.no === no ? remote : s));
-    saveLocal(next);
-    return remote;
+  if (canUseTeacherRlpApi()) {
+    try {
+      const remote = await updateRlpSessionApi(no, payload, classId);
+      const next = getCourseRlpSessions().map((s) => (s.no === no ? remote : s));
+      saveLocal(next);
+      return remote;
+    } catch (err) {
+      console.warn("API update failed, updating local fallback:", err);
+    }
   }
 
   let updated: RlpSession | null = null;
@@ -114,6 +115,16 @@ export async function updateRlpSession(
       ...(payload.lessonFileUrl !== undefined
         ? { lessonFileUrl: payload.lessonFileUrl.trim() }
         : {}),
+      ...(payload.homeworkFileUrl !== undefined
+        ? { homeworkFileUrl: payload.homeworkFileUrl.trim() }
+        : {}),
+      ...(payload.recordingUrl !== undefined
+        ? { recordingUrl: payload.recordingUrl.trim() }
+        : {}),
+      ...(payload.contents !== undefined ? { contents: payload.contents.trim() } : {}),
+      ...(payload.date !== undefined ? { date: payload.date.trim() } : {}),
+      ...(payload.deadline !== undefined ? { deadline: payload.deadline.trim() } : {}),
+      ...(payload.skill !== undefined ? { skill: payload.skill.trim() } : {}),
     };
     return updated;
   });

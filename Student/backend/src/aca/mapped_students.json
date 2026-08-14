@@ -1,0 +1,618 @@
+[
+  {
+    "name": "Đoàn Ngọc Uyên Trang",
+    "combo": "M-A",
+    "l1": "OFF - M T/T/S - 19452130 - 231123 (Như Hải)",
+    "f1": "TRUE",
+    "l2": "OFF - A T/T/S - 18001945 - 300324 (Như Hải)"
+  },
+  {
+    "name": "Đỗ Thục Quyên",
+    "combo": "Combo premium",
+    "l1": "ONL - U M/W/F - 19452130 - 080124 (Hàn Uyên)",
+    "f1": "FALSE",
+    "l2": "ONL - U T/T/S - 19452130 - 270624\nONL - U M/W/F - 19452130 - 220724 (Duy Khải\nKhánh Thi)"
+  },
+  {
+    "name": "Phạm Thị Ngọc Ánh",
+    "combo": "U-S",
+    "l1": "ONL - U T/T/S - 19452130 - 160524 (Thảo Uyên)",
+    "f1": "TRUE",
+    "l2": "ONL - S T/T/S -19452130 - 270824 (Thảo Uyên)"
+  },
+  {
+    "name": "Nguyễn Ngọc Minh Châu",
+    "combo": "F-2M-A",
+    "l1": "OFF - FOU M/W/F - 18001945 - 270524OFF - FOU M/W/F - 18001945 - 260824 (Khánh Thi\nQuỳnh Châu)",
+    "f1": "FALSE",
+    "l2": "OFF - M M/W/F - 18001945 - 060125 (Như Hải)"
+  },
+  {
+    "name": "Y Trung Adrơng Niê Kđăm",
+    "combo": "F-M",
+    "l1": "OFF - FOU M/W/F - 18001945 - 270524 (Khánh Thi)",
+    "f1": "TRUE",
+    "l2": "OFF - M M/W/F - 19452130 - 231024 (Như Hải)"
+  },
+  {
+    "name": "Nguyễn Ngọc Bích Trân",
+    "combo": "2S",
+    "l1": "ONL - S M/W/F - 18001945 - 280624 (Huỳnh Kim)",
+    "f1": "TRUE",
+    "l2": "ONL - LUYỆN ĐỀ S/S - 1416 (Hoàng Long)"
+  },
+  {
+    "name": "Tú Nguyễn",
+    "combo": "F-M-A",
+    "l1": "OFF - FOU M/W/F - 18001945 - 270524 (Khánh Thi)",
+    "f1": "TRUE",
+    "l2": "OFF - M M/W/F - 18001945 - 071024 (Như Hải)"
+  },
+  {
+    "name": "Đinh Dương Huy",
+    "combo": "U-S",
+    "l1": "ONL - U T/T/S - 19452130 - 270624 (Duy Khải)",
+    "f1": "TRUE",
+    "l2": "ONL - S T/T/S - 19452130 - 291024 (Hoàng Long)"
+  },
+  {
+    "name": "Trần Thanh Thảo Nhi",
+    "combo": "M-A",
+    "l1": "OFF - M M/W/F - 19452130 - 290724 (Như Hải)",
+    "f1": "FALSE",
+    "l2": "OFF - A M/W/F - 19452130 - 041124 (Huỳnh Kim)"
+  },
+  {
+    "name": "Lê Trần Bảo Thy",
+    "combo": "C-2U-2S",
+    "l1": "ONL - CORE M/W/F - 19452130 - 290724 (Hoàng Thử)",
+    "f1": "TRUE",
+    "l2": "ONL - U M/W/F - 18001945 - 221124 (Duy Khải)"
+  },
+  {
+    "name": "Hồ Quỳnh Hương",
+    "combo": "F-M",
+    "l1": "OFF - FOU M/W/F - 19452130 - 290724 (Quỳnh Châu)",
+    "f1": "TRUE",
+    "l2": "OFF - M M/W/F - 19452130 - 061224 (Như Hải)"
+  },
+  {
+    "name": "Phùng Như Bảo Nghi",
+    "combo": "F-2M-A",
+    "l1": "OFF - FOU M/W/F - 19452130 - 290724 (Quỳnh Châu)",
+    "f1": "TRUE",
+    "l2": "OFF - M M/W/F - 19452130 - 100225 (Như Hải)"
+  },
+  {
+    "name": "Nguyễn Thị Hương Linh",
+    "combo": "U-2S",
+    "l1": "ONL - U M/W/F - 19452130 - 220724 (Khánh Thi)",
+    "f1": "TRUE",
+    "l2": "ONL - S T/T/S - 19452130 - 291024 (Hoàng Long)"
+  },
+  {
+    "name": "Phạm Nguyễn Phương Mai",
+    "combo": "F-2M",
+    "l1": "OFF - M M/W/F - 19452130 - 290724 (Như Hải)",
+    "f1": "TRUE",
+    "l2": "OFF - M M/W/F - 18001945 - 221124 (Như Hải)"
+  },
+  {
+    "name": "Ngô Cẩm Vân",
+    "combo": "C-2U-2S",
+    "l1": "ONL - CORE T/T/S - 18001945 - 270824 (Thảo Uyên)",
+    "f1": "TRUE",
+    "l2": "ONL - U T/T/S - 18001945 - 270325 (Như Hải)"
+  },
+  {
+    "name": "Lê Quang Tấn",
+    "combo": "F-2M-2A",
+    "l1": "OFF - FOU M/W/F - 19452130 - 290724 (Quỳnh Châu)",
+    "f1": "TRUE",
+    "l2": "OFF - M T/T/S - 19452130 - 161124 (Quỳnh Châu)"
+  },
+  {
+    "name": "Nguyễn Thái Uyên Thy",
+    "combo": "F-2M",
+    "l1": "OFF - FOU M/W/F - 19452130 - 290724 (Quỳnh Châu)",
+    "f1": "TRUE",
+    "l2": "OFF - M M/W/F - 19452130 - 061224 (Như Hải)"
+  },
+  {
+    "name": "Trần Thị Minh Huyền",
+    "combo": "C-2U-2S",
+    "l1": "ONL - CORE T/T/S - 18001945 - 270824 (Thảo Uyên)",
+    "f1": "TRUE",
+    "l2": "ONL - U T/T/S - 19452130 - 180225 (bảo lưu)\nONL - U M/W/F - 19452130 - 031125 (Duy Khải)"
+  },
+  {
+    "name": "Nguyễn Bảo Ngọc",
+    "combo": "2U-S",
+    "l1": "ONL - U - M/W/F - 18001945 - 260824 (Duy Khải)",
+    "f1": "TRUE",
+    "l2": "ONL - S M/W/F - 19452130 - 170225 (Quang Minh)"
+  },
+  {
+    "name": "Nguyễn Thị Mai Phương",
+    "combo": "M-A",
+    "l1": "OFF - M M/W/F - 18001945 - 260824 (Như Hải)",
+    "f1": "TRUE",
+    "l2": "OFF - A M/W/F - 19452130 - 230525 (Hồng Nhung)"
+  },
+  {
+    "name": "Trần Nguyễn Thanh Vy",
+    "combo": "U-2S",
+    "l1": "ONL - U M/W/F - 19452130 - 040924 (Khánh Thi)",
+    "f1": "TRUE",
+    "l2": "ONL - S M/W/F - 19452130 - 131224 (Quang Minh)"
+  },
+  {
+    "name": "Vương Gia Nghi",
+    "combo": "C-U",
+    "l1": "ONL - CORE T/T/S - 19452130 - 260924 (Hoàng Thử)",
+    "f1": "FALSE",
+    "l2": "ONL - U T/T/S- 18001945 - 270325 (Như Hải)"
+  },
+  {
+    "name": "Nguyễn Thị Thùy Dung",
+    "combo": "2S",
+    "l1": "ONL - S T/T/S -19452130 - 270824 (Thảo Uyên)",
+    "f1": "TRUE",
+    "l2": "ONL - S T/T/S - 19452130 - 101224 (Hoàng Long)"
+  },
+  {
+    "name": "Trần Thị Kim Ngân",
+    "combo": "2U",
+    "l1": "ONL - U T/T/S - 19452130 - 210924 (Duy Khải)",
+    "f1": "TRUE",
+    "l2": "ONL - S T/T/S - 19452130 - 130225 (Hoàng Long)"
+  },
+  {
+    "name": "Phùng Thị Thùy Trang",
+    "combo": "U-2S",
+    "l1": "ONL - S T/T/S - 19452130 - 130225 (Hoàng Long)",
+    "f1": "FALSE",
+    "l2": "?"
+  },
+  {
+    "name": "Hoàng Ngọc Bảo Trân",
+    "combo": "2U-2S",
+    "l1": "ONL - U M/W/F - 18001945 - 091024 (Duy Khải)",
+    "f1": "TRUE",
+    "l2": "ONL - S M/W/F - 18001945 - 260225 (Huỳnh Kim)"
+  },
+  {
+    "name": "Lưu Trần Minh Anh",
+    "combo": "2U-2S",
+    "l1": "ONL - U T/T/S - 19452130 - 021124 (Duy Khải)",
+    "f1": "TRUE",
+    "l2": "ONL - S T/T/S - 19452130 - 130225 (Quang Minh)"
+  },
+  {
+    "name": "Hồ Nguyễn Thu Giang",
+    "combo": "M-A",
+    "l1": "OFF - M T/T/S - 19452130 - 161124 (Quỳnh Châu)",
+    "f1": "FALSE",
+    "l2": "chuyển lớp 1:1"
+  },
+  {
+    "name": "Lê Khả Hân",
+    "combo": "2U-2S",
+    "l1": "ONL - U M/W/F - 19452130 - 161024 (Khánh Thi)",
+    "f1": "TRUE",
+    "l2": "ONL - S M/W/F - 19452130 - 190525\nONL - S M/W/F - 18001945 - 090725 (Quang Minh)"
+  },
+  {
+    "name": "Lê Minh Thư",
+    "combo": "F-M (+ 22 buổi S)",
+    "l1": "ONL - CORE M/W/F - 18001945 - 281024 (Ngọc Hương)",
+    "f1": "FALSE",
+    "l2": "ONL - U M/W/F - 18001945 - 230425 (Duy Khải)"
+  },
+  {
+    "name": "Ngô Văn Vinh",
+    "combo": "2M-A",
+    "l1": "OFF - M M/W/F - 19452130 - 231024 (Như Hải)",
+    "f1": "FALSE",
+    "l2": "OFF - M M/W/F - 18001945 - 100325 (Như Hải)"
+  },
+  {
+    "name": "Lê Minh Quý",
+    "combo": "F_2M_2A",
+    "l1": "OFF - FOU M/W/F - 18001945 - 281024 (Hồng Nhung)",
+    "f1": "TRUE",
+    "l2": "OFF - M M/W/F - 18001945 - 230425 (Như Hải)"
+  },
+  {
+    "name": "Bùi Phương Nam",
+    "combo": "U-2S",
+    "l1": "ONL - U M/W/F - 18001945 - 100325 (Duy Khải)",
+    "f1": "FALSE",
+    "l2": "ONL - S M/W/F - 18001945 - 090725 (Quang Minh)"
+  },
+  {
+    "name": "Nguyễn Đoàn Đông Dương",
+    "combo": "2S",
+    "l1": "ONL - S M/W/F - 18001945 - 260225 (Huỳnh Kim)",
+    "f1": "FALSE",
+    "l2": "hoàn hp"
+  },
+  {
+    "name": "Tô Hoàng Minh Thuỳ",
+    "combo": "C-2U",
+    "l1": "ONL - CORE M/W/F - 19452130 - 260225 (Quỳnh Châu)",
+    "f1": "TRUE",
+    "l2": "ONL - U M/W/F - 18001945 - 210725 (Duy Khải)"
+  },
+  {
+    "name": "Hà Hoàng Yến Nhi",
+    "combo": "2U-S",
+    "l1": "ONL - U T/T/S - 19452130 - 180225 (Duy Khải)",
+    "f1": "FALSE",
+    "l2": "ONL - U T/T/S - 19452130 - 200525 (Duy Khải)"
+  },
+  {
+    "name": "Nguyễn Đức Hiển",
+    "combo": "2U",
+    "l1": "ONL - U T/T/S - 18001945 - 150525 (Như Hải)",
+    "f1": "TRUE",
+    "l2": "ONL - S T/T/S - 19452130 - 230925 (Đăng Duy)"
+  },
+  {
+    "name": "Trần Trúc Ly",
+    "combo": "C-U",
+    "l1": "ONL - CORE T/T/S - 19452130 - 270525 (Thảo Uyên)",
+    "f1": "FALSE",
+    "l2": "ONL - U M/W/F - 19452130 - 170925 (Đăng Khoa)"
+  },
+  {
+    "name": "Lưu Anh Tài",
+    "combo": "M-A",
+    "l1": "OFF - M T/T/S - 18001945 - 270525 (Đăng Duy)",
+    "f1": "FALSE",
+    "l2": "OFF - M T/T/S - 18001945 - 210825 (Đăng Duy)"
+  },
+  {
+    "name": "Trương Minh Đăng",
+    "combo": "M-A",
+    "l1": "OFF - M M/W/F - 18001945 - 090625 (Như Hải)",
+    "f1": "FALSE",
+    "l2": "ONL - U M/W/F - 18001945 - 120126 (Như Hải)"
+  },
+  {
+    "name": "Phạm Thị Đỗ Quyên",
+    "combo": "C-2U",
+    "l1": "ONL - CORE M/W/F - 19452130 - 250625 (Đăng Duy)",
+    "f1": "FALSE",
+    "l2": "Bảo lưu"
+  },
+  {
+    "name": "Chu Kim Ngân",
+    "combo": "C-2U-S",
+    "l1": "ONL - CORE T/T/S - 18001945 - 260625 (Thảo uyên)",
+    "f1": "TRUE",
+    "l2": "ONL - U M/W/F - 18001945 - 281125 (Duy Khải)"
+  },
+  {
+    "name": "Trương Ngọc Quế Trân",
+    "combo": "F-M",
+    "l1": "OFF - FOU T/T/S - 18001945 - 260625 (Quỳnh Châu)",
+    "f1": "FALSE",
+    "l2": "đã có final từ 11/2025, chưa xếp lớp?"
+  },
+  {
+    "name": "Võ Ngọc Sinh",
+    "combo": "C-2M",
+    "l1": "ONL - CORE T/T/S - 18001945 - 010725 (Thảo uyên)",
+    "f1": "TRUE",
+    "l2": "ONL - U T/T/S - 19452130 - 151125 (Duy Khải)"
+  },
+  {
+    "name": "Nguyễn Hòa Gia Liên",
+    "combo": "U-S",
+    "l1": "ONL - U M/W/F - 19452130 - 170925 (Đăng Khoa)",
+    "f1": "TRUE",
+    "l2": "ONL - S M/W/F - 19452130 - 171225 (Quang Minh)"
+  },
+  {
+    "name": "Nghê Mai Hoa",
+    "combo": "M-A",
+    "l1": "OFF - M M/W/F - 19452130 - 190925 (Như Hải)",
+    "f1": "FALSE",
+    "l2": "OFF - M M/W/F - 19452130 - 300126 (học lại) (Như Hải)"
+  },
+  {
+    "name": "Bùi Khánh Linh",
+    "combo": "C-U",
+    "l1": "ONL - CORE T/T/S - 19452130 - 130925 (Thảo Uyên)",
+    "f1": "FALSE",
+    "l2": "ONL - U T/T/S - 19452130 - 030326 (S-R)"
+  },
+  {
+    "name": "Vũ Thị Thuỳ",
+    "combo": "C-U",
+    "l1": "ONL - CORE M/W/F - 19452130 - 250825 (Quỳnh Châu)",
+    "f1": "FALSE",
+    "l2": "ONL - U M/W/F - 18001945 - 120126 (Như Hải)"
+  },
+  {
+    "name": "Nguyễn Hoàng Gia Linh",
+    "combo": "U-S",
+    "l1": "ONL - U M/W/F - 18001945 - 030925 (Duy Khải)",
+    "f1": "TRUE",
+    "l2": "ONL - S M/W/F - 18001945 - 291225 (Quang Minh)"
+  },
+  {
+    "name": "Nguyễn Thị Phương Vy",
+    "combo": "C-U",
+    "l1": "ONL - CORE M/W/F - 18001945 - 260925 (Đăng Duy)",
+    "f1": "FALSE",
+    "l2": "ONL - PRE CORE T/T/S - 200022000- 130126 (Học lại) (Nhật Vy)"
+  },
+  {
+    "name": "Trần Khánh An",
+    "combo": "C-U",
+    "l1": "ONL - CORE M/W/F - 18001945 - 260925 (Đăng Duy)",
+    "f1": "FALSE",
+    "l2": "ONL - U M/W/F - 18001945 - 160326 (W-L)"
+  },
+  {
+    "name": "Đỗ Thị Thuỳ Dương",
+    "combo": "U-S",
+    "l1": "ONL - U M/W/F - 19452130 - 170925 (Đăng Khoa)",
+    "f1": "TRUE",
+    "l2": "ONL - S M/W/F - 18001945 - 291225 (Quang Minh)"
+  },
+  {
+    "name": "Lềnh Hắm Anh Kiệt",
+    "combo": "U-S",
+    "l1": "ONL - U T/T/S - 19452130 - 270925 (Duy Khải)",
+    "f1": "FALSE",
+    "l2": "ONL - U T/T/S - 19452130 - 271225 (học lại) (Duy Khải)"
+  },
+  {
+    "name": "Hồ Lê Thanh Huy",
+    "combo": "M-A",
+    "l1": "OFF - M M/W/F - 19452130 - 190925 (Như Hải)",
+    "f1": "FALSE",
+    "l2": "2024RLP_OFF - M M/W/F - 19452130 - 030524"
+  },
+  {
+    "name": "Đoàn Phạm Khánh Linh",
+    "combo": "C-U-S",
+    "l1": "ONL - CORE T/T/S - 19452130 - 281025 (Quỳnh Châu)",
+    "f1": "FALSE",
+    "l2": "đang final để xếp lớp"
+  },
+  {
+    "name": "Nguyễn Thị Tuyết Nhi",
+    "combo": "C-U",
+    "l1": "ONL - CORE M/W/F - 18001945 - 260925 (Đăng Duy)",
+    "f1": "FALSE",
+    "l2": "2025RLP_ONL - U M/W/F - 19452130 - 170925 (Đăng Khoa)"
+  },
+  {
+    "name": "Nguyễn Văn Luận",
+    "combo": "C-U",
+    "l1": "ONL - CORE M/W/F - 18001945 - 260925 (Đăng Duy)",
+    "f1": "FALSE",
+    "l2": "Lớp Upstream 246 18h-19h45 khai giảng ngày 29/4"
+  },
+  {
+    "name": "Nguyễn Văn Linh",
+    "combo": "C-U",
+    "l1": "ONL - CORE M/W/F - 18001945 - 260925 (Đăng Duy)",
+    "f1": "FALSE",
+    "l2": "246: 18h00 - 19h45 - Khai giảng 16/03/2026"
+  },
+  {
+    "name": "Lưu Thị Khánh Ngọc",
+    "combo": "C-M",
+    "l1": "ONL - CORE M/W/F - 18001945 - 260925 (Đăng Duy)",
+    "f1": "FALSE",
+    "l2": "OFF - M M/W/F - 18001945 - 160326 (W-L)"
+  },
+  {
+    "name": "Lê Thị Hà Nhi",
+    "combo": "U-S",
+    "l1": "ONL - U T/T/S - 18001945 - 081125 (Như Hải)",
+    "f1": "FALSE",
+    "l2": "?"
+  },
+  {
+    "name": "Phạm Ngân Hà",
+    "combo": "U-S",
+    "l1": "ONL - U M/W/F - 18001945 - 151025 (Duy Khải)",
+    "f1": "FALSE",
+    "l2": "chuyển lớp 1:1"
+  },
+  {
+    "name": "Trần Thị Quỳnh Như",
+    "combo": "U-S",
+    "l1": "ONL - U M/W/F - 18001945 - 151025 (Duy Khải)",
+    "f1": "FALSE",
+    "l2": "2025RLP_ONL - U M/W/F - 19452130 - 100225 (Duy Khải)"
+  },
+  {
+    "name": "Nguyễn Thị Thanh Huyền",
+    "combo": "U-S",
+    "l1": "ONL - CORE T/T/S - 19452130 - 141025 (Minh Tâm)",
+    "f1": "FALSE",
+    "l2": "xếp final để xếp lớp"
+  },
+  {
+    "name": "Nguyễn Thị Ngọc Ánh",
+    "combo": "U-S",
+    "l1": "ONL - CORE M/W/F - 18001945 - 260925 (Đăng Duy)",
+    "f1": "FALSE",
+    "l2": "2025RLP_ONL - U M/W/F - 19452130 - 100225 (Duy Khải)"
+  },
+  {
+    "name": "Nguyễn Ngọc Như Quỳnh",
+    "combo": "M-A",
+    "l1": "OFF - FOU M/W/F - 18001945 - 260925 (Anh Tuấn)",
+    "f1": "TRUE",
+    "l2": "2024RLP_OFF - M M/W/F - 18001945 - 260824"
+  },
+  {
+    "name": "Võ Ngọc Hân",
+    "combo": "M-A",
+    "l1": "OFF - M T/T/S - 18001945 - 071025 (Như Hải)",
+    "f1": "FALSE",
+    "l2": "2024RLP_OFF - M M/W/F - 18001945 - 260824"
+  },
+  {
+    "name": "Nguyễn Đặng Thảo Ngân",
+    "combo": "U-S",
+    "l1": "ONL - U M/W/F - 18001945 - 151025 (Duy Khải)",
+    "f1": "FALSE",
+    "l2": "đang final để xếp lớp"
+  },
+  {
+    "name": "Phạm Nguyễn Ái Phương",
+    "combo": "U-S",
+    "l1": "ONL - U M/W/F - 19452130 - 291025 (Duy Khải)",
+    "f1": "FALSE",
+    "l2": "đang final để xếp lớp"
+  },
+  {
+    "name": "Bế Hà Linh",
+    "combo": "U-S",
+    "l1": "ONL - U T/T/S - 18001945 - 270925 (Như Hải)",
+    "f1": "FALSE",
+    "l2": "ONL - S M/W/F - 18001945 - 291225 (Quang Minh)"
+  },
+  {
+    "name": "Nguyễn Thị Khả Thy",
+    "combo": "PC - U-S",
+    "l1": "ONL - PRE CORE M/W/F - 19452145 - 151025 (Quỳnh Châu)",
+    "f1": "FALSE",
+    "l2": "đang final để xếp lớp"
+  },
+  {
+    "name": "Dương Lê Minh Hiếu",
+    "combo": "M-A",
+    "l1": "OFF - M M/W/F - 18001945 - 171025 (Như Hải)",
+    "f1": "FALSE",
+    "l2": "2024RLP_OFF - M M/W/F - 18001945 - 260824 (Như Hải)"
+  },
+  {
+    "name": "Chu Hoàng Quyền",
+    "combo": "C-U",
+    "l1": "ONL - CORE T/T/S - 19452130 - 141025 (Minh Tâm)",
+    "f1": "FALSE",
+    "l2": "xếp final để xếp lớp"
+  },
+  {
+    "name": "Nguyễn Lê Hà My",
+    "combo": "C-U",
+    "l1": "ONL - CORE T/T/S - 19452130 - 281025 (Quỳnh Châu)",
+    "f1": "FALSE",
+    "l2": "xếp final để xếp lớp"
+  },
+  {
+    "name": "Quản Phi Yến",
+    "combo": "C-U-S",
+    "l1": "ONL - CORE T/T/S - 19452130 - 281025 (Quỳnh Châu)",
+    "f1": "FALSE",
+    "l2": "xếp final để xếp lớp"
+  },
+  {
+    "name": "Vũ Bảo Anh",
+    "combo": "F_M_A",
+    "l1": "OFF - FOU T/T/S - 19452130 - 041125 (Hồng Nhung)",
+    "f1": "FALSE",
+    "l2": ""
+  },
+  {
+    "name": "Phan Thành Quí",
+    "combo": "F-M",
+    "l1": "OFF - FOU T/T/S - 19452130 - 041125 (Hồng Nhung)",
+    "f1": "FALSE",
+    "l2": ""
+  },
+  {
+    "name": "Lưu Nhật Huyền",
+    "combo": "U-S",
+    "l1": "ONL - U M/W/F - 19452130 - 031125 (Duy Khải)",
+    "f1": "FALSE",
+    "l2": ""
+  },
+  {
+    "name": "Bùi Kim Quỳnh",
+    "combo": "C-U",
+    "l1": "ONL - CORE T/T/S - 18001945 - 091225 (Tường Vy)",
+    "f1": "FALSE",
+    "l2": ""
+  },
+  {
+    "name": "Phan Thị Mỹ Linh",
+    "combo": "U-S",
+    "l1": "ONL - U M/W/F - 18001945 - 120126 (Như Hải)",
+    "f1": "FALSE",
+    "l2": ""
+  },
+  {
+    "name": "Đỗ Khắc Dũng",
+    "combo": "C-U",
+    "l1": "ONL - CORE 2 T/T/S - 17451945- 120326",
+    "f1": "FALSE",
+    "l2": ""
+  },
+  {
+    "name": "Nguyễn Ngọc Minh Châu",
+    "combo": "P-U",
+    "l1": "ONL - PRE CORE T/T/S - 200022000- 140426",
+    "f1": "FALSE",
+    "l2": ""
+  },
+  {
+    "name": "Lê Phan Như Ý",
+    "combo": "C-U",
+    "l1": "",
+    "f1": "FALSE",
+    "l2": ""
+  },
+  {
+    "name": "Lê Đỗ Quỳnh Trâm",
+    "combo": "M-A",
+    "l1": "",
+    "f1": "FALSE",
+    "l2": ""
+  },
+  {
+    "name": "Hồ Thị Thu",
+    "combo": "C-U",
+    "l1": "ONL - CORE 2 T/T/S - 17451945- 120326",
+    "f1": "FALSE",
+    "l2": ""
+  },
+  {
+    "name": "Lê Phạm Huyền My",
+    "combo": "C-U",
+    "l1": "ONL - CORE 2 M/W/F - 18302030- 010426",
+    "f1": "FALSE",
+    "l2": ""
+  },
+  {
+    "name": "Phùng Quốc Hùng",
+    "combo": "M-A",
+    "l1": "OFF - M T/T/S - 18001945 - 240326 (W-L)",
+    "f1": "FALSE",
+    "l2": ""
+  },
+  {
+    "name": "Đinh Phương Thảo",
+    "combo": "U-S",
+    "l1": "ONL - U M/W/F - 19452130 - 230126 (W-L)",
+    "f1": "FALSE",
+    "l2": ""
+  },
+  {
+    "name": "Trần Thanh Vũ",
+    "combo": "C-M",
+    "l1": "ONL - CORE 2 M/W/F - 18302030- 010426",
+    "f1": "FALSE",
+    "l2": ""
+  }
+]

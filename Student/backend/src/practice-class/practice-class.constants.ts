@@ -11,6 +11,8 @@ export type PracticeSlotId = (typeof PRACTICE_SLOT_IDS)[number];
 export type PracticeSlotOverride = {
   dayLabel: string;
   time: string;
+  title?: string;
+  detail?: string;
   dateNote?: string;
 };
 
@@ -52,8 +54,8 @@ export const PRACTICE_SLOT_DEFINITIONS: PracticeSlotDefinition[] = [
     time: '19h – 21h30',
     title: 'Làm đề L-R-W tập trung',
     detail:
-      'Tham gia bằng link Google Meet, làm bài trên Google Docs, có nhân viên canh thời gian làm bài và các bạn học viên khác tham gia.',
-    platform: 'Google Meet',
+      'Tham gia bằng Zoom, làm bài trên Google Docs, có nhân viên canh thời gian làm bài và các bạn học viên khác tham gia.',
+    platform: 'Zoom',
   },
 ];
 

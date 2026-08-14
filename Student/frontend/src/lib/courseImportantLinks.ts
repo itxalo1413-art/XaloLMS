@@ -54,8 +54,10 @@ function loadLocal(): CourseImportantLink[] {
   }
 }
 
+import { apiFetch } from "@/lib/auth";
+
 export function getCourseImportantLinks(): CourseImportantLink[] {
-  if (typeof window !== "undefined") {
+  if (typeof window !== "undefined" && cache === DEFAULT_COURSE_IMPORTANT_LINKS) {
     cache = loadLocal();
   }
   return cache;
@@ -66,16 +68,35 @@ export function saveCourseImportantLinks(links: CourseImportantLink[]): CourseIm
   if (typeof window !== "undefined") {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(links));
     dispatchUpdate();
+    void apiFetch("/api/aca/course-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ links }),
+    }).catch((err) => console.warn("Failed to persist course links to backend", err));
   }
   return cache;
 }
 
 export function refreshCourseImportantLinks(): CourseImportantLink[] {
-  cache = loadLocal();
-  dispatchUpdate();
+  if (typeof window !== "undefined") {
+    void apiFetch("/api/aca/course-settings", { method: "GET" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && Array.isArray(data.links) && data.links.length > 0) {
+          cache = data.links;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data.links));
+          dispatchUpdate();
+        }
+      })
+      .catch(() => {
+        cache = loadLocal();
+        dispatchUpdate();
+      });
+  }
   return cache;
 }
 
 if (typeof window !== "undefined") {
   cache = loadLocal();
+  refreshCourseImportantLinks();
 }

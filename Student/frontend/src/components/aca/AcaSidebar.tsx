@@ -9,17 +9,26 @@ const requiredLists = [
   { href: "/aca/quan-ly/lop-theo-thang", label: "Lớp theo tháng", desc: "DS & số lượng lớp" },
   { href: "/aca/quan-ly/hoc-vien-lop", label: "Danh sách học viên", desc: "Thông tin & điểm số đầy đủ" },
   { href: "/aca/quan-ly/diem-dau-vao-cuoi-khoa", label: "Điểm Entrance/Final", desc: "Bảng điểm & tiến độ" },
+  { href: "/aca/quan-ly/bcb", label: "Chẩn đoán BCB", desc: "Chỉnh điểm, BCB & hồ sơ" },
+  { href: "/aca/quan-ly/phan-tich-final-test", label: "Phân tích Final Test", desc: "Tỷ lệ đạt theo phân loại lớp" },
   { href: "/aca/quan-ly/lop-1-1", label: "Lớp 1:1", desc: "Lịch kèm cá nhân" },
   { href: "/aca/quan-ly/lop-luyen-de-tuan", label: "Lớp luyện đề tuần", desc: "Lịch đề theo tuần" },
   { href: "/aca/quan-ly/thong-ke-luyen-de", label: "Thống kê luyện đề", desc: "Báo cáo & số liệu đề thường" },
+  { href: "/aca/quan-ly/giao-vien", label: "Hiệu suất Giáo viên", desc: "Thống kê chấm bài trễ hạn" },
+  { href: "/aca/quan-ly/khoa-hoc", label: "Thông tin khóa học", desc: "Tài nguyên & metadata lớp" },
+  { href: "/aca/quan-ly/note", label: "Quotes & Note học viên", desc: "Quản lý quote random & note" },
 ];
 
 const systemModules = [
-  { href: "/aca/quan-ly/mock-test", label: "Duyệt Mock Test", desc: "Xếp lịch & ca rảnh Speaking" },
-  { href: "/aca/quan-ly/lich-ranh", label: "Lịch rảnh ACA", desc: "Set lịch rảnh Speaking" },
   { href: "/aca/quan-ly/cham-writing", label: "Chấm Writing", desc: "Quản lý & chấm bài Writing" },
-  { href: "/aca/nhan-bai-luyen-de", label: "Nhận bài & Cấp độ", desc: "Nhận bài làm & Giao GV" },
 ];
+
+const graderModules = [
+  { href: "/aca/quan-ly/cham-writing", label: "Chấm Writing", desc: "Quản lý & chấm bài Writing" },
+  { href: "/aca/quan-ly/test-speaking", label: "Test Speaking", desc: "Chấm ca Mock Test Speaking" },
+  { href: "/aca/quan-ly/lich-ranh", label: "Đăng ký lịch rảnh", desc: "Daily schedule & lịch rảnh Grader" },
+];
+
 
 export function AcaSidebar() {
   const pathname = usePathname();
@@ -47,16 +56,13 @@ export function AcaSidebar() {
     
     setIsKhanhThi(
       name === "lê nguyễn khánh thi" ||
-        name === "aca_1" ||
-        name === "aca 1" ||
-        email === "aca@xaloenglish.vn" ||
-        email === "aca_1@gmail.com",
+        name.includes("khánh thi") ||
+        email === "aca@xaloenglish.vn",
     );
     setReady(true);
   }, [pathname]);
 
   const showRequiredLists = ready && isKhanhThi;
-  const showMockTest = !ready || isKhanhThi;
 
   const renderLink = (item: { href: string; label: string; desc: string }) => {
     const active =
@@ -126,31 +132,35 @@ export function AcaSidebar() {
             {showRequiredLists ? (
               <div className="space-y-0.5">
                 <div className="sticky top-0 z-10 mb-1 bg-white px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-muted opacity-60">
-                  Danh sách quản lý
+                  Danh sách quản lý Grader
                 </div>
                 {requiredLists.map(renderLink)}
+                <div className="sticky top-0 z-10 mb-1 mt-3 bg-white px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-muted opacity-60">
+                  Hỗ trợ Chấm W-S
+                </div>
+                {systemModules.map(renderLink)}
               </div>
-            ) : null}
-
-            <div className="space-y-0.5">
-              <div className="sticky top-0 z-10 mb-1 bg-white px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-muted opacity-60">
-                Hệ thống & Module
+            ) : (
+              <div className="space-y-0.5">
+                <div className="sticky top-0 z-10 mb-1 bg-white px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-muted opacity-60">
+                  Công cụ Grader
+                </div>
+                {graderModules.map(renderLink)}
               </div>
-              {systemModules
-                .filter((m) => showMockTest || m.href !== "/aca/quan-ly/mock-test")
-                .map(renderLink)}
-            </div>
+            )}
           </div>
 
           <div className="mt-2 shrink-0 space-y-0.5 border-t border-zinc-100 bg-white pt-3">
             {ready && user && (
-              <div className="mb-3 mx-1 px-3 py-2.5 bg-zinc-50/60 border border-zinc-100 rounded-xl flex items-center gap-2.5">
-                <div className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-black text-primary uppercase shadow-sm">
+              <div className="mb-3 mx-1 px-3 py-2.5 bg-purple-50/60 border border-purple-100 rounded-xl flex items-center gap-2.5">
+                <div className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-full bg-purple-600 text-[11px] font-black text-white uppercase shadow-sm">
                   {user.name.charAt(0)}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-xs font-black text-foreground">{user.name}</div>
-                  <div className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider">{user.role}</div>
+                  <div className="text-[9px] font-bold text-purple-700 uppercase tracking-wider">
+                    {isKhanhThi ? "HỌC VỤ TRƯỞNG" : "GRADER"}
+                  </div>
                 </div>
               </div>
             )}

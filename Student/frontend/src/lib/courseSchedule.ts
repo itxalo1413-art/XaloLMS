@@ -1,6 +1,6 @@
 import type { ClientToday } from "@/hooks/useClientToday";
 
-export type HomeworkStatus = "submitted" | "in_progress" | "overdue" | "not_assigned";
+export type HomeworkStatus = "submitted" | "submitted_waiting" | "in_progress" | "overdue" | "not_assigned";
 export type Attendance = "present" | "absent";
 
 export type RlpSession = {
@@ -14,6 +14,9 @@ export type RlpSession = {
   attendance: Attendance;
   /** Link Google Drive / tài liệu buổi học */
   lessonFileUrl?: string;
+  homeworkFileUrl?: string;
+  /** Link video Record buổi học */
+  recordingUrl?: string;
 };
 
 export const SCHEDULE_MONTH_LABELS = [
@@ -24,15 +27,17 @@ export const SCHEDULE_MONTH_LABELS = [
 export const PRACTICE_CLASS_DAYS = [3, 10, 17, 24] as const;
 
 export const HOMEWORK_STATUS_LABEL: Record<HomeworkStatus, string> = {
-  submitted: "Đã nộp",
-  in_progress: "Đang làm",
-  overdue: "Quá hạn",
+  submitted: "Đã chấm",
+  submitted_waiting: "Đã nộp",
+  in_progress: "Chưa nộp",
+  overdue: "Chưa nộp",
   not_assigned: "Chưa giao",
 };
 
 export const HOMEWORK_STATUS_TEXT_CLASS: Record<HomeworkStatus, string> = {
   submitted: "text-success",
-  in_progress: "text-primary",
+  submitted_waiting: "text-primary",
+  in_progress: "text-danger",
   overdue: "text-danger",
   not_assigned: "text-muted",
 };
@@ -51,6 +56,21 @@ function sessionCalendarDate(session: RlpSession): Date | null {
 
 export function parseSessionDateString(dateStr: string) {
   return parseSessionDate(dateStr);
+}
+
+export function calculateGradingDeadline(deadlineStr?: string): string {
+  if (!deadlineStr || deadlineStr === "—" || !deadlineStr.trim()) return "—";
+  const m = deadlineStr.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return "—";
+  const day = Number(m[1]);
+  const month = Number(m[2]) - 1;
+  const year = Number(m[3]);
+  const d = new Date(year, month, day);
+  d.setDate(d.getDate() + 10);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
 }
 
 export function isSessionPast(session: RlpSession, today: ClientToday | null): boolean {
@@ -76,9 +96,9 @@ export const DEFAULT_COURSE_RLP_SESSIONS: RlpSession[] = [
     skill: "Speaking",
     contents:
       "Introduction to Speaking Part 1 - chiến thuật trả lời chủ đề Work, Hobbies, Travel",
-    teacherNote: "Đã nắm được đủ cấu trúc trả lời Part 1, mở rộng ví linh hoạt được.",
+    teacherNote: "—",
     deadline: "09/10/2025",
-    homeworkStatus: "submitted",
+    homeworkStatus: "not_assigned",
     attendance: "present",
     lessonFileUrl: "https://example.com/tailieu-part1.pdf",
   },
@@ -87,9 +107,9 @@ export const DEFAULT_COURSE_RLP_SESSIONS: RlpSession[] = [
     date: "04/10/2025",
     skill: "Speaking",
     contents: "Speaking Part 2 - Descriptive language, Describe a person",
-    teacherNote: "Hiểu yêu cầu Part 2, thiếu từ vựng cụ thể, cần luyện thêm chèn story.",
+    teacherNote: "—",
     deadline: "11/10/2025",
-    homeworkStatus: "submitted",
+    homeworkStatus: "not_assigned",
     attendance: "present",
     lessonFileUrl: "https://example.com/bai-tap-describe-person.docx",
   },
@@ -98,9 +118,9 @@ export const DEFAULT_COURSE_RLP_SESSIONS: RlpSession[] = [
     date: "09/10/2025",
     skill: "Reading",
     contents: "Reading - Matching headings, Sentence endings",
-    teacherNote: "Nắm cách định vị đáp án Completion, làm được từ khóa T/F/NG.",
+    teacherNote: "—",
     deadline: "16/10/2025",
-    homeworkStatus: "overdue",
+    homeworkStatus: "not_assigned",
     attendance: "present",
     lessonFileUrl: "https://example.com/slides-headings.pptx",
   },
@@ -109,10 +129,10 @@ export const DEFAULT_COURSE_RLP_SESSIONS: RlpSession[] = [
     date: "11/10/2025",
     skill: "Speaking",
     contents: "Speaking Part 2 - Describe an item, phát âm & giọng cuối câu",
-    teacherNote: "Cần chú ý hạ giọng khi phát âm, đã biết ở cuối câu hay cụm từ.",
+    teacherNote: "—",
     deadline: "18/10/2025",
-    homeworkStatus: "in_progress",
-    attendance: "absent",
+    homeworkStatus: "not_assigned",
+    attendance: "present",
     lessonFileUrl: "https://example.com/bang-diem-danh-phat-am.xlsx",
   },
   {
@@ -120,9 +140,9 @@ export const DEFAULT_COURSE_RLP_SESSIONS: RlpSession[] = [
     date: "16/10/2025",
     skill: "Speaking",
     contents: "Speaking Part 3 - Chiến thuật câu hỏi, phát triển ý",
-    teacherNote: "Nắm được cách kéo dài để suy nghĩ idea cho Part 3.",
+    teacherNote: "—",
     deadline: "23/10/2025",
-    homeworkStatus: "submitted",
+    homeworkStatus: "not_assigned",
     attendance: "present",
     lessonFileUrl: "https://xalo.edu.vn",
   },
@@ -131,9 +151,9 @@ export const DEFAULT_COURSE_RLP_SESSIONS: RlpSession[] = [
     date: "18/10/2025",
     skill: "Reading",
     contents: "Reading - Matching features, Matching information",
-    teacherNote: "Hiểu cách đọc dày để áp dụng vào bài Matching headings.",
+    teacherNote: "—",
     deadline: "25/10/2025",
-    homeworkStatus: "submitted",
+    homeworkStatus: "not_assigned",
     attendance: "present",
   },
   {
@@ -141,19 +161,19 @@ export const DEFAULT_COURSE_RLP_SESSIONS: RlpSession[] = [
     date: "18/10/2025",
     skill: "Speaking",
     contents: "Speaking Part 2 - Describe a place, cleft sentence",
-    teacherNote: "Hiểu ứng dụng cleft sentence, cần luyện thêm để thành nhuần nhuyễn.",
+    teacherNote: "—",
     deadline: "25/10/2025",
     homeworkStatus: "not_assigned",
-    attendance: "absent",
+    attendance: "present",
   },
   {
     no: 8,
     date: "21/10/2025",
     skill: "Speaking",
     contents: "Speaking Part 2 & 3 liên tục, tạo ngữ cơ bản, nguyên âm đôi",
-    teacherNote: "Nắm mẫu câu tạo ngữ căn bản, cần luyện phát âm nguyên âm đôi.",
+    teacherNote: "—",
     deadline: "28/10/2025",
-    homeworkStatus: "submitted",
+    homeworkStatus: "not_assigned",
     attendance: "present",
   },
   {
@@ -161,9 +181,9 @@ export const DEFAULT_COURSE_RLP_SESSIONS: RlpSession[] = [
     date: "23/10/2025",
     skill: "Reading",
     contents: "Reading - Multiple choice (Passage 2)",
-    teacherNote: "Xử lý tốt dạng multiple choice đoạn học thuật.",
+    teacherNote: "—",
     deadline: "30/10/2025",
-    homeworkStatus: "in_progress",
+    homeworkStatus: "not_assigned",
     attendance: "present",
   },
   {
@@ -171,9 +191,9 @@ export const DEFAULT_COURSE_RLP_SESSIONS: RlpSession[] = [
     date: "25/10/2025",
     skill: "Speaking",
     contents: "Speaking Part 1 - Accommodation, Sport, Transportation",
-    teacherNote: "Diễn đạt hẹp hơn, nắm thành phần câu cơ bản.",
+    teacherNote: "—",
     deadline: "01/11/2025",
-    homeworkStatus: "submitted",
+    homeworkStatus: "not_assigned",
     attendance: "present",
   },
   {
@@ -181,9 +201,9 @@ export const DEFAULT_COURSE_RLP_SESSIONS: RlpSession[] = [
     date: "28/10/2025",
     skill: "Speaking",
     contents: "Speaking Part 2 - Story telling, Describe an experience",
-    teacherNote: "Luyện cụm động từ danh từ, đa phần hình thành cụm danh từ cơ bản.",
+    teacherNote: "—",
     deadline: "04/11/2025",
-    homeworkStatus: "overdue",
+    homeworkStatus: "not_assigned",
     attendance: "present",
   },
   {
@@ -191,9 +211,9 @@ export const DEFAULT_COURSE_RLP_SESSIONS: RlpSession[] = [
     date: "30/10/2025",
     skill: "Reading",
     contents: "Reading - Information Identification (T/F/NG, Y/N/NG)",
-    teacherNote: "Nắm cách đọc lấy thông tin và so sánh với câu hỏi.",
+    teacherNote: "—",
     deadline: "06/11/2025",
-    homeworkStatus: "submitted",
+    homeworkStatus: "not_assigned",
     attendance: "present",
   },
   {
@@ -318,7 +338,7 @@ export function getSessionsDayStyle(
     (s) => s.attendance === "absent" && !isSessionFuture(s, clientToday),
   );
   if (anyAbsent) return "bg-danger/15 text-danger shadow-sm ring-1 ring-danger/20";
-  return "bg-success/15 text-success shadow-sm ring-1 ring-success/20";
+  return "bg-emerald-100 text-emerald-800 font-bold shadow-sm ring-1 ring-emerald-300/80";
 }
 
 export function getDaysInMonth(month: number, year: number) {

@@ -34,5 +34,14 @@ export async function fetchLiveStudentDiagnosis(): Promise<LiveStudentDiagnosis 
   if (!response.ok) {
     return null;
   }
-  return response.json();
+  const text = await response.text();
+  if (!text || !text.trim()) {
+    return null;
+  }
+  try {
+    const data = JSON.parse(text);
+    return data || null;
+  } catch {
+    return null;
+  }
 }
