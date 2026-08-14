@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/auth";
+import { apiFetch, getAuthToken } from "@/lib/auth";
 
 export type LiveStudentDiagnosis = {
   name: string;
@@ -23,6 +23,9 @@ export type LiveStudentDiagnosis = {
 };
 
 export async function fetchLiveStudentDiagnosis(): Promise<LiveStudentDiagnosis | null> {
+  if (!getAuthToken()) {
+    return null;
+  }
   let response: Response;
   try {
     response = await apiFetch("/api/student/profile/diagnosis", { method: "GET" });
