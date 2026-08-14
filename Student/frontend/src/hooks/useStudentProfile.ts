@@ -20,11 +20,16 @@ import {
   uploadStudentAvatar,
 } from "@/lib/studentProfileApi";
 
-function handleUnauthorized(router: ReturnType<typeof useRouter>) {
+function handleSessionInvalid(router: ReturnType<typeof useRouter>) {
   if (isAuthDisabled()) return;
   if (typeof window !== "undefined" && window.location.pathname === "/login") return;
   clearAuthToken();
   router.replace("/login");
+}
+
+function isSessionInvalidError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return err.message === "UNAUTHORIZED" || err.message === "FORBIDDEN";
 }
 
 export function useStudentProfile() {
@@ -53,8 +58,8 @@ export function useStudentProfile() {
       })
       .catch((err) => {
         if (!alive) return;
-        if (err instanceof Error && err.message === "UNAUTHORIZED") {
-          handleUnauthorized(router);
+        if (isSessionInvalidError(err)) {
+          handleSessionInvalid(router);
           return;
         }
         const local = getStudentProfile(resolveActiveStudentId());
@@ -117,8 +122,8 @@ export function useStudentProfile() {
       setProfileStatus("Đã lưu hồ sơ.");
       setProfileOpen(false);
     } catch (err) {
-      if (err instanceof Error && err.message === "UNAUTHORIZED") {
-        handleUnauthorized(router);
+      if (isSessionInvalidError(err)) {
+        handleSessionInvalid(router);
         return;
       }
       setProfile(draft);
@@ -149,8 +154,8 @@ export function useStudentProfile() {
         setProfile((prev) => ({ ...prev, avatarUrl: remote.avatarUrl }));
         setProfileStatus("File đã upload. Bấm Lưu hồ sơ nếu bạn vừa đổi thông tin khác.");
       } catch (err) {
-        if (err instanceof Error && err.message === "UNAUTHORIZED") {
-          handleUnauthorized(router);
+        if (isSessionInvalidError(err)) {
+          handleSessionInvalid(router);
           return;
         }
         try {

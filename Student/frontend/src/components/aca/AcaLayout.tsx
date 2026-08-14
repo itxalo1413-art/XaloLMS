@@ -5,7 +5,16 @@ import type { ReactNode } from "react";
 import { AcaSidebar } from "./AcaSidebar";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { clearAuthToken, getCachedAuthUser, getAuthToken, isAuthDisabled } from "@/lib/auth";
+import {
+  cacheAuthUser,
+  clearAuthToken,
+  fetchMe,
+  getCachedAuthUser,
+  getAuthToken,
+  homePathForRole,
+  isAuthDisabled,
+  isAuthSessionError,
+} from "@/lib/auth";
 
 const RESTRICTED_PATHS = [
   "/aca/quan-ly/lop-theo-thang",
@@ -40,21 +49,49 @@ export function AcaLayout({ children }: { children: ReactNode }) {
       setAuthReady(true);
       return;
     }
-    const token = getAuthToken();
-    if (!token) {
-      router.replace("/login");
-      return;
+
+    let cancelled = false;
+
+    async function verifyAcaSession() {
+      const token = getAuthToken();
+      const cached = getCachedAuthUser();
+      if (!token || !cached) {
+        clearAuthToken();
+        router.replace("/login");
+        return;
+      }
+      if (cached.role !== "ACA") {
+        clearAuthToken();
+        router.replace("/login?error=role");
+        return;
+      }
+
+      try {
+        const me = await fetchMe();
+        if (cancelled) return;
+        if (me.role !== "ACA") {
+          clearAuthToken();
+          router.replace(`/login?error=role`);
+          return;
+        }
+        cacheAuthUser(me);
+        setAuthReady(true);
+      } catch (err) {
+        if (cancelled) return;
+        if (isAuthSessionError(err)) {
+          clearAuthToken();
+          router.replace("/login");
+          return;
+        }
+        setAuthReady(true);
+      }
     }
-    const user = getCachedAuthUser();
-    if (!user) {
-      router.replace("/login");
-      return;
-    }
-    if (user.role !== "ACA") {
-      router.replace("/login");
-      return;
-    }
-    setAuthReady(true);
+
+    void verifyAcaSession();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   useEffect(() => {

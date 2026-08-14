@@ -22,12 +22,9 @@ export type LoginResponse = {
 
 /** Tạm thời bỏ qua login — bật lại: đặt `NEXT_PUBLIC_AUTH_DISABLED=false` rồi build lại. */
 export function isAuthDisabled(): boolean {
-  if (typeof window !== "undefined" && localStorage.getItem(AUTH_TOKEN_KEY)) {
-    return false;
-  }
   const flag = process.env.NEXT_PUBLIC_AUTH_DISABLED;
-  if (flag === "false") return false;
-  return true;
+  if (flag === "true") return true;
+  return false;
 }
 
 export function getAuthBypassUser(): AuthUser {
@@ -44,7 +41,6 @@ export function getAuthBypassUser(): AuthUser {
 }
 
 export function getAuthToken(): string | null {
-  if (isAuthDisabled()) return null;
   if (typeof window === "undefined") return null;
   return localStorage.getItem(AUTH_TOKEN_KEY);
 }
@@ -62,27 +58,33 @@ export function cacheAuthUser(user: AuthUser): void {
   localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
 }
 
+export function hasAuthSession(): boolean {
+  return Boolean(getAuthToken() && getCachedAuthUser());
+}
+
 export function getCachedAuthUser(): AuthUser | null {
   if (typeof window === "undefined") return null;
   const raw = localStorage.getItem(AUTH_USER_KEY);
-  if (!raw) {
-    if (window.location.pathname.startsWith("/aca")) {
-      return {
-        id: "aca-default-id",
-        email: "aca@xaloenglish.vn",
-        name: "Lê Nguyễn Khánh Thi",
-        role: "ACA",
-        status: "active",
-        createdAt: "2020-01-01T00:00:00.000Z"
-      };
-    }
-    return null;
-  }
+  if (!raw) return null;
   try {
     return JSON.parse(raw) as AuthUser;
   } catch {
     return null;
   }
+}
+
+export class AuthSessionError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "AuthSessionError";
+    this.status = status;
+  }
+}
+
+export function isAuthSessionError(err: unknown): err is AuthSessionError {
+  return err instanceof AuthSessionError;
 }
 
 export function authHeaders(extra?: HeadersInit): HeadersInit {
@@ -137,8 +139,11 @@ export async function login(email: string, password: string): Promise<LoginRespo
 
 export async function fetchMe(): Promise<AuthUser> {
   const response = await apiFetch("/api/auth/me");
+  if (response.status === 401 || response.status === 403) {
+    throw new AuthSessionError(response.status, "Phiên đăng nhập không hợp lệ");
+  }
   if (!response.ok) {
-    throw new Error("Phiên đăng nhập không hợp lệ");
+    throw new Error(`Không xác thực được phiên đăng nhập (${response.status})`);
   }
   const data = (await response.json()) as { user: AuthUser };
   return data.user;

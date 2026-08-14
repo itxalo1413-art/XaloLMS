@@ -9,6 +9,9 @@ async function parseResponse(response: Response): Promise<StudentProfile> {
   if (response.status === 401) {
     throw new Error("UNAUTHORIZED");
   }
+  if (response.status === 403) {
+    throw new Error("FORBIDDEN");
+  }
   if (!response.ok) {
     throw new Error(`Profile API failed with status ${response.status}`);
   }

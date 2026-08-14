@@ -12,6 +12,7 @@ import {
   getCachedAuthUser,
   homePathForRole,
   isAuthDisabled,
+  isAuthSessionError,
 } from "@/lib/auth";
 
 type StudentAuthContextValue = {
@@ -63,20 +64,17 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
       }
 
       const token = getAuthToken();
-      if (!token) {
-        const demo = getAuthBypassUser();
-        cacheAuthUser(demo);
+      const cached = getCachedAuthUser();
+      if (!token || !cached) {
         if (!cancelled) {
-          setUser(demo);
-          setReady(true);
+          clearAuthToken();
+          router.replace("/login");
         }
         return;
       }
 
-      const cached = getCachedAuthUser();
-      if (cached && !cancelled) {
+      if (!cancelled) {
         setUser(cached);
-        setReady(true);
       }
 
       try {
@@ -103,13 +101,16 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
           router.replace(home);
           return;
         }
-      } catch {
-        if (!cancelled) {
-          const fallback = getCachedAuthUser() || getAuthBypassUser();
-          setUser(fallback);
-          setReady(true);
+      } catch (err) {
+        if (cancelled) return;
+        if (isAuthSessionError(err)) {
+          clearAuthToken();
+          router.replace("/login");
+          return;
         }
-        return;
+        if (!cancelled) {
+          setUser(cached);
+        }
       } finally {
         if (!cancelled) setReady(true);
       }

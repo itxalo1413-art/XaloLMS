@@ -5,10 +5,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   cacheAuthUser,
+  clearAuthToken,
+  fetchMe,
+  getAuthToken,
+  getCachedAuthUser,
   homePathForRole,
+  isAuthDisabled,
+  isAuthSessionError,
   login,
   setAuthToken,
-  type AuthUser,
 } from "@/lib/auth";
 
 const LOGIN_QUOTE_POPUP_KEY = "xalo.showLoginQuotePopup";
@@ -64,17 +69,33 @@ export function LoginForm() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    // If already logged in and not switching accounts, redirect directly to their dashboard
     if (searchParams.get("switch") === "1") return;
-    const rawUser = typeof window !== "undefined" ? localStorage.getItem("xalo.auth.user") : null;
-    if (rawUser) {
-      try {
-        const user = JSON.parse(rawUser) as AuthUser;
-        router.replace(user.role === "HS" ? "/" : homePathForRole(user.role));
-      } catch {
-        // ignore
-      }
+    if (isAuthDisabled()) return;
+
+    const token = getAuthToken();
+    const cached = getCachedAuthUser();
+    if (!token || !cached) {
+      if (!token && cached) clearAuthToken();
+      return;
     }
+
+    let cancelled = false;
+    void fetchMe()
+      .then((me) => {
+        if (cancelled) return;
+        cacheAuthUser(me);
+        router.replace(me.role === "HS" ? "/" : homePathForRole(me.role));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        if (isAuthSessionError(err)) {
+          clearAuthToken();
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [router, searchParams]);
 
   const roleError = searchParams.get("error") === "role";
