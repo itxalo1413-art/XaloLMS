@@ -22,6 +22,7 @@ import {
 
 function handleUnauthorized(router: ReturnType<typeof useRouter>) {
   if (isAuthDisabled()) return;
+  if (typeof window !== "undefined" && window.location.pathname === "/login") return;
   clearAuthToken();
   router.replace("/login");
 }

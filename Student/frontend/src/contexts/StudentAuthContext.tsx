@@ -57,9 +57,17 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
         return;
       }
 
+      if (pathname === "/login") {
+        if (!cancelled) setReady(true);
+        return;
+      }
+
       const token = getAuthToken();
       if (!token) {
-        router.replace("/login");
+        if (!cancelled) setReady(true);
+        if (pathname !== "/login") {
+          router.replace("/login");
+        }
         return;
       }
 
@@ -96,7 +104,9 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
       } catch {
         if (!cancelled) {
           clearAuthToken();
-          router.replace("/login");
+          if (pathname !== "/login") {
+            router.replace("/login");
+          }
         }
         return;
       } finally {
