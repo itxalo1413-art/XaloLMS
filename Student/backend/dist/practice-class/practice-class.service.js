@@ -202,6 +202,7 @@ let PracticeClassService = class PracticeClassService {
             const studentId = row.userId.toString();
             const slot = slotById[row.slotId];
             return {
+                id: row._id.toString(),
                 studentId,
                 studentName: names.get(studentId) ?? studentId,
                 slotId: row.slotId,
@@ -209,8 +210,49 @@ let PracticeClassService = class PracticeClassService {
                 slotSchedule: slot ? `${slot.dayLabel} · ${slot.time}` : '—',
                 registeredAt: row.createdAt?.toISOString() ??
                     new Date(0).toISOString(),
+                linkFolder: row.linkFolder ?? '',
+                scoreR: row.scoreR ?? '',
+                scoreL: row.scoreL ?? '',
+                scoreW: row.scoreW ?? '',
             };
         });
+    }
+    async updateRegistrationDetails(registrationId, payload) {
+        if (!mongoose_2.Types.ObjectId.isValid(registrationId)) {
+            throw new common_1.BadRequestException('registrationId không hợp lệ');
+        }
+        const reg = await this.registrationModel.findById(registrationId).exec();
+        if (!reg) {
+            throw new common_1.NotFoundException('Không tìm thấy đăng ký');
+        }
+        if (payload.linkFolder !== undefined)
+            reg.linkFolder = payload.linkFolder.trim();
+        if (payload.scoreR !== undefined)
+            reg.scoreR = payload.scoreR.trim();
+        if (payload.scoreL !== undefined)
+            reg.scoreL = payload.scoreL.trim();
+        if (payload.scoreW !== undefined)
+            reg.scoreW = payload.scoreW.trim();
+        await reg.save();
+        const [user, schedule] = await Promise.all([
+            this.usersService.findPublicById(reg.userId.toString()),
+            this.getSchedule(),
+        ]);
+        const slotById = Object.fromEntries(schedule.slots.map((slot) => [slot.id, slot]));
+        const slot = slotById[reg.slotId];
+        return {
+            id: reg._id.toString(),
+            studentId: reg.userId.toString(),
+            studentName: user?.name ?? reg.userId.toString(),
+            slotId: reg.slotId,
+            slotTitle: slot?.title ?? reg.slotId,
+            slotSchedule: slot ? `${slot.dayLabel} · ${slot.time}` : '—',
+            registeredAt: reg.createdAt?.toISOString() ?? new Date().toISOString(),
+            linkFolder: reg.linkFolder ?? '',
+            scoreR: reg.scoreR ?? '',
+            scoreL: reg.scoreL ?? '',
+            scoreW: reg.scoreW ?? '',
+        };
     }
     async unregisterSlot(userId, slotId) {
         if (!mongoose_2.Types.ObjectId.isValid(userId)) {

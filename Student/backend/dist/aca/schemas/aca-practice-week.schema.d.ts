@@ -17,6 +17,7 @@ export declare class AcaPracticeWeek {
     scheduleTueTime: string;
     scheduleThuTime: string;
     scheduleSatTime: string;
+    linkFolder: string;
 }
 export declare const AcaPracticeWeekSchema: import("mongoose").Schema<AcaPracticeWeek, import("mongoose").Model<AcaPracticeWeek, any, any, any, any, any, AcaPracticeWeek>, {}, {}, {}, {}, import("mongoose").DefaultSchemaOptions, AcaPracticeWeek, import("mongoose").Document<unknown, {}, AcaPracticeWeek, {
     id: string;
@@ -163,6 +164,15 @@ export declare const AcaPracticeWeekSchema: import("mongoose").Schema<AcaPractic
         id: string;
     }> | undefined;
     scheduleSatTime?: import("mongoose").SchemaDefinitionProperty<string, AcaPracticeWeek, import("mongoose").Document<unknown, {}, AcaPracticeWeek, {
+        id: string;
+    }, import("mongoose").DefaultSchemaOptions> & Omit<AcaPracticeWeek & {
+        _id: import("mongoose").Types.ObjectId;
+    } & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    linkFolder?: import("mongoose").SchemaDefinitionProperty<string, AcaPracticeWeek, import("mongoose").Document<unknown, {}, AcaPracticeWeek, {
         id: string;
     }, import("mongoose").DefaultSchemaOptions> & Omit<AcaPracticeWeek & {
         _id: import("mongoose").Types.ObjectId;

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Put, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
@@ -24,5 +24,13 @@ export class AcaPracticeClassController {
   @Get('registrations')
   listRegistrations() {
     return this.practiceClass.listAllRegistrationsForAca();
+  }
+
+  @Put('registration/:id')
+  updateRegistrationDetails(
+    @Param('id') id: string,
+    @Body() body: { linkFolder?: string; scoreR?: string; scoreL?: string; scoreW?: string },
+  ) {
+    return this.practiceClass.updateRegistrationDetails(id, body ?? {});
   }
 }

@@ -33,6 +33,9 @@ let AcaPracticeClassController = class AcaPracticeClassController {
     listRegistrations() {
         return this.practiceClass.listAllRegistrationsForAca();
     }
+    updateRegistrationDetails(id, body) {
+        return this.practiceClass.updateRegistrationDetails(id, body ?? {});
+    }
 };
 exports.AcaPracticeClassController = AcaPracticeClassController;
 __decorate([
@@ -54,6 +57,14 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], AcaPracticeClassController.prototype, "listRegistrations", null);
+__decorate([
+    (0, common_1.Put)('registration/:id'),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", void 0)
+], AcaPracticeClassController.prototype, "updateRegistrationDetails", null);
 exports.AcaPracticeClassController = AcaPracticeClassController = __decorate([
     (0, common_1.Controller)('aca/practice-class'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),

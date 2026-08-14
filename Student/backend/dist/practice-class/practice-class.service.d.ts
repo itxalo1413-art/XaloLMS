@@ -17,14 +17,23 @@ export type PracticeSchedulePublic = {
 export type PracticeRegistrationPublic = {
     slotId: PracticeSlotId;
     registeredAt: string;
+    linkFolder?: string;
+    scoreR?: string;
+    scoreL?: string;
+    scoreW?: string;
 };
 export type PracticeRegistrationAcaPublic = {
+    id: string;
     studentId: string;
     studentName: string;
     slotId: PracticeSlotId;
     slotTitle: string;
     slotSchedule: string;
     registeredAt: string;
+    linkFolder?: string;
+    scoreR?: string;
+    scoreL?: string;
+    scoreW?: string;
 };
 export declare class PracticeClassService {
     private readonly scheduleModel;
@@ -41,5 +50,11 @@ export declare class PracticeClassService {
     listRegistrations(userId: string): Promise<PracticeRegistrationPublic[]>;
     registerSlot(userId: string, slotId: string): Promise<PracticeRegistrationPublic>;
     listAllRegistrationsForAca(): Promise<PracticeRegistrationAcaPublic[]>;
+    updateRegistrationDetails(registrationId: string, payload: {
+        linkFolder?: string;
+        scoreR?: string;
+        scoreL?: string;
+        scoreW?: string;
+    }): Promise<PracticeRegistrationAcaPublic>;
     unregisterSlot(userId: string, slotId: string): Promise<void>;
 }

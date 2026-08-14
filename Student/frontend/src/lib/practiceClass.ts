@@ -508,6 +508,7 @@ export async function refreshAllPracticeRegistrationsForAca(): Promise<
     .map((row) => {
       const slot = getPracticeSlotById(row.slotId);
       return {
+        id: `${row.studentId}_${row.slotId}`,
         studentId: row.studentId,
         studentName: resolveStudentNameForAca(row.studentId),
         slotId: row.slotId,

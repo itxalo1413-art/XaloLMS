@@ -12,6 +12,18 @@ export class PracticeClassRegistration {
 
   @Prop({ required: true, enum: PRACTICE_SLOT_IDS })
   slotId: string;
+
+  @Prop({ type: String, default: '' })
+  linkFolder?: string;
+
+  @Prop({ type: String, default: '' })
+  scoreR?: string;
+
+  @Prop({ type: String, default: '' })
+  scoreL?: string;
+
+  @Prop({ type: String, default: '' })
+  scoreW?: string;
 }
 
 export const PracticeClassRegistrationSchema = SchemaFactory.createForClass(

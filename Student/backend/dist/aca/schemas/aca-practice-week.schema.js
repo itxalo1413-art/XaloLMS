@@ -28,6 +28,7 @@ let AcaPracticeWeek = class AcaPracticeWeek {
     scheduleTueTime;
     scheduleThuTime;
     scheduleSatTime;
+    linkFolder;
 };
 exports.AcaPracticeWeek = AcaPracticeWeek;
 __decorate([
@@ -94,6 +95,10 @@ __decorate([
     (0, mongoose_1.Prop)({ trim: true, default: '' }),
     __metadata("design:type", String)
 ], AcaPracticeWeek.prototype, "scheduleSatTime", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ trim: true, default: '' }),
+    __metadata("design:type", String)
+], AcaPracticeWeek.prototype, "linkFolder", void 0);
 exports.AcaPracticeWeek = AcaPracticeWeek = __decorate([
     (0, mongoose_1.Schema)({ collection: 'aca_practice_weeks', timestamps: true, strict: false })
 ], AcaPracticeWeek);

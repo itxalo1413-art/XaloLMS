@@ -11,7 +11,11 @@ import {
   AcaPracticeWeek,
 } from "@/lib/acaManagementApi";
 import { setPracticeZoomInfo, savePracticeScheduleFromAca } from "@/lib/practiceClass";
-import { fetchPracticeRegistrationsForAca, type PracticeRegistrationAcaRow } from "@/lib/practiceClassApi";
+import {
+  fetchPracticeRegistrationsForAca,
+  updateRegistrationDetailsApi,
+  type PracticeRegistrationAcaRow,
+} from "@/lib/practiceClassApi";
 
 export default function LopLuyenDeTuanPage() {
   const [weeksList, setWeeksList] = useState<AcaPracticeWeek[]>([]);
@@ -55,8 +59,46 @@ export default function LopLuyenDeTuanPage() {
   // Registrations from student side
   const [registrationsList, setRegistrationsList] = useState<PracticeRegistrationAcaRow[]>([]);
 
-  // Link folder bài tập cá nhân
+  // General week link folder
   const [editLinkFolder, setEditLinkFolder] = useState("");
+
+  // Registration edit modal state
+  const [editingReg, setEditingReg] = useState<PracticeRegistrationAcaRow | null>(null);
+  const [editRegFolder, setEditRegFolder] = useState("");
+  const [editRegScoreR, setEditRegScoreR] = useState("");
+  const [editRegScoreL, setEditRegScoreL] = useState("");
+  const [editRegScoreW, setEditRegScoreW] = useState("");
+  const [savingReg, setSavingReg] = useState(false);
+
+  const openEditRegModal = (reg: PracticeRegistrationAcaRow) => {
+    setEditingReg(reg);
+    setEditRegFolder(reg.linkFolder || "");
+    setEditRegScoreR(reg.scoreR || "");
+    setEditRegScoreL(reg.scoreL || "");
+    setEditRegScoreW(reg.scoreW || "");
+  };
+
+  const handleSaveRegDetails = async () => {
+    if (!editingReg) return;
+    setSavingReg(true);
+    try {
+      const updated = await updateRegistrationDetailsApi(editingReg.id, {
+        linkFolder: editRegFolder,
+        scoreR: editRegScoreR,
+        scoreL: editRegScoreL,
+        scoreW: editRegScoreW,
+      });
+      setRegistrationsList((prev) =>
+        prev.map((item) => (item.id === editingReg.id ? { ...item, ...updated } : item))
+      );
+      setEditingReg(null);
+    } catch (err) {
+      console.error("Save registration details failed:", err);
+      alert(err instanceof Error ? err.message : "Lỗi khi lưu thông tin.");
+    } finally {
+      setSavingReg(false);
+    }
+  };
 
   useEffect(() => {
     async function loadData() {
@@ -619,49 +661,6 @@ export default function LopLuyenDeTuanPage() {
                 )}
               </div>
 
-              {/* Individual Student notification message */}
-              <div className="bg-white rounded-2xl border border-zinc-200 p-5 shadow-sm space-y-3">
-                <div className="flex justify-between items-center pb-2 border-b border-zinc-100">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-foreground">
-                    Tin nhắn gửi HV
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        if (isEditingTemplateMessage) {
-                          saveWeekPartial({ templateMessage: editTemplateMessageText });
-                          setIsEditingTemplateMessage(false);
-                        } else {
-                          setIsEditingTemplateMessage(true);
-                        }
-                      }}
-                      className="text-[10px] font-black uppercase text-primary hover:underline"
-                    >
-                      {isEditingTemplateMessage ? "Lưu tin" : "Chỉnh sửa"}
-                    </button>
-                    <span className="text-zinc-300">|</span>
-                    <button
-                      onClick={() => handleCopy(editTemplateMessageText || activeWeekInfo.templateMessage, "Tin nhắn gửi học viên")}
-                      className="text-[10px] font-black uppercase text-primary hover:underline"
-                    >
-                      Copy tin nhắn
-                    </button>
-                  </div>
-                </div>
-                {isEditingTemplateMessage ? (
-                  <textarea
-                    rows={4}
-                    value={editTemplateMessageText}
-                    onChange={(e) => setEditTemplateMessageText(e.target.value)}
-                    className="w-full rounded-xl border border-primary p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-primary/10"
-                  />
-                ) : (
-                  <div className="text-xs font-semibold text-zinc-600 bg-zinc-50 p-3 rounded-xl leading-relaxed max-h-[120px] overflow-y-auto">
-                    {editTemplateMessageText || activeWeekInfo.templateMessage}
-                  </div>
-                )}
-              </div>
-
             </div>
 
             {/* Right main registrations panel */}
@@ -689,36 +688,86 @@ export default function LopLuyenDeTuanPage() {
                   </button>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[700px] border-collapse text-left text-xs">
+                  <table className="w-full min-w-[950px] border-collapse text-left text-xs">
                     <thead>
                       <tr className="border-b border-zinc-200 bg-zinc-50 text-[10px] font-black uppercase tracking-widest text-muted whitespace-nowrap">
-                        <th className="px-6 py-3 text-center min-w-[50px]">STT</th>
-                        <th className="px-6 py-3 min-w-[200px]">Tên học viên</th>
-                        <th className="px-6 py-3 min-w-[180px]">Ca đăng ký</th>
-                        <th className="px-6 py-3 min-w-[200px]">Lịch học</th>
-                        <th className="px-6 py-3 min-w-[180px]">Thời gian đăng ký</th>
+                        <th className="px-4 py-3 text-center min-w-[45px]">STT</th>
+                        <th className="px-4 py-3 min-w-[160px]">Tên học viên</th>
+                        <th className="px-4 py-3 min-w-[140px]">Ca đăng ký</th>
+                        <th className="px-4 py-3 min-w-[140px]">Lịch học</th>
+                        <th className="px-4 py-3 min-w-[160px]">Folder cá nhân</th>
+                        <th className="px-3 py-3 text-center min-w-[65px]">R</th>
+                        <th className="px-3 py-3 text-center min-w-[65px]">L</th>
+                        <th className="px-3 py-3 text-center min-w-[65px]">W</th>
+                        <th className="px-4 py-3 min-w-[140px]">Thời gian đăng ký</th>
+                        <th className="px-4 py-3 text-center min-w-[120px]">Hành động</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-100 font-semibold text-zinc-700">
                       {filteredRegistrations.length > 0 ? (
                         filteredRegistrations.map((reg, idx) => (
-                          <tr key={`${reg.studentId}-${reg.slotId}`} className="hover:bg-zinc-50/55 align-middle">
-                            <td className="px-6 py-3.5 text-center tabular-nums text-zinc-400">{idx + 1}</td>
-                            <td className="px-6 py-3.5 font-black text-foreground">{reg.studentName}</td>
-                            <td className="px-6 py-3.5">
+                          <tr key={`${reg.id || reg.studentId}-${reg.slotId}`} className="hover:bg-zinc-50/55 align-middle">
+                            <td className="px-4 py-3 text-center tabular-nums text-zinc-400">{idx + 1}</td>
+                            <td className="px-4 py-3 font-black text-foreground">{reg.studentName}</td>
+                            <td className="px-4 py-3">
                               <span className="px-2 py-0.5 rounded-lg font-black text-[10px] bg-primary/10 text-primary">
                                 {reg.slotTitle}
                               </span>
                             </td>
-                            <td className="px-6 py-3.5 text-zinc-500">{reg.slotSchedule}</td>
-                            <td className="px-6 py-3.5 tabular-nums text-zinc-400 text-[10px]">
+                            <td className="px-4 py-3 text-zinc-500">{reg.slotSchedule}</td>
+                            <td className="px-4 py-3">
+                              {reg.linkFolder ? (
+                                <a
+                                  href={reg.linkFolder.startsWith("http") ? reg.linkFolder : `https://${reg.linkFolder}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 font-bold text-[10px] border border-amber-200 hover:bg-amber-100 transition-all truncate max-w-[160px]"
+                                  title={reg.linkFolder}
+                                >
+                                  📁 Open Folder ↗
+                                </a>
+                              ) : (
+                                <span className="text-zinc-400 text-[10px] italic">Chưa có</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 text-center">
+                              {reg.scoreR ? (
+                                <span className="px-2 py-0.5 rounded bg-primary/10 font-black text-primary text-xs">{reg.scoreR}</span>
+                              ) : (
+                                <span className="text-zinc-300">—</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 text-center">
+                              {reg.scoreL ? (
+                                <span className="px-2 py-0.5 rounded bg-primary/10 font-black text-primary text-xs">{reg.scoreL}</span>
+                              ) : (
+                                <span className="text-zinc-300">—</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 text-center">
+                              {reg.scoreW ? (
+                                <span className="px-2 py-0.5 rounded bg-secondary/10 font-black text-secondary text-xs">{reg.scoreW}</span>
+                              ) : (
+                                <span className="text-zinc-300">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 tabular-nums text-zinc-400 text-[10px]">
                               {new Date(reg.registeredAt).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => openEditRegModal(reg)}
+                                className="h-7 px-3 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary font-black text-[10px] uppercase tracking-wider transition-all cursor-pointer"
+                              >
+                                Sửa / Nhập điểm
+                              </button>
                             </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={5} className="px-6 py-8 text-center text-zinc-400 font-medium">
+                          <td colSpan={10} className="px-6 py-8 text-center text-zinc-400 font-medium">
                             Chưa có học viên nào đăng ký qua hệ thống.
                           </td>
                         </tr>
@@ -730,6 +779,104 @@ export default function LopLuyenDeTuanPage() {
 
             </div>
 
+          </div>
+        )}
+
+        {/* ── Edit Registration Details Modal ── */}
+        {editingReg && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl space-y-5">
+              <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+                <div>
+                  <span className="text-[10px] font-black text-primary uppercase tracking-widest">Cập nhật thông tin học viên</span>
+                  <h3 className="text-base font-black text-foreground">{editingReg.studentName}</h3>
+                  <p className="text-xs font-semibold text-zinc-500">{editingReg.slotTitle} ({editingReg.slotSchedule})</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingReg(null)}
+                  className="h-8 w-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 font-bold flex items-center justify-center cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Link Folder */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                    📁 Link Folder Bài Tập Cá Nhân
+                  </label>
+                  <input
+                    type="text"
+                    value={editRegFolder}
+                    onChange={(e) => setEditRegFolder(e.target.value)}
+                    placeholder="https://drive.google.com/drive/folders/..."
+                    className="w-full h-10 rounded-xl border border-zinc-200 px-3.5 text-xs font-medium focus:ring-2 focus:ring-primary/20 outline-none"
+                  />
+                </div>
+
+                {/* 3 Skill Scores R - L - W */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-primary uppercase tracking-widest">
+                      Reading (R)
+                    </label>
+                    <input
+                      type="text"
+                      value={editRegScoreR}
+                      onChange={(e) => setEditRegScoreR(e.target.value)}
+                      placeholder="e.g. 7.5"
+                      className="w-full h-10 rounded-xl border border-zinc-200 px-3 text-center text-xs font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-primary uppercase tracking-widest">
+                      Listening (L)
+                    </label>
+                    <input
+                      type="text"
+                      value={editRegScoreL}
+                      onChange={(e) => setEditRegScoreL(e.target.value)}
+                      placeholder="e.g. 8.0"
+                      className="w-full h-10 rounded-xl border border-zinc-200 px-3 text-center text-xs font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-secondary uppercase tracking-widest">
+                      Writing (W)
+                    </label>
+                    <input
+                      type="text"
+                      value={editRegScoreW}
+                      onChange={(e) => setEditRegScoreW(e.target.value)}
+                      placeholder="e.g. 6.5"
+                      className="w-full h-10 rounded-xl border border-zinc-200 px-3 text-center text-xs font-bold focus:ring-2 focus:ring-secondary/20 outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingReg(null)}
+                  className="h-10 rounded-xl bg-zinc-100 px-4 text-xs font-bold text-zinc-600 hover:bg-zinc-200 cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveRegDetails}
+                  disabled={savingReg}
+                  className="h-10 rounded-xl bg-primary px-6 text-xs font-black uppercase text-white hover:bg-primary/90 shadow-sm cursor-pointer disabled:opacity-50"
+                >
+                  {savingReg ? "Đang lưu..." : "Lưu cập nhật"}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

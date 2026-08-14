@@ -157,6 +157,7 @@ let UsersService = class UsersService {
             { name: 'Lê Minh Trang', email: 'minhtrang.le@xalo.edu.vn' },
             { name: 'Phạm Hoàng An', email: 'hoangan.pham@xalo.edu.vn' },
             { name: 'Trần Thu Lan', email: 'thulan.tran@xalo.edu.vn' },
+            { name: 'Lê Thanh Tâm', email: 'thanhtam.le@xalo.edu.vn' },
         ];
         const defaultPasswordHash = await bcrypt.hash('Teacher@123!', SALT_ROUNDS);
         for (const t of defaultTeachers) {

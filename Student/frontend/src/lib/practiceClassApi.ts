@@ -94,12 +94,17 @@ export async function unregisterPracticeSlotApi(slotId: PracticeSlotId): Promise
 }
 
 export type PracticeRegistrationAcaRow = {
+  id: string;
   studentId: string;
   studentName: string;
   slotId: PracticeSlotId;
   slotTitle: string;
   slotSchedule: string;
   registeredAt: string;
+  linkFolder?: string;
+  scoreR?: string;
+  scoreL?: string;
+  scoreW?: string;
 };
 
 export async function fetchPracticeRegistrationsForAca(): Promise<
@@ -107,6 +112,17 @@ export async function fetchPracticeRegistrationsForAca(): Promise<
 > {
   const response = await apiFetch("/api/aca/practice-class/registrations", {
     method: "GET",
+  });
+  return parseJson(response);
+}
+
+export async function updateRegistrationDetailsApi(
+  id: string,
+  payload: { linkFolder?: string; scoreR?: string; scoreL?: string; scoreW?: string }
+): Promise<PracticeRegistrationAcaRow> {
+  const response = await apiFetch(`/api/aca/practice-class/registration/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
   });
   return parseJson(response);
 }

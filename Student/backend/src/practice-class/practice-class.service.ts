@@ -42,15 +42,24 @@ export type PracticeSchedulePublic = {
 export type PracticeRegistrationPublic = {
   slotId: PracticeSlotId;
   registeredAt: string;
+  linkFolder?: string;
+  scoreR?: string;
+  scoreL?: string;
+  scoreW?: string;
 };
 
 export type PracticeRegistrationAcaPublic = {
+  id: string;
   studentId: string;
   studentName: string;
   slotId: PracticeSlotId;
   slotTitle: string;
   slotSchedule: string;
   registeredAt: string;
+  linkFolder?: string;
+  scoreR?: string;
+  scoreL?: string;
+  scoreW?: string;
 };
 
 @Injectable()
@@ -272,10 +281,11 @@ export class PracticeClassService {
     const names = await this.usersService.findNamesByIds(userIds);
     const slotById = Object.fromEntries(schedule.slots.map((slot) => [slot.id, slot]));
 
-    return rows.map((row) => {
+    return rows.map((row: any) => {
       const studentId = row.userId.toString();
       const slot = slotById[row.slotId as PracticeSlotId];
       return {
+        id: row._id.toString(),
         studentId,
         studentName: names.get(studentId) ?? studentId,
         slotId: row.slotId as PracticeSlotId,
@@ -284,8 +294,51 @@ export class PracticeClassService {
         registeredAt:
           (row as { createdAt?: Date }).createdAt?.toISOString() ??
           new Date(0).toISOString(),
+        linkFolder: row.linkFolder ?? '',
+        scoreR: row.scoreR ?? '',
+        scoreL: row.scoreL ?? '',
+        scoreW: row.scoreW ?? '',
       };
     });
+  }
+
+  async updateRegistrationDetails(
+    registrationId: string,
+    payload: { linkFolder?: string; scoreR?: string; scoreL?: string; scoreW?: string },
+  ): Promise<PracticeRegistrationAcaPublic> {
+    if (!Types.ObjectId.isValid(registrationId)) {
+      throw new BadRequestException('registrationId không hợp lệ');
+    }
+    const reg = await this.registrationModel.findById(registrationId).exec();
+    if (!reg) {
+      throw new NotFoundException('Không tìm thấy đăng ký');
+    }
+    if (payload.linkFolder !== undefined) reg.linkFolder = payload.linkFolder.trim();
+    if (payload.scoreR !== undefined) reg.scoreR = payload.scoreR.trim();
+    if (payload.scoreL !== undefined) reg.scoreL = payload.scoreL.trim();
+    if (payload.scoreW !== undefined) reg.scoreW = payload.scoreW.trim();
+    await reg.save();
+
+    const [user, schedule] = await Promise.all([
+      this.usersService.findPublicById(reg.userId.toString()),
+      this.getSchedule(),
+    ]);
+    const slotById = Object.fromEntries(schedule.slots.map((slot) => [slot.id, slot]));
+    const slot = slotById[reg.slotId as PracticeSlotId];
+
+    return {
+      id: reg._id.toString(),
+      studentId: reg.userId.toString(),
+      studentName: user?.name ?? reg.userId.toString(),
+      slotId: reg.slotId as PracticeSlotId,
+      slotTitle: slot?.title ?? reg.slotId,
+      slotSchedule: slot ? `${slot.dayLabel} · ${slot.time}` : '—',
+      registeredAt: (reg as any).createdAt?.toISOString() ?? new Date().toISOString(),
+      linkFolder: reg.linkFolder ?? '',
+      scoreR: reg.scoreR ?? '',
+      scoreL: reg.scoreL ?? '',
+      scoreW: reg.scoreW ?? '',
+    };
   }
 
   async unregisterSlot(userId: string, slotId: string): Promise<void> {

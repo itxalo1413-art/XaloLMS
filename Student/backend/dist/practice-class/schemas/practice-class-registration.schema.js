@@ -16,6 +16,10 @@ const practice_class_constants_1 = require("../practice-class.constants");
 let PracticeClassRegistration = class PracticeClassRegistration {
     userId;
     slotId;
+    linkFolder;
+    scoreR;
+    scoreL;
+    scoreW;
 };
 exports.PracticeClassRegistration = PracticeClassRegistration;
 __decorate([
@@ -26,6 +30,22 @@ __decorate([
     (0, mongoose_1.Prop)({ required: true, enum: practice_class_constants_1.PRACTICE_SLOT_IDS }),
     __metadata("design:type", String)
 ], PracticeClassRegistration.prototype, "slotId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: String, default: '' }),
+    __metadata("design:type", String)
+], PracticeClassRegistration.prototype, "linkFolder", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: String, default: '' }),
+    __metadata("design:type", String)
+], PracticeClassRegistration.prototype, "scoreR", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: String, default: '' }),
+    __metadata("design:type", String)
+], PracticeClassRegistration.prototype, "scoreL", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: String, default: '' }),
+    __metadata("design:type", String)
+], PracticeClassRegistration.prototype, "scoreW", void 0);
 exports.PracticeClassRegistration = PracticeClassRegistration = __decorate([
     (0, mongoose_1.Schema)({ collection: 'practice_class_registrations', timestamps: true })
 ], PracticeClassRegistration);

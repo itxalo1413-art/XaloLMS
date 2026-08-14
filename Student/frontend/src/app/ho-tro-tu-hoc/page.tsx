@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { StudentLayout } from "@/app/StudentLayout";
 import {
@@ -310,16 +311,16 @@ function SpeakingBookingModal({ open, onClose, freeSlots, onBook }: SpeakingBook
 
   if (!open) return null;
 
-  return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+  const modalNode = (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="relative z-10 w-full max-w-3xl rounded-3xl bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative z-10 w-full max-w-3xl rounded-3xl bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-auto">
         {/* Header */}
         <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b border-zinc-100 px-6 py-5 flex items-center justify-between">
           <div>
@@ -716,6 +717,8 @@ function SpeakingBookingModal({ open, onClose, freeSlots, onBook }: SpeakingBook
       )}
     </div>
   );
+
+  return typeof window !== "undefined" ? createPortal(modalNode, document.body) : null;
 }
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
@@ -730,9 +733,9 @@ export default function HoTroTuHocPage() {
   const [writingSubmissions, setWritingSubmissions] = useState<WritingSubmission[]>([]);
   const [practiceSlotVersion, setPracticeSlotVersion] = useState(0);
   const [practiceJoined, setPracticeJoined] = useState(false);
-  const [panel1Open, setPanel1Open] = useState(false);
-  const [panel2Open, setPanel2Open] = useState(false);
-  const [panel3Open, setPanel3Open] = useState(false);
+  const [panel1Open, setPanel1Open] = useState(true);
+  const [panel2Open, setPanel2Open] = useState(true);
+  const [panel3Open, setPanel3Open] = useState(true);
   const [dialog, setDialog] = useState<PageDialog | null>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [meetLinksVersion, setMeetLinksVersion] = useState(0);
@@ -1129,10 +1132,10 @@ export default function HoTroTuHocPage() {
         <div className="grid grid-cols-1 items-stretch gap-10 lg:grid-cols-12">
 
           {/* Left Column */}
-          <div className="lg:col-span-9 flex min-h-0 flex-col">
+          <div className="lg:col-span-9 flex min-h-0 flex-col space-y-6">
             <CollapsiblePanel
               title="Mock Test Speaking"
-              className="shrink-0 z-10"
+              className="w-full"
               transparentTab={true}
               
               isOpen={panel1Open}
@@ -1191,21 +1194,31 @@ export default function HoTroTuHocPage() {
                       </div>
                     </div>
 
-                    {/* Register button */}
+                    {/* Expand / Collapse button */}
                     <button
                       type="button"
-                      onClick={() => setBookingModalOpen(true)}
-                      disabled={!canBookMore}
-                      className={`flex items-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-black uppercase tracking-wide transition-all shadow-sm ${
-                        canBookMore
-                          ? "bg-primary text-white hover:bg-primary/90 active:scale-[0.98] hover:shadow-md"
-                          : "bg-zinc-100 text-zinc-400 cursor-not-allowed"
+                      onClick={() => setPanel1Open(!panel1Open)}
+                      className={`flex items-center gap-1.5 transition-all cursor-pointer ${
+                        panel1Open
+                          ? "rounded-xl px-3 py-1.5 text-[11px] font-extrabold bg-zinc-100 text-zinc-600 hover:bg-zinc-200 shadow-2xs"
+                          : "rounded-2xl px-6 py-3.5 text-sm font-black uppercase tracking-wide bg-primary text-white hover:bg-primary/90 active:scale-[0.98] hover:shadow-md"
                       }`}
                     >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                      </svg>
-                      {canBookMore ? "Đăng ký ngay" : "Đã đủ ca tuần này"}
+                      {panel1Open ? (
+                        <>
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                          </svg>
+                          Thu gọn
+                        </>
+                      ) : (
+                        <>
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                          </svg>
+                          Đăng ký ngay
+                        </>
+                      )}
                     </button>
                   </div>
 
@@ -1258,9 +1271,10 @@ export default function HoTroTuHocPage() {
             >
               {/* ── Results table ── */}
               <SelfStudyResultsTable<MockTestRequest>
-                title="Bảng kết quả Mock Test Speaking"
-                headerRight={
-                  <div className="flex flex-wrap items-center gap-2">
+                title={
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span>Bảng kết quả </span>
+                    <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[10px] font-black uppercase tracking-wider text-muted">Từ ngày:</span>
                     <div className="relative flex items-center">
                       <input
@@ -1331,7 +1345,32 @@ export default function HoTroTuHocPage() {
                       </button>
                     )}
                   </div>
+                  </div>
                 }
+                headerRight={
+                  
+
+                  <button
+                      type="button"
+                      onClick={() => {
+                        setPanel1Open(true);
+                        setBookingModalOpen(true);
+                      }}
+                      disabled={!canBookMore}
+                      className={`inline-flex items-center gap-1 rounded-xl px-3 py-1 text-[11px] font-black uppercase tracking-wider transition-all ${
+                        canBookMore
+                          ? "bg-primary text-white hover:bg-primary/90 active:scale-[0.98] cursor-pointer shadow-2xs hover:shadow-xs"
+                          : "bg-zinc-100 text-zinc-400 cursor-not-allowed"
+                      }`}
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                      </svg>
+                      {canBookMore ? "Đăng ký lịch" : "Đã đủ ca"}
+                    </button>
+                }
+
+
                 emptyMessage="Không tìm thấy kết quả test nào trong khoảng thời gian đã chọn."
                 equalColumns
                 getRowKey={(row) => row.id}
@@ -1414,7 +1453,7 @@ export default function HoTroTuHocPage() {
 
             <CollapsiblePanel
               title="Chấm - Chữa Writing"
-              className={`w-full transition-all duration-300 z-20 ${panel1Open ? "mt-8" : "-mt-2"}`}
+              className="w-full"
               transparentTab={true}
               isOpen={panel2Open}
               onToggle={setPanel2Open}
@@ -1470,27 +1509,43 @@ export default function HoTroTuHocPage() {
                       </div>
                     </div>
 
-                    {/* Register button */}
+                    {/* Register button / Collapse button */}
                     <button
                       type="button"
                       onClick={() => {
-                        setPanel2Open(true);
-                        setTimeout(() => {
-                          const el = document.getElementById("writing-link-input");
-                          if (el) el.focus();
-                        }, 100);
+                        if (!panel2Open) {
+                          setPanel2Open(true);
+                          setTimeout(() => {
+                            const el = document.getElementById("writing-link-input");
+                            if (el) el.focus();
+                          }, 100);
+                        } else {
+                          setPanel2Open(false);
+                        }
                       }}
-                      disabled={submittedWritingThisWeek >= MAX_WRITING_WEEKLY}
-                      className={`flex items-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-black uppercase tracking-wide transition-all shadow-sm ${
-                        submittedWritingThisWeek < MAX_WRITING_WEEKLY
-                          ? "bg-primary text-white hover:bg-primary/90 active:scale-[0.98] hover:shadow-md"
-                          : "bg-zinc-100 text-zinc-400 cursor-not-allowed"
+                      className={`flex items-center gap-1.5 transition-all cursor-pointer ${
+                        panel2Open
+                          ? "rounded-xl px-3 py-1.5 text-[11px] font-extrabold bg-zinc-100 text-zinc-600 hover:bg-zinc-200 shadow-2xs"
+                          : submittedWritingThisWeek < MAX_WRITING_WEEKLY
+                          ? "rounded-2xl px-6 py-3.5 text-sm font-black uppercase tracking-wide bg-primary text-white hover:bg-primary/90 active:scale-[0.98] hover:shadow-md"
+                          : "rounded-2xl px-6 py-3.5 text-sm font-black uppercase tracking-wide bg-zinc-100 text-zinc-400 cursor-not-allowed"
                       }`}
                     >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                      </svg>
-                      {submittedWritingThisWeek < MAX_WRITING_WEEKLY ? "Đăng ký ngay" : "Đã đủ 6 bài/tuần"}
+                      {panel2Open ? (
+                        <>
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                          </svg>
+                          Thu gọn
+                        </>
+                      ) : (
+                        <>
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                          </svg>
+                          {submittedWritingThisWeek < MAX_WRITING_WEEKLY ? "Đăng ký ngay" : "Đã đủ 6 bài/tuần"}
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -1616,7 +1671,7 @@ export default function HoTroTuHocPage() {
             {/* ── Lớp Luyện Đề Section ── */}
             <CollapsiblePanel
               title="Đăng ký lớp luyện đề"
-              className={`w-full transition-all duration-300 z-30 ${panel2Open ? "mt-8" : "-mt-2"}`}
+              className="w-full"
               transparentTab={true}
               isOpen={panel3Open}
               hideToggle={!practiceJoined}
@@ -1642,21 +1697,40 @@ export default function HoTroTuHocPage() {
                       </div>
                     </div>
 
-                    {/* Register button */}
+                    {/* Register button / Collapse button */}
                     <button
                       type="button"
                       onClick={() => {
-                        if (!practiceJoined) {
-                          joinPracticeClass();
+                        if (!panel3Open) {
+                          if (!practiceJoined) {
+                            joinPracticeClass();
+                          }
+                          setPanel3Open(true);
+                        } else {
+                          setPanel3Open(false);
                         }
-                        setPanel3Open(true);
                       }}
-                      className="flex items-center gap-2 rounded-2xl bg-primary px-6 py-3.5 text-sm font-black uppercase tracking-wide text-white transition-all shadow-sm hover:bg-primary/90 active:scale-[0.98] hover:shadow-md cursor-pointer"
+                      className={`flex items-center gap-1.5 transition-all cursor-pointer ${
+                        panel3Open
+                          ? "rounded-xl px-3 py-1.5 text-[11px] font-extrabold bg-zinc-100 text-zinc-600 hover:bg-zinc-200 shadow-2xs"
+                          : "rounded-2xl px-6 py-3.5 text-sm font-black uppercase tracking-wide bg-primary text-white hover:bg-primary/90 active:scale-[0.98] hover:shadow-md"
+                      }`}
                     >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                      </svg>
-                      Đăng ký ngay
+                      {panel3Open ? (
+                        <>
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                          </svg>
+                          Thu gọn
+                        </>
+                      ) : (
+                        <>
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                          </svg>
+                          Đăng ký ngay
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>

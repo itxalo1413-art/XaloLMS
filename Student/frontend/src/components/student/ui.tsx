@@ -132,32 +132,14 @@ export function CollapsiblePanel({
 
       {/* Folder Body */}
       <div className="relative z-10 flex flex-col overflow-hidden rounded-b-2xl rounded-tr-2xl rounded-tl-none border border-primary/10 bg-card shadow-soft">
-        {/* Header row with toggle button */}
-        <div className="relative flex min-h-[44px] w-full shrink-0 items-center justify-between border-b border-primary/5 px-4 py-2.5 md:px-6">
-          {right ? (
+        {/* Header row — only render if right content is passed */}
+        {right ? (
+          <div className="relative flex min-h-[44px] w-full shrink-0 items-center justify-between border-b border-primary/5 px-4 py-2.5 md:px-6">
             <div className="text-center text-[10px] sm:text-[11px] font-medium text-muted/90 whitespace-nowrap flex-1">
               {right}
             </div>
-          ) : <div className="flex-1" />}
-          {!hideToggle && (
-            <button
-              type="button"
-              onClick={handleToggle}
-              className="ml-3 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#f0edff] hover:bg-[#e4ddff] text-primary transition-all duration-300 active:scale-95 cursor-pointer shadow-2xs"
-              aria-expanded={open}
-              title={open ? "Thu gọn Bảng kết quả" : "Mở rộng Bảng kết quả"}
-            >
-              <div
-                className="flex items-center justify-center transition-transform duration-300"
-                style={{ transform: open ? "rotate(180deg)" : "rotate(0deg)" }}
-              >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </div>
-            </button>
-          )}
-        </div>
+          </div>
+        ) : null}
 
         {/* Top Content — Always Visible */}
         {topContent && (
