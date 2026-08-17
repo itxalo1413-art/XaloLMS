@@ -1,3 +1,21 @@
+# Backend .gitignore
+
+# Environment Variable & Secrets
 .env
+.env.local
+.env.production
+.env*.local
 !.env.example
+
+# Node Dependencies
 node_modules/
+
+# Build & Dist Outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Logs & Temporary Files
+*.log
+npm-debug.log*
+.DS_Store
