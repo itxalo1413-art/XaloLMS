@@ -150,6 +150,7 @@ export function LoginForm() {
       .then((me) => {
         if (cancelled) return;
         cacheAuthUser(me);
+        setAuthToken(token);
         router.replace(me.role === "HS" ? "/" : homePathForRole(me.role));
       })
       .catch((err) => {

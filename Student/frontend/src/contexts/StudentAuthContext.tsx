@@ -13,6 +13,7 @@ import {
   homePathForRole,
   isAuthDisabled,
   isAuthSessionError,
+  syncSessionCookie,
 } from "@/lib/auth";
 
 type StudentAuthContextValue = {
@@ -44,7 +45,7 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
     setUser(me);
   }, []);
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     let cancelled = false;
 
     async function bootstrap() {
@@ -66,15 +67,15 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
       const token = getAuthToken();
       const cached = getCachedAuthUser();
       if (!token || !cached) {
-        if (!cancelled) {
-          clearAuthToken();
-          router.replace("/login");
-        }
+        clearAuthToken();
+        router.replace("/login");
         return;
       }
 
+      syncSessionCookie();
       if (!cancelled) {
         setUser(cached);
+        setReady(true);
       }
 
       try {
@@ -83,7 +84,6 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
         cacheAuthUser(me);
         setUser(me);
 
-        // Role-based path guard: redirect to the correct home if on the wrong portal
         const home = homePathForRole(me.role);
         const onStudentPath = !pathname.startsWith("/teacher") && !pathname.startsWith("/aca");
         const onTeacherPath = pathname.startsWith("/teacher");
@@ -99,20 +99,15 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
         }
         if (me.role === "ACA" && !onAcaPath) {
           router.replace(home);
-          return;
         }
       } catch (err) {
         if (cancelled) return;
         if (isAuthSessionError(err)) {
           clearAuthToken();
+          setUser(null);
+          setReady(false);
           router.replace("/login");
-          return;
         }
-        if (!cancelled) {
-          setUser(cached);
-        }
-      } finally {
-        if (!cancelled) setReady(true);
       }
     }
 
@@ -120,15 +115,10 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
     return () => {
       cancelled = true;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router]);
+  }, [pathname, router]);
 
   if (!ready || !user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-sm font-medium text-muted">
-        Đang tải phiên đăng nhập...
-      </div>
-    );
+    return null;
   }
 
   return (

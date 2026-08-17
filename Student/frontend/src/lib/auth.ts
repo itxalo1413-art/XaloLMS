@@ -3,6 +3,18 @@ import { DEMO_STUDENT } from "@/lib/mockTestRequests";
 
 export const AUTH_TOKEN_KEY = "xalo.auth.token";
 export const AUTH_USER_KEY = "xalo.auth.user";
+export const AUTH_COOKIE = "xalo.auth";
+const AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
+
+function setSessionCookie(): void {
+  if (typeof document === "undefined") return;
+  document.cookie = `${AUTH_COOKIE}=1; Path=/; Max-Age=${AUTH_COOKIE_MAX_AGE}; SameSite=Lax`;
+}
+
+function clearSessionCookie(): void {
+  if (typeof document === "undefined") return;
+  document.cookie = `${AUTH_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`;
+}
 
 export type AuthRole = "HS" | "GV" | "ACA";
 
@@ -47,11 +59,21 @@ export function getAuthToken(): string | null {
 
 export function setAuthToken(token: string): void {
   localStorage.setItem(AUTH_TOKEN_KEY, token);
+  setSessionCookie();
 }
 
 export function clearAuthToken(): void {
   localStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(AUTH_USER_KEY);
+  clearSessionCookie();
+}
+
+export function syncSessionCookie(): void {
+  if (getAuthToken() && getCachedAuthUser()) {
+    setSessionCookie();
+  } else {
+    clearSessionCookie();
+  }
 }
 
 export function cacheAuthUser(user: AuthUser): void {

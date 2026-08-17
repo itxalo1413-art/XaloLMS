@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect } from "react";
 import type { ReactNode } from "react";
 import { AcaSidebar } from "./AcaSidebar";
 import Link from "next/link";
@@ -11,9 +11,9 @@ import {
   fetchMe,
   getCachedAuthUser,
   getAuthToken,
-  homePathForRole,
   isAuthDisabled,
   isAuthSessionError,
+  syncSessionCookie,
 } from "@/lib/auth";
 
 const RESTRICTED_PATHS = [
@@ -44,50 +44,47 @@ export function AcaLayout({ children }: { children: ReactNode }) {
   const [authReady, setAuthReady] = useState(false);
 
   // Auth guard: only ACA role allowed
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isAuthDisabled()) {
       setAuthReady(true);
       return;
     }
 
+    const token = getAuthToken();
+    const cached = getCachedAuthUser();
+    if (!token || !cached) {
+      clearAuthToken();
+      router.replace("/login");
+      return;
+    }
+    if (cached.role !== "ACA") {
+      clearAuthToken();
+      router.replace("/login?error=role");
+      return;
+    }
+
+    syncSessionCookie();
+    setAuthReady(true);
+
     let cancelled = false;
-
-    async function verifyAcaSession() {
-      const token = getAuthToken();
-      const cached = getCachedAuthUser();
-      if (!token || !cached) {
-        clearAuthToken();
-        router.replace("/login");
-        return;
-      }
-      if (cached.role !== "ACA") {
-        clearAuthToken();
-        router.replace("/login?error=role");
-        return;
-      }
-
-      try {
-        const me = await fetchMe();
+    void fetchMe()
+      .then((me) => {
         if (cancelled) return;
         if (me.role !== "ACA") {
           clearAuthToken();
-          router.replace(`/login?error=role`);
+          router.replace("/login?error=role");
           return;
         }
         cacheAuthUser(me);
-        setAuthReady(true);
-      } catch (err) {
+      })
+      .catch((err) => {
         if (cancelled) return;
         if (isAuthSessionError(err)) {
           clearAuthToken();
+          setAuthReady(false);
           router.replace("/login");
-          return;
         }
-        setAuthReady(true);
-      }
-    }
-
-    void verifyAcaSession();
+      });
 
     return () => {
       cancelled = true;
@@ -115,6 +112,10 @@ export function AcaLayout({ children }: { children: ReactNode }) {
     clearAuthToken();
     router.replace("/login");
   };
+
+  if (!authReady) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -224,11 +225,7 @@ export function AcaLayout({ children }: { children: ReactNode }) {
       {/* Main Content Area */}
       <div className="md:pl-72">
         <div className="min-h-screen">
-          {!authReady ? (
-            <div className="flex min-h-screen items-center justify-center text-sm font-medium text-zinc-400">
-              Đang xác thực...
-            </div>
-          ) : ready && !isKhanhThi && RESTRICTED_PATHS.some(path => pathname.startsWith(path)) ? (
+          {ready && !isKhanhThi && RESTRICTED_PATHS.some(path => pathname.startsWith(path)) ? (
             <div className="min-h-screen flex flex-col bg-white">
               <header className="sticky top-0 z-30 hidden h-[73px] w-full items-center justify-between border-b border-zinc-100 bg-white/80 px-8 backdrop-blur-md md:flex">
                 <div>
