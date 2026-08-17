@@ -18,8 +18,23 @@ import {
 } from "@/lib/acaManagementApi";
 import { DEFAULT_COURSE_RLP_SESSIONS, calculateGradingDeadline, type RlpSession, type Attendance, type HomeworkStatus } from "@/lib/courseSchedule";
 import { refreshRlpSessions, updateRlpSession } from "@/lib/rlpSessionStore";
+import { getCachedAuthUser } from "@/lib/auth";
 
-const TEACHER_NAME_FILTER = "Quỳnh Châu";
+const ALL_TEACHERS = [
+  "Nghiêm Doãn Quỳnh Châu",
+  "Lê Thị Diệu Linh",
+  "Lê Minh Trang",
+  "Phạm Hoàng An",
+  "Trần Thu Lan",
+  "Lê Thanh Tâm",
+  "Thái Đỗ Đăng Khoa",
+  "Tất Duy Khải",
+  "Lê Như Hải",
+  "Nguyễn Lê Trung Dũng",
+  "Nguyễn Lưu Minh Tâm",
+  "Trần Quang Minh",
+  "Đặng Duy",
+];
 
 const getDefaultRlpSessionsForPhase = (phase: string): RlpSession[] => {
   const normPhase = (phase || "").toUpperCase();
@@ -973,16 +988,35 @@ export default function TeacherClassesPage() {
     setRlpVersion((v) => v + 1);
   };
 
-  // Filter classes taught by active teacher ("Quỳnh Châu") and sort by newest phase/open date first
+  const activeTeacherDisplay = useMemo(() => {
+    const cached = getCachedAuthUser();
+    if (cached && cached.name) return cached.name;
+    return "Quỳnh Châu";
+  }, []);
+
+  // Filter classes taught by logged in teacher and sort by newest phase/open date first
   const myClasses = useMemo(() => {
     const getSortDate = (c: AcaClass): number => {
       const dateObj = parseDDMMYYYY(c.phaseStartDate) || parseDDMMYYYY(c.openDate) || new Date(0);
       return dateObj.getTime();
     };
 
-    const filtered = classes.filter(
-      (c) => (c.teacher || "").toLowerCase().includes(TEACHER_NAME_FILTER.toLowerCase())
-    );
+    const filterName = activeTeacherDisplay.trim().toLowerCase();
+    const words = filterName.split(" ").filter(Boolean);
+    const lastTwoWords = words.length >= 2 ? words.slice(-2).join(" ") : filterName;
+    const lastTwoVariant = lastTwoWords.replace("đặng", "đăng").replace("đăng", "đặng");
+
+    const filtered = classes.filter((c) => {
+      const cTeacher = (c.teacher || "").toLowerCase();
+      const cName = (c.name || "").toLowerCase();
+
+      return (
+        cTeacher.includes(filterName) ||
+        cName.includes(filterName) ||
+        (lastTwoWords && (cTeacher.includes(lastTwoWords) || cName.includes(lastTwoWords))) ||
+        (lastTwoVariant && (cTeacher.includes(lastTwoVariant) || cName.includes(lastTwoVariant)))
+      );
+    });
 
     // De-duplicate by classCode (or name if code is missing) to prevent duplicate rows from parallel seeding
     const seen = new Set<string>();
@@ -996,7 +1030,7 @@ export default function TeacherClassesPage() {
     }
 
     return unique.sort((a, b) => getSortDate(b) - getSortDate(a));
-  }, [classes]);
+  }, [classes, activeTeacherDisplay]);
 
   // Filter students belonging to selected class
   const classStudents = useMemo(() => {
@@ -1385,7 +1419,7 @@ export default function TeacherClassesPage() {
     <TeacherLayout>
       <TeacherTopbar
         title="Danh sách lớp học"
-        subtitle={`Giáo viên: Nghiêm Doãn Quỳnh Châu · Quản lý lớp học, điểm danh và chấm tiến trình RLP học viên.`}
+        subtitle={`Giáo viên: ${activeTeacherDisplay} · Quản lý lớp học, điểm danh và chấm tiến trình RLP học viên.`}
       />
       <main className="mx-auto max-w-6xl px-6 py-6 pb-16 md:px-8 space-y-6">
         {error ? (

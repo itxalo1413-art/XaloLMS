@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 
 export type StudentDialogTone = "info" | "success" | "warning";
+export type StudentDialogSize = "md" | "lg" | "xl" | "2xl";
 
 type StudentDialogProps = {
   open: boolean;
@@ -11,6 +13,8 @@ type StudentDialogProps = {
   message?: string;
   tone?: StudentDialogTone;
   variant?: "alert" | "confirm";
+  position?: "top" | "center";
+  size?: StudentDialogSize;
   confirmLabel?: string;
   cancelLabel?: string;
   onConfirm?: () => void;
@@ -52,6 +56,13 @@ const TONE_STYLES: Record<
   },
 };
 
+const SIZE_CLASSES: Record<StudentDialogSize, string> = {
+  md: "max-w-md",
+  lg: "max-w-lg",
+  xl: "max-w-xl",
+  "2xl": "max-w-2xl",
+};
+
 export function StudentDialog({
   open,
   title,
@@ -59,11 +70,19 @@ export function StudentDialog({
   children,
   tone = "info",
   variant = "alert",
+  position = "center",
+  size = "2xl",
   confirmLabel = "Xác nhận",
   cancelLabel = "Huỷ",
   onConfirm,
   onClose,
 }: StudentDialogProps) {
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
   React.useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -73,14 +92,18 @@ export function StudentDialog({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const styles = TONE_STYLES[tone];
   const isConfirm = variant === "confirm";
+  const isTop = position === "top";
+  const sizeClass = SIZE_CLASSES[size] || "max-w-2xl";
 
-  return (
+  const dialogNode = (
     <div
-      className="fixed inset-0 z-[90] flex items-center justify-center p-4"
+      className={`fixed inset-0 z-[100] flex justify-center p-4 overflow-y-auto ${
+        isTop ? "items-start py-12 sm:py-16 md:py-20" : "items-center"
+      }`}
       role="dialog"
       aria-modal="true"
       aria-labelledby="student-dialog-title"
@@ -89,10 +112,10 @@ export function StudentDialog({
         type="button"
         aria-label="Đóng"
         onClick={onClose}
-        className="absolute inset-0 bg-black/35 backdrop-blur-[2px]"
+        className="fixed inset-0 bg-black/40 backdrop-blur-[3px]"
       />
       <div
-        className={`relative w-full max-w-md rounded-2xl border bg-card p-5 shadow-2xl ${styles.ring}`}
+        className={`relative w-full ${sizeClass} rounded-2xl border bg-card p-6 sm:p-7 shadow-2xl ${styles.ring}`}
       >
         <div className="flex gap-4">
           <div
@@ -112,11 +135,11 @@ export function StudentDialog({
                 {message}
               </p>
             ) : null}
-            {children ? <div className="mt-3">{children}</div> : null}
+            {children ? <div className="mt-3.5">{children}</div> : null}
           </div>
         </div>
 
-        <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           {isConfirm ? (
             <>
               <button
@@ -147,4 +170,6 @@ export function StudentDialog({
       </div>
     </div>
   );
+
+  return createPortal(dialogNode, document.body);
 }

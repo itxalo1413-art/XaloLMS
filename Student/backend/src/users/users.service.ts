@@ -125,6 +125,11 @@ export class UsersService implements OnModuleInit {
           status: "ACTIVE",
           passwordHash,
         });
+      } else {
+        await this.userModel.updateOne(
+          { email },
+          { $set: { name: a.name, role: "ACA", status: "ACTIVE", passwordHash } },
+        ).exec();
       }
     }
   }
@@ -133,18 +138,30 @@ export class UsersService implements OnModuleInit {
     const email = this.normalizeEmail(
       process.env.STUDENT_SEED_EMAIL ?? 'nguyenduong939705@gmail.com',
     );
-    const existing = await this.userModel.findOne({ email }).exec();
-    if (existing) return;
-
     const password = process.env.STUDENT_SEED_PASSWORD ?? 'Student@123!';
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-    await this.userModel.create({
-      email,
-      name: process.env.STUDENT_SEED_NAME ?? 'Dương Ngọc Khôi Nguyên',
-      role: 'HS',
-      status: 'ACTIVE',
-      passwordHash,
-    });
+    const existing = await this.userModel.findOne({ email }).exec();
+    if (!existing) {
+      await this.userModel.create({
+        email,
+        name: process.env.STUDENT_SEED_NAME ?? 'Dương Ngọc Khôi Nguyên',
+        role: 'HS',
+        status: 'ACTIVE',
+        passwordHash,
+      });
+    } else {
+      await this.userModel.updateOne(
+        { email },
+        {
+          $set: {
+            name: process.env.STUDENT_SEED_NAME ?? 'Dương Ngọc Khôi Nguyên',
+            role: 'HS',
+            status: 'ACTIVE',
+            passwordHash,
+          },
+        },
+      ).exec();
+    }
   }
 
   async ensureSeedTeachers(): Promise<void> {
@@ -155,7 +172,14 @@ export class UsersService implements OnModuleInit {
       { name: 'Lê Minh Trang', email: 'minhtrang.le@xalo.edu.vn' },
       { name: 'Phạm Hoàng An', email: 'hoangan.pham@xalo.edu.vn' },
       { name: 'Trần Thu Lan', email: 'thulan.tran@xalo.edu.vn' },
-      { name: 'Lê Thanh Tâm', email: 'thanhtam.le@xalo.edu.vn' }, // GV lớp luyện đề
+      { name: 'Lê Thanh Tâm', email: 'thanhtam.le@xalo.edu.vn' },
+      { name: 'Thái Đỗ Đăng Khoa', email: 'dangkhoa.thai@xalo.edu.vn' },
+      { name: 'Tất Duy Khải', email: 'duykhai.tat@xalo.edu.vn' },
+      { name: 'Lê Như Hải', email: 'nhuhai.le@xalo.edu.vn' },
+      { name: 'Nguyễn Lê Trung Dũng', email: 'trungdung.nguyen@xalo.edu.vn' },
+      { name: 'Nguyễn Lưu Minh Tâm', email: 'minhtam.nguyen@xalo.edu.vn' },
+      { name: 'Trần Quang Minh', email: 'quangminh.tran@xalo.edu.vn' },
+      { name: 'Đặng Duy', email: 'dangduy@xalo.edu.vn' },
     ];
 
     const defaultPasswordHash = await bcrypt.hash('Teacher@123!', SALT_ROUNDS);
@@ -171,6 +195,18 @@ export class UsersService implements OnModuleInit {
           status: 'ACTIVE',
           passwordHash: defaultPasswordHash,
         });
+      } else {
+        await this.userModel.updateOne(
+          { email },
+          {
+            $set: {
+              name: t.name,
+              role: 'GV',
+              status: 'ACTIVE',
+              passwordHash: defaultPasswordHash,
+            },
+          },
+        ).exec();
       }
     }
   }

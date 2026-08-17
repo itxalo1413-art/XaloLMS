@@ -11,7 +11,7 @@ import {
   type Aca11Class,
 } from "@/lib/acaManagementApi";
 
-const TEACHER_NAME = "Quỳnh Châu";
+import { getCachedAuthUser } from "@/lib/auth";
 
 // Helper to count day occurrences in a month
 const countDaysInMonth = (year: number, monthIndex: number, daysOfWeek: number[]) => {
@@ -79,7 +79,6 @@ const parseClassSchedule = (name: string): ClassSchedule => {
   return { days, daysLabel, timeRange, duration, cleanName };
 };
 
-import { getCachedAuthUser } from "@/lib/auth";
 import {
   refreshWritingSubmissionsForTeacher,
   type WritingSubmission,
@@ -125,23 +124,35 @@ export default function PerformancePage() {
     loadData();
   }, []);
 
-  // Filter regular classes for Quỳnh Châu for the selected month
+  const activeTeacherName = useMemo(() => {
+    const cached = getCachedAuthUser();
+    return cached?.name || "Quỳnh Châu";
+  }, []);
+
+  const activeTeacherQuery = useMemo(() => {
+    const words = activeTeacherName.toLowerCase().split(" ").filter(Boolean);
+    return words.slice(-2).join(" ") || activeTeacherName.toLowerCase();
+  }, [activeTeacherName]);
+
+  // Filter regular classes for active teacher for the selected month
   const filteredMyClasses = useMemo(() => {
     return classes.filter(
       (c) =>
         c.month === selectedMonth &&
-        (c.teacher || "").toLowerCase().includes(TEACHER_NAME.toLowerCase())
+        ((c.teacher || "").toLowerCase().includes(activeTeacherQuery) ||
+         (c.name || "").toLowerCase().includes(activeTeacherQuery))
     );
-  }, [classes, selectedMonth]);
+  }, [classes, selectedMonth, activeTeacherQuery]);
 
   // Filter 1:1 active classes
   const my11Classes = useMemo(() => {
     return classes11.filter(
       (c) =>
         c.status === "Đang diễn ra" &&
-        (c.teacher || "").toLowerCase().includes(TEACHER_NAME.toLowerCase())
+        ((c.teacher || "").toLowerCase().includes(activeTeacherQuery) ||
+         (c.className || "").toLowerCase().includes(activeTeacherQuery))
     );
-  }, [classes11]);
+  }, [classes11, activeTeacherQuery]);
 
   // Teaching hour calculations (Actual vs. Expected)
   const hourStats = useMemo(() => {
@@ -262,7 +273,7 @@ export default function PerformancePage() {
 
   // Grader performance statistics (Grade Writing & Test Speaking)
   const graderStats = useMemo(() => {
-    const uName = (currentUser?.name || TEACHER_NAME || "").trim().toLowerCase();
+    const uName = (currentUser?.name || activeTeacherName || "").trim().toLowerCase();
     
     // Count graded writing submissions
     let writingGradedCount = 0;
