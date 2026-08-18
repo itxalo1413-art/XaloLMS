@@ -1,5 +1,4 @@
 import { API_BASE } from "@/lib/apiBase";
-import { DEMO_STUDENT } from "@/lib/mockTestRequests";
 
 export const AUTH_TOKEN_KEY = "xalo.auth.token";
 export const AUTH_USER_KEY = "xalo.auth.user";
@@ -45,7 +44,7 @@ export function getAuthBypassUser(): AuthUser {
   return {
     id: "6a0d62e43376dcbcd0b1d76f",
     email: "student.demo@xalo.local",
-    name: DEMO_STUDENT.name,
+    name: "Dương Ngọc Khôi Nguyên",
     role: "HS",
     status: "active",
     createdAt: "2020-01-01T00:00:00.000Z",
