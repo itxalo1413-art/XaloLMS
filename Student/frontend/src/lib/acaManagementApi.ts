@@ -779,3 +779,167 @@ export async function deleteAcaTeacherProfileApi(id: string): Promise<void> {
   const res = await apiFetch(`/api/aca/teacher-profiles/${id}`, { method: "DELETE" });
   await parseJson<any>(res);
 }
+
+// --- Guest Diagnosis Leads ---
+export async function fetchGuestDiagnosisLeadsApi() {
+  if (!canUseAcaApi()) return null;
+  const res = await apiFetch("/api/aca/guest-diagnosis-leads");
+  return parseJson<any[]>(res);
+}
+
+export async function createGuestDiagnosisLeadApi(input: {
+  name: string;
+  phone?: string;
+  email?: string;
+  aim?: string;
+}) {
+  const res = await apiFetch("/api/aca/guest-diagnosis-leads", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return parseJson<any>(res);
+}
+
+export async function updateGuestDiagnosisLeadApi(
+  id: string,
+  patch: {
+    status?: string;
+    note?: string;
+    assignedClassId?: string;
+    assignedClassName?: string;
+  },
+) {
+  const res = await apiFetch(`/api/aca/guest-diagnosis-leads/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  return parseJson<any>(res);
+}
+
+export async function deleteGuestDiagnosisLeadApi(id: string) {
+  const res = await apiFetch(`/api/aca/guest-diagnosis-leads/${id}`, {
+    method: "DELETE",
+  });
+  return parseJson<any>(res);
+}
+
+// --- ACA Dashboard KPI ---
+export type AcaDashboardKpi = {
+  totalUsers: number;
+  totalStudents: number;
+  totalWriting: number;
+  pendingWriting: number;
+  pendingMockTest: number;
+  totalLeads: number;
+  newLeads: number;
+};
+
+export async function fetchAcaDashboardKpi(): Promise<AcaDashboardKpi | null> {
+  if (!canUseAcaApi()) return null;
+  try {
+    const res = await apiFetch("/api/aca/dashboard/kpi");
+    return parseJson<AcaDashboardKpi>(res);
+  } catch {
+    return null;
+  }
+}
+
+// --- Entrance Test Bookings ---
+export async function fetchEntranceBookingsApi() {
+  if (!canUseAcaApi()) return null;
+  const res = await apiFetch("/api/aca/entrance-bookings");
+  return parseJson<any[]>(res);
+}
+
+export async function createEntranceBookingApi(input: Record<string, unknown>) {
+  const res = await apiFetch("/api/aca/entrance-bookings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return parseJson<any>(res);
+}
+
+export async function updateEntranceBookingApi(
+  id: string,
+  patch: Record<string, unknown>,
+) {
+  const res = await apiFetch(`/api/aca/entrance-bookings/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  return parseJson<any>(res);
+}
+
+export async function deleteEntranceBookingApi(id: string) {
+  const res = await apiFetch(`/api/aca/entrance-bookings/${id}`, {
+    method: "DELETE",
+  });
+  return parseJson<any>(res);
+}
+
+// --- KV Store (Grader Meet Links, Guest Diagnosis) ---
+export async function getAcaKv(namespace: string): Promise<Record<string, unknown> | null> {
+  if (!canUseAcaApi()) return null;
+  try {
+    const res = await apiFetch(`/api/aca/kv/${encodeURIComponent(namespace)}`);
+    if (!res.ok) return null;
+    return parseJson<Record<string, unknown>>(res);
+  } catch {
+    return null;
+  }
+}
+
+export async function setAcaKv(
+  namespace: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  await apiFetch(`/api/aca/kv/${encodeURIComponent(namespace)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function mergeAcaKv(
+  namespace: string,
+  patch: Record<string, unknown>,
+): Promise<void> {
+  await apiFetch(`/api/aca/kv/${encodeURIComponent(namespace)}/merge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+}
+
+// --- Student Diagnosis (ACA) ---
+export async function fetchStudentDiagnosisForAca(email: string) {
+  if (!canUseAcaApi()) return null;
+  try {
+    const res = await apiFetch(
+      `/api/aca/student-diagnosis/${encodeURIComponent(email)}`,
+    );
+    if (!res.ok) return null;
+    return parseJson<any>(res);
+  } catch {
+    return null;
+  }
+}
+
+export async function saveStudentDiagnosisForAca(
+  email: string,
+  data: Record<string, unknown>,
+) {
+  const res = await apiFetch(
+    `/api/aca/student-diagnosis/${encodeURIComponent(email)}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    },
+  );
+  return parseJson<any>(res);
+}

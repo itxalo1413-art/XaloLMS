@@ -241,8 +241,20 @@ export class RlpService {
     no: number,
     payload: UpdateRlpSessionDto,
   ): Promise<RlpSessionRecord> {
+    const mainSessions = await this.ensureStore();
+    const mainIdx = mainSessions.findIndex((s) => s.no === no);
+    if (mainIdx < 0) {
+      throw new NotFoundException('Không tìm thấy buổi RLP');
+    }
+
     const patchObj: Partial<RlpSessionRecord> = {};
     if (payload.attendance !== undefined) patchObj.attendance = payload.attendance;
+    if (payload.studentAttendance !== undefined) {
+      patchObj.studentAttendance = {
+        ...(mainSessions[mainIdx].studentAttendance ?? {}),
+        ...payload.studentAttendance,
+      };
+    }
     if (payload.homeworkStatus !== undefined) patchObj.homeworkStatus = payload.homeworkStatus;
     if (payload.teacherNote !== undefined) patchObj.teacherNote = payload.teacherNote.trim();
     if (payload.lessonFileUrl !== undefined) patchObj.lessonFileUrl = payload.lessonFileUrl.trim();
@@ -253,11 +265,6 @@ export class RlpService {
     if (payload.deadline !== undefined) patchObj.deadline = payload.deadline.trim();
     if (payload.skill !== undefined) patchObj.skill = payload.skill.trim();
 
-    const mainSessions = await this.ensureStore();
-    const mainIdx = mainSessions.findIndex((s) => s.no === no);
-    if (mainIdx < 0) {
-      throw new NotFoundException('Không tìm thấy buổi RLP');
-    }
     const updatedMain = { ...mainSessions[mainIdx], ...patchObj };
     mainSessions[mainIdx] = updatedMain;
 
@@ -301,6 +308,12 @@ export class RlpService {
     const current = sessions[index];
     const patchObj: Partial<RlpSessionRecord> = {};
     if (payload.attendance !== undefined) patchObj.attendance = payload.attendance;
+    if (payload.studentAttendance !== undefined) {
+      patchObj.studentAttendance = {
+        ...(current.studentAttendance ?? {}),
+        ...payload.studentAttendance,
+      };
+    }
     if (payload.homeworkStatus !== undefined) patchObj.homeworkStatus = payload.homeworkStatus;
     if (payload.teacherNote !== undefined) patchObj.teacherNote = payload.teacherNote.trim();
     if (payload.lessonFileUrl !== undefined) patchObj.lessonFileUrl = payload.lessonFileUrl.trim();

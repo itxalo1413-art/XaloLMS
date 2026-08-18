@@ -9,6 +9,7 @@ import {
 import { AcaStudent, AcaStudentSchema } from '../aca/schemas/aca-student.schema';
 import { AcaClass, AcaClassSchema } from '../aca/schemas/aca-class.schema';
 import { StudentProfileController } from './student-profile.controller';
+import { AcaStudentDiagnosisController } from './aca-student-diagnosis.controller';
 import { StudentProfileService } from './student-profile.service';
 
 @Module({
@@ -21,7 +22,7 @@ import { StudentProfileService } from './student-profile.service';
     AuthGuardsModule,
     UsersModule,
   ],
-  controllers: [StudentProfileController],
+  controllers: [StudentProfileController, AcaStudentDiagnosisController],
   providers: [StudentProfileService],
   exports: [StudentProfileService],
 })

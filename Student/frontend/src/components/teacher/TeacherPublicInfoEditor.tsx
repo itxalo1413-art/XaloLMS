@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getLoggedInTeacherName } from "@/lib/teacherIdentity";
 import { getPortalProfile } from "@/lib/portalProfile";
 import {
   getInstructorProfileExtra,
@@ -22,7 +23,7 @@ const SKILL_OPTIONS = [
 
 export function TeacherPublicInfoEditor() {
   const portalGv = getPortalProfile("gv");
-  const teacherName = portalGv.name || "Nghiêm Doãn Quỳnh Châu";
+  const teacherName = getLoggedInTeacherName() || portalGv.name || "";
 
   const [form, setForm] = useState<InstructorProfileExtra>(() => {
     return (

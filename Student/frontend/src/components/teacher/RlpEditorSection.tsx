@@ -14,6 +14,7 @@ import {
   updateRlpSession,
 } from "@/lib/rlpSessionStore";
 import { fetchAcaClasses, displayClassCode, type AcaClass } from "@/lib/acaManagementApi";
+import { getLoggedInTeacherName, teacherNameMatches } from "@/lib/teacherIdentity";
 
 const ATTENDANCE_OPTIONS: { value: Attendance; label: string }[] = [
   { value: "present", label: "Đi học" },
@@ -74,8 +75,9 @@ export function RlpEditorSection() {
     async function loadClasses() {
       try {
         const data = await fetchAcaClasses();
-        const teacherClasses = data.filter((c) =>
-          (c.teacher || "").toLowerCase().includes("quỳnh châu")
+        const teacherName = getLoggedInTeacherName();
+        const teacherClasses = data.filter(
+          (c) => teacherNameMatches(c.teacher, teacherName) || teacherNameMatches(c.name, teacherName),
         );
         setClasses(teacherClasses);
         if (teacherClasses.length > 0) {

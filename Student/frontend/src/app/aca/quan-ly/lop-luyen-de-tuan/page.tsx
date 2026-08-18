@@ -10,7 +10,7 @@ import {
   ensureCurrentRealtimeWeekExists,
   AcaPracticeWeek,
 } from "@/lib/acaManagementApi";
-import { setPracticeZoomInfo, savePracticeScheduleFromAca } from "@/lib/practiceClass";
+import { savePracticeZoom, savePracticeScheduleFromAca } from "@/lib/practiceClass";
 import {
   fetchPracticeRegistrationsForAca,
   updateRegistrationDetailsApi,
@@ -152,8 +152,6 @@ export default function LopLuyenDeTuanPage() {
       if (activeWeekInfo.scheduleSatTitle) setEditSatTitle(activeWeekInfo.scheduleSatTitle);
       if (activeWeekInfo.scheduleSatTime) setEditSatTime(activeWeekInfo.scheduleSatTime);
       if (activeWeekInfo.scheduleSatInfo) setEditSatDetail(activeWeekInfo.scheduleSatInfo);
-
-      setPracticeZoomInfo({ zoomId: zid, zoomPassword: zpass });
     }
   }, [activeWeekInfo]);
 
@@ -163,14 +161,14 @@ export default function LopLuyenDeTuanPage() {
       const updated = await updateAcaPracticeWeek(activeWeekInfo.id, partial);
       setWeeksList((prev) => prev.map((w) => (w.id === activeWeekInfo.id ? { ...w, ...updated } : w)));
       if (partial.zoomId || partial.zoomPassword) {
-        setPracticeZoomInfo({
+        await savePracticeZoom({
           zoomId: partial.zoomId || editZoomId,
           zoomPassword: partial.zoomPassword || editZoomPassword,
         });
       }
       alert("Đã cập nhật thông tin thành công!");
-    } catch (err: any) {
-      alert("Lưu thất bại: " + err.message);
+    } catch (err: unknown) {
+      alert("Lưu thất bại: " + (err instanceof Error ? err.message : String(err)));
     }
   };
 

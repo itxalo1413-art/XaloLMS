@@ -1,5 +1,5 @@
 /**
- * Mock Test — API + fallback localStorage khi chưa đăng nhập.
+ * Mock Test — API khi đã đăng nhập; fallback localStorage chỉ khi chưa auth.
  */
 
 import {
@@ -94,6 +94,11 @@ function saveLocal(rows: MockTestRequest[]) {
   dispatchMockTestUpdate();
 }
 
+function saveCache(rows: MockTestRequest[]) {
+  requestsCache = deduplicateMockTestRequests(rows);
+  dispatchMockTestUpdate();
+}
+
 export function applyMockTestCache(rows: MockTestRequest[]) {
   requestsCache = deduplicateMockTestRequests(rows);
 }
@@ -106,14 +111,10 @@ export async function refreshMockTestRequestsForStudent(
   studentId: string,
 ): Promise<MockTestRequest[]> {
   if (canUseMockTestApi()) {
-    try {
-      const rows = await fetchMockTestsForStudent();
-      const deduped = deduplicateMockTestRequests(rows);
-      applyMockTestCache(deduped);
-      return deduped;
-    } catch {
-      // fall through
-    }
+    const rows = await fetchMockTestsForStudent();
+    const deduped = deduplicateMockTestRequests(rows);
+    saveCache(deduped);
+    return deduped;
   }
   let local = loadLocal();
   if (local.length === 0) {
@@ -130,7 +131,7 @@ export async function refreshMockTestRequestsForAca(): Promise<MockTestRequest[]
   if (canUseMockTestApi()) {
     const rows = await fetchMockTestsForAca("all");
     const deduped = deduplicateMockTestRequests(rows);
-    applyMockTestCache(deduped);
+    saveCache(deduped);
     return deduped;
   }
   let local = loadLocal();
@@ -146,6 +147,10 @@ export async function refreshMockTestRequestsForAca(): Promise<MockTestRequest[]
 
 /** @deprecated Dùng cache sau refresh — giữ tên cho tương thích */
 export function saveMockTestRequests(rows: MockTestRequest[]) {
+  if (canUseMockTestApi()) {
+    saveCache(rows);
+    return;
+  }
   saveLocal(rows);
 }
 
@@ -154,7 +159,11 @@ export function upsertMockTestRequest(row: MockTestRequest) {
   const i = all.findIndex((r) => r.id === row.id);
   if (i === -1) all.push(row);
   else all[i] = row;
-  saveLocal(all);
+  if (canUseMockTestApi()) {
+    saveCache(all);
+  } else {
+    saveLocal(all);
+  }
 }
 
 export async function removeMockTestRequest(id: string, studentId?: string): Promise<void> {
@@ -265,18 +274,10 @@ export async function refreshMockTestRequestsForTeacher(
   teacherName: string,
 ): Promise<MockTestRequest[]> {
   if (canUseMockTestApi()) {
-    try {
-      const rows = await fetchMockTestsForTeacher(teacherName);
-      const byId = new Map(rows.map((r) => [r.id, r]));
-      const merged = loadLocal().map((r) => byId.get(r.id) ?? r);
-      for (const r of rows) {
-        if (!merged.some((m) => m.id === r.id)) merged.push(r);
-      }
-      saveLocal(merged);
-      return rows;
-    } catch {
-      // fall through
-    }
+    const rows = await fetchMockTestsForTeacher(teacherName);
+    const deduped = deduplicateMockTestRequests(rows);
+    saveCache(deduped);
+    return deduped;
   }
   const local = loadLocal().filter(
     (r) =>
@@ -284,6 +285,7 @@ export async function refreshMockTestRequestsForTeacher(
       (r.examTeacher ?? "").trim() === teacherName.trim() &&
       isSpeakingMockTest(r.skill),
   );
+  applyMockTestCache(local);
   return local;
 }
 
@@ -296,18 +298,14 @@ export async function submitMockTestSpeakingResult(
   const examLink = (payload.examLink ?? "").trim();
 
   if (canUseMockTestApi()) {
-    try {
-      const row = await recordMockTestResultApi(id, {
-        score,
-        examLink,
-        teacherName,
-      });
-      upsertMockTestRequest(row);
-      dispatchMockTestUpdate();
-      return row;
-    } catch {
-      // Backend API returned 403 Forbidden or network error — fall back to local storage
-    }
+    const row = await recordMockTestResultApi(id, {
+      score,
+      examLink,
+      teacherName,
+    });
+    upsertMockTestRequest(row);
+    dispatchMockTestUpdate();
+    return row;
   }
 
   const existing = loadMockTestRequests().find((r) => r.id === id);
@@ -356,6 +354,6 @@ export async function rejectMockTestRequest(id: string): Promise<void> {
   saveLocal(next);
 }
 
-if (typeof window !== "undefined") {
+if (typeof window !== "undefined" && !canUseMockTestApi()) {
   applyMockTestCache(loadLocal());
 }

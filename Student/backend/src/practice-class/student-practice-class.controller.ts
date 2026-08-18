@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Put,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -13,6 +14,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { JwtPayload } from '../auth/auth.types';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { UpdatePracticeLinkFolderDto } from './dto/update-practice-link-folder.dto';
 import { RegisterPracticeSlotDto } from './dto/register-practice-slot.dto';
 import { PracticeClassService } from './practice-class.service';
 
@@ -53,5 +55,16 @@ export class StudentPracticeClassController {
   ) {
     await this.practiceClass.unregisterSlot(req.user.sub, slotId);
     return { ok: true };
+  }
+
+  @Put('link-folder')
+  updateLinkFolder(
+    @Req() req: AuthedRequest,
+    @Body() body: UpdatePracticeLinkFolderDto,
+  ) {
+    return this.practiceClass.updateStudentLinkFolder(
+      req.user.sub,
+      body?.linkFolder ?? '',
+    );
   }
 }

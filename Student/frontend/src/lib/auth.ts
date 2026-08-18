@@ -16,7 +16,7 @@ function clearSessionCookie(): void {
   document.cookie = `${AUTH_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`;
 }
 
-export type AuthRole = "HS" | "GV" | "ACA";
+export type AuthRole = "HS" | "GV" | "ACA" | "SALE";
 
 export type AuthUser = {
   id: string;
@@ -174,5 +174,6 @@ export async function fetchMe(): Promise<AuthUser> {
 export function homePathForRole(role: AuthRole): string {
   if (role === "ACA") return "/aca";
   if (role === "GV") return "/teacher";
+  if (role === "SALE") return "/sale";
   return "/";
 }

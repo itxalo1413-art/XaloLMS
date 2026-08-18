@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-  OnModuleInit,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -50,16 +49,12 @@ type WritingSubmissionLean = WritingSubmission & {
 };
 
 @Injectable()
-export class WritingSubmissionService implements OnModuleInit {
+export class WritingSubmissionService {
   constructor(
     @InjectModel(WritingSubmission.name)
     private readonly model: Model<WritingSubmissionDocument>,
     private readonly users: UsersService,
   ) {}
-
-  async onModuleInit() {
-    await this.model.deleteMany({});
-  }
 
   private async selectNextGrader(): Promise<string> {
     const allSubmissions = await this.model.find().lean().exec();

@@ -9,6 +9,8 @@ import type {
 export type PracticeScheduleResponse = {
   weekRangeLabel: string;
   updatedAt: string | null;
+  zoomId: string;
+  zoomPassword: string;
   slots: PracticeClassSlot[];
 };
 
@@ -113,6 +115,46 @@ export async function fetchPracticeRegistrationsForAca(): Promise<
   const response = await apiFetch("/api/aca/practice-class/registrations", {
     method: "GET",
   });
+  return parseJson(response);
+}
+
+export async function savePracticeZoomForAca(
+  zoomId: string,
+  zoomPassword: string,
+): Promise<PracticeScheduleResponse> {
+  const response = await apiFetch("/api/aca/practice-class/zoom", {
+    method: "PUT",
+    body: JSON.stringify({ zoomId, zoomPassword }),
+  });
+  return parseJson(response);
+}
+
+export async function updateStudentPracticeLinkFolderApi(
+  studentId: string,
+  linkFolder: string,
+  asTeacher = false,
+): Promise<{ linkFolder: string }> {
+  const base = asTeacher
+    ? `/api/teacher/practice-class/students/${encodeURIComponent(studentId)}/link-folder`
+    : "/api/student/practice-class/link-folder";
+  const response = await apiFetch(base, {
+    method: "PUT",
+    body: JSON.stringify({ linkFolder }),
+  });
+  return parseJson(response);
+}
+
+export async function updatePracticeSlotMaterialsApi(
+  slotId: PracticeSlotId,
+  materialsUrl: string,
+): Promise<PracticeScheduleResponse> {
+  const response = await apiFetch(
+    `/api/teacher/practice-class/slots/${encodeURIComponent(slotId)}/materials`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ materialsUrl }),
+    },
+  );
   return parseJson(response);
 }
 

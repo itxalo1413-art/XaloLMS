@@ -1,3 +1,6 @@
+export const DEFAULT_PRACTICE_ZOOM_ID = '842 1963 4521';
+export const DEFAULT_PRACTICE_ZOOM_PASSWORD = 'XaloLrw26';
+
 export const PRACTICE_SCHEDULE_KEY = 'current';
 
 export const PRACTICE_SLOT_IDS = [
@@ -14,6 +17,7 @@ export type PracticeSlotOverride = {
   title?: string;
   detail?: string;
   dateNote?: string;
+  materialsUrl?: string;
 };
 
 export type PracticeSlotDefinition = {

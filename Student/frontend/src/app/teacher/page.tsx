@@ -8,7 +8,6 @@ import {
   fetchAcaClasses,
   fetchAca11Classes,
   fetchAcaStudents,
-  updateAcaStudent,
   type AcaStudent,
   type AcaClass,
   type Aca11Class,
@@ -18,23 +17,7 @@ import {
 } from "@/lib/acaManagementApi";
 import { DEFAULT_COURSE_RLP_SESSIONS, calculateGradingDeadline, type RlpSession, type Attendance, type HomeworkStatus } from "@/lib/courseSchedule";
 import { refreshRlpSessions, updateRlpSession } from "@/lib/rlpSessionStore";
-import { getCachedAuthUser } from "@/lib/auth";
-
-const ALL_TEACHERS = [
-  "Nghiêm Doãn Quỳnh Châu",
-  "Lê Thị Diệu Linh",
-  "Lê Minh Trang",
-  "Phạm Hoàng An",
-  "Trần Thu Lan",
-  "Lê Thanh Tâm",
-  "Thái Đỗ Đăng Khoa",
-  "Tất Duy Khải",
-  "Lê Như Hải",
-  "Nguyễn Lê Trung Dũng",
-  "Nguyễn Lưu Minh Tâm",
-  "Trần Quang Minh",
-  "Đặng Duy",
-];
+import { getLoggedInTeacherName, teacherNameMatches } from "@/lib/teacherIdentity";
 
 const getDefaultRlpSessionsForPhase = (phase: string): RlpSession[] => {
   const normPhase = (phase || "").toUpperCase();
@@ -940,59 +923,38 @@ export default function TeacherClassesPage() {
     void loadData();
   }, [loadData]);
 
-  // Load RLP sessions for the selected student
+  // Load class-level RLP sessions from API
   useEffect(() => {
     let cancelled = false;
     async function loadRlp() {
-      if (!selectedStudent) {
+      if (!selectedClass?.id) {
         setStudentRlp([]);
         return;
       }
-      if (selectedClass?.id) {
-        try {
-          const apiSessions = await refreshRlpSessions(selectedClass.id);
-          if (!cancelled && apiSessions && apiSessions.length > 0) {
-            setStudentRlp(apiSessions);
-            return;
-          }
-        } catch {
-          // ignore
+      try {
+        const apiSessions = await refreshRlpSessions(selectedClass.id);
+        if (!cancelled) {
+          setStudentRlp(apiSessions.length > 0 ? apiSessions : getDefaultRlpSessionsForPhase(selectedClass.currentPhase || "S-R"));
         }
-      }
-      const savedKey = `xalo.course.rlpSessions.${selectedStudent.id}.v1`;
-      const saved = window.localStorage.getItem(savedKey);
-      const phase = selectedClass?.currentPhase || "S-R";
-      const defaultSessions = getDefaultRlpSessionsForPhase(phase);
-      if (saved) {
-        try {
-          if (!cancelled) setStudentRlp(JSON.parse(saved));
-        } catch {
-          if (!cancelled) setStudentRlp(defaultSessions);
+      } catch {
+        if (!cancelled) {
+          setStudentRlp(getDefaultRlpSessionsForPhase(selectedClass.currentPhase || "S-R"));
         }
-      } else {
-        if (!cancelled) setStudentRlp(defaultSessions);
       }
     }
     void loadRlp();
     return () => {
       cancelled = true;
     };
-  }, [selectedStudent, selectedClass, rlpVersion]);
+  }, [selectedClass, rlpVersion]);
 
-  // Save RLP sessions to student specific key in localStorage
-  const saveStudentRlp = (sessions: RlpSession[]) => {
-    if (!selectedStudent) return;
-    const savedKey = `xalo.course.rlpSessions.${selectedStudent.id}.v1`;
-    window.localStorage.setItem(savedKey, JSON.stringify(sessions));
+  const saveClassRlp = async (sessions: RlpSession[], sessionNo: number, payload: Parameters<typeof updateRlpSession>[1]) => {
     setStudentRlp(sessions);
+    await updateRlpSession(sessionNo, payload, selectedClass?.id);
     setRlpVersion((v) => v + 1);
   };
 
-  const activeTeacherDisplay = useMemo(() => {
-    const cached = getCachedAuthUser();
-    if (cached && cached.name) return cached.name;
-    return "Quỳnh Châu";
-  }, []);
+  const activeTeacherDisplay = useMemo(() => getLoggedInTeacherName(), []);
 
   // Filter classes taught by logged in teacher and sort by newest phase/open date first
   const myClasses = useMemo(() => {
@@ -1001,21 +963,9 @@ export default function TeacherClassesPage() {
       return dateObj.getTime();
     };
 
-    const filterName = activeTeacherDisplay.trim().toLowerCase();
-    const words = filterName.split(" ").filter(Boolean);
-    const lastTwoWords = words.length >= 2 ? words.slice(-2).join(" ") : filterName;
-    const lastTwoVariant = lastTwoWords.replace("đặng", "đăng").replace("đăng", "đặng");
-
+    const filterName = activeTeacherDisplay.trim();
     const filtered = classes.filter((c) => {
-      const cTeacher = (c.teacher || "").toLowerCase();
-      const cName = (c.name || "").toLowerCase();
-
-      return (
-        cTeacher.includes(filterName) ||
-        cName.includes(filterName) ||
-        (lastTwoWords && (cTeacher.includes(lastTwoWords) || cName.includes(lastTwoWords))) ||
-        (lastTwoVariant && (cTeacher.includes(lastTwoVariant) || cName.includes(lastTwoVariant)))
-      );
+      return teacherNameMatches(c.teacher, filterName) || teacherNameMatches(c.name, filterName);
     });
 
     // De-duplicate by classCode (or name if code is missing) to prevent duplicate rows from parallel seeding
@@ -1068,99 +1018,47 @@ export default function TeacherClassesPage() {
     return unique;
   }, [students, selectedClass, classes]);
 
-  // Load RLP sessions for all students in the selected class
+  // Overlay per-student attendance onto class-level RLP sessions
   const classStudentsRlp = useMemo(() => {
-    if (!selectedClass) return {};
     const map: Record<string, RlpSession[]> = {};
-    const phase = selectedClass.currentPhase || "S-R";
-    const defaultSessions = getDefaultRlpSessionsForPhase(phase);
-
     for (const st of classStudents) {
-      const savedKey = `xalo.course.rlpSessions.${st.id}.v1`;
-      const saved = window.localStorage.getItem(savedKey);
-      if (saved) {
-        try {
-          map[st.id] = JSON.parse(saved);
-        } catch {
-          map[st.id] = defaultSessions;
-        }
-      } else {
-        map[st.id] = defaultSessions;
-      }
+      map[st.id] = studentRlp.map((s) => ({
+        ...s,
+        attendance: s.studentAttendance?.[st.id] ?? s.attendance,
+      }));
     }
     return map;
-  }, [selectedClass, classStudents, rlpVersion]);
+  }, [classStudents, studentRlp]);
 
-  // Toggle student attendance from class attendance matrix
   const toggleStudentAttendance = async (studentId: string, sessionNo: number) => {
-    const savedKey = `xalo.course.rlpSessions.${studentId}.v1`;
-    let currentSessions: RlpSession[] = [];
-    const saved = window.localStorage.getItem(savedKey);
-    const phase = selectedClass?.currentPhase || "S-R";
-    const defaultSessions = getDefaultRlpSessionsForPhase(phase);
-
-    if (saved) {
-      try {
-        currentSessions = JSON.parse(saved);
-      } catch {
-        currentSessions = [...defaultSessions];
-      }
-    } else {
-      currentSessions = [...defaultSessions];
-    }
-    const targetSession = currentSessions.find((s) => s.no === sessionNo);
-    const nextAttendance = (targetSession?.attendance === "present" ? "absent" : "present") as Attendance;
-    const updated = currentSessions.map((s) => {
-      if (s.no === sessionNo) {
-        return {
-          ...s,
-          attendance: nextAttendance,
-        };
-      }
-      return s;
-    });
-    window.localStorage.setItem(savedKey, JSON.stringify(updated));
-    setRlpVersion((v) => v + 1);
-
+    const targetSession = studentRlp.find((s) => s.no === sessionNo);
+    const current = targetSession?.studentAttendance?.[studentId] ?? targetSession?.attendance;
+    const nextAttendance = (current === "present" ? "absent" : "present") as Attendance;
+    const nextMap = { ...(targetSession?.studentAttendance ?? {}), [studentId]: nextAttendance };
+    const updated = studentRlp.map((s) =>
+      s.no === sessionNo ? { ...s, studentAttendance: nextMap, attendance: nextAttendance } : s,
+    );
+    setStudentRlp(updated);
     try {
-      await updateRlpSession(sessionNo, { attendance: nextAttendance }, selectedClass?.id);
+      await updateRlpSession(sessionNo, { studentAttendance: { [studentId]: nextAttendance } }, selectedClass?.id);
     } catch {
-      // ignore
+      setRlpVersion((v) => v + 1);
     }
   };
 
-  // Bulk mark all students for a session as present/absent
   const setAllAttendanceForSession = async (sessionNo: number, status: Attendance) => {
-    classStudents.forEach((st) => {
-      const savedKey = `xalo.course.rlpSessions.${st.id}.v1`;
-      let currentSessions: RlpSession[] = [];
-      const saved = window.localStorage.getItem(savedKey);
-      const phase = selectedClass?.currentPhase || "S-R";
-      const defaultSessions = getDefaultRlpSessionsForPhase(phase);
-
-      if (saved) {
-        try {
-          currentSessions = JSON.parse(saved);
-        } catch {
-          currentSessions = [...defaultSessions];
-        }
-      } else {
-        currentSessions = [...defaultSessions];
-      }
-      const updated = currentSessions.map((s) => {
-        if (s.no === sessionNo) {
-          return { ...s, attendance: status };
-        }
-        return s;
-      });
-      window.localStorage.setItem(savedKey, JSON.stringify(updated));
-    });
-    setRlpVersion((v) => v + 1);
-
+    const patch: Record<string, Attendance> = {};
+    for (const st of classStudents) {
+      patch[st.id] = status;
+    }
+    const updated = studentRlp.map((s) =>
+      s.no === sessionNo ? { ...s, studentAttendance: { ...(s.studentAttendance ?? {}), ...patch }, attendance: status } : s,
+    );
+    setStudentRlp(updated);
     try {
-      await updateRlpSession(sessionNo, { attendance: status }, selectedClass?.id);
+      await updateRlpSession(sessionNo, { attendance: status, studentAttendance: patch }, selectedClass?.id);
     } catch {
-      // ignore
+      setRlpVersion((v) => v + 1);
     }
   };
 
@@ -1175,8 +1073,7 @@ export default function TeacherClassesPage() {
     const year = parseInt(parts[2], 10);
     const sessionDate = new Date(year, month, day);
 
-    // Context current date: June 19, 2026
-    const CURRENT_DATE = new Date(2026, 5, 19);
+    const CURRENT_DATE = new Date();
     const diffTime = CURRENT_DATE.getTime() - sessionDate.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
@@ -1280,19 +1177,13 @@ export default function TeacherClassesPage() {
         };
       });
 
-      saveStudentRlp(updated);
-
-      await updateRlpSession(
-        activeSessionNo,
-        {
-          homeworkStatus: editStatus,
-          attendance: editAttendance,
-          lessonFileUrl: editLessonFile.trim(),
-          homeworkFileUrl: editHomeworkFile.trim(),
-          teacherNote: editTeacherNote.trim() || "—",
-        },
-        selectedClass?.id,
-      );
+      await saveClassRlp(updated, activeSessionNo, {
+        homeworkStatus: editStatus,
+        attendance: editAttendance,
+        lessonFileUrl: editLessonFile.trim(),
+        homeworkFileUrl: editHomeworkFile.trim(),
+        teacherNote: editTeacherNote.trim() || "—",
+      });
     } catch (err: any) {
       console.error("Failed API sync handleSaveRlp:", err);
     } finally {
@@ -1315,27 +1206,6 @@ export default function TeacherClassesPage() {
     setHomeworkSaving(true);
     try {
       const sessionNo = homeworkEditSession.no;
-      for (const st of classStudents) {
-        const savedKey = `xalo.course.rlpSessions.${st.id}.v1`;
-        const saved = window.localStorage.getItem(savedKey);
-        let currentRlp: RlpSession[] = getDefaultRlpSessionsForPhase(selectedClass.currentPhase || "S-R");
-        if (saved) {
-          try { currentRlp = JSON.parse(saved); } catch {}
-        }
-        const updatedRlp = currentRlp.map((row) => {
-          if (row.no === sessionNo) {
-            return {
-              ...row,
-              homeworkFileUrl: homeworkFileDraft.trim(),
-              deadline: homeworkDeadlineDraft.trim() || row.deadline,
-              teacherNote: homeworkNoteDraft.trim() || "—",
-            };
-          }
-          return row;
-        });
-        window.localStorage.setItem(savedKey, JSON.stringify(updatedRlp));
-      }
-
       await updateRlpSession(
         sessionNo,
         {
@@ -1345,7 +1215,6 @@ export default function TeacherClassesPage() {
         },
         selectedClass.id,
       );
-
       setRlpVersion((v) => v + 1);
       setHomeworkEditSession(null);
     } catch (err: any) {
@@ -1371,29 +1240,6 @@ export default function TeacherClassesPage() {
     setRlpSaving(true);
     try {
       const sessionNo = rlpEditSession.no;
-      for (const st of classStudents) {
-        const savedKey = `xalo.course.rlpSessions.${st.id}.v1`;
-        const saved = window.localStorage.getItem(savedKey);
-        let currentRlp: RlpSession[] = getDefaultRlpSessionsForPhase(selectedClass.currentPhase || "S-R");
-        if (saved) {
-          try { currentRlp = JSON.parse(saved); } catch {}
-        }
-        const updatedRlp = currentRlp.map((row) => {
-          if (row.no === sessionNo) {
-            return {
-              ...row,
-              skill: rlpSkillDraft.trim() || row.skill,
-              contents: rlpContentsDraft.trim() || row.contents,
-              teacherNote: rlpNoteDraft.trim() || "—",
-              lessonFileUrl: rlpLessonFileDraft.trim(),
-              recordingUrl: rlpRecordDraft.trim(),
-            };
-          }
-          return row;
-        });
-        window.localStorage.setItem(savedKey, JSON.stringify(updatedRlp));
-      }
-
       await updateRlpSession(
         sessionNo,
         {
@@ -1405,7 +1251,6 @@ export default function TeacherClassesPage() {
         },
         selectedClass.id,
       );
-
       setRlpVersion((v) => v + 1);
       setRlpEditSession(null);
     } catch (err: any) {

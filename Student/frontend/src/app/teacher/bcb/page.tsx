@@ -6,10 +6,9 @@ import { TeacherTopbar } from "@/components/teacher/TeacherTopbar";
 import { DiagnosisEditorSection } from "@/components/shared/DiagnosisEditorSection";
 import { StudentProfileEditorSection } from "@/components/shared/StudentProfileEditorSection";
 import { StudentRecordPicker } from "@/components/shared/StudentRecordPicker";
-import { DEFAULT_STUDENT_ID } from "@/lib/studentRoster";
 
 export default function TeacherBcbPage() {
-  const [studentId, setStudentId] = useState(DEFAULT_STUDENT_ID);
+  const [studentId, setStudentId] = useState("");
 
   return (
     <TeacherLayout>

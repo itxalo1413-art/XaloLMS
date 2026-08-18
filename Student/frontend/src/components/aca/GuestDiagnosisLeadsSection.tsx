@@ -40,7 +40,7 @@ export function GuestDiagnosisLeadsSection() {
   const [classDraft, setClassDraft] = useState<string>("");
 
   const sync = useCallback(() => {
-    setRows(listGuestDiagnosisLeads());
+    void listGuestDiagnosisLeads().then(setRows);
   }, []);
 
   useEffect(() => {
@@ -85,7 +85,7 @@ export function GuestDiagnosisLeadsSection() {
     const selectedClass = classes.find((c) => c.id === classDraft);
     const className = selectedClass ? selectedClass.name : "";
 
-    updateGuestDiagnosisLead(activeId, {
+    await updateGuestDiagnosisLead(activeId, {
       status: statusDraft,
       note: noteDraft,
       assignedClassId: classDraft,

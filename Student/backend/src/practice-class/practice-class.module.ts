@@ -15,6 +15,7 @@ import {
 import { AcaPracticeStudent, AcaPracticeStudentSchema } from '../aca/schemas/aca-practice-student.schema';
 import { AcaStudent, AcaStudentSchema } from '../aca/schemas/aca-student.schema';
 import { StudentPracticeClassController } from './student-practice-class.controller';
+import { TeacherPracticeClassController } from './teacher-practice-class.controller';
 
 @Module({
   imports: [
@@ -30,7 +31,7 @@ import { StudentPracticeClassController } from './student-practice-class.control
     AuthGuardsModule,
     UsersModule,
   ],
-  controllers: [AcaPracticeClassController, StudentPracticeClassController],
+  controllers: [AcaPracticeClassController, StudentPracticeClassController, TeacherPracticeClassController],
   providers: [PracticeClassService],
   exports: [PracticeClassService],
 })

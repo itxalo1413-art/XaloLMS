@@ -57,13 +57,19 @@ function saveLocal(rows: RlpSession[], silent = false) {
   }
 }
 
+function saveCache(rows: RlpSession[]) {
+  sessionsCache = rows.length > 0 ? rows : [...DEFAULT_COURSE_RLP_SESSIONS];
+  setActiveRlpSessions(sessionsCache);
+  dispatchRlpUpdate();
+}
+
 export function applyRlpSessionsCache(rows: RlpSession[]) {
   sessionsCache = rows.length > 0 ? rows : [...DEFAULT_COURSE_RLP_SESSIONS];
   setActiveRlpSessions(sessionsCache);
 }
 
 export function getCourseRlpSessions(): RlpSession[] {
-  if (sessionsCache.length === 0) {
+  if (sessionsCache.length === 0 && !canUseRlpSessionApi()) {
     sessionsCache = loadLocal();
   }
   return sessionsCache;
@@ -71,15 +77,11 @@ export function getCourseRlpSessions(): RlpSession[] {
 
 export async function refreshRlpSessions(classId?: string): Promise<RlpSession[]> {
   if (canUseRlpSessionApi()) {
-    try {
-      const rows = canUseTeacherRlpApi()
-        ? await fetchRlpSessionsForTeacher(classId)
-        : await fetchRlpSessionsForStudent();
-      saveLocal(rows, false);
-      return rows;
-    } catch {
-      // Backend offline or token expired — fall back to local cache silently.
-    }
+    const rows = canUseTeacherRlpApi()
+      ? await fetchRlpSessionsForTeacher(classId)
+      : await fetchRlpSessionsForStudent();
+    saveCache(rows);
+    return rows;
   }
   const local = loadLocal();
   applyRlpSessionsCache(local);
@@ -92,14 +94,14 @@ export async function updateRlpSession(
   classId?: string,
 ): Promise<RlpSession> {
   if (canUseTeacherRlpApi()) {
-    try {
-      const remote = await updateRlpSessionApi(no, payload, classId);
-      const next = getCourseRlpSessions().map((s) => (s.no === no ? remote : s));
+    const remote = await updateRlpSessionApi(no, payload, classId);
+    const next = getCourseRlpSessions().map((s) => (s.no === no ? remote : s));
+    if (canUseRlpSessionApi()) {
+      saveCache(next);
+    } else {
       saveLocal(next);
-      return remote;
-    } catch (err) {
-      console.warn("API update failed, updating local fallback:", err);
     }
+    return remote;
   }
 
   let updated: RlpSession | null = null;
@@ -108,6 +110,9 @@ export async function updateRlpSession(
     updated = {
       ...s,
       ...(payload.attendance !== undefined ? { attendance: payload.attendance } : {}),
+      ...(payload.studentAttendance !== undefined
+        ? { studentAttendance: { ...(s.studentAttendance ?? {}), ...payload.studentAttendance } }
+        : {}),
       ...(payload.homeworkStatus !== undefined
         ? { homeworkStatus: payload.homeworkStatus }
         : {}),
@@ -135,6 +140,6 @@ export async function updateRlpSession(
 
 export type { Attendance, HomeworkStatus };
 
-if (typeof window !== "undefined") {
+if (typeof window !== "undefined" && !canUseRlpSessionApi()) {
   applyRlpSessionsCache(loadLocal());
 }

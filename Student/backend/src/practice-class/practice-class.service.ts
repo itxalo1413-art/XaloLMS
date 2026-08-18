@@ -10,6 +10,8 @@ import { UsersService } from '../users/users.service';
 import { UpdatePracticeScheduleDto } from './dto/update-practice-schedule.dto';
 import {
   isPracticeSlotId,
+  DEFAULT_PRACTICE_ZOOM_ID,
+  DEFAULT_PRACTICE_ZOOM_PASSWORD,
   PRACTICE_SCHEDULE_KEY,
   PRACTICE_SLOT_DEFINITIONS,
   PRACTICE_SLOT_IDS,
@@ -31,11 +33,14 @@ import { AcaStudent, AcaStudentDocument } from '../aca/schemas/aca-student.schem
 
 export type PracticeClassSlotPublic = PracticeSlotDefinition & {
   dateNote?: string;
+  materialsUrl?: string;
 };
 
 export type PracticeSchedulePublic = {
   weekRangeLabel: string;
   updatedAt: string | null;
+  zoomId: string;
+  zoomPassword: string;
   slots: PracticeClassSlotPublic[];
 };
 
@@ -146,6 +151,7 @@ export class PracticeClassService {
   ): PracticeClassSlotPublic {
     if (!override) return { ...base };
     const dateNote = override.dateNote?.trim();
+    const materialsUrl = override.materialsUrl?.trim();
     return {
       ...base,
       dayLabel: override.dayLabel?.trim() || base.dayLabel,
@@ -153,16 +159,26 @@ export class PracticeClassService {
       title: override.title?.trim() || base.title,
       detail: override.detail?.trim() || base.detail,
       ...(dateNote ? { dateNote } : {}),
+      ...(materialsUrl ? { materialsUrl } : {}),
     };
   }
 
+  private resolveZoom(doc: { zoomId?: string; zoomPassword?: string } | null) {
+    const zoomId = doc?.zoomId?.trim() || DEFAULT_PRACTICE_ZOOM_ID;
+    const zoomPassword = doc?.zoomPassword?.trim() || DEFAULT_PRACTICE_ZOOM_PASSWORD;
+    return { zoomId, zoomPassword };
+  }
+
   private buildScheduleResponse(
-    doc: { weekRangeLabel?: string; updatedAt?: Date } | null,
+    doc: { weekRangeLabel?: string; updatedAt?: Date; zoomId?: string; zoomPassword?: string } | null,
     overrides: Record<string, PracticeSlotOverride>,
   ): PracticeSchedulePublic {
+    const { zoomId, zoomPassword } = this.resolveZoom(doc);
     return {
       weekRangeLabel: doc?.weekRangeLabel?.trim() ?? '',
       updatedAt: doc?.updatedAt?.toISOString() ?? null,
+      zoomId,
+      zoomPassword,
       slots: PRACTICE_SLOT_DEFINITIONS.map((base) =>
         this.mergeSlot(base, overrides[base.id]),
       ),
@@ -191,14 +207,37 @@ export class PracticeClassService {
       const title = raw?.title?.trim() || base.title;
       const detail = raw?.detail?.trim() || base.detail;
       const dateNote = raw?.dateNote?.trim();
+      const materialsUrl = raw?.materialsUrl?.trim();
       normalized[id] = {
         dayLabel,
         time,
         title,
         detail,
         ...(dateNote ? { dateNote } : {}),
+        ...(materialsUrl ? { materialsUrl } : {}),
       };
     }
+
+    const existing = await this.scheduleModel
+      .findOne({ key: PRACTICE_SCHEDULE_KEY })
+      .lean()
+      .exec();
+    const existingOverrides =
+      (existing?.slotOverrides as Record<string, PracticeSlotOverride>) ?? {};
+    for (const id of PRACTICE_SLOT_IDS) {
+      if (payload.slots?.[id] === undefined && existingOverrides[id]) {
+        normalized[id] = existingOverrides[id];
+      }
+    }
+
+    const zoomId =
+      payload.zoomId?.trim() ||
+      existing?.zoomId?.trim() ||
+      DEFAULT_PRACTICE_ZOOM_ID;
+    const zoomPassword =
+      payload.zoomPassword?.trim() ||
+      existing?.zoomPassword?.trim() ||
+      DEFAULT_PRACTICE_ZOOM_PASSWORD;
 
     const doc = await this.scheduleModel
       .findOneAndUpdate(
@@ -206,8 +245,10 @@ export class PracticeClassService {
         {
           $set: {
             key: PRACTICE_SCHEDULE_KEY,
-            weekRangeLabel: payload.weekRangeLabel?.trim() ?? '',
+            weekRangeLabel: payload.weekRangeLabel?.trim() ?? existing?.weekRangeLabel?.trim() ?? '',
             slotOverrides: normalized,
+            zoomId,
+            zoomPassword,
           },
         },
         { upsert: true, returnDocument: 'after' },
@@ -233,7 +274,106 @@ export class PracticeClassService {
       registeredAt:
         (row as { createdAt?: Date }).createdAt?.toISOString() ??
         new Date(0).toISOString(),
+      linkFolder: row.linkFolder?.trim() ?? '',
     }));
+  }
+
+  async updateZoom(payload: {
+    zoomId?: string;
+    zoomPassword?: string;
+  }): Promise<PracticeSchedulePublic> {
+    const zoomId = payload.zoomId?.trim() || DEFAULT_PRACTICE_ZOOM_ID;
+    const zoomPassword = payload.zoomPassword?.trim() || DEFAULT_PRACTICE_ZOOM_PASSWORD;
+    const doc = await this.scheduleModel
+      .findOneAndUpdate(
+        { key: PRACTICE_SCHEDULE_KEY },
+        {
+          $set: {
+            key: PRACTICE_SCHEDULE_KEY,
+            zoomId,
+            zoomPassword,
+          },
+        },
+        { upsert: true, returnDocument: 'after' },
+      )
+      .lean()
+      .exec();
+    const overrides =
+      (doc?.slotOverrides as Record<string, PracticeSlotOverride>) ?? {};
+    return this.buildScheduleResponse(doc, overrides);
+  }
+
+  async updateSlotMaterials(
+    slotId: string,
+    materialsUrl: string,
+  ): Promise<PracticeSchedulePublic> {
+    if (!isPracticeSlotId(slotId)) {
+      throw new BadRequestException('slotId không hợp lệ');
+    }
+    const existing = await this.scheduleModel
+      .findOne({ key: PRACTICE_SCHEDULE_KEY })
+      .lean()
+      .exec();
+    const overrides =
+      (existing?.slotOverrides as Record<string, PracticeSlotOverride>) ?? {};
+    const base = PRACTICE_SLOT_DEFINITIONS.find((s) => s.id === slotId)!;
+    const current = overrides[slotId] ?? {
+      dayLabel: base.dayLabel,
+      time: base.time,
+      title: base.title,
+      detail: base.detail,
+    };
+    overrides[slotId] = {
+      ...current,
+      materialsUrl: materialsUrl.trim(),
+    };
+    const doc = await this.scheduleModel
+      .findOneAndUpdate(
+        { key: PRACTICE_SCHEDULE_KEY },
+        {
+          $set: {
+            key: PRACTICE_SCHEDULE_KEY,
+            slotOverrides: overrides,
+          },
+        },
+        { upsert: true, returnDocument: 'after' },
+      )
+      .lean()
+      .exec();
+    return this.buildScheduleResponse(
+      doc,
+      (doc?.slotOverrides as Record<string, PracticeSlotOverride>) ?? overrides,
+    );
+  }
+
+  async updateStudentLinkFolder(
+    studentId: string,
+    linkFolder: string,
+  ): Promise<{ linkFolder: string }> {
+    if (!Types.ObjectId.isValid(studentId)) {
+      throw new BadRequestException('studentId không hợp lệ');
+    }
+    const normalized = linkFolder.trim();
+    await this.registrationModel
+      .updateMany(
+        { userId: new Types.ObjectId(studentId) },
+        { $set: { linkFolder: normalized } },
+      )
+      .exec();
+    return { linkFolder: normalized };
+  }
+
+  async getStudentLinkFolder(studentId: string): Promise<string> {
+    if (!Types.ObjectId.isValid(studentId)) return '';
+    const row = await this.registrationModel
+      .findOne({
+        userId: new Types.ObjectId(studentId),
+        linkFolder: { $exists: true, $ne: '' },
+      })
+      .sort({ updatedAt: -1 })
+      .lean()
+      .exec();
+    return row?.linkFolder?.trim() ?? '';
   }
 
   async registerSlot(

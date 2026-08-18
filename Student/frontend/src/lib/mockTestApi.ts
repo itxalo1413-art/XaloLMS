@@ -2,7 +2,7 @@ import { apiFetch, getAuthToken, isAuthDisabled } from "@/lib/auth";
 import type { MockTestRequest } from "@/lib/mockTestRequests";
 
 export function canUseMockTestApi(): boolean {
-  return true;
+  return !isAuthDisabled() && Boolean(getAuthToken());
 }
 
 async function parseJson<T>(response: Response): Promise<T> {

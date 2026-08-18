@@ -54,6 +54,7 @@ export async function fetchRlpSessionsForStudent(): Promise<RlpSession[]> {
 
 export type UpdateRlpSessionPayload = {
   attendance?: RlpSession["attendance"];
+  studentAttendance?: RlpSession["studentAttendance"];
   homeworkStatus?: RlpSession["homeworkStatus"];
   teacherNote?: string;
   lessonFileUrl?: string;

@@ -305,4 +305,35 @@ export class StudentProfileService {
       endDate: cls?.endDate || '27/05/2026',
     };
   }
+
+  async saveStudentDiagnosisByEmail(email: string, diagnosisData: Record<string, unknown>) {
+    if (!email) return { ok: false };
+    const student = await this.acaStudentModel
+      .findOne({ email: email.trim().toLowerCase() })
+      .lean()
+      .exec();
+    if (!student) return { ok: false, error: 'Không tìm thấy học viên' };
+
+    const userId = student._id as Types.ObjectId;
+    await this.store.findOneAndUpdate(
+      { userId },
+      { $set: { diagnosisData } },
+      { upsert: true, new: true },
+    ).exec();
+    return { ok: true };
+  }
+
+  async getStudentDiagnosisExtended(email: string) {
+    if (!email) return null;
+    const clean = email.trim().toLowerCase();
+    const student = await this.acaStudentModel.findOne({ email: clean }).lean().exec();
+    if (!student) return null;
+    const userId = student._id as Types.ObjectId;
+    const profileDoc = await this.store.findOne({ userId }).lean().exec();
+    const base = await this.getStudentDiagnosis(email);
+    return {
+      ...base,
+      diagnosisData: (profileDoc as any)?.diagnosisData ?? null,
+    };
+  }
 }

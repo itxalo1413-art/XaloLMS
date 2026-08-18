@@ -6,10 +6,11 @@ import { CollapsiblePanel } from "@/components/student/ui";
 import {
   resolvePracticeMeetingAccess,
   getStudentPracticeFolderUrl,
-  setStudentPracticeFolderUrl,
+  saveStudentPracticeFolderUrl,
   getSaturdayRotatedWeekNumber,
   getPracticeSlotMaterialsUrl,
-  setPracticeSlotMaterialsUrl,
+  savePracticeSlotMaterialsUrl,
+  PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT,
   type PracticeSlotId,
 } from "@/lib/practiceClass";
 import { PracticeClassRlpTable } from "@/components/student/PracticeClassRlpTable";
@@ -73,8 +74,14 @@ export function PracticeClassPanel({
   const [editingMaterialsSlotId, setEditingMaterialsSlotId] = useState<string | null>(null);
   const [materialsInput, setMaterialsInput] = useState("");
 
+  const [folderSaving, setFolderSaving] = useState(false);
+  const [materialsSaving, setMaterialsSaving] = useState(false);
+
   useEffect(() => {
     setFolderUrl(getStudentPracticeFolderUrl(studentId));
+    const onUpdate = () => setFolderUrl(getStudentPracticeFolderUrl(studentId));
+    window.addEventListener(PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT, onUpdate);
+    return () => window.removeEventListener(PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT, onUpdate);
   }, [studentId]);
 
   const toggleSlot = (id: PracticeSlotId) => {
@@ -239,16 +246,31 @@ export function PracticeClassPanel({
                             />
                             <button
                               type="button"
+                              disabled={folderSaving}
                               onClick={() => {
-                                if (folderInput.trim()) {
-                                  setStudentPracticeFolderUrl(studentId, folderInput.trim());
-                                  setFolderUrl(folderInput.trim());
-                                }
-                                setIsEditingFolder(false);
+                                void (async () => {
+                                  if (!folderInput.trim()) {
+                                    setIsEditingFolder(false);
+                                    return;
+                                  }
+                                  setFolderSaving(true);
+                                  try {
+                                    await saveStudentPracticeFolderUrl(studentId, folderInput.trim(), {
+                                      asTeacher: canEditRlp,
+                                    });
+                                    setFolderUrl(folderInput.trim());
+                                    setIsEditingFolder(false);
+                                  } catch (err) {
+                                    console.error(err);
+                                    alert(err instanceof Error ? err.message : "Không lưu được link folder.");
+                                  } finally {
+                                    setFolderSaving(false);
+                                  }
+                                })();
                               }}
-                              className="h-8 rounded-lg bg-emerald-700 px-2 text-[10px] font-bold text-white hover:bg-emerald-800"
+                              className="h-8 rounded-lg bg-emerald-700 px-2 text-[10px] font-bold text-white hover:bg-emerald-800 disabled:opacity-50"
                             >
-                              Lưu
+                              {folderSaving ? "..." : "Lưu"}
                             </button>
                             <button
                               type="button"
@@ -308,15 +330,31 @@ export function PracticeClassPanel({
                                 />
                                 <button
                                   type="button"
+                                  disabled={materialsSaving}
                                   onClick={() => {
-                                    if (materialsInput.trim()) {
-                                      setPracticeSlotMaterialsUrl(slot.id, materialsInput.trim());
-                                    }
-                                    setEditingMaterialsSlotId(null);
+                                    void (async () => {
+                                      if (!materialsInput.trim()) {
+                                        setEditingMaterialsSlotId(null);
+                                        return;
+                                      }
+                                      setMaterialsSaving(true);
+                                      try {
+                                        await savePracticeSlotMaterialsUrl(
+                                          slot.id,
+                                          materialsInput.trim(),
+                                        );
+                                        setEditingMaterialsSlotId(null);
+                                      } catch (err) {
+                                        console.error(err);
+                                        alert(err instanceof Error ? err.message : "Không lưu được link bộ đề.");
+                                      } finally {
+                                        setMaterialsSaving(false);
+                                      }
+                                    })();
                                   }}
-                                  className="h-8 rounded-lg bg-emerald-700 px-2 text-[10px] font-bold text-white hover:bg-emerald-800"
+                                  className="h-8 rounded-lg bg-emerald-700 px-2 text-[10px] font-bold text-white hover:bg-emerald-800 disabled:opacity-50"
                                 >
-                                  Lưu
+                                  {materialsSaving ? "..." : "Lưu"}
                                 </button>
                                 <button
                                   type="button"

@@ -17,6 +17,7 @@ import {
   STUDENT_DIAGNOSIS_UPDATE_EVENT,
   type StudentDiagnosisRecord,
 } from "@/lib/studentDiagnosisStore";
+import { saveStudentDiagnosisForAca } from "@/lib/acaManagementApi";
 import {
   getSpeakingStandardDescription,
   getWritingTask1StandardDescription,
@@ -33,6 +34,7 @@ type Props = {
   variant: Variant;
   portalLabel: string;
   studentId?: string;
+  studentEmail?: string;
   studentName?: string;
   initialScores?: any;
 };
@@ -107,7 +109,7 @@ function BcbRowsEditor({
   );
 }
 
-export function DiagnosisEditorSection({ variant, portalLabel, studentId, studentName, initialScores }: Props) {
+export function DiagnosisEditorSection({ variant, portalLabel, studentId, studentEmail, studentName, initialScores }: Props) {
   const [studentForm, setStudentForm] = useState<StudentDiagnosisRecord>(DEFAULT_STUDENT_DIAGNOSIS);
   const [guestForm, setGuestForm] = useState<GuestDiagnosisRecord>(DEFAULT_GUEST_DIAGNOSIS);
   const [saved, setSaved] = useState(false);
@@ -175,6 +177,9 @@ export function DiagnosisEditorSection({ variant, portalLabel, studentId, studen
     if (variant === "student" && studentId) {
       const { updatedAt: _u, ...rest } = studentForm;
       saveStudentDiagnosis(rest, studentId);
+      if (studentEmail) {
+        void saveStudentDiagnosisForAca(studentEmail, rest as unknown as Record<string, unknown>).catch(() => {});
+      }
     } else {
       const { updatedAt: _u, ...rest } = guestForm;
       saveGuestDiagnosis(rest);

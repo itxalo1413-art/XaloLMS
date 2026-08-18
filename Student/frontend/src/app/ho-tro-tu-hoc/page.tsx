@@ -30,7 +30,6 @@ import {
   formatIsoDateTimeVi,
   formatExternalUrl,
   formatMockTestDateTime,
-  getDemoSpeakingMockTests,
   isSpeakingMockTest,
   mockTestStatusLabel,
   mockTestStatusTone,
@@ -54,7 +53,6 @@ import {
   setPracticeClassJoined,
   unregisterPracticeSlot,
   getSaturdayRotatedWeekNumber,
-  setPracticeZoomInfo,
   type PracticeSlotId,
 } from "@/lib/practiceClass";
 import {
@@ -67,8 +65,6 @@ import {
 import {
   fetchAcaFreeSlots,
   updateAcaFreeSlot,
-  fetchAcaPracticeWeeks,
-  findCurrentOrLatestPracticeWeekRange,
   type AcaFreeSlot,
 } from "@/lib/acaManagementApi";
 import { MOCK_TEST_TEACHER_OPTIONS } from "@/lib/mockTestTeacherNames";
@@ -829,27 +825,6 @@ export default function HoTroTuHocPage() {
     syncPracticeJoined();
   }, [syncPracticeJoined, practiceSlotVersion]);
 
-  useEffect(() => {
-    async function syncAcaZoomInfo() {
-      try {
-        const weeks = await fetchAcaPracticeWeeks();
-        if (weeks && weeks.length > 0) {
-          const currentWeekRange = findCurrentOrLatestPracticeWeekRange(weeks);
-          const activeWeek = weeks.find((w) => w.weekRange === currentWeekRange) || weeks[0];
-          if (activeWeek?.zoomId && activeWeek?.zoomPassword) {
-            setPracticeZoomInfo({
-              zoomId: activeWeek.zoomId,
-              zoomPassword: activeWeek.zoomPassword,
-            });
-          }
-        }
-      } catch (err) {
-        // ignore
-      }
-    }
-    syncAcaZoomInfo();
-  }, []);
-
   // ─── Writing submissions ───────────────────────────────────────────────────
   const refreshWritingSubmissions = useCallback(() => {
     void refreshWritingSubmissionsForStudent(student.id).then(setWritingSubmissions);
@@ -982,9 +957,8 @@ export default function HoTroTuHocPage() {
   const speakingMockRows = useMemo(() => {
     const raw = myRequests.filter((r) => isSpeakingMockTest(r.skill));
     const deduped = deduplicateMockTestRequests(raw);
-    const rows = sortMockTestsByDateDesc(deduped);
-    return rows.length > 0 ? rows : getDemoSpeakingMockTests(student.id, student.name);
-  }, [myRequests, student.id, student.name]);
+    return sortMockTestsByDateDesc(deduped);
+  }, [myRequests]);
 
   const filteredSpeakingMockRows = useMemo(() => {
     return speakingMockRows.filter((r) => {

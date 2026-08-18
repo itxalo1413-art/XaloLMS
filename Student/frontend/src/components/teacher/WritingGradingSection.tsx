@@ -2,7 +2,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { students } from "@/components/teacher/mockData";
 import {
   formatIsoDateTimeVi,
   formatExternalUrl,
@@ -27,9 +26,7 @@ import { getCachedAuthUser } from "@/lib/auth";
 type StatusFilter = WritingSubmissionStatus | "all";
 
 function resolveStudentName(row: WritingSubmission): string {
-  if (row.studentName?.trim()) return row.studentName;
-  const found = students.find((s) => s.id === row.studentId);
-  return found?.name ?? row.studentId;
+  return row.studentName?.trim() || row.studentId;
 }
 
 const TYPE_OPTIONS = ["Mock test", "Final", "Entrance", "Support", "RLP", "RLP HW"];

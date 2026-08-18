@@ -4,8 +4,8 @@ import { useState, useEffect, useMemo } from "react";
 import { TeacherLayout } from "@/components/teacher/TeacherLayout";
 import { TeacherTopbar } from "@/components/teacher/TeacherTopbar";
 import { fetchAcaClasses, type AcaClass } from "@/lib/acaManagementApi";
-import { ACA_CLASSES } from "@/lib/acaMockData";
-import { getCachedAuthUser } from "@/lib/auth";
+import { getLoggedInTeacherName, teacherNameMatches } from "@/lib/teacherIdentity";
+import { fetchTeacherAttendance, toggleTeacherAttendance } from "@/lib/teacherAttendanceApi";
 
 // Parse date string (supports DD/MM/YYYY and YYYY-MM-DD)
 function parseAnyDate(dStr?: string): Date | null {
@@ -116,46 +116,35 @@ function getTeacherOfClass(cls: AcaClass): string {
 }
 
 export default function TeacherCalendarPage() {
-  const [selectedMonth, setSelectedMonth] = useState<number>(4); // 4 = May, 5 = June, 6 = July
-  const [selectedYear] = useState<number>(2026);
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth());
+  const [selectedYear] = useState<number>(now.getFullYear());
   const [selectedTeacher, setSelectedTeacher] = useState<string>("");
   const [attendance, setAttendance] = useState<Record<string, boolean>>({});
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [allClasses, setAllClasses] = useState<AcaClass[]>([]);
 
-  // Resolve active logged in teacher name
-  const loggedInTeacherName = useMemo(() => {
-    const user = getCachedAuthUser();
-    if (user && user.name && user.name !== "Teacher") {
-      return user.name;
-    }
-    return "Nghiêm Doãn Quỳnh Châu"; // Default teacher profile for Portal
-  }, []);
+  const loggedInTeacherName = useMemo(() => getLoggedInTeacherName(), []);
 
-  // Load classes from API or mock fallback
   useEffect(() => {
     async function load() {
       try {
         const data = await fetchAcaClasses();
-        if (data && data.length > 0) {
-          setAllClasses(data);
-        } else {
-          setAllClasses(ACA_CLASSES as any);
-        }
+        setAllClasses(data);
       } catch {
-        setAllClasses(ACA_CLASSES as any);
+        setAllClasses([]);
       }
     }
     void load();
   }, []);
 
-  // Initialize and auto-select active teacher account
   useEffect(() => {
     if (allClasses.length > 0) {
-      const userLower = loggedInTeacherName.toLowerCase();
       const match = allClasses.find((c) => {
-        const t = getTeacherOfClass(c).toLowerCase();
-        return t.includes(userLower) || userLower.includes(t) || (c.teacher || "").toLowerCase().includes(userLower);
+        return (
+          teacherNameMatches(getTeacherOfClass(c), loggedInTeacherName) ||
+          teacherNameMatches(c.teacher, loggedInTeacherName)
+        );
       });
       if (match) {
         setSelectedTeacher(getTeacherOfClass(match));
@@ -167,29 +156,28 @@ export default function TeacherCalendarPage() {
     }
   }, [allClasses, loggedInTeacherName]);
 
-  // Load saved attendance from localStorage
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const saved = window.localStorage.getItem("xalo.teacher.classAttendance.v1");
-      if (saved) {
-        try {
-          setAttendance(JSON.parse(saved));
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    }
+    let cancelled = false;
+    void fetchTeacherAttendance()
+      .then((map) => {
+        if (!cancelled) setAttendance(map);
+      })
+      .catch(() => {
+        if (!cancelled) setAttendance({});
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // Toggle attendance state
   const toggleAttendance = (sessionId: string) => {
-    setAttendance((prev) => {
-      const next = { ...prev, [sessionId]: !prev[sessionId] };
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("xalo.teacher.classAttendance.v1", JSON.stringify(next));
-      }
-      return next;
-    });
+    const nextValue = !attendance[sessionId];
+    setAttendance((prev) => ({ ...prev, [sessionId]: nextValue }));
+    void toggleTeacherAttendance(sessionId, nextValue)
+      .then(setAttendance)
+      .catch(() => {
+        setAttendance((prev) => ({ ...prev, [sessionId]: !nextValue }));
+      });
   };
 
   // List of all unique teachers extracted from class names
@@ -284,7 +272,7 @@ export default function TeacherCalendarPage() {
   }, [selectedYear, selectedMonth, filteredClasses]);
 
   // Current date reference for attendance 7-day rule
-  const CURRENT_DATE = useMemo(() => new Date(2026, 5, 19), []);
+  const CURRENT_DATE = useMemo(() => new Date(), []);
 
   const checkSessionState = (day: number | null) => {
     if (!day) return { isDisabled: true, isAutoAbsent: false, isFuture: true };

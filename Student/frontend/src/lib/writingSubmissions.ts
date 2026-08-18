@@ -1,5 +1,5 @@
 /**
- * Nộp bài Writing — API + fallback localStorage khi chưa đăng nhập.
+ * Nộp bài Writing — API khi đã đăng nhập; fallback localStorage chỉ khi chưa auth.
  */
 
 import {
@@ -86,7 +86,7 @@ export function deduplicateWritingSubmissions(rows: WritingSubmission[]): Writin
     seenContent.add(contentKey);
 
     const clone = { ...r };
-    if (!clone.assignedGrader || !ACA_GRADERS.includes(clone.assignedGrader as any)) {
+    if (!clone.assignedGrader || !ACA_GRADERS.includes(clone.assignedGrader as (typeof ACA_GRADERS)[number])) {
       clone.assignedGrader = selectNextAcaGrader(result);
     }
 
@@ -112,7 +112,7 @@ export function rebalanceWritingSubmissions(rows: WritingSubmission[]): WritingS
     return { ...r, assignedGrader: chosen };
   });
 
-  saveLocal(result);
+  persistWritingSubmissions(result);
   return result;
 }
 
@@ -144,6 +144,19 @@ function saveLocal(rows: WritingSubmission[]) {
   dispatchWritingUpdate();
 }
 
+function saveCache(rows: WritingSubmission[]) {
+  submissionsCache = deduplicateWritingSubmissions(rows);
+  dispatchWritingUpdate();
+}
+
+function persistWritingSubmissions(rows: WritingSubmission[]) {
+  if (canUseWritingSubmissionApi()) {
+    saveCache(rows);
+  } else {
+    saveLocal(rows);
+  }
+}
+
 export function applyWritingSubmissionsCache(rows: WritingSubmission[]) {
   submissionsCache = deduplicateWritingSubmissions(rows);
 }
@@ -151,18 +164,23 @@ export function applyWritingSubmissionsCache(rows: WritingSubmission[]) {
 export function clearAllWritingSubmissions() {
   submissionsCache = [];
   if (typeof window !== "undefined") {
-    window.localStorage.removeItem(WRITING_SUBMISSIONS_KEY);
+    if (!canUseWritingSubmissionApi()) {
+      window.localStorage.removeItem(WRITING_SUBMISSIONS_KEY);
+    }
     dispatchWritingUpdate();
   }
 }
 
 export function loadWritingSubmissions(): WritingSubmission[] {
+  if (canUseWritingSubmissionApi()) {
+    return deduplicateWritingSubmissions(submissionsCache);
+  }
   const cache = submissionsCache.length > 0 ? submissionsCache : loadLocal();
   return deduplicateWritingSubmissions(cache);
 }
 
 export function saveWritingSubmissions(rows: WritingSubmission[]) {
-  saveLocal(rows);
+  persistWritingSubmissions(rows);
 }
 
 export function createWritingSubmission(input: {
@@ -173,7 +191,7 @@ export function createWritingSubmission(input: {
   assignedGrader?: string;
 }): WritingSubmission {
   const now = new Date();
-  const local = loadLocal();
+  const local = loadWritingSubmissions();
   const assigned = input.assignedGrader?.trim() || selectNextAcaGrader(local);
   return {
     id: `wr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -191,14 +209,10 @@ export async function refreshWritingSubmissionsForStudent(
   studentId: string,
 ): Promise<WritingSubmission[]> {
   if (canUseWritingSubmissionApi()) {
-    try {
-      const rows = await fetchWritingSubmissionsForStudent();
-      const deduped = deduplicateWritingSubmissions(rows);
-      applyWritingSubmissionsCache(deduped);
-      return deduped;
-    } catch {
-      // fall through
-    }
+    const rows = await fetchWritingSubmissionsForStudent();
+    const deduped = deduplicateWritingSubmissions(rows);
+    saveCache(deduped);
+    return deduped;
   }
   const local = loadLocal();
   const filtered = deduplicateWritingSubmissions(local.filter((r) => r.studentId === studentId));
@@ -211,14 +225,10 @@ export async function refreshWritingSubmissionsForTeacher(
 ): Promise<WritingSubmission[]> {
   const filterStatus = status ?? "all";
   if (canUseWritingSubmissionApi()) {
-    try {
-      const rows = await fetchWritingSubmissionsForTeacher(filterStatus === "all" ? undefined : filterStatus);
-      const deduped = deduplicateWritingSubmissions(rows);
-      applyWritingSubmissionsCache(deduped);
-      return deduped;
-    } catch {
-      // fall through
-    }
+    const rows = await fetchWritingSubmissionsForTeacher(filterStatus === "all" ? undefined : filterStatus);
+    const deduped = deduplicateWritingSubmissions(rows);
+    saveCache(deduped);
+    return deduped;
   }
   const local = loadLocal();
   const filtered =
@@ -241,21 +251,14 @@ export async function submitWritingSubmission(input: {
       examLink: input.examLink,
       testDateTime: input.testDateTime,
     });
-    // After submitting, do a full refresh from server so the local
-    // cache exactly matches what's in the DB (no stale local rows).
     try {
       const fresh = await fetchWritingSubmissionsForStudent();
-      const deduped = deduplicateWritingSubmissions(fresh);
-      // Wipe localStorage before saving fresh data
-      if (typeof window !== "undefined") {
-        window.localStorage.removeItem(WRITING_SUBMISSIONS_KEY);
-      }
-      submissionsCache = [];
-      saveLocal(deduped);
+      saveCache(deduplicateWritingSubmissions(fresh));
     } catch {
-      // Fallback: at least replace any stale copy of the same record
-      const local = loadLocal().filter((r) => r.id !== remote.id && r.studentId !== input.studentId);
-      saveLocal([remote, ...local]);
+      const current = loadWritingSubmissions().filter(
+        (r) => r.id !== remote.id && r.studentId !== input.studentId,
+      );
+      saveCache([remote, ...current]);
     }
     return remote;
   }
@@ -302,11 +305,11 @@ export async function gradeWritingSubmission(
 ): Promise<WritingSubmission> {
   if (canUseWritingSubmissionApi()) {
     const remote = await gradeWritingSubmissionApi(id, payload);
-    const exists = loadLocal().some((r) => r.id === id);
+    const exists = loadWritingSubmissions().some((r) => r.id === id);
     const next = exists
-      ? loadLocal().map((r) => (r.id === id ? remote : r))
-      : [remote, ...loadLocal()];
-    saveLocal(next);
+      ? loadWritingSubmissions().map((r) => (r.id === id ? remote : r))
+      : [remote, ...loadWritingSubmissions()];
+    saveCache(next);
     return remote;
   }
 
@@ -342,6 +345,6 @@ export function loadWritingSubmissionsForStudent(studentId: string): WritingSubm
   );
 }
 
-function getDefaultWritingSubmissions(_studentId: string): WritingSubmission[] {
-  return [];
+if (typeof window !== "undefined" && !canUseWritingSubmissionApi()) {
+  applyWritingSubmissionsCache(loadLocal());
 }

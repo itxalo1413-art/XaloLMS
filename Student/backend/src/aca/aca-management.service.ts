@@ -19,6 +19,19 @@ import { UsersService } from '../users/users.service';
 import { DailyNote, DailyNoteDocument } from './schemas/daily-note.schema';
 import { MockTestRequest, MockTestRequestDocument } from './schemas/mock-test-request.schema';
 import { CourseSettings, CourseSettingsDocument } from './schemas/course-settings.schema';
+import {
+  GuestDiagnosisLead,
+  GuestDiagnosisLeadDocument,
+  type GuestDiagnosisLeadStatus,
+} from './schemas/guest-diagnosis-lead.schema';
+import {
+  EntranceTestBooking,
+  EntranceTestBookingDocument,
+} from './schemas/entrance-test-booking.schema';
+import {
+  AcaKvStore,
+  AcaKvStoreDocument,
+} from './schemas/aca-kv-store.schema';
 
 function normalizeClassification(cls: string): string {
   const c = (cls || '').trim().toLowerCase();
@@ -45,6 +58,9 @@ export class AcaManagementService implements OnModuleInit {
     @InjectModel(DailyNote.name) private readonly dailyNoteModel: Model<DailyNoteDocument>,
     @InjectModel(MockTestRequest.name) private readonly mockTestRequestModel: Model<MockTestRequestDocument>,
     @InjectModel(CourseSettings.name) private readonly courseSettingsModel: Model<CourseSettingsDocument>,
+    @InjectModel(GuestDiagnosisLead.name) private readonly guestLeadModel: Model<GuestDiagnosisLeadDocument>,
+    @InjectModel(EntranceTestBooking.name) private readonly entranceBookingModel: Model<EntranceTestBookingDocument>,
+    @InjectModel(AcaKvStore.name) private readonly kvModel: Model<AcaKvStoreDocument>,
     private readonly usersService: UsersService,
   ) {}
 
@@ -870,5 +886,208 @@ export class AcaManagementService implements OnModuleInit {
       return this.courseSettingsModel.create(data);
     }
     return this.courseSettingsModel.findByIdAndUpdate(doc._id, { $set: data }, { new: true }).exec();
+  }
+
+  // --- Guest Diagnosis Leads ---
+  private toLeadPublic(doc: any) {
+    return {
+      id: doc._id.toString(),
+      name: doc.name ?? '',
+      phone: doc.phone ?? '',
+      email: doc.email ?? '',
+      aim: doc.aim ?? '',
+      submittedAt: doc.createdAt?.toISOString() ?? new Date().toISOString(),
+      status: doc.status ?? 'new',
+      note: doc.note ?? '',
+      assignedClassId: doc.assignedClassId ?? '',
+      assignedClassName: doc.assignedClassName ?? '',
+    };
+  }
+
+  async listGuestLeads() {
+    const rows = await this.guestLeadModel
+      .find()
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+    return rows.map((r) => this.toLeadPublic(r));
+  }
+
+  async createGuestLead(input: { name: string; phone?: string; email?: string; aim?: string }) {
+    const doc = await this.guestLeadModel.create({
+      name: input.name.trim(),
+      phone: (input.phone ?? '').trim(),
+      email: (input.email ?? '').trim(),
+      aim: (input.aim ?? '').trim(),
+      status: 'new',
+      note: '',
+    });
+    return this.toLeadPublic(doc);
+  }
+
+  async updateGuestLead(
+    id: string,
+    patch: {
+      status?: GuestDiagnosisLeadStatus;
+      note?: string;
+      assignedClassId?: string;
+      assignedClassName?: string;
+    },
+  ) {
+    const update: Record<string, unknown> = {};
+    if (patch.status !== undefined) update.status = patch.status;
+    if (patch.note !== undefined) update.note = patch.note.trim();
+    if (patch.assignedClassId !== undefined) update.assignedClassId = patch.assignedClassId.trim();
+    if (patch.assignedClassName !== undefined) update.assignedClassName = patch.assignedClassName.trim();
+    const doc = await this.guestLeadModel
+      .findByIdAndUpdate(id, { $set: update }, { new: true })
+      .lean()
+      .exec();
+    if (!doc) throw new Error('Không tìm thấy lead');
+    return this.toLeadPublic(doc);
+  }
+
+  async deleteGuestLead(id: string) {
+    await this.guestLeadModel.findByIdAndDelete(id).exec();
+    return { ok: true };
+  }
+
+  // --- Entrance Test Bookings ---
+  private toBookingPublic(doc: any) {
+    return {
+      id: doc._id.toString(),
+      candidateName: doc.candidateName ?? '',
+      candidatePhone: doc.candidatePhone ?? '',
+      candidateEmail: doc.candidateEmail ?? '',
+      leadId: doc.leadId ?? '',
+      type: doc.type ?? 'speaking',
+      format: doc.format ?? 'online',
+      graderName: doc.graderName ?? '',
+      date: doc.date ?? '',
+      time: doc.time ?? '',
+      day: doc.day ?? 0,
+      month: doc.month ?? 0,
+      year: doc.year ?? 0,
+      meetLink: doc.meetLink ?? '',
+      examLink: doc.examLink ?? '',
+      submissionLink: doc.submissionLink ?? '',
+      note: doc.note ?? '',
+      status: doc.status ?? 'scheduled',
+      scoreSpeaking: doc.scoreSpeaking ?? '',
+      scoreWriting: doc.scoreWriting ?? '',
+      feedback: doc.feedback ?? '',
+      slotId: doc.slotId ?? '',
+      createdAt: doc.createdAt?.toISOString() ?? new Date().toISOString(),
+    };
+  }
+
+  async listEntranceBookings() {
+    const rows = await this.entranceBookingModel
+      .find()
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
+    return rows.map((r) => this.toBookingPublic(r));
+  }
+
+  async createEntranceBooking(input: Record<string, unknown>) {
+    const dateStr = (input.date as string) ?? '';
+    const dateObj = dateStr ? new Date(dateStr) : new Date();
+    const doc = await this.entranceBookingModel.create({
+      candidateName: ((input.candidateName as string) ?? '').trim(),
+      candidatePhone: ((input.candidatePhone as string) ?? '').trim(),
+      candidateEmail: ((input.candidateEmail as string) ?? '').trim(),
+      leadId: ((input.leadId as string) ?? '').trim(),
+      type: ((input.type as string) ?? 'speaking') as any,
+      format: ((input.format as string) ?? 'online') as any,
+      graderName: ((input.graderName as string) ?? '').trim(),
+      date: dateStr,
+      time: ((input.time as string) ?? '').trim(),
+      day: dateObj.getDate(),
+      month: dateObj.getMonth(),
+      year: dateObj.getFullYear(),
+      meetLink: ((input.meetLink as string) ?? '').trim(),
+      examLink: ((input.examLink as string) ?? '').trim(),
+      submissionLink: ((input.submissionLink as string) ?? '').trim(),
+      note: ((input.note as string) ?? '').trim(),
+      status: 'scheduled',
+      slotId: ((input.slotId as string) ?? '').trim(),
+    });
+    return this.toBookingPublic(doc);
+  }
+
+  async updateEntranceBooking(id: string, patch: Record<string, unknown>) {
+    const allowed = [
+      'status', 'scoreSpeaking', 'scoreWriting', 'feedback',
+      'note', 'meetLink', 'examLink', 'submissionLink',
+    ];
+    const update: Record<string, unknown> = {};
+    for (const key of allowed) {
+      if (patch[key] !== undefined) update[key] = patch[key];
+    }
+    const doc = await this.entranceBookingModel
+      .findByIdAndUpdate(id, { $set: update }, { new: true })
+      .lean()
+      .exec();
+    if (!doc) throw new Error('Không tìm thấy lịch thi');
+    return this.toBookingPublic(doc);
+  }
+
+  async deleteEntranceBooking(id: string) {
+    await this.entranceBookingModel.findByIdAndDelete(id).exec();
+    return { ok: true };
+  }
+
+  // --- KV Store (Grader Meet Links, Guest Diagnosis, etc.) ---
+  async getKv(namespace: string): Promise<Record<string, unknown>> {
+    const doc = await this.kvModel.findOne({ namespace }).lean().exec();
+    return (doc?.data as Record<string, unknown>) ?? {};
+  }
+
+  async setKv(namespace: string, data: Record<string, unknown>) {
+    await this.kvModel.findOneAndUpdate(
+      { namespace },
+      { $set: { data } },
+      { upsert: true, new: true },
+    ).exec();
+    return { ok: true };
+  }
+
+  async mergeKv(namespace: string, patch: Record<string, unknown>) {
+    const existing = await this.getKv(namespace);
+    const merged = { ...existing, ...patch };
+    await this.setKv(namespace, merged);
+    return merged;
+  }
+
+  // --- ACA Dashboard KPI ---
+  async getDashboardKpi() {
+    const [
+      totalUsers,
+      totalStudents,
+      totalWriting,
+      pendingWriting,
+      pendingMockTest,
+      totalLeads,
+      newLeads,
+    ] = await Promise.all([
+      Promise.resolve(0),
+      this.studentModel.countDocuments().exec(),
+      this.writingSubmissionModel.countDocuments().exec(),
+      this.writingSubmissionModel.countDocuments({ status: 'pending' }).exec(),
+      this.mockTestRequestModel.countDocuments({ status: 'pending' }).exec(),
+      this.guestLeadModel.countDocuments().exec(),
+      this.guestLeadModel.countDocuments({ status: 'new' }).exec(),
+    ]);
+
+    return {
+      totalUsers,
+      totalStudents,
+      totalWriting,
+      pendingWriting,
+      pendingMockTest,
+      totalLeads,
+      newLeads,
+    };
   }
 }

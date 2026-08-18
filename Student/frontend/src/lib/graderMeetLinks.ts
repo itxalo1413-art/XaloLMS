@@ -1,6 +1,9 @@
+import { canUseAcaApi, getAcaKv, mergeAcaKv } from "@/lib/acaManagementApi";
+
 const STORAGE_KEY = "xalo_grader_meet_links_v1";
 const GLOBAL_MEET_LINK_KEY = "xalo_global_grader_meet_link_v2";
 export const GRADER_MEET_LINKS_EVENT = "xalo_grader_meet_links_updated";
+const KV_NAMESPACE = "graderMeetLinks";
 
 export const DEFAULT_GRADER_MEET_LINKS: Record<string, string> = {
   "Lê Thị Diệu Linh": "https://meet.google.com/dieulinh-speaking-test",
@@ -49,11 +52,9 @@ export function saveGraderMeetLink(teacherName: string, link: string): void {
     if (!cleanLink) return;
 
     const next = { ...saved, [key]: cleanLink };
-    
-    // Always store in global key so any Speaking test link resolves to active custom link
+
     localStorage.setItem(GLOBAL_MEET_LINK_KEY, cleanLink);
 
-    // Also save aliases so all variations share the link
     const normKey = key.toLowerCase();
     if (normKey.includes("học vụ") || normKey.includes("aca")) {
       next["Bộ phận Học vụ"] = cleanLink;
@@ -63,7 +64,6 @@ export function saveGraderMeetLink(teacherName: string, link: string): void {
       next["Quản lý Grader"] = cleanLink;
     }
 
-    // Update in-memory defaults so hardcoded fallbacks immediately return cleanLink
     DEFAULT_GRADER_MEET_LINKS[key] = cleanLink;
     if (normKey.includes("học vụ") || normKey.includes("aca")) {
       DEFAULT_GRADER_MEET_LINKS["Bộ phận Học vụ"] = cleanLink;
@@ -77,6 +77,32 @@ export function saveGraderMeetLink(teacherName: string, link: string): void {
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     window.dispatchEvent(new Event(GRADER_MEET_LINKS_EVENT));
+
+    // Persist to backend KV store (fire-and-forget)
+    if (canUseAcaApi()) {
+      void mergeAcaKv(KV_NAMESPACE, next as Record<string, unknown>).catch(() => {});
+    }
+  } catch {
+    // ignore
+  }
+}
+
+/** Load grader meet links từ API và merge vào in-memory + localStorage */
+export async function syncGraderMeetLinksFromBackend(): Promise<void> {
+  if (!canUseAcaApi()) return;
+  try {
+    const data = await getAcaKv(KV_NAMESPACE);
+    if (!data || Object.keys(data).length === 0) return;
+    const current = getSavedUserLinks();
+    const merged = { ...current, ...(data as Record<string, string>) };
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      // Update in-memory defaults
+      for (const [k, v] of Object.entries(merged)) {
+        if (typeof v === "string") DEFAULT_GRADER_MEET_LINKS[k] = v;
+      }
+      window.dispatchEvent(new Event(GRADER_MEET_LINKS_EVENT));
+    }
   } catch {
     // ignore
   }

@@ -4,21 +4,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { loadMockTestRequests, refreshMockTestRequestsForTeacher } from "@/lib/mockTestRequests";
 import { isSpeakingMockTest } from "@/lib/selfStudyFormat";
 import { refreshWritingSubmissionsForTeacher, loadWritingSubmissions } from "@/lib/writingSubmissions";
-import { LOGGED_IN_TEACHER_NAME } from "./mockTestTeachers";
+import { getLoggedInTeacherName } from "@/lib/teacherIdentity";
 
 export function TeacherStatsCard() {
   const [speakingCount, setSpeakingCount] = useState(0);
   const [writingCount, setWritingCount] = useState(0);
-  const [trialCount, setTrialCount] = useState<number>(() => {
-    if (typeof window !== "undefined") {
-      const saved = window.localStorage.getItem(`xalo.teacher.trialCount.${LOGGED_IN_TEACHER_NAME}`);
-      return saved ? parseInt(saved, 10) : 0;
-    }
-    return 0;
-  });
+  const [trialCount, setTrialCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  const teacherName = LOGGED_IN_TEACHER_NAME;
+  const teacherName = getLoggedInTeacherName();
 
   const syncStats = useCallback(async () => {
     setLoading(true);
@@ -59,11 +53,7 @@ export function TeacherStatsCard() {
   }, [syncStats]);
 
   const updateTrialCount = (val: number) => {
-    const nextVal = Math.max(0, val);
-    setTrialCount(nextVal);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(`xalo.teacher.trialCount.${LOGGED_IN_TEACHER_NAME}`, nextVal.toString());
-    }
+    setTrialCount(Math.max(0, val));
   };
 
   const totals = useMemo(() => {

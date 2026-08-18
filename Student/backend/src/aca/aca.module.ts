@@ -26,6 +26,15 @@ import { AcaManagementController } from './aca-management.controller';
 import { DailyNote, DailyNoteSchema } from './schemas/daily-note.schema';
 import { MockTestRequest, MockTestRequestSchema } from './schemas/mock-test-request.schema';
 import { CourseSettings, CourseSettingsSchema } from './schemas/course-settings.schema';
+import {
+  GuestDiagnosisLead,
+  GuestDiagnosisLeadSchema,
+} from './schemas/guest-diagnosis-lead.schema';
+import {
+  EntranceTestBooking,
+  EntranceTestBookingSchema,
+} from './schemas/entrance-test-booking.schema';
+import { AcaKvStore, AcaKvStoreSchema } from './schemas/aca-kv-store.schema';
 
 @Module({
   imports: [
@@ -48,6 +57,9 @@ import { CourseSettings, CourseSettingsSchema } from './schemas/course-settings.
       { name: DailyNote.name, schema: DailyNoteSchema },
       { name: MockTestRequest.name, schema: MockTestRequestSchema },
       { name: CourseSettings.name, schema: CourseSettingsSchema },
+      { name: GuestDiagnosisLead.name, schema: GuestDiagnosisLeadSchema },
+      { name: EntranceTestBooking.name, schema: EntranceTestBookingSchema },
+      { name: AcaKvStore.name, schema: AcaKvStoreSchema },
     ]),
   ],
   controllers: [

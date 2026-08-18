@@ -1,3 +1,4 @@
+import { canUseAcaApi, getAcaKv, setAcaKv } from "@/lib/acaManagementApi";
 import type { BcbGrammarRow, BcbQuestionTypeRow } from "@/lib/guestBcbDiagnosis";
 import {
   GUEST_BCB_GRAMMAR,
@@ -96,6 +97,7 @@ export const DEFAULT_GUEST_DIAGNOSIS: GuestDiagnosisRecord = {
 };
 
 const STORAGE_KEY = "xalo.guest.diagnosis.v1";
+const KV_NAMESPACE = "guestDiagnosis";
 export const GUEST_DIAGNOSIS_UPDATE_EVENT = "xalo-guest-diagnosis-updated";
 
 let cache: GuestDiagnosisRecord = structuredClone(DEFAULT_GUEST_DIAGNOSIS);
@@ -110,38 +112,41 @@ function recomputeWritingScore(record: GuestDiagnosisRecord): GuestDiagnosisReco
   return { ...record, scores: { ...record.scores, writing: bands.writingOverall } };
 }
 
+function mergeDiagnosis(data: Partial<GuestDiagnosisRecord>): GuestDiagnosisRecord {
+  return {
+    ...structuredClone(DEFAULT_GUEST_DIAGNOSIS),
+    ...data,
+    scores: { ...DEFAULT_GUEST_DIAGNOSIS.scores, ...data.scores },
+    skillSummaries: {
+      ...DEFAULT_GUEST_DIAGNOSIS.skillSummaries,
+      ...data.skillSummaries,
+    },
+    writingCriteria: data.writingCriteria ?? DEFAULT_GUEST_DIAGNOSIS.writingCriteria,
+    writingSummary: {
+      ...DEFAULT_GUEST_DIAGNOSIS.writingSummary,
+      ...data.writingSummary,
+    },
+    writingLinks: { ...DEFAULT_GUEST_DIAGNOSIS.writingLinks, ...data.writingLinks },
+    speakingCriteria: {
+      ...DEFAULT_GUEST_DIAGNOSIS.speakingCriteria,
+      ...data.speakingCriteria,
+    },
+    bcbListening: data.bcbListening?.length
+      ? data.bcbListening
+      : DEFAULT_GUEST_DIAGNOSIS.bcbListening,
+    bcbReading: data.bcbReading?.length ? data.bcbReading : DEFAULT_GUEST_DIAGNOSIS.bcbReading,
+    bcbGrammar: data.bcbGrammar?.length ? data.bcbGrammar : DEFAULT_GUEST_DIAGNOSIS.bcbGrammar,
+    updatedAt: data.updatedAt ?? DEFAULT_GUEST_DIAGNOSIS.updatedAt,
+  };
+}
+
 function loadLocal(): GuestDiagnosisRecord {
   if (typeof window === "undefined") return structuredClone(DEFAULT_GUEST_DIAGNOSIS);
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return structuredClone(DEFAULT_GUEST_DIAGNOSIS);
     const data = JSON.parse(raw) as Partial<GuestDiagnosisRecord>;
-    const merged: GuestDiagnosisRecord = {
-      ...structuredClone(DEFAULT_GUEST_DIAGNOSIS),
-      ...data,
-      scores: { ...DEFAULT_GUEST_DIAGNOSIS.scores, ...data.scores },
-      skillSummaries: {
-        ...DEFAULT_GUEST_DIAGNOSIS.skillSummaries,
-        ...data.skillSummaries,
-      },
-      writingCriteria: data.writingCriteria ?? DEFAULT_GUEST_DIAGNOSIS.writingCriteria,
-      writingSummary: {
-        ...DEFAULT_GUEST_DIAGNOSIS.writingSummary,
-        ...data.writingSummary,
-      },
-      writingLinks: { ...DEFAULT_GUEST_DIAGNOSIS.writingLinks, ...data.writingLinks },
-      speakingCriteria: {
-        ...DEFAULT_GUEST_DIAGNOSIS.speakingCriteria,
-        ...data.speakingCriteria,
-      },
-      bcbListening: data.bcbListening?.length
-        ? data.bcbListening
-        : DEFAULT_GUEST_DIAGNOSIS.bcbListening,
-      bcbReading: data.bcbReading?.length ? data.bcbReading : DEFAULT_GUEST_DIAGNOSIS.bcbReading,
-      bcbGrammar: data.bcbGrammar?.length ? data.bcbGrammar : DEFAULT_GUEST_DIAGNOSIS.bcbGrammar,
-      updatedAt: data.updatedAt ?? DEFAULT_GUEST_DIAGNOSIS.updatedAt,
-    };
-    return recomputeWritingScore(merged);
+    return recomputeWritingScore(mergeDiagnosis(data));
   } catch {
     return structuredClone(DEFAULT_GUEST_DIAGNOSIS);
   }
@@ -171,6 +176,10 @@ export function saveGuestDiagnosis(
     localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
     dispatchUpdate();
   }
+  // Persist to backend KV store (fire-and-forget)
+  if (canUseAcaApi()) {
+    void setAcaKv(KV_NAMESPACE, saved as unknown as Record<string, unknown>).catch(() => {});
+  }
   return saved;
 }
 
@@ -180,6 +189,24 @@ export function refreshGuestDiagnosis(): GuestDiagnosisRecord {
   return cache;
 }
 
+/** Load dữ liệu chẩn đoán guest từ backend KV và merge vào cache */
+export async function syncGuestDiagnosisFromBackend(): Promise<void> {
+  if (!canUseAcaApi()) return;
+  try {
+    const data = await getAcaKv(KV_NAMESPACE);
+    if (!data || Object.keys(data).length === 0) return;
+    const merged = mergeDiagnosis(data as Partial<GuestDiagnosisRecord>);
+    cache = recomputeWritingScore(merged);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cache));
+    }
+    dispatchUpdate();
+  } catch {
+    // ignore
+  }
+}
+
 if (typeof window !== "undefined") {
   cache = loadLocal();
+  void syncGuestDiagnosisFromBackend();
 }

@@ -18,10 +18,16 @@ import {
 
 const LOGIN_QUOTE_POPUP_KEY = "xalo.showLoginQuotePopup";
 
-export type RoleCategory = "ALL" | "HS" | "ACA" | "GV";
+export type RoleCategory = "ALL" | "HS" | "ACA" | "GV" | "SALE";
 
 // Tài khoản thật đã seed trong MongoDB — dùng để test nhanh
-const REAL_ACCOUNTS: { label: string; email: string; password: string; role: "HS" | "ACA" | "GV" }[] = [
+const REAL_ACCOUNTS: { label: string; email: string; password: string; role: "HS" | "ACA" | "GV" | "SALE" }[] = [
+  {
+    label: "SALE — Nguyễn Phương Thảo",
+    email: "sale@xalo.edu.vn",
+    password: "Sale@123!",
+    role: "SALE",
+  },
   {
     label: "Học viên — Dương Ngọc Khôi Nguyên",
     email: "nguyenduong939705@gmail.com",
@@ -328,8 +334,9 @@ export function LoginForm() {
               {[
                 { key: "ALL", label: "Tất cả" },
                 { key: "HS", label: "Học viên" },
-                { key: "ACA", label: "ACA / Grader" },
+                { key: "ACA", label: "ACA" },
                 { key: "GV", label: "Giáo viên" },
+                { key: "SALE", label: "SALE" },
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -400,6 +407,8 @@ export function LoginForm() {
                           ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
                           : acc.role === "ACA"
                           ? "bg-purple-500/15 text-purple-300 border-purple-500/30"
+                          : acc.role === "SALE"
+                          ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
                           : "bg-indigo-500/15 text-indigo-300 border-indigo-500/30"
                       }`}
                     >

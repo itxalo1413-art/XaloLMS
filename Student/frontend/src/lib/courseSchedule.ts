@@ -12,6 +12,7 @@ export type RlpSession = {
   deadline: string;
   homeworkStatus: HomeworkStatus;
   attendance: Attendance;
+  studentAttendance?: Record<string, Attendance>;
   /** Link Google Drive / tài liệu buổi học */
   lessonFileUrl?: string;
   homeworkFileUrl?: string;

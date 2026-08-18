@@ -1,3 +1,11 @@
+import {
+  canUseAcaApi,
+  createGuestDiagnosisLeadApi,
+  deleteGuestDiagnosisLeadApi,
+  fetchGuestDiagnosisLeadsApi,
+  updateGuestDiagnosisLeadApi,
+} from "@/lib/acaManagementApi";
+
 export type GuestDiagnosisLeadStatus = "new" | "contacted" | "converted" | "closed";
 
 export type GuestDiagnosisLead = {
@@ -27,11 +35,11 @@ function dispatchUpdate() {
   window.dispatchEvent(new Event(GUEST_DIAGNOSIS_LEADS_EVENT));
 }
 
-function loadAll(): GuestDiagnosisLead[] {
+function loadLocal(): GuestDiagnosisLead[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return seedDemoIfEmpty();
+    if (!raw) return [];
     const data = JSON.parse(raw) as GuestDiagnosisLead[];
     return Array.isArray(data) ? data : [];
   } catch {
@@ -39,41 +47,37 @@ function loadAll(): GuestDiagnosisLead[] {
   }
 }
 
-function saveAll(rows: GuestDiagnosisLead[]) {
+function saveLocal(rows: GuestDiagnosisLead[]) {
   if (typeof window === "undefined") return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
   dispatchUpdate();
 }
 
-function seedDemoIfEmpty(): GuestDiagnosisLead[] {
-  const demo: GuestDiagnosisLead[] = [
-    {
-      id: "lead-demo-1",
-      name: "Dương Ngọc Khôi Nguyên",
-      phone: "0947 188 794",
-      aim: "7.5 IELTS",
-      submittedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-      status: "new",
-      note: "",
-    },
-  ];
-  saveAll(demo);
-  return demo;
-}
-
-export function listGuestDiagnosisLeads(): GuestDiagnosisLead[] {
-  const rows = loadAll();
-  if (rows.length === 0) return seedDemoIfEmpty();
+export async function listGuestDiagnosisLeads(): Promise<GuestDiagnosisLead[]> {
+  if (canUseAcaApi()) {
+    try {
+      const rows = await fetchGuestDiagnosisLeadsApi();
+      if (rows) return rows as GuestDiagnosisLead[];
+    } catch {
+      // fallthrough to local
+    }
+  }
+  const rows = loadLocal();
   return [...rows].sort(
     (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
   );
 }
 
-export function submitGuestDiagnosisLead(input: {
+export async function submitGuestDiagnosisLead(input: {
   name: string;
   phone: string;
   aim: string;
-}): GuestDiagnosisLead {
+}): Promise<GuestDiagnosisLead> {
+  if (canUseAcaApi()) {
+    const row = await createGuestDiagnosisLeadApi(input);
+    dispatchUpdate();
+    return row as GuestDiagnosisLead;
+  }
   const row: GuestDiagnosisLead = {
     id: `lead-${Date.now()}`,
     name: input.name.trim(),
@@ -83,16 +87,21 @@ export function submitGuestDiagnosisLead(input: {
     status: "new",
     note: "",
   };
-  saveAll([row, ...loadAll()]);
+  saveLocal([row, ...loadLocal()]);
   return row;
 }
 
-export function updateGuestDiagnosisLead(
+export async function updateGuestDiagnosisLead(
   id: string,
   patch: Partial<Pick<GuestDiagnosisLead, "status" | "note" | "assignedClassId" | "assignedClassName">>,
-): GuestDiagnosisLead {
+): Promise<GuestDiagnosisLead> {
+  if (canUseAcaApi()) {
+    const updated = await updateGuestDiagnosisLeadApi(id, patch);
+    dispatchUpdate();
+    return updated as GuestDiagnosisLead;
+  }
   let updated: GuestDiagnosisLead | null = null;
-  const next = loadAll().map((row) => {
+  const next = loadLocal().map((row) => {
     if (row.id !== id) return row;
     updated = {
       ...row,
@@ -104,6 +113,15 @@ export function updateGuestDiagnosisLead(
     return updated;
   });
   if (!updated) throw new Error("Không tìm thấy lead");
-  saveAll(next);
+  saveLocal(next);
   return updated;
+}
+
+export async function deleteGuestDiagnosisLead(id: string): Promise<void> {
+  if (canUseAcaApi()) {
+    await deleteGuestDiagnosisLeadApi(id);
+    dispatchUpdate();
+    return;
+  }
+  saveLocal(loadLocal().filter((r) => r.id !== id));
 }

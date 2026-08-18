@@ -52,6 +52,7 @@ export class UsersService implements OnModuleInit {
     await this.ensureSeedAca();
     await this.ensureSeedStudent();
     await this.ensureSeedTeachers();
+    await this.ensureSeedSale();
   }
 
   private normalizeEmail(email: string): string {
@@ -131,6 +132,33 @@ export class UsersService implements OnModuleInit {
           { $set: { name: a.name, role: "ACA", status: "ACTIVE", passwordHash } },
         ).exec();
       }
+    }
+  }
+
+  async ensureSeedSale(): Promise<void> {
+    const email = this.normalizeEmail('sale@xalo.edu.vn');
+    const passwordHash = await bcrypt.hash('Sale@123!', SALT_ROUNDS);
+    const existing = await this.userModel.findOne({ email }).exec();
+    if (!existing) {
+      await this.userModel.create({
+        email,
+        name: 'Nguyễn Phương Thảo',
+        role: 'SALE' as Role,
+        status: 'ACTIVE',
+        passwordHash,
+      });
+    } else {
+      await this.userModel.updateOne(
+        { email },
+        {
+          $set: {
+            name: 'Nguyễn Phương Thảo',
+            role: 'SALE' as Role,
+            status: 'ACTIVE',
+            passwordHash,
+          },
+        },
+      ).exec();
     }
   }
 

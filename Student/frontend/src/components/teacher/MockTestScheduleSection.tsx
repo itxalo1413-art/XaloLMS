@@ -16,7 +16,7 @@ import {
   mockTestStatusLabel,
 } from "@/lib/selfStudyFormat";
 import { formatBandScore } from "@/lib/formatBandScore";
-import { LOGGED_IN_TEACHER_NAME } from "./mockTestTeachers";
+import { getLoggedInTeacherName } from "@/lib/teacherIdentity";
 
 type ResultFilter = "all" | "pending" | "done";
 
@@ -40,7 +40,7 @@ export function MockTestScheduleSection() {
   const [linkDraft, setLinkDraft] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const teacherName = LOGGED_IN_TEACHER_NAME;
+  const teacherName = getLoggedInTeacherName();
 
   const [graderMeetUrl, setGraderMeetUrl] = useState(() => getGraderMeetLink(teacherName));
 

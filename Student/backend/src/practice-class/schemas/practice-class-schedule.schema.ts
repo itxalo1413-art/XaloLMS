@@ -15,6 +15,12 @@ export class PracticeClassSchedule {
 
   @Prop({ type: Object, required: true, default: {} })
   slotOverrides: Record<string, PracticeSlotOverride>;
+
+  @Prop({ required: true, default: '' })
+  zoomId: string;
+
+  @Prop({ required: true, default: '' })
+  zoomPassword: string;
 }
 
 export const PracticeClassScheduleSchema = SchemaFactory.createForClass(

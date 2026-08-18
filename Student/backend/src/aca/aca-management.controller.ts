@@ -250,4 +250,68 @@ export class AcaManagementController {
   async updateCourseSettings(@Body() data: any) {
     return this.service.updateCourseSettings(data);
   }
+
+  // --- Guest Diagnosis Leads ---
+  @Get('guest-diagnosis-leads')
+  async listGuestLeads() {
+    return this.service.listGuestLeads();
+  }
+
+  @Post('guest-diagnosis-leads')
+  async createGuestLead(@Body() body: any) {
+    return this.service.createGuestLead(body ?? {});
+  }
+
+  @Put('guest-diagnosis-leads/:id')
+  async updateGuestLead(@Param('id') id: string, @Body() body: any) {
+    return this.service.updateGuestLead(id, body ?? {});
+  }
+
+  @Delete('guest-diagnosis-leads/:id')
+  async deleteGuestLead(@Param('id') id: string) {
+    return this.service.deleteGuestLead(id);
+  }
+
+  // --- Dashboard KPI ---
+  @Get('dashboard/kpi')
+  async getDashboardKpi() {
+    return this.service.getDashboardKpi();
+  }
+
+  // --- Entrance Test Bookings ---
+  @Get('entrance-bookings')
+  async listEntranceBookings() {
+    return this.service.listEntranceBookings();
+  }
+
+  @Post('entrance-bookings')
+  async createEntranceBooking(@Body() body: any) {
+    return this.service.createEntranceBooking(body ?? {});
+  }
+
+  @Put('entrance-bookings/:id')
+  async updateEntranceBooking(@Param('id') id: string, @Body() body: any) {
+    return this.service.updateEntranceBooking(id, body ?? {});
+  }
+
+  @Delete('entrance-bookings/:id')
+  async deleteEntranceBooking(@Param('id') id: string) {
+    return this.service.deleteEntranceBooking(id);
+  }
+
+  // --- KV Store ---
+  @Get('kv/:namespace')
+  async getKv(@Param('namespace') namespace: string) {
+    return this.service.getKv(namespace);
+  }
+
+  @Put('kv/:namespace')
+  async setKv(@Param('namespace') namespace: string, @Body() body: any) {
+    return this.service.setKv(namespace, body ?? {});
+  }
+
+  @Post('kv/:namespace/merge')
+  async mergeKv(@Param('namespace') namespace: string, @Body() body: any) {
+    return this.service.mergeKv(namespace, body ?? {});
+  }
 }

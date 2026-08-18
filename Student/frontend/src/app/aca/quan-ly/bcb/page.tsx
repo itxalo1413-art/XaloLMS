@@ -390,6 +390,7 @@ function AcaBcbContent() {
                 variant="student"
                 portalLabel="ACA Khánh Thi"
                 studentId={activeStudent.id}
+                studentEmail={activeStudent.email}
                 studentName={activeStudent.name}
                 initialScores={activeStudent.scores}
               />

@@ -12,6 +12,8 @@ import {
 } from "@/lib/acaManagementApi";
 
 import { getCachedAuthUser } from "@/lib/auth";
+import { getLoggedInTeacherName, teacherNameMatches } from "@/lib/teacherIdentity";
+import { fetchTeacherAttendance } from "@/lib/teacherAttendanceApi";
 
 // Helper to count day occurrences in a month
 const countDaysInMonth = (year: number, monthIndex: number, daysOfWeek: number[]) => {
@@ -90,11 +92,12 @@ import {
 import { isSpeakingMockTest } from "@/lib/selfStudyFormat";
 
 export default function PerformancePage() {
-  const [selectedMonth, setSelectedMonth] = useState<number>(6);
+  const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
   const [classes, setClasses] = useState<AcaClass[]>([]);
   const [classes11, setClasses11] = useState<Aca11Class[]>([]);
   const [submissions, setSubmissions] = useState<WritingSubmission[]>([]);
   const [mockTests, setMockTests] = useState<MockTestRequest[]>([]);
+  const [attendance, setAttendance] = useState<Record<string, boolean>>({});
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -105,16 +108,18 @@ export default function PerformancePage() {
         const loggedUser = getCachedAuthUser();
         setCurrentUser(loggedUser);
 
-        const [cData, c11Data, subData, mtData] = await Promise.all([
+        const [cData, c11Data, subData, mtData, attMap] = await Promise.all([
           fetchAcaClasses(),
           fetchAca11Classes(),
           refreshWritingSubmissionsForTeacher("all"),
           refreshMockTestRequestsForAca(),
+          fetchTeacherAttendance().catch(() => ({}) as Record<string, boolean>),
         ]);
         setClasses(cData);
         setClasses11(c11Data);
         setSubmissions(subData);
         setMockTests(mtData);
+        setAttendance(attMap);
       } catch (err: any) {
         setError(err.message || "Không tải được dữ liệu hiệu suất.");
       } finally {
@@ -124,55 +129,50 @@ export default function PerformancePage() {
     loadData();
   }, []);
 
-  const activeTeacherName = useMemo(() => {
-    const cached = getCachedAuthUser();
-    return cached?.name || "Quỳnh Châu";
-  }, []);
-
-  const activeTeacherQuery = useMemo(() => {
-    const words = activeTeacherName.toLowerCase().split(" ").filter(Boolean);
-    return words.slice(-2).join(" ") || activeTeacherName.toLowerCase();
-  }, [activeTeacherName]);
+  const activeTeacherName = useMemo(() => getLoggedInTeacherName(), []);
 
   // Filter regular classes for active teacher for the selected month
   const filteredMyClasses = useMemo(() => {
     return classes.filter(
       (c) =>
         c.month === selectedMonth &&
-        ((c.teacher || "").toLowerCase().includes(activeTeacherQuery) ||
-         (c.name || "").toLowerCase().includes(activeTeacherQuery))
+        (teacherNameMatches(c.teacher, activeTeacherName) || teacherNameMatches(c.name, activeTeacherName))
     );
-  }, [classes, selectedMonth, activeTeacherQuery]);
+  }, [classes, selectedMonth, activeTeacherName]);
 
   // Filter 1:1 active classes
   const my11Classes = useMemo(() => {
     return classes11.filter(
       (c) =>
         c.status === "Đang diễn ra" &&
-        ((c.teacher || "").toLowerCase().includes(activeTeacherQuery) ||
-         (c.className || "").toLowerCase().includes(activeTeacherQuery))
+        (teacherNameMatches(c.teacher, activeTeacherName) || teacherNameMatches(c.className, activeTeacherName))
     );
-  }, [classes11, activeTeacherQuery]);
+  }, [classes11, activeTeacherName]);
 
   // Teaching hour calculations (Actual vs. Expected)
   const hourStats = useMemo(() => {
-    const year = 2026;
+    const year = new Date().getFullYear();
     const monthIndex = selectedMonth - 1;
     let expected = 0;
     let actual = 0;
-    
+
     const details: { className: string; expectedHours: number; actualHours: number; scheduleText: string }[] = [];
 
-    // Regular classes calculation
     filteredMyClasses.forEach((c) => {
       const { days, daysLabel, duration, cleanName } = parseClassSchedule(c.name);
       if (days.length > 0) {
         const count = countDaysInMonth(year, monthIndex, days);
         const classExpected = count * duration;
         expected += classExpected;
-        
-        // Mock actual hours as 90% of expected for realistic display
-        const classActual = Math.max(0, classExpected - (selectedMonth === 6 ? 1.75 : 0));
+
+        let classActual = 0;
+        const totalDays = new Date(year, monthIndex + 1, 0).getDate();
+        for (let d = 1; d <= totalDays; d++) {
+          const dayOfWeek = new Date(year, monthIndex, d).getDay();
+          if (!days.includes(dayOfWeek)) continue;
+          const sessionId = `${c.id || c.classCode || "cls"}-${year}-${selectedMonth}-${d}`;
+          if (attendance[sessionId]) classActual += duration;
+        }
         actual += classActual;
 
         const timeLabel = c.name.toLowerCase().includes("c2") ? "Ca 2" : "Ca 1";
@@ -234,42 +234,40 @@ export default function PerformancePage() {
     });
 
     return { expected, actual, details };
-  }, [filteredMyClasses, my11Classes, selectedMonth]);
+  }, [filteredMyClasses, my11Classes, selectedMonth, attendance]);
 
-  // Mock Teacher attendance sheets for the current active month (June 2026)
   const teacherAttendanceLog = useMemo(() => {
-    // Generate class schedule dates in June 2026
     const log: { date: string; className: string; time: string; attendanceStatus: "Đúng giờ" | "Vắng dạy bù"; isLocked: boolean }[] = [];
-    const year = 2026;
-    const monthIndex = 5; // June
-    
-    // We list logs from June 1st to June 20th, 2026 (current time baseline)
-    for (let d = 1; d <= 20; d++) {
+    const year = new Date().getFullYear();
+    const monthIndex = selectedMonth - 1;
+    const today = new Date();
+    const totalDays = new Date(year, monthIndex + 1, 0).getDate();
+
+    for (let d = 1; d <= totalDays; d++) {
       const currentDate = new Date(year, monthIndex, d);
+      if (currentDate > today) continue;
       const dayOfWeek = currentDate.getDay();
-      
+
       filteredMyClasses.forEach((c) => {
         const { days, timeRange, cleanName } = parseClassSchedule(c.name);
         if (days.includes(dayOfWeek)) {
-          const dateString = `${d < 10 ? "0" + d : d}/06/2026`;
-          
-          // Overdue / Lock check: lock editing after 1 week (June 20 - June 7 = 13)
-          const isLocked = (20 - d) > 7;
-          
+          const dateString = `${String(d).padStart(2, "0")}/${String(selectedMonth).padStart(2, "0")}/${year}`;
+          const diffDays = Math.floor((today.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+          const isLocked = diffDays > 7;
+          const sessionId = `${c.id || c.classCode || "cls"}-${year}-${selectedMonth}-${d}`;
           log.push({
             date: dateString,
             className: cleanName,
             time: timeRange,
-            attendanceStatus: d === 12 ? "Vắng dạy bù" : "Đúng giờ",
+            attendanceStatus: attendance[sessionId] ? "Đúng giờ" : "Vắng dạy bù",
             isLocked,
           });
         }
       });
     }
 
-    // Sort chronologically in reverse
     return log.sort((a, b) => b.date.localeCompare(a.date));
-  }, [filteredMyClasses]);
+  }, [filteredMyClasses, selectedMonth, attendance]);
 
   // Grader performance statistics (Grade Writing & Test Speaking)
   const graderStats = useMemo(() => {
@@ -319,8 +317,10 @@ export default function PerformancePage() {
                 onChange={(e) => setSelectedMonth(Number(e.target.value))}
                 className="h-10 text-xs font-bold text-zinc-700 shadow-sm"
               >
-                <option value={5}>Tháng 5 / 2026</option>
-                <option value={6}>Tháng 6 / 2026</option>
+                <option value={5}>Tháng 5 / {new Date().getFullYear()}</option>
+                <option value={6}>Tháng 6 / {new Date().getFullYear()}</option>
+                <option value={7}>Tháng 7 / {new Date().getFullYear()}</option>
+                <option value={8}>Tháng 8 / {new Date().getFullYear()}</option>
               </NativeSelectChevron>
             </div>
           </div>
