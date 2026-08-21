@@ -286,51 +286,45 @@ export function LoginForm() {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-10 bg-slate-950 overflow-hidden font-sans">
-      {/* Dynamic Background Glow Effects */}
-      <div className="absolute top-1/4 -left-32 w-96 h-96 bg-indigo-600/30 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-purple-600/25 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-slate-900/60 rounded-full blur-[140px] pointer-events-none" />
-
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-10 bg-[#f6f7fb] font-sans">
       {/* Main Container Card */}
-      <div className="relative z-10 w-full max-w-6xl rounded-3xl overflow-hidden border border-slate-800 bg-slate-900/80 backdrop-blur-xl shadow-2xl grid grid-cols-1 lg:grid-cols-12 min-h-[640px]">
+      <div className="w-full max-w-6xl rounded-3xl overflow-hidden border border-zinc-200 bg-white shadow-xl grid grid-cols-1 lg:grid-cols-12 min-h-[640px]">
         
-        {/* Left Side: Dark Brand & Quick Login Area */}
-        <section className="lg:col-span-5 p-6 sm:p-8 lg:p-10 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 border-b lg:border-b-0 lg:border-r border-slate-800 flex flex-col justify-between text-white">
+        {/* Left Side: Brand Panel with Quick Login */}
+        <section className="lg:col-span-5 p-6 sm:p-8 lg:p-10 bg-gradient-to-br from-[#6a5acd] via-[#7b61ff] to-[#5b4ac0] border-b lg:border-b-0 lg:border-r border-primary/20 flex flex-col justify-between text-white">
           <div>
             {/* Header Brand */}
             <div className="flex items-center gap-3">
-              <img
-                src="/Logo_XLE.svg"
-                alt="Xa Lộ English Logo"
-                className="h-9 w-auto object-contain filter drop-shadow-md"
-              />
-              <span className="inline-flex items-center rounded-full bg-indigo-500/15 border border-indigo-400/30 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-indigo-300">
-                Xalo LMS v2.0
+              <div className="bg-white rounded-xl p-1.5 shadow-sm">
+                <img
+                  src="/Logo_XLE.svg"
+                  alt="Xa Lộ English Logo"
+                  className="h-8 w-auto object-contain"
+                />
+              </div>
+              <span className="inline-flex items-center rounded-full bg-white/15 backdrop-blur-xs border border-white/25 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-white">
+                Xalo LMS
               </span>
             </div>
 
             <h1 className="mt-6 text-2xl sm:text-3xl font-black tracking-tight leading-tight text-white">
               Hệ thống Quản lý Học tập Xa Lộ English
             </h1>
-            <p className="mt-2 text-xs sm:text-sm text-slate-400 leading-relaxed font-medium">
+            <p className="mt-2 text-xs sm:text-sm text-white/80 leading-relaxed font-medium">
               Đăng nhập tài khoản của bạn hoặc sử dụng bảng Đăng nhập nhanh để trải nghiệm hệ thống.
             </p>
           </div>
 
           {/* Quick Login Section */}
-          <div className="mt-8 space-y-3.5">
+          <div className="mt-8 space-y-3">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black uppercase tracking-wider text-slate-300">
-                Tài khoản dùng thử
+              <h3 className="text-xs font-black uppercase tracking-wider text-white/90">
+                Tài khoản dùng thử ({filteredQuickAccounts.length})
               </h3>
-              <span className="text-[10px] font-bold text-slate-500">
-                {filteredQuickAccounts.length} tài khoản
-              </span>
             </div>
 
             {/* Category Filter Tabs */}
-            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] font-bold">
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-black/15 backdrop-blur-xs border border-white/15 text-[11px] font-bold">
               {[
                 { key: "ALL", label: "Tất cả" },
                 { key: "HS", label: "Học viên" },
@@ -342,10 +336,10 @@ export function LoginForm() {
                   key={tab.key}
                   type="button"
                   onClick={() => setActiveCategory(tab.key as RoleCategory)}
-                  className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${
+                  className={`flex-1 py-1 rounded-lg transition-all cursor-pointer text-center ${
                     activeCategory === tab.key
-                      ? "bg-indigo-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                      ? "bg-white text-[#6a5acd] font-black shadow-sm"
+                      : "text-white/80 hover:text-white hover:bg-white/10"
                   }`}
                 >
                   {tab.label}
@@ -360,10 +354,10 @@ export function LoginForm() {
                 value={quickSearch}
                 onChange={(e) => setQuickSearch(e.target.value)}
                 placeholder="Tìm tên hoặc email..."
-                className="w-full h-8 rounded-lg bg-slate-900/80 border border-slate-800 px-3 pl-8 text-xs text-slate-200 placeholder-slate-500 outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50"
+                className="w-full h-8 rounded-lg bg-white/15 border border-white/20 px-3 pl-8 text-xs text-white placeholder-white/60 outline-none focus:bg-white/25 focus:border-white/40"
               />
               <svg
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none"
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/60 pointer-events-none"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -378,9 +372,9 @@ export function LoginForm() {
             </div>
 
             {/* Quick Accounts List */}
-            <div className="space-y-2 max-h-[260px] sm:max-h-[300px] overflow-y-auto pr-1 text-xs">
+            <div className="space-y-1.5 max-h-[240px] sm:max-h-[270px] overflow-y-auto pr-1 text-xs">
               {filteredQuickAccounts.length === 0 ? (
-                <div className="p-4 text-center text-slate-500 text-xs rounded-xl bg-slate-900/40 border border-slate-800">
+                <div className="p-3 text-center text-white/60 text-xs rounded-xl bg-white/5 border border-white/10">
                   Không tìm thấy tài khoản phù hợp.
                 </div>
               ) : (
@@ -390,26 +384,26 @@ export function LoginForm() {
                     type="button"
                     disabled={loading}
                     onClick={() => handleQuickLogin(acc)}
-                    className="w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl bg-slate-900/60 hover:bg-indigo-950/60 border border-slate-800/80 hover:border-indigo-500/40 transition-all text-left group cursor-pointer disabled:opacity-50"
+                    className="w-full flex items-center justify-between gap-2.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 transition-all text-left group cursor-pointer disabled:opacity-50"
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="font-bold text-slate-200 group-hover:text-white truncate">
+                      <div className="font-bold text-white truncate text-xs">
                         {acc.label}
                       </div>
-                      <div className="text-[10px] text-slate-400 truncate mt-0.5">
+                      <div className="text-[10px] text-white/60 truncate font-mono">
                         {acc.email}
                       </div>
                     </div>
 
                     <span
-                      className={`shrink-0 rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-wider border ${
+                      className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${
                         acc.role === "HS"
-                          ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                          ? "bg-emerald-400 text-emerald-950"
                           : acc.role === "ACA"
-                          ? "bg-purple-500/15 text-purple-300 border-purple-500/30"
+                          ? "bg-amber-300 text-amber-950"
                           : acc.role === "SALE"
-                          ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
-                          : "bg-indigo-500/15 text-indigo-300 border-indigo-500/30"
+                          ? "bg-orange-300 text-orange-950"
+                          : "bg-white text-[#6a5acd]"
                       }`}
                     >
                       {acc.role}
@@ -421,16 +415,16 @@ export function LoginForm() {
           </div>
         </section>
 
-        {/* Right Side: Clean Login Form */}
+        {/* Right Side: Clean Light Login Form */}
         <section className="lg:col-span-7 p-6 sm:p-10 lg:p-12 bg-white flex flex-col justify-center">
           <div className="max-w-md mx-auto w-full space-y-6">
             
             {/* Header */}
             <div>
-              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-zinc-900">
                 Đăng nhập
               </h2>
-              <p className="mt-2 text-xs sm:text-sm text-slate-500 font-medium">
+              <p className="mt-2 text-xs sm:text-sm text-zinc-500 font-medium">
                 Vui lòng điền Email và Mật khẩu tài khoản của bạn.
               </p>
             </div>
@@ -451,7 +445,7 @@ export function LoginForm() {
             <form onSubmit={onSubmit} className="space-y-4">
               {/* Email Input */}
               <div>
-                <label htmlFor="email" className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                <label htmlFor="email" className="block text-xs font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
                   Email
                 </label>
                 <div className="relative">
@@ -463,10 +457,10 @@ export function LoginForm() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="nhap-email@xalo.edu.vn"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-4 py-3 text-sm text-slate-900 font-medium outline-none transition-all focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-600/10 placeholder:text-slate-400"
+                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 pl-10 pr-4 py-3 text-sm text-zinc-900 font-medium outline-none transition-all focus:border-[#7b61ff] focus:bg-white focus:ring-4 focus:ring-[#7b61ff]/10 placeholder:text-zinc-400"
                   />
                   <svg
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none"
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 pointer-events-none"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -479,7 +473,7 @@ export function LoginForm() {
 
               {/* Password Input */}
               <div>
-                <label htmlFor="password" className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                <label htmlFor="password" className="block text-xs font-bold uppercase tracking-wider text-zinc-600 mb-1.5">
                   Mật khẩu
                 </label>
                 <div className="relative">
@@ -491,10 +485,10 @@ export function LoginForm() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50/50 pl-10 pr-11 py-3 text-sm text-slate-900 font-medium outline-none transition-all focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-600/10 placeholder:text-slate-400"
+                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 pl-10 pr-11 py-3 text-sm text-zinc-900 font-medium outline-none transition-all focus:border-[#7b61ff] focus:bg-white focus:ring-4 focus:ring-[#7b61ff]/10 placeholder:text-zinc-400"
                   />
                   <svg
-                    className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none"
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 pointer-events-none"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -505,7 +499,7 @@ export function LoginForm() {
                   <button
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors cursor-pointer"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-zinc-600 focus:outline-none transition-colors cursor-pointer"
                     title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                     aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
                   >
@@ -526,12 +520,12 @@ export function LoginForm() {
 
               {/* Options */}
               <div className="flex items-center justify-between gap-3 pt-1">
-                <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 cursor-pointer select-none">
+                <label className="inline-flex items-center gap-2 text-xs font-semibold text-zinc-600 cursor-pointer select-none">
                   <input
                     type="checkbox"
                     checked={remember}
                     onChange={(e) => setRemember(e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-600"
+                    className="h-4 w-4 rounded border-zinc-300 text-[#7b61ff] focus:ring-[#7b61ff]"
                   />
                   Ghi nhớ đăng nhập
                 </label>
@@ -542,7 +536,7 @@ export function LoginForm() {
                     setResetMsg(null);
                     setShowResetModal(true);
                   }}
-                  className="text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer"
+                  className="text-xs font-bold text-[#7b61ff] hover:text-[#5b4ac0] hover:underline cursor-pointer"
                 >
                   Quên mật khẩu?
                 </button>
@@ -552,7 +546,7 @@ export function LoginForm() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full h-11 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
+                className="w-full h-11 rounded-xl bg-[#7b61ff] hover:bg-[#6a5acd] text-white font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -578,15 +572,15 @@ export function LoginForm() {
             type="button"
             aria-label="Đóng modal"
             onClick={() => setShowResetModal(false)}
-            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 backdrop-blur-xs"
           />
-          <div className="relative w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
+          <div className="relative w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-base font-black text-slate-900">Đặt lại mật khẩu mới</div>
+              <div className="text-base font-black text-zinc-900">Đặt lại mật khẩu mới</div>
               <button
                 type="button"
                 onClick={() => setShowResetModal(false)}
-                className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 transition-colors"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -596,38 +590,38 @@ export function LoginForm() {
 
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Email tài khoản</label>
+                <label className="block text-xs font-bold text-zinc-600 mb-1">Email tài khoản</label>
                 <input
                   type="email"
                   required
                   value={resetEmail}
                   onChange={(e) => setResetEmail(e.target.value)}
                   placeholder="Nhập email của bạn..."
-                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/10"
+                  className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-xs outline-none focus:border-[#7b61ff] focus:ring-2 focus:ring-[#7b61ff]/10"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Mật khẩu mới</label>
+                <label className="block text-xs font-bold text-zinc-600 mb-1">Mật khẩu mới</label>
                 <input
                   type="password"
                   required
                   value={resetNewPass}
                   onChange={(e) => setResetNewPass(e.target.value)}
                   placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)..."
-                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/10"
+                  className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-xs outline-none focus:border-[#7b61ff] focus:ring-2 focus:ring-[#7b61ff]/10"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Xác nhận mật khẩu mới</label>
+                <label className="block text-xs font-bold text-zinc-600 mb-1">Xác nhận mật khẩu mới</label>
                 <input
                   type="password"
                   required
                   value={resetConfirmPass}
                   onChange={(e) => setResetConfirmPass(e.target.value)}
                   placeholder="Nhập lại mật khẩu mới..."
-                  className="w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-xs outline-none focus:border-indigo-600 focus:ring-2 focus:ring-indigo-600/10"
+                  className="w-full rounded-xl border border-zinc-200 px-3.5 py-2.5 text-xs outline-none focus:border-[#7b61ff] focus:ring-2 focus:ring-[#7b61ff]/10"
                 />
               </div>
 
@@ -647,14 +641,14 @@ export function LoginForm() {
                 <button
                   type="button"
                   onClick={() => setShowResetModal(false)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                  className="rounded-xl border border-zinc-200 px-4 py-2 text-xs font-bold text-zinc-600 hover:bg-zinc-50 transition-colors"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={resetSubmitting}
-                  className="rounded-xl bg-indigo-600 px-5 py-2 text-xs font-bold text-white hover:bg-indigo-700 transition-colors disabled:opacity-60"
+                  className="rounded-xl bg-[#7b61ff] px-5 py-2 text-xs font-bold text-white hover:bg-[#6a5acd] transition-colors disabled:opacity-60"
                 >
                   {resetSubmitting ? "Đang xử lý..." : "Cập nhật mật khẩu mới"}
                 </button>

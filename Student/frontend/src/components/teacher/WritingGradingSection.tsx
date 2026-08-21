@@ -29,7 +29,7 @@ function resolveStudentName(row: WritingSubmission): string {
   return row.studentName?.trim() || row.studentId;
 }
 
-const TYPE_OPTIONS = ["Mock test", "Final", "Entrance", "Support", "RLP", "RLP HW"];
+const TYPE_OPTIONS = ["Support", "Entrance", "Final", "Mock test", "RLP", "RLP HW"];
 
 export function WritingGradingSection() {
   const [rows, setRows] = useState<WritingSubmission[]>([]);
@@ -118,8 +118,15 @@ export function WritingGradingSection() {
   // Graders only see their own assigned submissions; Học vụ Khánh Thi sees all.
   const visibleRows = useMemo(() => {
     if (isKhanhThi) return rows;
-    if (!currentGraderName) return rows;
-    return rows.filter((r) => r.assignedGrader === currentGraderName);
+    const user = getCachedAuthUser();
+    const loginName = (user?.name || "").trim().toLowerCase();
+    return rows.filter((r) => {
+      const assigned = (r.assignedGrader || "").trim().toLowerCase();
+      if (!assigned) return true;
+      if (currentGraderName && assigned === currentGraderName.toLowerCase()) return true;
+      if (loginName && assigned === loginName) return true;
+      return false;
+    });
   }, [rows, isKhanhThi, currentGraderName]);
 
   // Reset page when filter or search query changes
@@ -184,7 +191,7 @@ export function WritingGradingSection() {
     setLinkDraft(row.examLink ?? "");
     setDueDraft(row.dueDate ?? "");
     setGmailDraft(row.studentGmail ?? "");
-    setTypeDraft(row.type ?? "");
+    setTypeDraft(row.type || (row.source === "final" ? "Final" : row.source === "entrance" ? "Entrance" : "Support"));
     setTask1Draft(row.task1 ?? "");
     setTask2Draft(row.task2 ?? "");
     setNoteDraft(row.note ?? "");
@@ -394,7 +401,7 @@ export function WritingGradingSection() {
                         <span className="text-zinc-400 text-[11px] italic">Chưa có link</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-zinc-600">{row.type || "—"}</td>
+                    <td className="px-4 py-3 text-zinc-600">{row.type || (row.source === "final" ? "Final" : row.source === "entrance" ? "Entrance" : "Support")}</td>
                     <td className="px-4 py-3 font-black text-secondary text-sm">
                       {row.score ? formatBandScore(row.score) : "—"}
                     </td>

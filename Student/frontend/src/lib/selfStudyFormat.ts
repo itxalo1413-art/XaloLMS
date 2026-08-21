@@ -78,6 +78,21 @@ export function isSpeakingMockTest(skill: string): boolean {
   return s.includes("speaking") && !s.includes("luyện");
 }
 
+export type GraderTaskKind = "Entrance" | "Support" | "Final";
+
+export function resolveGraderTaskKind(input: {
+  source?: string;
+  skill?: string;
+  type?: string;
+}): GraderTaskKind {
+  const src = (input.source || "").toLowerCase();
+  const skill = (input.skill || "").toLowerCase();
+  const type = (input.type || "").toLowerCase();
+  if (src === "entrance" || skill.includes("entrance") || type === "entrance") return "Entrance";
+  if (src === "final" || skill.includes("final") || type === "final") return "Final";
+  return "Support";
+}
+
 export function mockTestStatusTone(
   status: MockTestRequestStatus,
 ): "warning" | "success" | "danger" {

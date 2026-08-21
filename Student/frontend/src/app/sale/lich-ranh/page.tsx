@@ -1,11 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchAcaFreeSlots,
   type AcaFreeSlot,
 } from "@/lib/acaManagementApi";
-import { MOCK_TEST_TEACHER_OPTIONS } from "@/lib/mockTestTeacherNames";
+import {
+  getMockTestTeacherOptions,
+  MOCK_TEST_TEACHER_OPTIONS_EVENT,
+  syncMockTestTeacherOptions,
+} from "@/lib/mockTestTeacherNames";
 import { getGraderMeetLink } from "@/lib/graderMeetLinks";
 import { EntranceBookingModal } from "@/components/sale/EntranceBookingModal";
 import {
@@ -71,7 +75,8 @@ export default function SaleLichRanhGraderPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [selectedTeacher, setSelectedTeacher] = useState<string>(MOCK_TEST_TEACHER_OPTIONS[0]);
+  const [teacherOptions, setTeacherOptions] = useState<string[]>(() => getMockTestTeacherOptions());
+  const [selectedTeacher, setSelectedTeacher] = useState<string>(getMockTestTeacherOptions()[0] || "Grader");
   const [currentWeekIndex, setCurrentWeekIndex] = useState<number>(0);
 
   // Modal State
@@ -116,6 +121,20 @@ export default function SaleLichRanhGraderPage() {
     };
   }, [loadData]);
 
+  useEffect(() => {
+    void syncMockTestTeacherOptions().then((rows) => {
+      setTeacherOptions(rows);
+      setSelectedTeacher((current) => current || rows[0] || "Grader");
+    });
+    const onTeachers = () => {
+      const rows = getMockTestTeacherOptions();
+      setTeacherOptions(rows);
+      setSelectedTeacher((current) => current || rows[0] || "Grader");
+    };
+    window.addEventListener(MOCK_TEST_TEACHER_OPTIONS_EVENT, onTeachers);
+    return () => window.removeEventListener(MOCK_TEST_TEACHER_OPTIONS_EVENT, onTeachers);
+  }, []);
+
   // Date helper
   const getDayDate = useCallback((weekIdx: number, dayOffset: number) => {
     const start = WEEKS_DATA[weekIdx].startDate;
@@ -152,7 +171,7 @@ export default function SaleLichRanhGraderPage() {
     });
   }, [currentWeekIndex, getDayDate]);
 
-  // Free slots count & total weekly hours
+  // Free slots count
   const availableSlotsCount = useMemo(() => {
     const monday = getDayDate(currentWeekIndex, 0);
     const sunday = getDayDate(currentWeekIndex, 6);
@@ -204,8 +223,8 @@ export default function SaleLichRanhGraderPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-black text-white">Lịch Rảnh Grader & Đặt Lịch Chấm</h1>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <h1 className="text-xl font-black text-zinc-900">Lịch Rảnh Grader & Đặt Lịch Chấm</h1>
+          <p className="text-xs text-zinc-500 mt-0.5 font-medium">
             Tra cứu ca rảnh của nhân viên Grader để đặt lịch chấm Speaking và Writing Entrance
           </p>
         </div>
@@ -217,7 +236,7 @@ export default function SaleLichRanhGraderPage() {
               grader: selectedTeacher,
             })
           }
-          className="flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-black text-slate-950 transition-all shadow-lg hover:shadow-amber-500/20 shrink-0"
+          className="flex items-center gap-2 rounded-xl bg-primary hover:bg-[#6a5acd] px-4 py-2.5 text-xs font-black text-white transition-all shadow-md hover:shadow-primary/20 shrink-0"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -227,22 +246,22 @@ export default function SaleLichRanhGraderPage() {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs font-semibold text-rose-400">
+        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700">
           {error}
         </div>
       )}
 
       {/* Grader Filter & Week Selector */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center rounded-2xl border border-slate-800 bg-slate-950 p-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center rounded-2xl border border-zinc-200 bg-white p-4 shadow-soft">
         {/* Left: Grader Selector */}
         <div className="lg:col-span-4 flex items-center gap-3">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider shrink-0">Grader:</span>
+          <span className="text-xs font-bold text-zinc-600 uppercase tracking-wider shrink-0">Grader:</span>
           <select
             value={selectedTeacher}
             onChange={(e) => setSelectedTeacher(e.target.value)}
-            className="flex-1 rounded-xl border border-slate-700 bg-slate-900 px-3.5 py-2 text-xs font-bold text-amber-300 outline-none focus:border-amber-500/60 cursor-pointer"
+            className="flex-1 rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-xs font-bold text-zinc-900 outline-none focus:border-primary cursor-pointer shadow-xs"
           >
-            {MOCK_TEST_TEACHER_OPTIONS.map((name) => (
+            {teacherOptions.map((name) => (
               <option key={name} value={name}>
                 {name}
               </option>
@@ -252,8 +271,8 @@ export default function SaleLichRanhGraderPage() {
 
         {/* Center: Grader Meet Link */}
         <div className="lg:col-span-5 flex items-center gap-2">
-          <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider shrink-0">Meet:</span>
-          <div className="flex-1 text-xs text-slate-300 font-mono bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 truncate">
+          <span className="text-[10px] font-black text-emerald-700 uppercase tracking-wider shrink-0">Meet:</span>
+          <div className="flex-1 text-xs text-zinc-600 font-mono bg-zinc-50 px-3 py-1.5 rounded-xl border border-zinc-200 truncate">
             {graderMeetLink || "Chưa cập nhật link Meet"}
           </div>
           {graderMeetLink && (
@@ -261,7 +280,7 @@ export default function SaleLichRanhGraderPage() {
               href={graderMeetLink}
               target="_blank"
               rel="noreferrer"
-              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-[11px] font-black text-white transition-all shrink-0"
+              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-[11px] font-black text-white transition-all shrink-0 shadow-xs"
             >
               Mở Meet ↗
             </a>
@@ -271,14 +290,14 @@ export default function SaleLichRanhGraderPage() {
         {/* Right: Week range & Slots count */}
         <div className="lg:col-span-3 flex items-center justify-between lg:justify-end gap-3 text-right">
           <div className="flex flex-col">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Số ca còn rảnh</span>
-            <span className="text-sm font-black text-amber-400">{availableSlotsCount} ca ({(availableSlotsCount * 0.5)}h)</span>
+            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Số ca còn rảnh</span>
+            <span className="text-sm font-black text-primary">{availableSlotsCount} ca ({availableSlotsCount * 0.5}h)</span>
           </div>
         </div>
       </div>
 
       {/* Week Tabs Bar */}
-      <div className="flex items-center justify-between gap-3 overflow-x-auto p-1.5 rounded-xl bg-slate-950 border border-slate-800">
+      <div className="flex items-center justify-between gap-3 overflow-x-auto p-1.5 rounded-xl bg-white border border-zinc-200 shadow-xs">
         <div className="flex items-center gap-1.5">
           {WEEKS_DATA.map((w, index) => {
             const active = currentWeekIndex === index;
@@ -287,10 +306,10 @@ export default function SaleLichRanhGraderPage() {
                 key={w.label}
                 type="button"
                 onClick={() => setCurrentWeekIndex(index)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   active
-                    ? "bg-amber-500 text-slate-950 font-black shadow-sm"
-                    : "text-slate-400 hover:text-white hover:bg-slate-900"
+                    ? "bg-primary text-white font-black shadow-sm"
+                    : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100"
                 }`}
               >
                 {w.label}
@@ -298,7 +317,7 @@ export default function SaleLichRanhGraderPage() {
             );
           })}
         </div>
-        <span className="text-xs font-bold text-slate-400 px-3 shrink-0 hidden md:block">
+        <span className="text-xs font-bold text-zinc-500 px-3 shrink-0 hidden md:block">
           {getWeekRangeLabel}
         </span>
       </div>
@@ -307,19 +326,19 @@ export default function SaleLichRanhGraderPage() {
       <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded-full bg-purple-500/20 border border-purple-400" />
-            <span className="text-slate-300 font-medium">Ca rảnh Online (Nhấp để đặt)</span>
+            <span className="h-3 w-3 rounded-full bg-[#fae8ff] border border-[#f5d0fe]" />
+            <span className="text-zinc-700 font-medium">Ca rảnh Online (Nhấp để đặt)</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded-full bg-sky-500/20 border border-sky-400" />
-            <span className="text-slate-300 font-medium">Ca rảnh Offline (Nhấp để đặt)</span>
+            <span className="h-3 w-3 rounded-full bg-[#dbeafe] border border-[#bfdbfe]" />
+            <span className="text-zinc-700 font-medium">Ca rảnh Offline (Nhấp để đặt)</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="h-3 w-3 rounded-full bg-amber-500/30 border border-amber-500" />
-            <span className="text-slate-300 font-medium">Đã xếp lịch thi (Booked)</span>
+            <span className="h-3 w-3 rounded-full bg-amber-100 border border-amber-300" />
+            <span className="text-zinc-700 font-medium">Đã xếp lịch thi (Booked)</span>
           </div>
         </div>
-        <span className="text-[11px] text-slate-500 italic">
+        <span className="text-[11px] text-zinc-400 italic">
           * Nhấp vào ô thời gian bất kỳ để mở form đặt lịch Test Entrance nhanh
         </span>
       </div>
@@ -327,24 +346,24 @@ export default function SaleLichRanhGraderPage() {
       {/* Main Content Grid: Schedule Table & Weekly Tests List */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left 8 Cols: Schedule Grid */}
-        <div className="lg:col-span-8 rounded-2xl border border-slate-800 bg-slate-950 overflow-hidden shadow-xl">
+        <div className="lg:col-span-8 rounded-2xl border border-zinc-200 bg-white overflow-hidden shadow-soft">
           <div className="overflow-x-auto max-h-[620px]">
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="sticky top-0 z-20 bg-slate-900 border-b border-slate-800">
-                <tr className="text-center font-black text-[10px] text-slate-400">
-                  <th className="px-2 py-3 border-r border-slate-800 w-24 bg-slate-900">GIỜ</th>
+              <thead className="sticky top-0 z-20 bg-zinc-50 border-b border-zinc-200">
+                <tr className="text-center font-black text-[10px] text-zinc-500">
+                  <th className="px-2 py-3 border-r border-zinc-200 w-24 bg-zinc-50">GIỜ</th>
                   {gridHeaders.map((h) => (
-                    <th key={h.offset} className="px-1 py-2.5 border-r border-slate-800 min-w-[90px]">
-                      <div className="text-slate-500 font-medium text-[9px]">{h.dateStr}</div>
-                      <div className="text-slate-200">{h.dayName}</div>
+                    <th key={h.offset} className="px-1 py-2.5 border-r border-zinc-200 min-w-[90px]">
+                      <div className="text-zinc-400 font-medium text-[9px]">{h.dateStr}</div>
+                      <div className="text-zinc-700">{h.dayName}</div>
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 text-center">
+              <tbody className="divide-y divide-zinc-200 text-center">
                 {TIME_SLOTS.map((slot) => (
-                  <tr key={slot} className="hover:bg-slate-900/40">
-                    <td className="px-2 py-2 font-bold text-slate-400 border-r border-slate-800 bg-slate-900/70 tabular-nums">
+                  <tr key={slot} className="hover:bg-zinc-50/40">
+                    <td className="px-2 py-2 font-bold text-zinc-500 border-r border-zinc-200 bg-zinc-50/70 tabular-nums">
                       {formatTime12h(slot)}
                     </td>
                     {gridHeaders.map((h) => {
@@ -377,17 +396,17 @@ export default function SaleLichRanhGraderPage() {
                       const isBooked = !!bookedCandidate || slotDoc?.status === "booked";
                       const isFree = !!slotDoc && !isBooked;
 
-                      let cellBg = "bg-slate-950/40 hover:bg-slate-900/60 text-slate-600";
+                      let cellBg = "bg-white hover:bg-zinc-50 text-zinc-300";
                       let badge = null;
 
                       if (isBooked) {
-                        cellBg = "bg-amber-500/15 border-amber-500/40 text-amber-300 font-bold hover:bg-amber-500/25";
+                        cellBg = "bg-amber-50 border-amber-200 text-amber-800 font-bold hover:bg-amber-100/60";
                         badge = (
                           <div className="flex flex-col items-center gap-0.5">
-                            <span className="text-[9px] font-black uppercase text-amber-400 leading-tight truncate max-w-[80px]">
+                            <span className="text-[9px] font-black uppercase text-amber-900 leading-tight truncate max-w-[80px]">
                               {bookedCandidate ? bookedCandidate.candidateName.split(" ").pop() : "BOOKED"}
                             </span>
-                            <span className="text-[8px] text-amber-500/90 font-mono">
+                            <span className="text-[8px] text-amber-700 font-mono">
                               {bookedCandidate?.type === "writing" ? "Writing" : "Speaking"}
                             </span>
                           </div>
@@ -395,8 +414,8 @@ export default function SaleLichRanhGraderPage() {
                       } else if (isFree) {
                         const isOffline = slotDoc.type?.includes("offline");
                         cellBg = isOffline
-                          ? "bg-sky-500/15 border-sky-500/40 text-sky-300 hover:bg-sky-500/25 font-bold cursor-pointer"
-                          : "bg-purple-500/15 border-purple-500/40 text-purple-300 hover:bg-purple-500/25 font-bold cursor-pointer";
+                          ? "bg-[#dbeafe] border-[#bfdbfe] text-[#1e40af] hover:bg-[#bfdbfe] font-bold cursor-pointer"
+                          : "bg-[#fae8ff] border-[#f5d0fe] text-[#86198f] hover:bg-[#f5d0fe] font-bold cursor-pointer";
                         badge = (
                           <span className="text-[9px] font-black uppercase tracking-wider">
                             {isOffline ? "🏫 OFF" : "🌐 ON"}
@@ -408,7 +427,7 @@ export default function SaleLichRanhGraderPage() {
                         <td
                           key={h.offset}
                           onClick={() => handleSlotClick(h.offset, slot, slotDoc)}
-                          className={`p-1.5 border-r border-slate-800/80 transition-all select-none cursor-pointer ${cellBg}`}
+                          className={`p-1.5 border-r border-zinc-200 transition-all select-none cursor-pointer ${cellBg}`}
                           title={
                             isBooked
                               ? `Đã đặt: ${bookedCandidate?.candidateName || "Học viên"} (${bookedCandidate?.type || "Entrance"})`
@@ -418,7 +437,7 @@ export default function SaleLichRanhGraderPage() {
                           }
                         >
                           <div className="flex items-center justify-center min-h-[22px]">
-                            {badge || <span className="opacity-10 text-[10px]">•</span>}
+                            {badge || <span className="opacity-15 text-[10px]">•</span>}
                           </div>
                         </td>
                       );
@@ -432,24 +451,24 @@ export default function SaleLichRanhGraderPage() {
 
         {/* Right 4 Cols: Weekly Entrance Tests List */}
         <div className="lg:col-span-4 space-y-4">
-          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5 shadow-xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-soft space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
               <div>
-                <h3 className="text-sm font-black text-white">Ca Test Tuần Này</h3>
-                <p className="text-[11px] text-slate-500">Các ca thi của {selectedTeacher}</p>
+                <h3 className="text-sm font-black text-zinc-900">Ca Test Tuần Này</h3>
+                <p className="text-[11px] text-zinc-400 font-medium">Các ca thi của {selectedTeacher}</p>
               </div>
-              <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 text-xs font-black text-amber-400">
+              <span className="rounded-full bg-primary/10 border border-primary/20 px-2.5 py-0.5 text-xs font-black text-primary">
                 {weeklyTests.length} ca
               </span>
             </div>
 
             {loading ? (
-              <p className="text-xs text-slate-500 text-center py-8">Đang tải ca thi...</p>
+              <p className="text-xs text-zinc-400 text-center py-8">Đang tải ca thi...</p>
             ) : weeklyTests.length === 0 ? (
-              <div className="text-center py-10 text-slate-500 space-y-2">
+              <div className="text-center py-10 text-zinc-400 space-y-2">
                 <div className="text-2xl">📋</div>
-                <div className="text-xs font-bold">Chưa có ca Test Entrance nào</div>
-                <p className="text-[11px] text-slate-600">
+                <div className="text-xs font-bold text-zinc-700">Chưa có ca Test Entrance nào</div>
+                <p className="text-[11px] text-zinc-400">
                   Nhấp vào ca rảnh trên bảng bên trái để xếp lịch thi cho khách.
                 </p>
               </div>
@@ -458,44 +477,44 @@ export default function SaleLichRanhGraderPage() {
                 {weeklyTests.map((t) => (
                   <div
                     key={t.id}
-                    className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2 hover:border-slate-700 transition-all"
+                    className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200/80 space-y-2 hover:border-primary/40 transition-all"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <div className="text-xs font-black text-white">{t.candidateName}</div>
-                        <div className="text-[11px] text-slate-400 font-mono mt-0.5">{t.candidatePhone}</div>
+                        <div className="text-xs font-black text-zinc-900">{t.candidateName}</div>
+                        <div className="text-[11px] text-zinc-500 font-mono mt-0.5">{t.candidatePhone}</div>
                       </div>
                       <span
                         className={`rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-wider border ${
                           t.status === "graded"
-                            ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                            : "bg-amber-500/15 text-amber-300 border-amber-500/30"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-amber-50 text-amber-700 border-amber-200"
                         }`}
                       >
                         {t.status === "graded" ? "Đã có điểm" : "Đã xếp lịch"}
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-800/80">
-                      <span className="font-bold text-amber-400">
+                    <div className="flex items-center justify-between text-[11px] text-zinc-500 pt-1 border-t border-zinc-200">
+                      <span className="font-bold text-primary">
                         {t.time} • {t.day}/{t.month + 1}
                       </span>
-                      <span className="font-semibold text-slate-300">
+                      <span className="font-semibold text-zinc-700">
                         {t.type === "writing" ? "Writing Entrance" : "Speaking Entrance"}
                       </span>
                     </div>
 
                     {/* Scores display if graded */}
                     {(t.scoreSpeaking || t.scoreWriting) && (
-                      <div className="flex items-center gap-3 pt-1">
+                      <div className="flex items-center gap-2 pt-1">
                         {t.scoreSpeaking && (
-                          <div className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                            Speaking: <span className="font-black text-white">{t.scoreSpeaking}</span>
+                          <div className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                            Speaking: <span className="font-black text-zinc-900">{t.scoreSpeaking}</span>
                           </div>
                         )}
                         {t.scoreWriting && (
-                          <div className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-                            Writing: <span className="font-black text-white">{t.scoreWriting}</span>
+                          <div className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                            Writing: <span className="font-black text-zinc-900">{t.scoreWriting}</span>
                           </div>
                         )}
                       </div>

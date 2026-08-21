@@ -21,6 +21,7 @@ const RESTRICTED_PATHS = [
   "/aca/quan-ly/hoc-vien-lop",
   "/aca/quan-ly/diem-dau-vao-cuoi-khoa",
   "/aca/quan-ly/bcb",
+  "/aca/quan-ly/bcb-final",
   "/aca/quan-ly/phan-tich-final-test",
   "/aca/quan-ly/lop-1-1",
   "/aca/quan-ly/lop-luyen-de-tuan",

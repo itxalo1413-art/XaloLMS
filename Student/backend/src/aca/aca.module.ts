@@ -20,6 +20,7 @@ import { AcaTeacherProfile, AcaTeacherProfileSchema } from './schemas/aca-teache
 import { WritingSubmission, WritingSubmissionSchema } from '../writing-submission/schemas/writing-submission.schema';
 import { RlpCourseStore, RlpCourseStoreSchema } from '../rlp/schemas/rlp-course-store.schema';
 import { UsersModule } from '../users/users.module';
+import { MockTestModule } from '../mock-test/mock-test.module';
 import { AcaManagementService } from './aca-management.service';
 import { AcaManagementController } from './aca-management.controller';
 
@@ -34,12 +35,16 @@ import {
   EntranceTestBooking,
   EntranceTestBookingSchema,
 } from './schemas/entrance-test-booking.schema';
+import { FinalTest, FinalTestSchema } from './schemas/final-test.schema';
 import { AcaKvStore, AcaKvStoreSchema } from './schemas/aca-kv-store.schema';
+import { StudentFinalTestController } from './student-final-test.controller';
+import { TeacherFinalTestController } from './teacher-final-test.controller';
 
 @Module({
   imports: [
     AuthGuardsModule,
     UsersModule,
+    MockTestModule,
     MongooseModule.forFeature([
       { name: Content.name, schema: ContentSchema },
       { name: Category.name, schema: CategorySchema },
@@ -59,6 +64,7 @@ import { AcaKvStore, AcaKvStoreSchema } from './schemas/aca-kv-store.schema';
       { name: CourseSettings.name, schema: CourseSettingsSchema },
       { name: GuestDiagnosisLead.name, schema: GuestDiagnosisLeadSchema },
       { name: EntranceTestBooking.name, schema: EntranceTestBookingSchema },
+      { name: FinalTest.name, schema: FinalTestSchema },
       { name: AcaKvStore.name, schema: AcaKvStoreSchema },
     ]),
   ],
@@ -66,6 +72,8 @@ import { AcaKvStore, AcaKvStoreSchema } from './schemas/aca-kv-store.schema';
     AcaContentController,
     AcaTaxonomyController,
     AcaManagementController,
+    StudentFinalTestController,
+    TeacherFinalTestController,
   ],
   providers: [
     AcaContentService,

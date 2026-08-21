@@ -112,7 +112,7 @@ export function StudentDialog({
         type="button"
         aria-label="Đóng"
         onClick={onClose}
-        className="fixed inset-0 bg-black/40 backdrop-blur-[3px]"
+        className="fixed inset-0 bg-black/60 backdrop-blur-md transition-all"
       />
       <div
         className={`relative w-full ${sizeClass} rounded-2xl border bg-card p-6 sm:p-7 shadow-2xl ${styles.ring}`}

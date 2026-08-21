@@ -13,6 +13,8 @@ export type RlpSession = {
   homeworkStatus: HomeworkStatus;
   attendance: Attendance;
   studentAttendance?: Record<string, Attendance>;
+  /** Trạng thái BTVN từng học viên */
+  studentHomework?: Record<string, HomeworkStatus>;
   /** Link Google Drive / tài liệu buổi học */
   lessonFileUrl?: string;
   homeworkFileUrl?: string;
@@ -42,6 +44,23 @@ export const HOMEWORK_STATUS_TEXT_CLASS: Record<HomeworkStatus, string> = {
   overdue: "text-danger",
   not_assigned: "text-muted",
 };
+
+export function isHomeworkSubmittedStatus(status?: HomeworkStatus): boolean {
+  return status === "submitted" || status === "submitted_waiting";
+}
+
+export function resolveStudentHomeworkStatus(
+  session: RlpSession,
+  studentId?: string,
+): HomeworkStatus {
+  if (studentId && session.studentHomework?.[studentId]) {
+    return session.studentHomework[studentId];
+  }
+  if (!session.homeworkStatus || session.homeworkStatus === "not_assigned") {
+    return "not_assigned";
+  }
+  return "in_progress";
+}
 
 function parseSessionDate(dateStr: string): { day: number; month: number; year: number } | null {
   const m = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);

@@ -10,6 +10,7 @@ import {
   fetchRlpSessionsForStudent,
   fetchRlpSessionsForTeacher,
   updateRlpSessionApi,
+  updateStudentHomeworkApi,
   type UpdateRlpSessionPayload,
 } from "@/lib/rlpSessionApi";
 
@@ -75,13 +76,25 @@ export function getCourseRlpSessions(): RlpSession[] {
   return sessionsCache;
 }
 
+function fallbackRlpSessions(): RlpSession[] {
+  if (sessionsCache.length > 0) return sessionsCache;
+  const local = loadLocal();
+  applyRlpSessionsCache(local);
+  return local;
+}
+
 export async function refreshRlpSessions(classId?: string): Promise<RlpSession[]> {
   if (canUseRlpSessionApi()) {
-    const rows = canUseTeacherRlpApi()
-      ? await fetchRlpSessionsForTeacher(classId)
-      : await fetchRlpSessionsForStudent();
-    saveCache(rows);
-    return rows;
+    try {
+      const rows = canUseTeacherRlpApi()
+        ? await fetchRlpSessionsForTeacher(classId)
+        : await fetchRlpSessionsForStudent();
+      saveCache(rows);
+      return rows;
+    } catch (err) {
+      console.warn("Could not refresh RLP sessions from API", err);
+      return fallbackRlpSessions();
+    }
   }
   const local = loadLocal();
   applyRlpSessionsCache(local);
@@ -104,6 +117,13 @@ export async function updateRlpSession(
     return remote;
   }
 
+  if (canUseStudentRlpApi() && payload.homeworkStatus) {
+    const remote = await updateStudentHomeworkApi(no, payload.homeworkStatus);
+    const next = getCourseRlpSessions().map((s) => (s.no === no ? remote : s));
+    saveCache(next);
+    return remote;
+  }
+
   let updated: RlpSession | null = null;
   const next = getCourseRlpSessions().map((s) => {
     if (s.no !== no) return s;
@@ -112,6 +132,9 @@ export async function updateRlpSession(
       ...(payload.attendance !== undefined ? { attendance: payload.attendance } : {}),
       ...(payload.studentAttendance !== undefined
         ? { studentAttendance: { ...(s.studentAttendance ?? {}), ...payload.studentAttendance } }
+        : {}),
+      ...(payload.studentHomework !== undefined
+        ? { studentHomework: { ...(s.studentHomework ?? {}), ...payload.studentHomework } }
         : {}),
       ...(payload.homeworkStatus !== undefined
         ? { homeworkStatus: payload.homeworkStatus }

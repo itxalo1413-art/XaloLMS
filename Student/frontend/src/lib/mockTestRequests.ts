@@ -35,6 +35,9 @@ export type MockTestRequest = {
   examLink?: string;
   note?: string;
   notes?: string;
+  source?: string;
+  entranceBookingId?: string;
+  finalTestId?: string;
 };
 
 export const MOCK_TEST_STORAGE_KEY = "lms_mock_test_requests_v1";
@@ -107,15 +110,7 @@ export function loadMockTestRequests(): MockTestRequest[] {
   return requestsCache;
 }
 
-export async function refreshMockTestRequestsForStudent(
-  studentId: string,
-): Promise<MockTestRequest[]> {
-  if (canUseMockTestApi()) {
-    const rows = await fetchMockTestsForStudent();
-    const deduped = deduplicateMockTestRequests(rows);
-    saveCache(deduped);
-    return deduped;
-  }
+function fallbackMockTestsForStudent(studentId: string): MockTestRequest[] {
   let local = loadLocal();
   if (local.length === 0) {
     const demo = getDemoSpeakingMockTests(studentId, "Dương Ngọc Khôi Nguyên");
@@ -125,6 +120,23 @@ export async function refreshMockTestRequestsForStudent(
   const filtered = deduplicateMockTestRequests(local.filter((r) => r.studentId === studentId));
   applyMockTestCache(filtered);
   return filtered;
+}
+
+export async function refreshMockTestRequestsForStudent(
+  studentId: string,
+): Promise<MockTestRequest[]> {
+  if (canUseMockTestApi()) {
+    try {
+      const rows = await fetchMockTestsForStudent();
+      const deduped = deduplicateMockTestRequests(rows);
+      saveCache(deduped);
+      return deduped;
+    } catch (err) {
+      console.warn("Could not refresh mock tests from API", err);
+      return fallbackMockTestsForStudent(studentId);
+    }
+  }
+  return fallbackMockTestsForStudent(studentId);
 }
 
 export async function refreshMockTestRequestsForAca(): Promise<MockTestRequest[]> {
@@ -163,6 +175,19 @@ export function upsertMockTestRequest(row: MockTestRequest) {
     saveCache(all);
   } else {
     saveLocal(all);
+  }
+}
+
+export function updateMockTestRequest(id: string, patch: Partial<MockTestRequest>) {
+  const all = loadMockTestRequests();
+  const i = all.findIndex((r) => r.id === id);
+  if (i !== -1) {
+    all[i] = { ...all[i], ...patch };
+    if (canUseMockTestApi()) {
+      saveCache(all);
+    } else {
+      saveLocal(all);
+    }
   }
 }
 
@@ -206,6 +231,8 @@ export function createPendingRequest(input: {
   examTime?: string;
   status?: MockTestRequestStatus;
   examTeacher?: string;
+  note?: string;
+  notes?: string;
 }): MockTestRequest {
   const id = `mt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   return {
@@ -226,6 +253,8 @@ export async function createMockTestRequest(input: {
   examTime?: string;
   status?: MockTestRequestStatus;
   examTeacher?: string;
+  note?: string;
+  notes?: string;
 }): Promise<MockTestRequest> {
   if (canUseMockTestApi()) {
     const row = await createMockTestApi({
@@ -274,10 +303,15 @@ export async function refreshMockTestRequestsForTeacher(
   teacherName: string,
 ): Promise<MockTestRequest[]> {
   if (canUseMockTestApi()) {
-    const rows = await fetchMockTestsForTeacher(teacherName);
-    const deduped = deduplicateMockTestRequests(rows);
-    saveCache(deduped);
-    return deduped;
+    try {
+      const rows = await fetchMockTestsForTeacher(teacherName);
+      const deduped = deduplicateMockTestRequests(rows);
+      saveCache(deduped);
+      return deduped;
+    } catch (err) {
+      console.warn("Could not refresh teacher mock tests from API", err);
+      return deduplicateMockTestRequests(requestsCache);
+    }
   }
   const local = loadLocal().filter(
     (r) =>

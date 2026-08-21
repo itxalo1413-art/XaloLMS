@@ -1,6 +1,6 @@
 "use client";
 
-import { getGraderMeetLink, saveGraderMeetLink, GRADER_MEET_LINKS_EVENT } from "@/lib/graderMeetLinks";
+import { getGraderMeetLink, saveGraderMeetLink, GRADER_MEET_LINKS_EVENT, syncGraderMeetLinksFromBackend } from "@/lib/graderMeetLinks";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -14,6 +14,7 @@ import {
   formatMockTestDateTime,
   isSpeakingMockTest,
   mockTestStatusLabel,
+  resolveGraderTaskKind,
 } from "@/lib/selfStudyFormat";
 import { formatBandScore } from "@/lib/formatBandScore";
 import { getLoggedInTeacherName } from "@/lib/teacherIdentity";
@@ -45,6 +46,7 @@ export function MockTestScheduleSection() {
   const [graderMeetUrl, setGraderMeetUrl] = useState(() => getGraderMeetLink(teacherName));
 
   useEffect(() => {
+    void syncGraderMeetLinksFromBackend();
     const update = () => setGraderMeetUrl(getGraderMeetLink(teacherName));
     window.addEventListener(GRADER_MEET_LINKS_EVENT, update);
     window.addEventListener("storage", update);
@@ -232,6 +234,20 @@ export function MockTestScheduleSection() {
                       <span className="rounded-full bg-[#efeaff] px-2.5 py-0.5 text-[10px] font-black uppercase text-primary">
                         Speaking
                       </span>
+                      {(() => {
+                        const kind = resolveGraderTaskKind(r);
+                        const tone =
+                          kind === "Entrance"
+                            ? "bg-amber-100 text-amber-800"
+                            : kind === "Final"
+                              ? "bg-sky-100 text-sky-800"
+                              : "bg-emerald-100 text-emerald-800";
+                        return (
+                          <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase ${tone}`}>
+                            {kind}
+                          </span>
+                        );
+                      })()}
                       {hasResult ? (
                         <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-bold uppercase text-success">
                           Đã chấm

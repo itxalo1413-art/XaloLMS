@@ -45,9 +45,12 @@ function loadLocal(): CourseMetadata {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULT_COURSE_METADATA };
     const data = JSON.parse(raw) as CourseMetadata;
+    const zoomPassword =
+      data.zoomPassword === "db_pass_2026_secured" ? "—" : (data.zoomPassword || "—");
     return {
       ...DEFAULT_COURSE_METADATA,
       ...data,
+      zoomPassword,
       schedule: data.schedule?.length ? data.schedule : DEFAULT_COURSE_METADATA.schedule,
       phases: data.phases?.length ? data.phases : DEFAULT_COURSE_METADATA.phases,
     };

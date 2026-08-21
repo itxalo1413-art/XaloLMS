@@ -801,6 +801,23 @@ export async function createGuestDiagnosisLeadApi(input: {
   return parseJson<any>(res);
 }
 
+export async function fetchGuestDiagnosisLeadApi(id: string) {
+  const res = await apiFetch(`/api/aca/guest-diagnosis-leads/${id}`);
+  return parseJson<any>(res);
+}
+
+export async function saveGuestLeadDiagnosisApi(
+  id: string,
+  diagnosis: Record<string, unknown>,
+) {
+  const res = await apiFetch(`/api/aca/guest-diagnosis-leads/${id}/diagnosis`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(diagnosis),
+  });
+  return parseJson<any>(res);
+}
+
 export async function updateGuestDiagnosisLeadApi(
   id: string,
   patch: {
@@ -881,6 +898,116 @@ export async function deleteEntranceBookingApi(id: string) {
   return parseJson<any>(res);
 }
 
+// --- Final Tests ---
+export async function fetchFinalTestsApi() {
+  if (!canUseAcaApi()) return null;
+  const res = await apiFetch("/api/aca/final-tests");
+  return parseJson<any[]>(res);
+}
+
+export async function fetchMyFinalTestsApi() {
+  const res = await apiFetch("/api/student/final-tests");
+  return parseJson<any[]>(res);
+}
+
+export type FinalTestEligibility = {
+  eligible: boolean;
+  reason?: string;
+  totalSessionsElapsed: number;
+  requiredSessions: number;
+  firstStageCompleted: boolean;
+  fullCourseCompleted: boolean;
+  classCode?: string;
+  className?: string;
+};
+
+export async function fetchFinalTestEligibilityApi(): Promise<FinalTestEligibility> {
+  const res = await apiFetch("/api/student/final-tests/eligibility");
+  return parseJson<FinalTestEligibility>(res);
+}
+
+export async function fetchTeacherFinalTestsApi(examinerName?: string) {
+  const q = examinerName ? `?examinerName=${encodeURIComponent(examinerName)}` : "";
+  const res = await apiFetch(`/api/teacher/final-tests${q}`);
+  return parseJson<any[]>(res);
+}
+
+export async function createFinalTestApi(input: Record<string, unknown>) {
+  const res = await apiFetch("/api/aca/final-tests", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return parseJson<any>(res);
+}
+
+export async function createMyFinalTestApi(input: Record<string, unknown>) {
+  const res = await apiFetch("/api/student/final-tests", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return parseJson<any>(res);
+}
+
+export async function updateFinalTestApi(
+  id: string,
+  patch: Record<string, unknown>,
+) {
+  const res = await apiFetch(`/api/aca/final-tests/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  return parseJson<any>(res);
+}
+
+export async function confirmFinalTestApi(
+  id: string,
+  confirmed = true,
+  releasedBy?: string,
+) {
+  const res = await apiFetch(`/api/aca/final-tests/${id}/confirm`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ confirmed, isChecked: confirmed, releasedBy: releasedBy || "" }),
+  });
+  return parseJson<any>(res);
+}
+
+export async function saveFinalTestBcbApi(
+  id: string,
+  body: Record<string, unknown>,
+) {
+  const res = await apiFetch(`/api/aca/final-tests/${id}/bcb`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return parseJson<any>(res);
+}
+
+export async function cancelFinalTestApi(id: string) {
+  const res = await apiFetch(`/api/aca/final-tests/${id}/cancel`, {
+    method: "PUT",
+  });
+  return parseJson<any>(res);
+}
+
+export async function cancelMyFinalTestApi(id: string) {
+  const res = await apiFetch(`/api/student/final-tests/${id}/cancel`, {
+    method: "PUT",
+  });
+  return parseJson<any>(res);
+}
+
+export async function deleteFinalTestApi(id: string) {
+  const res = await apiFetch(`/api/aca/final-tests/${id}`, {
+    method: "DELETE",
+  });
+  return parseJson<any>(res);
+}
+
 // --- KV Store (Grader Meet Links, Guest Diagnosis) ---
 export async function getAcaKv(namespace: string): Promise<Record<string, unknown> | null> {
   if (!canUseAcaApi()) return null;
@@ -917,7 +1044,7 @@ export async function mergeAcaKv(
 
 // --- Student Diagnosis (ACA) ---
 export async function fetchStudentDiagnosisForAca(email: string) {
-  if (!canUseAcaApi()) return null;
+  if (!getAuthToken()) return null;
   try {
     const res = await apiFetch(
       `/api/aca/student-diagnosis/${encodeURIComponent(email)}`,
@@ -927,6 +1054,79 @@ export async function fetchStudentDiagnosisForAca(email: string) {
   } catch {
     return null;
   }
+}
+
+export async function fetchAcaAcademicWarningsApi(query?: {
+  classId?: string;
+  teacherName?: string;
+}) {
+  if (!canUseAcaApi()) return null;
+  const params = new URLSearchParams();
+  if (query?.classId) params.set("classId", query.classId);
+  if (query?.teacherName) params.set("teacherName", query.teacherName);
+  const q = params.toString() ? `?${params.toString()}` : "";
+  const res = await apiFetch(`/api/aca/academic-warnings${q}`);
+  return parseJson<any[]>(res);
+}
+
+export async function fetchTeacherAcademicWarningsApi(teacherName?: string) {
+  if (!canUseAcaApi()) return null;
+  const q = teacherName
+    ? `?teacherName=${encodeURIComponent(teacherName)}`
+    : "";
+  const res = await apiFetch(`/api/teacher/academic-warnings${q}`);
+  return parseJson<any[]>(res);
+}
+
+export async function fetchStudentAcademicWarningsApi() {
+  if (!canUseAcaApi()) return null;
+  const res = await apiFetch("/api/student/academic-warnings");
+  return parseJson<any[]>(res);
+}
+
+export async function createAcademicWarningApi(input: Record<string, unknown>) {
+  const res = await apiFetch("/api/aca/academic-warnings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return parseJson<any>(res);
+}
+
+export async function updateAcademicWarningApi(
+  id: string,
+  patch: Record<string, unknown>,
+) {
+  const res = await apiFetch(`/api/aca/academic-warnings/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  return parseJson<any>(res);
+}
+
+export async function notifyAcademicWarningApi(id: string, message?: string) {
+  const res = await apiFetch(`/api/aca/academic-warnings/${id}/notify`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: message || "" }),
+  });
+  return parseJson<any>(res);
+}
+
+export async function dismissAcademicWarningApi(id: string, asStudent = false) {
+  const path = asStudent
+    ? `/api/student/academic-warnings/${id}/dismiss`
+    : `/api/aca/academic-warnings/${id}/dismiss`;
+  const res = await apiFetch(path, { method: "PUT" });
+  return parseJson<any>(res);
+}
+
+export async function deleteAcademicWarningApi(id: string) {
+  const res = await apiFetch(`/api/aca/academic-warnings/${id}`, {
+    method: "DELETE",
+  });
+  return parseJson<any>(res);
 }
 
 export async function saveStudentDiagnosisForAca(

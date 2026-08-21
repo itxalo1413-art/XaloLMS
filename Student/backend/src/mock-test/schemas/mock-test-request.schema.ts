@@ -38,6 +38,24 @@ export class MockTestRequest {
 
   @Prop()
   examLink?: string;
+
+  @Prop()
+  note?: string;
+
+  @Prop()
+  guestPhone?: string;
+
+  @Prop()
+  leadId?: string;
+
+  @Prop({ default: 'student' })
+  source?: string;
+
+  @Prop({ index: true })
+  entranceBookingId?: string;
+
+  @Prop({ index: true })
+  finalTestId?: string;
 }
 
 export const MockTestRequestSchema =

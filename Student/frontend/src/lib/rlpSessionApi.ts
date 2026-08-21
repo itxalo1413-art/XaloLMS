@@ -56,6 +56,7 @@ export type UpdateRlpSessionPayload = {
   attendance?: RlpSession["attendance"];
   studentAttendance?: RlpSession["studentAttendance"];
   homeworkStatus?: RlpSession["homeworkStatus"];
+  studentHomework?: RlpSession["studentHomework"];
   teacherNote?: string;
   lessonFileUrl?: string;
   homeworkFileUrl?: string;
@@ -65,6 +66,18 @@ export type UpdateRlpSessionPayload = {
   deadline?: string;
   skill?: string;
 };
+
+export async function updateStudentHomeworkApi(
+  no: number,
+  homeworkStatus: RlpSession["homeworkStatus"],
+): Promise<RlpSession> {
+  const response = await apiFetch(`/api/student/rlp-sessions/${no}`, {
+    method: "PATCH",
+    body: JSON.stringify({ homeworkStatus }),
+  });
+  const data = await parseJson<{ session: RlpSession }>(response);
+  return data.session;
+}
 
 export async function updateRlpSessionApi(
   no: number,

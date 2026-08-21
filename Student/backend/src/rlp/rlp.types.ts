@@ -18,6 +18,8 @@ export type RlpSessionRecord = {
   attendance: Attendance;
   /** Điểm danh từng học viên trong lớp (studentId → present/absent). */
   studentAttendance?: Record<string, Attendance>;
+  /** Trạng thái BTVN từng học viên (studentId → submitted / chưa nộp). */
+  studentHomework?: Record<string, HomeworkStatus>;
   lessonFileUrl?: string;
   homeworkFileUrl?: string;
   recordingUrl?: string;

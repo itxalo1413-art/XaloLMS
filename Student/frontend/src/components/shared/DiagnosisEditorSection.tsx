@@ -12,12 +12,12 @@ import {
 import {
   DEFAULT_STUDENT_DIAGNOSIS,
   getStudentDiagnosis,
+  persistStudentDiagnosisToApi,
   registerDynamicStudentScores,
-  saveStudentDiagnosis,
+  syncStudentDiagnosisFromApi,
   STUDENT_DIAGNOSIS_UPDATE_EVENT,
   type StudentDiagnosisRecord,
 } from "@/lib/studentDiagnosisStore";
-import { saveStudentDiagnosisForAca } from "@/lib/acaManagementApi";
 import {
   getSpeakingStandardDescription,
   getWritingTask1StandardDescription,
@@ -95,6 +95,40 @@ function BcbRowsEditor({
               </Field>
             </div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Số câu đúng">
+              <input
+                type="number"
+                min={0}
+                className={inputClass}
+                value={row.correct ?? 0}
+                onChange={(e) => {
+                  const correct = Number(e.target.value) || 0;
+                  const total = row.total ?? 0;
+                  update(idx, {
+                    correct,
+                    errorRate: total > 0 ? Math.round(((total - Math.min(correct, total)) / total) * 100) : row.errorRate,
+                  });
+                }}
+              />
+            </Field>
+            <Field label="Tổng số câu">
+              <input
+                type="number"
+                min={0}
+                className={inputClass}
+                value={row.total ?? 0}
+                onChange={(e) => {
+                  const total = Number(e.target.value) || 0;
+                  const correct = row.correct ?? 0;
+                  update(idx, {
+                    total,
+                    errorRate: total > 0 ? Math.round(((total - Math.min(correct, total)) / total) * 100) : row.errorRate,
+                  });
+                }}
+              />
+            </Field>
+          </div>
           <Field label="Chẩn đoán & nhận xét">
             <textarea
               rows={2}
@@ -124,12 +158,14 @@ export function DiagnosisEditorSection({ variant, portalLabel, studentId, studen
   const [selectedWritingTask1BandInsert, setSelectedWritingTask1BandInsert] = useState<number>(6);
   const [selectedWritingTask2BandInsert, setSelectedWritingTask2BandInsert] = useState<number>(6);
 
-  const sync = useCallback(() => {
+  const sync = useCallback(async () => {
     if (variant === "student" && studentId) {
       if (initialScores) {
         registerDynamicStudentScores(studentId, initialScores);
       }
-      const fetched = getStudentDiagnosis(studentId);
+      const fetched = studentEmail
+        ? await syncStudentDiagnosisFromApi(studentId, studentEmail)
+        : getStudentDiagnosis(studentId);
       setStudentForm(fetched);
       if (fetched.scores?.speaking) {
         setSelectedSpeakingBandInsert(Math.min(9, Math.max(1, Math.round(fetched.scores.speaking))));
@@ -151,10 +187,10 @@ export function DiagnosisEditorSection({ variant, portalLabel, studentId, studen
         setSelectedWritingTask2BandInsert(wBand);
       }
     }
-  }, [variant, studentId, initialScores]);
+  }, [variant, studentId, studentEmail, initialScores]);
 
   useEffect(() => {
-    sync();
+    void sync();
     const event =
       variant === "student" ? STUDENT_DIAGNOSIS_UPDATE_EVENT : GUEST_DIAGNOSIS_UPDATE_EVENT;
     const onUpdate = (e: Event) => {
@@ -171,15 +207,16 @@ export function DiagnosisEditorSection({ variant, portalLabel, studentId, studen
       window.removeEventListener(event, onUpdate);
       window.removeEventListener("storage", sync);
     };
-  }, [sync, variant, studentId]);
+  }, [sync, variant, studentId, studentEmail]);
 
   const save = () => {
     if (variant === "student" && studentId) {
       const { updatedAt: _u, ...rest } = studentForm;
-      saveStudentDiagnosis(rest, studentId);
-      if (studentEmail) {
-        void saveStudentDiagnosisForAca(studentEmail, rest as unknown as Record<string, unknown>).catch(() => {});
-      }
+      void persistStudentDiagnosisToApi(studentId, studentEmail, rest).then(() => {
+        setSaved(true);
+        window.setTimeout(() => setSaved(false), 2000);
+      });
+      return;
     } else {
       const { updatedAt: _u, ...rest } = guestForm;
       saveGuestDiagnosis(rest);

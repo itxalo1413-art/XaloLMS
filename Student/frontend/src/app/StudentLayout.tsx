@@ -12,6 +12,7 @@ import {
 import { ProfileModal } from "@/components/student/ProfileModal";
 import { StudentAuthProvider } from "@/contexts/StudentAuthContext";
 import { useStudentProfile } from "@/hooks/useStudentProfile";
+import { StudentAcademicWarningAlert } from "@/components/student/StudentAcademicWarningAlert";
 
 const LOGIN_QUOTE_POPUP_KEY = "xalo.showLoginQuotePopup";
 const ALWAYS_SHOW_LOGIN_QUOTE = false;
@@ -84,13 +85,16 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
           ? "Hỗ trợ tự học"
           : pathname.startsWith("/tai-lieu-them")
             ? "Kho tài liệu"
-            : "Thông tin học viên";
+            : pathname.startsWith("/luu-tru-test")
+              ? "Lưu trữ bài test"
+              : "Thông tin học viên";
 
   const tabs = [
     { href: "/", label: "Thông tin học viên", match: (p: string) => p === "/" || p.startsWith("/student") },
     { href: "/skill", label: "Thông tin khóa học", match: (p: string) => p === "/skill" || p === "/course-info" || p.startsWith("/course-info/") },
     { href: "/ho-tro-tu-hoc", label: "Hỗ trợ tự học", match: (p: string) => p === "/ho-tro-tu-hoc" || p.startsWith("/ho-tro-tu-hoc/") },
     { href: "/tai-lieu-them", label: "Kho tài liệu", match: (p: string) => p.startsWith("/tai-lieu-them") },
+    { href: "/luu-tru-test", label: "Lưu trữ bài test", match: (p: string) => p.startsWith("/luu-tru-test") },
   ];
 
   React.useEffect(() => {
@@ -193,7 +197,6 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
                 <div className="flex items-center gap-4 pl-6 border-l border-primary/15">
                   <div className="flex flex-col items-end">
                     <span className="text-xs font-black text-foreground tracking-tight leading-none mb-1">{profile.name}</span>
-                    <span className="text-[10px] font-black text-primary uppercase tracking-tighter leading-none">IELTS Scholar</span>
                   </div>
                   <button
                     type="button"
@@ -224,6 +227,7 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
 
             {/* Folder Body Card */}
             <div className="relative flex-1 bg-white border border-primary/10 rounded-b-3xl rounded-tr-3xl shadow-soft p-6 md:p-8 min-h-[600px] flex flex-col">
+              <StudentAcademicWarningAlert />
               <div key={pathname} className="tab-page-transition flex-1 w-full min-w-0 flex flex-col">
                 {children}
               </div>

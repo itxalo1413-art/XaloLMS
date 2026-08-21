@@ -5,6 +5,10 @@ export type BcbQuestionTypeRow = {
   /** Tỷ lệ sai 0–100 */
   errorRate: number;
   diagnosis: string;
+  /** Số câu đúng / tổng câu của dạng bài (SALE nhập) */
+  correct?: number;
+  total?: number;
+  flagged?: boolean;
 };
 
 export type BcbGrammarRow = {
@@ -14,13 +18,171 @@ export type BcbGrammarRow = {
   severity: "red" | "yellow" | "green";
   description: string;
   examples?: string;
+  code?: string;
+  writingFlag?: boolean;
+  speakingFlag?: boolean;
+  overallFlag?: boolean;
 };
 
 export const WEAK_BCB_ERROR_RATE_THRESHOLD = 50;
 
-export function isWeakBcbQuestion(row: BcbQuestionTypeRow): boolean {
-  return row.errorRate > WEAK_BCB_ERROR_RATE_THRESHOLD;
+export function computeBcbErrorRate(correct?: number, total?: number, fallback = 0): number {
+  if (!total || total <= 0) return fallback;
+  const c = Math.max(0, Math.min(Number(correct) || 0, total));
+  return Math.round(((total - c) / total) * 100);
 }
+
+export function isWeakBcbQuestion(row: BcbQuestionTypeRow): boolean {
+  const rate =
+    row.total && row.total > 0
+      ? computeBcbErrorRate(row.correct, row.total, row.errorRate)
+      : row.errorRate;
+  return rate > WEAK_BCB_ERROR_RATE_THRESHOLD;
+}
+
+export const ENTRANCE_BCB_LISTENING: BcbQuestionTypeRow[] = [
+  {
+    id: "dl-ac",
+    title: "Form, Note, Flow-chart, Table, Summary, Sentence Completion",
+    tag: "DL_AC_00_001",
+    correct: 0,
+    total: 24,
+    errorRate: 0,
+    diagnosis: "",
+  },
+  {
+    id: "dl-ls",
+    title: "List Selection",
+    tag: "DL_LS_00_001",
+    correct: 0,
+    total: 6,
+    errorRate: 0,
+    diagnosis: "",
+  },
+  {
+    id: "dl-ad",
+    title: "Plan, Map, Diagram Labelling",
+    tag: "DL_AD_00_001",
+    correct: 0,
+    total: 0,
+    errorRate: 0,
+    diagnosis: "",
+  },
+  {
+    id: "dl-mc",
+    title: "Multiple Choice",
+    tag: "DL_MC_00_001",
+    correct: 0,
+    total: 6,
+    errorRate: 0,
+    diagnosis: "",
+  },
+  {
+    id: "dl-am",
+    title: "Matching",
+    tag: "DL_AM_00_001",
+    correct: 0,
+    total: 4,
+    errorRate: 0,
+    diagnosis: "",
+  },
+  {
+    id: "dl-sq",
+    title: "Short-answer questions",
+    tag: "DL_SQ_00_001",
+    correct: 0,
+    total: 0,
+    errorRate: 0,
+    diagnosis: "",
+  },
+];
+
+export const ENTRANCE_BCB_READING: BcbQuestionTypeRow[] = [
+  {
+    id: "dr-mf",
+    title: "Matching Features",
+    tag: "DR_MF_00_001",
+    correct: 0,
+    total: 5,
+    errorRate: 0,
+    diagnosis: "",
+  },
+  {
+    id: "dr-mh",
+    title: "Matching Headings",
+    tag: "DR_MH_00_001",
+    correct: 0,
+    total: 6,
+    errorRate: 0,
+    diagnosis: "",
+  },
+  {
+    id: "dr-mi",
+    title: "Matching (Paragraph) Information",
+    tag: "DR_MI_00_001",
+    correct: 0,
+    total: 0,
+    errorRate: 0,
+    diagnosis: "",
+  },
+  {
+    id: "dr-ac",
+    title: "Summary, Note, Table, Flow Chart, Sentence Completion",
+    tag: "DR_AC_00_001",
+    correct: 0,
+    total: 11,
+    errorRate: 0,
+    diagnosis: "",
+  },
+  {
+    id: "dr-dl",
+    title: "Diagram Label Completion",
+    tag: "DR_DL_00_001",
+    correct: 0,
+    total: 0,
+    errorRate: 0,
+    diagnosis: "",
+  },
+  {
+    id: "dr-tf",
+    title: "True/False/Not Given, Yes/No/Not Given",
+    tag: "DR_TF_00_001",
+    correct: 0,
+    total: 11,
+    errorRate: 0,
+    diagnosis: "",
+  },
+  {
+    id: "dr-mc",
+    title: "Multiple Choice, List Selection, Global Multiple Choice",
+    tag: "DR_MC_00_001",
+    correct: 0,
+    total: 7,
+    errorRate: 0,
+    diagnosis: "",
+  },
+  {
+    id: "dr-sq",
+    title: "Short-answer Question",
+    tag: "DR_SQ_00_001",
+    correct: 0,
+    total: 0,
+    errorRate: 0,
+    diagnosis: "",
+  },
+];
+
+export const ENTRANCE_BCB_GRAMMAR: BcbGrammarRow[] = [
+  { id: "gr-a", topic: "A. Verb Phrase, Tense", code: "DG_VP", errorCount: 0, severity: "green", description: "Simple / Continuous / Perfect / Modal / Passive / Verb patterns", writingFlag: false, speakingFlag: false, overallFlag: false },
+  { id: "gr-b", topic: "B. Noun Phrase", code: "DG_NP", errorCount: 0, severity: "green", description: "Cấu trúc NP, mạo từ, đại từ, số đếm, genitive", writingFlag: false, speakingFlag: false, overallFlag: false },
+  { id: "gr-c", topic: "C. Adjective Phrase", code: "DG_AJ", errorCount: 0, severity: "green", description: "Vị trí, thứ tự tính từ, so sánh, participle adjectives", writingFlag: false, speakingFlag: false, overallFlag: false },
+  { id: "gr-d", topic: "D. Adverb Phrase", code: "DG_AV", errorCount: 0, severity: "green", description: "Vị trí adverb, hình thái, so sánh", writingFlag: false, speakingFlag: false, overallFlag: false },
+  { id: "gr-e", topic: "E. Prepositional Phrase", code: "DG_PP", errorCount: 0, severity: "green", description: "Sai nghĩa / tạo sai cụm giới từ", writingFlag: false, speakingFlag: false, overallFlag: false },
+  { id: "gr-f", topic: "F. Simple Sentence", code: "DG_SS", errorCount: 0, severity: "green", description: "Câu trần thuật, câu hỏi, S-V agreement, There-be", writingFlag: false, speakingFlag: false, overallFlag: false },
+  { id: "gr-g", topic: "G. Compound, Complex Sentence", code: "DG_CS", errorCount: 0, severity: "green", description: "Liên từ, mệnh đề, câu điều kiện, reported speech, relative clause", writingFlag: false, speakingFlag: false, overallFlag: false },
+  { id: "gr-h", topic: "H. Forming Text", code: "DG_FT", errorCount: 0, severity: "green", description: "Discourse markers, sắp xếp lập luận", writingFlag: false, speakingFlag: false, overallFlag: false },
+  { id: "gr-i", topic: "I. Punctuation", code: "DG_PU", errorCount: 0, severity: "green", description: "Dấu câu, ngắt câu", writingFlag: false, speakingFlag: false, overallFlag: false },
+];
 
 export const GUEST_BCB_LISTENING: BcbQuestionTypeRow[] = [
   {

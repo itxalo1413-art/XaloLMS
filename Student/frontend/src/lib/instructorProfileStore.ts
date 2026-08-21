@@ -1,47 +1,26 @@
 import type { InstructorPublicProfile } from "@/lib/courseInstructorProfile";
+import { canUseAcaApi, getAcaKv, mergeAcaKv } from "@/lib/acaManagementApi";
+import { getAuthToken } from "@/lib/auth";
 
 export type InstructorProfileExtra = Omit<
   InstructorPublicProfile,
   "name" | "title" | "email" | "phone"
 >;
 
-export const DEFAULT_INSTRUCTOR_PROFILES: Record<string, InstructorProfileExtra> = {
-  "Nghiêm Doãn Quỳnh Châu": {
-    ieltsBand: "8.0",
-    specialties: ["Listening", "Reading", "Writing", "Speaking"],
-    experience: "5+ năm giảng dạy IELTS offline & online",
-    certifications: ["CELTA", "Chứng chỉ đào tạo giáo viên Xa Lộ English"],
-    bio: "Chuyên đồng hành học viên từ mức 5.5–6.5 lên 7.0+, tập trung chẩn đoán lỗi theo BCB và lộ trình may đo.",
-  },
-  "Lê Minh Trang": {
-    ieltsBand: "8.0",
-    specialties: ["Speaking", "Writing"],
-    experience: "5 năm coaching Speaking mock test",
-    certifications: ["IELTS Trainer"],
-    bio: "Ưu tiên phản hồi chi tiết Speaking Part 2–3 và chữa Writing Task 2.",
-  },
-  "Phạm Hoàng An": {
-    ieltsBand: "8.0",
-    specialties: ["Listening", "Reading"],
-    experience: "6 năm luyện đề Actual Test",
-    certifications: ["TESOL"],
-    bio: "Hỗ trợ chiến lược làm bài nhanh và phân tích đề theo xu hướng ra đề gần nhất.",
-  },
-  "Trần Thu Lan": {
-    ieltsBand: "7.5",
-    specialties: ["Writing", "Grammar"],
-    experience: "4 năm chấm–chữa Writing",
-    certifications: ["IELTS Writing Specialist"],
-    bio: "Tập trung rubric Writing Task 1–2 và sửa lỗi ngữ pháp theo chuyên đề.",
-  },
-};
-
+const KV_NAMESPACE = "instructorProfileExtras";
 const STORAGE_KEY = "xalo.instructor.profiles.v1";
 export const INSTRUCTOR_PROFILES_UPDATE_EVENT = "xalo-instructor-profiles-updated";
 
-let cache: Record<string, InstructorProfileExtra> = {
-  ...DEFAULT_INSTRUCTOR_PROFILES,
+const EMPTY_EXTRA: InstructorProfileExtra = {
+  ieltsBand: "",
+  specialties: [],
+  experience: "",
+  certifications: [],
+  bio: "",
 };
+
+let cache: Record<string, InstructorProfileExtra> = {};
+let syncPromise: Promise<void> | null = null;
 
 function dispatchUpdate() {
   if (typeof window === "undefined") return;
@@ -49,36 +28,69 @@ function dispatchUpdate() {
 }
 
 function loadLocal(): Record<string, InstructorProfileExtra> {
-  if (typeof window === "undefined") return { ...DEFAULT_INSTRUCTOR_PROFILES };
+  if (typeof window === "undefined") return {};
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_INSTRUCTOR_PROFILES };
-    const data = JSON.parse(raw) as Record<string, InstructorProfileExtra>;
-    return { ...DEFAULT_INSTRUCTOR_PROFILES, ...data };
+    if (!raw) return {};
+    return JSON.parse(raw) as Record<string, InstructorProfileExtra>;
   } catch {
-    return { ...DEFAULT_INSTRUCTOR_PROFILES };
+    return {};
   }
 }
 
+function saveLocal(next: Record<string, InstructorProfileExtra>) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+}
+
+export async function syncInstructorProfilesFromBackend(): Promise<void> {
+  if (!canUseAcaApi() || !getAuthToken()) return;
+  if (syncPromise) return syncPromise;
+  syncPromise = (async () => {
+    try {
+      const data = await getAcaKv(KV_NAMESPACE);
+      if (data && typeof data === "object") {
+        cache = { ...cache, ...(data as Record<string, InstructorProfileExtra>) };
+        saveLocal(cache);
+        dispatchUpdate();
+      }
+    } catch {
+      // ignore
+    } finally {
+      syncPromise = null;
+    }
+  })();
+  return syncPromise;
+}
+
 export function getInstructorProfileExtras(): Record<string, InstructorProfileExtra> {
-  if (typeof window !== "undefined") {
+  if (typeof window !== "undefined" && Object.keys(cache).length === 0) {
     cache = loadLocal();
   }
   return cache;
 }
 
 export function getInstructorProfileExtra(name: string): InstructorProfileExtra | undefined {
-  return getInstructorProfileExtras()[name.trim()];
+  const key = name.trim();
+  if (!key) return undefined;
+  const extras = getInstructorProfileExtras()[key];
+  return extras ?? undefined;
 }
 
 export function saveInstructorProfileExtra(
   name: string,
   extra: InstructorProfileExtra,
 ): Record<string, InstructorProfileExtra> {
-  cache = { ...getInstructorProfileExtras(), [name.trim()]: extra };
-  if (typeof window !== "undefined") {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cache));
-    dispatchUpdate();
+  const key = name.trim();
+  if (!key) return getInstructorProfileExtras();
+  cache = { ...getInstructorProfileExtras(), [key]: extra };
+  saveLocal(cache);
+  dispatchUpdate();
+
+  if (canUseAcaApi() && getAuthToken()) {
+    void mergeAcaKv(KV_NAMESPACE, { [key]: extra }).catch((err) =>
+      console.warn("Failed to persist instructor profile to backend", err),
+    );
   }
   return cache;
 }
@@ -86,9 +98,15 @@ export function saveInstructorProfileExtra(
 export function refreshInstructorProfileExtras(): Record<string, InstructorProfileExtra> {
   cache = loadLocal();
   dispatchUpdate();
+  void syncInstructorProfilesFromBackend();
   return cache;
+}
+
+export function emptyInstructorProfileExtra(): InstructorProfileExtra {
+  return { ...EMPTY_EXTRA };
 }
 
 if (typeof window !== "undefined") {
   cache = loadLocal();
+  void syncInstructorProfilesFromBackend();
 }

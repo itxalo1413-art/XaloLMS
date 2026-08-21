@@ -86,6 +86,12 @@ export class EntranceTestBooking {
 
   @Prop({ trim: true, default: '' })
   slotId: string;
+
+  @Prop({ trim: true, default: '' })
+  mockTestId: string;
+
+  @Prop({ trim: true, default: '' })
+  writingSubmissionId: string;
 }
 
 export const EntranceTestBookingSchema =

@@ -1,4 +1,3 @@
-import { studentScores } from "@/components/teacher/mockData";
 import type { BcbGrammarRow, BcbQuestionTypeRow } from "@/lib/guestBcbDiagnosis";
 import {
   GUEST_BCB_GRAMMAR,
@@ -9,6 +8,11 @@ import type { SpeakingCriterionScores } from "@/lib/speakingBandDescriptors";
 import { DEFAULT_STUDENT_ID } from "@/lib/studentIds";
 import { resolveActiveStudentId } from "@/lib/studentRoster";
 import { resolveWritingBands, type WritingCriterionInput } from "@/lib/writingScore";
+import {
+  fetchStudentDiagnosisForAca,
+  saveStudentDiagnosisForAca,
+} from "@/lib/acaManagementApi";
+import { getAuthToken } from "@/lib/auth";
 
 export type SkillScores = {
   listening: number;
@@ -149,22 +153,9 @@ export function registerDynamicStudentScores(studentId: string, rawScores: any) 
 function buildDefaultDiagnosis(studentId: string): StudentDiagnosisRecord {
   const base = structuredClone(DEFAULT_STUDENT_DIAGNOSIS);
   const dynamic = dynamicScoresCache.get(studentId);
-  const rosterScores = studentScores[studentId];
 
   if (dynamic) {
     base.scores = { ...dynamic };
-  } else if (rosterScores) {
-    const partial = {
-      listening: rosterScores.listening,
-      reading: rosterScores.reading,
-      writing: rosterScores.writing,
-      speaking: rosterScores.speaking,
-    };
-    base.scores = {
-      ...partial,
-      writing: rosterScores.writing,
-      overall: computeOverall(partial),
-    };
   }
   return recomputeWritingScore(base);
 }
@@ -264,6 +255,55 @@ export function saveStudentDiagnosis(
     all[id] = saved;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
     dispatchUpdate(id);
+  }
+  return saved;
+}
+
+export async function syncStudentDiagnosisFromApi(
+  studentId: string,
+  email?: string,
+): Promise<StudentDiagnosisRecord> {
+  const id = studentId.trim();
+  const normalizedEmail = (email || "").trim();
+  if (!id || !normalizedEmail || !getAuthToken()) {
+    return getStudentDiagnosis(id);
+  }
+
+  try {
+    const remote = await fetchStudentDiagnosisForAca(normalizedEmail);
+    if (remote && typeof remote === "object") {
+      const merged = mergeDiagnosis(remote as Partial<StudentDiagnosisRecord>, id);
+      cacheByStudent.set(id, merged);
+      if (typeof window !== "undefined") {
+        const all = loadAllDiagnoses();
+        all[id] = merged;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+        dispatchUpdate(id);
+      }
+      return merged;
+    }
+  } catch (err) {
+    console.warn("Could not sync student diagnosis from API", err);
+  }
+  return getStudentDiagnosis(id);
+}
+
+export async function persistStudentDiagnosisToApi(
+  studentId: string,
+  email: string | undefined,
+  payload: Omit<StudentDiagnosisRecord, "updatedAt">,
+): Promise<StudentDiagnosisRecord> {
+  const saved = saveStudentDiagnosis(payload, studentId);
+  const normalizedEmail = (email || "").trim();
+  if (normalizedEmail && getAuthToken()) {
+    try {
+      await saveStudentDiagnosisForAca(
+        normalizedEmail,
+        saved as unknown as Record<string, unknown>,
+      );
+    } catch (err) {
+      console.warn("Failed to persist student diagnosis to backend", err);
+    }
   }
   return saved;
 }

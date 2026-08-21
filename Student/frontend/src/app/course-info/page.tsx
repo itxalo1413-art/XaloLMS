@@ -49,7 +49,7 @@ const RLP_PHASES: PhaseConfig[] = [
     startDate: "21/04/2026",
     endDate: "28/05/2026",
     sessionMin: 1,
-    sessionMax: 12,
+    sessionMax: 8,
   },
   {
     id: "phase2",
@@ -57,8 +57,8 @@ const RLP_PHASES: PhaseConfig[] = [
     shortLabel: "Chặng 2",
     startDate: "11/06/2026",
     endDate: "09/07/2026",
-    sessionMin: 13,
-    sessionMax: 20,
+    sessionMin: 9,
+    sessionMax: 16,
   },
 ];
 
@@ -256,7 +256,12 @@ export default function CourseInfoPage() {
     currentPhase.endDate;
 
   useEffect(() => {
-    void refreshRlpSessions().then(setRlpSessions);
+    void refreshRlpSessions()
+      .then(setRlpSessions)
+      .catch((err) => {
+        console.warn("Could not load RLP sessions", err);
+        setRlpSessions(getCourseRlpSessions());
+      });
     const onUpdate = () => setRlpSessions(getCourseRlpSessions());
     window.addEventListener(RLP_SESSIONS_UPDATE_EVENT, onUpdate);
     window.addEventListener("storage", onUpdate);

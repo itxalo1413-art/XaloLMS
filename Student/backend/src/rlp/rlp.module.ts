@@ -11,6 +11,7 @@ import { TeacherRlpController } from './teacher-rlp.controller';
 
 import { AcaStudent, AcaStudentSchema } from '../aca/schemas/aca-student.schema';
 import { AcaClass, AcaClassSchema } from '../aca/schemas/aca-class.schema';
+import { AcademicWarningModule } from '../academic-warning/academic-warning.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AcaClass, AcaClassSchema } from '../aca/schemas/aca-class.schema';
       { name: AcaClass.name, schema: AcaClassSchema },
     ]),
     AuthGuardsModule,
+    AcademicWarningModule,
   ],
   controllers: [StudentRlpController, TeacherRlpController],
   providers: [RlpService],

@@ -17,6 +17,12 @@ import {
   displayClassCode,
   classCodesMatch,
 } from "@/lib/acaManagementApi";
+import {
+  listAcademicWarnings,
+  ACADEMIC_WARNING_UPDATE_EVENT,
+  type AcademicWarningRecord,
+} from "@/lib/academicWarningStore";
+import { AcademicWarningEmbeddedTable } from "@/components/academic/AcademicWarningEmbeddedTable";
 import { AcaXlsxImportModal, type ImportField } from "@/components/aca/AcaXlsxImportModal";
 
 const STUDENT_IMPORT_FIELDS: ImportField[] = [
@@ -66,6 +72,7 @@ function hasRecordedScore(value: unknown): boolean {
 export default function HocVienLopPage() {
   const [studentsList, setStudentsList] = useState<AcaStudent[]>([]);
   const [classesList, setClassesList] = useState<AcaClass[]>([]);
+  const [warnings, setWarnings] = useState<AcademicWarningRecord[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterYear, setFilterYear] = useState<number | "all">("all");
@@ -502,6 +509,18 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
       }
     }
     loadData();
+
+    // Sync academic warnings
+    const loadWrn = () => {
+      void listAcademicWarnings().then(setWarnings);
+    };
+    loadWrn();
+    window.addEventListener(ACADEMIC_WARNING_UPDATE_EVENT, loadWrn);
+    window.addEventListener("storage", loadWrn);
+    return () => {
+      window.removeEventListener(ACADEMIC_WARNING_UPDATE_EVENT, loadWrn);
+      window.removeEventListener("storage", loadWrn);
+    };
   }, []);
 
   const filteredStudents = studentsList.filter((st) => {
@@ -553,6 +572,19 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, filterYear, filterMonth, selectedClassId, filterClassification]);
+
+  const displayedWarnings = useMemo(() => {
+    if (selectedClassId === "all") return warnings;
+    const cls = classesList.find((c) => c.id === selectedClassId);
+    if (!cls) return [];
+    return warnings.filter(
+      (w) =>
+        w.classId === cls.id ||
+        w.classId === cls.name ||
+        w.className === cls.name ||
+        (cls.classCode && classCodesMatch(w.classId, cls.classCode)),
+    );
+  }, [warnings, selectedClassId, classesList]);
 
   const totalPages = Math.ceil(filteredStudents.length / ITEMS_PER_PAGE);
 
@@ -1186,6 +1218,13 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
             </button>
           </div>
         </div>
+
+        <AcademicWarningEmbeddedTable
+          warnings={displayedWarnings}
+          onChanged={() => {
+            void listAcademicWarnings().then(setWarnings);
+          }}
+        />
 
         {/* Student List Table */}
         <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">

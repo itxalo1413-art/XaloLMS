@@ -6,6 +6,14 @@ import {
   WritingSubmission,
   WritingSubmissionSchema,
 } from './schemas/writing-submission.schema';
+import {
+  EntranceTestBooking,
+  EntranceTestBookingSchema,
+} from '../aca/schemas/entrance-test-booking.schema';
+import {
+  FinalTest,
+  FinalTestSchema,
+} from '../aca/schemas/final-test.schema';
 import { StudentWritingSubmissionController } from './student-writing-submission.controller';
 import { TeacherWritingSubmissionController } from './teacher-writing-submission.controller';
 import { WritingSubmissionService } from './writing-submission.service';
@@ -14,6 +22,8 @@ import { WritingSubmissionService } from './writing-submission.service';
   imports: [
     MongooseModule.forFeature([
       { name: WritingSubmission.name, schema: WritingSubmissionSchema },
+      { name: EntranceTestBooking.name, schema: EntranceTestBookingSchema },
+      { name: FinalTest.name, schema: FinalTestSchema },
     ]),
     AuthGuardsModule,
     UsersModule,

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useStudentAuth } from "@/contexts/StudentAuthContext";
-import { IconDashboard, IconDocs, IconInfo, IconSupport } from "./icons";
+import { IconArchive, IconDashboard, IconDocs, IconInfo, IconSupport } from "./icons";
 
 type NavItem = {
   href: string;
@@ -16,6 +16,7 @@ const navItems: NavItem[] = [
   { href: "/skill", label: "Thông tin khóa học", Icon: IconInfo },
   { href: "/ho-tro-tu-hoc", label: "Hỗ trợ tự học", Icon: IconSupport },
   { href: "/tai-lieu-them", label: "Kho tài liệu", Icon: IconDocs },
+  { href: "/luu-tru-test", label: "Lưu trữ bài test", Icon: IconArchive },
 ];
 
 function isActivePath(pathname: string, href: string) {

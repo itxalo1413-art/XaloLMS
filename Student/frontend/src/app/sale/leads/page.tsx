@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   GUEST_DIAGNOSIS_LEADS_EVENT,
   GUEST_LEAD_STATUS_LABEL,
@@ -16,6 +16,7 @@ import {
   type AcaClass,
 } from "@/lib/acaManagementApi";
 import { EntranceBookingModal } from "@/components/sale/EntranceBookingModal";
+import Link from "next/link";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -35,10 +36,10 @@ function formatDate(iso: string) {
 
 function statusColor(status: GuestDiagnosisLeadStatus) {
   return {
-    new: "bg-sky-500/15 text-sky-300 border-sky-500/30",
-    contacted: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-    converted: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-    closed: "bg-slate-600/40 text-slate-400 border-slate-600/40",
+    new: "bg-sky-50 text-sky-700 border-sky-200",
+    contacted: "bg-amber-50 text-amber-700 border-amber-200",
+    converted: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    closed: "bg-zinc-100 text-zinc-600 border-zinc-200",
   }[status];
 }
 
@@ -56,10 +57,10 @@ function MetricCard({
   color: string;
 }) {
   return (
-    <div className="flex flex-col gap-1 rounded-2xl border border-slate-800 bg-slate-900 p-4">
-      <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">{label}</div>
-      <div className={`text-3xl font-black ${color}`}>{value}</div>
-      {sub && <div className="text-[11px] text-slate-500 font-medium">{sub}</div>}
+    <div className="flex flex-col gap-1 rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-xs">
+      <div className="text-xs font-bold text-zinc-500 uppercase tracking-wider">{label}</div>
+      <div className={`text-2xl font-black ${color}`}>{value}</div>
+      {sub && <div className="text-[11px] text-zinc-400 font-medium">{sub}</div>}
     </div>
   );
 }
@@ -92,13 +93,20 @@ function AddLeadModal({ onClose, onAdded }: { onClose: () => void; onAdded: () =
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
-      <button type="button" aria-label="Đóng" onClick={onClose}
-        className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" />
-      <div className="relative w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+      <button
+        type="button"
+        aria-label="Đóng"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/40 backdrop-blur-xs"
+      />
+      <div className="relative w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-5">
-          <h3 className="text-base font-black text-white">Thêm Lead Mới</h3>
-          <button type="button" onClick={onClose}
-            className="rounded-lg p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors">
+          <h3 className="text-base font-black text-zinc-900">Thêm Lead Mới</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors"
+          >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -107,35 +115,61 @@ function AddLeadModal({ onClose, onAdded }: { onClose: () => void; onAdded: () =
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-slate-400 mb-1.5">Tên khách <span className="text-rose-400">*</span></label>
-            <input type="text" required value={name} onChange={e => setName(e.target.value)}
+            <label className="block text-xs font-bold text-zinc-700 mb-1.5">
+              Tên khách <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               placeholder="VD: Nguyễn Văn A"
-              className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20 transition-all" />
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/40 px-3.5 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/10 transition-all font-medium"
+            />
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-400 mb-1.5">Số điện thoại <span className="text-rose-400">*</span></label>
-            <input type="tel" required value={phone} onChange={e => setPhone(e.target.value)}
+            <label className="block text-xs font-bold text-zinc-700 mb-1.5">
+              Số điện thoại <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="tel"
+              required
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
               placeholder="VD: 0901 234 567"
-              className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20 transition-all" />
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/40 px-3.5 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/10 transition-all font-medium"
+            />
           </div>
           <div>
-            <label className="block text-xs font-bold text-slate-400 mb-1.5">Mục tiêu IELTS</label>
-            <input type="text" value={aim} onChange={e => setAim(e.target.value)}
+            <label className="block text-xs font-bold text-zinc-700 mb-1.5">Mục tiêu IELTS</label>
+            <input
+              type="text"
+              value={aim}
+              onChange={(e) => setAim(e.target.value)}
               placeholder="VD: 7.0 IELTS"
-              className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20 transition-all" />
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/40 px-3.5 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/10 transition-all font-medium"
+            />
           </div>
 
           {err && (
-            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3.5 py-2.5 text-xs font-semibold text-rose-400">{err}</div>
+            <div className="rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-xs font-semibold text-rose-700">
+              {err}
+            </div>
           )}
 
-          <div className="flex justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose}
-              className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-bold text-slate-400 hover:bg-slate-800 transition-colors">
+          <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl border border-zinc-200 px-4 py-2 text-xs font-bold text-zinc-600 hover:bg-zinc-100 transition-colors"
+            >
               Hủy
             </button>
-            <button type="submit" disabled={submitting}
-              className="rounded-xl bg-amber-500 hover:bg-amber-400 px-5 py-2 text-xs font-black text-slate-900 transition-colors disabled:opacity-60">
+            <button
+              type="submit"
+              disabled={submitting}
+              className="rounded-xl bg-primary hover:bg-[#6a5acd] px-5 py-2 text-xs font-black text-white transition-colors disabled:opacity-60 shadow-sm"
+            >
               {submitting ? "Đang thêm..." : "Thêm Lead"}
             </button>
           </div>
@@ -180,14 +214,16 @@ function LeadDetailDrawer({
       updateGuestDiagnosisLead(lead.id, {
         status: statusDraft,
         note: noteDraft,
-        ...(classDraft ? {
-          assignedClassId: classDraft,
-          assignedClassName: selectedClass ? (selectedClass.name || selectedClass.classCode) : classDraft,
-        } : {}),
+        ...(classDraft
+          ? {
+              assignedClassId: classDraft,
+              assignedClassName: selectedClass ? selectedClass.name || selectedClass.classCode : classDraft,
+            }
+          : {}),
       });
       setMsg({ type: "success", text: "Đã lưu thay đổi!" });
       onSaved();
-    } catch (e) {
+    } catch {
       setMsg({ type: "error", text: "Lưu thất bại." });
     } finally {
       setSaving(false);
@@ -213,7 +249,7 @@ function LeadDetailDrawer({
       updateGuestDiagnosisLead(lead.id, {
         status: "converted",
         assignedClassId: classDraft,
-        assignedClassName: selectedClass ? (selectedClass.name || selectedClass.classCode) : classDraft,
+        assignedClassName: selectedClass ? selectedClass.name || selectedClass.classCode : classDraft,
       });
       setMsg({ type: "success", text: `Đã chốt học thành công! "${lead.name}" đã là học viên.` });
       onSaved();
@@ -226,17 +262,24 @@ function LeadDetailDrawer({
 
   return (
     <div className="fixed inset-0 z-[70] flex items-end md:items-center justify-center md:justify-end p-0 md:p-4">
-      <button type="button" aria-label="Đóng" onClick={onClose}
-        className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" />
-      <div className="relative w-full md:w-[440px] md:max-h-[90vh] rounded-t-2xl md:rounded-2xl border border-slate-700 bg-slate-900 shadow-2xl flex flex-col overflow-hidden">
+      <button
+        type="button"
+        aria-label="Đóng"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/40 backdrop-blur-xs"
+      />
+      <div className="relative w-full md:w-[460px] md:max-h-[92vh] rounded-t-2xl md:rounded-2xl border border-zinc-200 bg-white shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-start justify-between p-5 border-b border-slate-800">
+        <div className="flex items-start justify-between p-5 border-b border-zinc-100 bg-zinc-50/70">
           <div>
-            <div className="text-base font-black text-white">{lead.name}</div>
-            <div className="text-xs text-slate-400 mt-0.5">{lead.phone}</div>
+            <div className="text-base font-black text-zinc-900">{lead.name}</div>
+            <div className="text-xs text-zinc-500 font-mono mt-0.5">{lead.phone}</div>
           </div>
-          <button type="button" onClick={onClose}
-            className="rounded-lg p-1 text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors mt-0.5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors mt-0.5"
+          >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -246,31 +289,33 @@ function LeadDetailDrawer({
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
           {/* Meta */}
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-4 p-3.5 rounded-xl bg-zinc-50 border border-zinc-200/80">
             <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Mục tiêu</span>
-              <span className="text-sm font-bold text-white">{lead.aim || "—"}</span>
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Mục tiêu</span>
+              <span className="text-xs font-bold text-zinc-800">{lead.aim || "—"}</span>
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ngày gửi</span>
-              <span className="text-sm font-bold text-white">{formatDate(lead.submittedAt)}</span>
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Ngày gửi</span>
+              <span className="text-xs font-bold text-zinc-800">{formatDate(lead.submittedAt)}</span>
             </div>
           </div>
 
           {/* Status */}
           <div>
-            <label className="block text-xs font-bold text-slate-400 mb-1.5">Trạng thái</label>
+            <label className="block text-xs font-bold text-zinc-700 mb-1.5">Trạng thái</label>
             <div className="relative">
               <select
                 value={statusDraft}
                 onChange={(e) => setStatusDraft(e.target.value as GuestDiagnosisLeadStatus)}
-                className="w-full appearance-none rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2.5 pr-8 text-sm text-slate-100 outline-none focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20 transition-all cursor-pointer"
+                className="w-full appearance-none rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 pr-8 text-sm font-medium text-zinc-900 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all cursor-pointer shadow-xs"
               >
                 {(Object.keys(GUEST_LEAD_STATUS_LABEL) as GuestDiagnosisLeadStatus[]).map((s) => (
-                  <option key={s} value={s}>{GUEST_LEAD_STATUS_LABEL[s]}</option>
+                  <option key={s} value={s}>
+                    {GUEST_LEAD_STATUS_LABEL[s]}
+                  </option>
                 ))}
               </select>
-              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400">
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
@@ -281,12 +326,12 @@ function LeadDetailDrawer({
           {/* Class Assignment */}
           {classes.length > 0 && (
             <div>
-              <label className="block text-xs font-bold text-slate-400 mb-1.5">Gán lớp học</label>
+              <label className="block text-xs font-bold text-zinc-700 mb-1.5">Gán lớp học</label>
               <div className="relative">
                 <select
                   value={classDraft}
                   onChange={(e) => setClassDraft(e.target.value)}
-                  className="w-full appearance-none rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2.5 pr-8 text-sm text-slate-100 outline-none focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20 transition-all cursor-pointer"
+                  className="w-full appearance-none rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 pr-8 text-sm font-medium text-zinc-900 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all cursor-pointer shadow-xs"
                 >
                   <option value="">-- Chưa chọn lớp --</option>
                   {classes.map((c) => (
@@ -295,7 +340,7 @@ function LeadDetailDrawer({
                     </option>
                   ))}
                 </select>
-                <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400">
                   <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
                     <polyline points="6 9 12 15 18 9" />
                   </svg>
@@ -306,42 +351,50 @@ function LeadDetailDrawer({
 
           {/* Note */}
           <div>
-            <label className="block text-xs font-bold text-slate-400 mb-1.5">Ghi chú nội bộ</label>
+            <label className="block text-xs font-bold text-zinc-700 mb-1.5">Ghi chú nội bộ</label>
             <textarea
               value={noteDraft}
               onChange={(e) => setNoteDraft(e.target.value)}
               rows={4}
               placeholder="Thêm ghi chú về lead này..."
-              className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none focus:border-amber-500/60 focus:ring-2 focus:ring-amber-500/20 transition-all resize-none"
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/40 px-3.5 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 outline-none focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/10 transition-all resize-none"
             />
           </div>
 
           {msg && (
-            <div className={`rounded-xl border px-3.5 py-2.5 text-xs font-semibold ${
-              msg.type === "success"
-                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                : "border-rose-500/30 bg-rose-500/10 text-rose-400"
-            }`}>
+            <div
+              className={`rounded-xl border px-3.5 py-2.5 text-xs font-semibold ${
+                msg.type === "success"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-rose-200 bg-rose-50 text-rose-700"
+              }`}
+            >
               {msg.text}
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-5 border-t border-slate-800 flex flex-col gap-3">
+        <div className="p-5 border-t border-zinc-100 flex flex-col gap-2.5 bg-zinc-50/40">
           <button
             type="button"
             onClick={() => onBookTest(lead)}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-purple-600 hover:bg-purple-500 px-4 py-2.5 text-sm font-black text-white transition-colors shadow-sm"
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary hover:bg-[#6a5acd] px-4 py-2.5 text-sm font-black text-white transition-colors shadow-sm cursor-pointer"
           >
-            🗓️ Đặt Lịch Test Entrance (S / W)
+            Đặt Lịch Test Entrance (S / W)
           </button>
+          <Link
+            href={`/sale/leads/${lead.id}/bcb`}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 px-4 py-2.5 text-sm font-black text-white transition-colors shadow-sm"
+          >
+            Nhập điểm & BCB chi tiết
+          </Link>
           {lead.status !== "converted" && (
             <button
               type="button"
               onClick={handleConvert}
               disabled={converting || !classDraft}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2.5 text-sm font-black text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 px-4 py-2.5 text-sm font-black text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-xs"
             >
               {converting ? (
                 <>
@@ -365,7 +418,7 @@ function LeadDetailDrawer({
             type="button"
             onClick={handleSave}
             disabled={saving || !hasChanges}
-            className="w-full rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-sm font-black text-slate-900 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full rounded-xl border border-zinc-200 bg-white hover:bg-zinc-100 px-4 py-2.5 text-sm font-black text-zinc-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
           >
             {saving ? "Đang lưu..." : "Lưu thay đổi"}
           </button>
@@ -396,7 +449,9 @@ export default function SaleLeadsPage() {
     window.addEventListener("storage", sync);
 
     fetchAcaClasses()
-      .then((data) => { if (data?.length > 0) setClasses(data); })
+      .then((data) => {
+        if (data?.length > 0) setClasses(data);
+      })
       .catch(() => {});
 
     return () => {
@@ -406,12 +461,15 @@ export default function SaleLeadsPage() {
   }, [sync]);
 
   const today = new Date().toDateString();
-  const metrics = useMemo(() => ({
-    total: rows.length,
-    newToday: rows.filter((r) => new Date(r.submittedAt).toDateString() === today).length,
-    contacted: rows.filter((r) => r.status === "contacted").length,
-    converted: rows.filter((r) => r.status === "converted").length,
-  }), [rows, today]);
+  const metrics = useMemo(
+    () => ({
+      total: rows.length,
+      newToday: rows.filter((r) => new Date(r.submittedAt).toDateString() === today).length,
+      contacted: rows.filter((r) => r.status === "contacted").length,
+      converted: rows.filter((r) => r.status === "converted").length,
+    }),
+    [rows, today]
+  );
 
   const filtered = useMemo(() => {
     let data = rows;
@@ -419,7 +477,7 @@ export default function SaleLeadsPage() {
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       data = data.filter(
-        (r) => r.name.toLowerCase().includes(q) || r.phone.includes(q) || r.aim.toLowerCase().includes(q),
+        (r) => r.name.toLowerCase().includes(q) || r.phone.includes(q) || r.aim.toLowerCase().includes(q)
       );
     }
     return data;
@@ -427,54 +485,56 @@ export default function SaleLeadsPage() {
 
   return (
     <>
-      <div className="space-y-6 max-w-5xl mx-auto">
+      <div className="space-y-6 max-w-6xl mx-auto">
         {/* Page Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-xl font-black text-white">Danh sách Lead BCB</h1>
-            <p className="text-xs text-slate-500 mt-0.5 font-medium">
-              Quản lý khách chẩn đoán — chuyển đổi thành học viên
+            <h1 className="text-xl font-black text-zinc-900">Danh Sách Lead BCB</h1>
+            <p className="text-xs text-zinc-500 mt-0.5 font-medium">
+              Quản lý khách làm bài chẩn đoán và chuyển đổi thành học viên chính thức
             </p>
           </div>
           <button
             type="button"
             onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-sm font-black text-slate-900 transition-all shadow-lg hover:shadow-amber-500/30"
+            className="flex items-center gap-2 rounded-xl bg-primary hover:bg-[#6a5acd] px-4 py-2.5 text-xs font-black text-white transition-all shadow-md hover:shadow-primary/20 shrink-0"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
-            Thêm Lead
+            Thêm Lead Mới
           </button>
         </div>
 
         {/* Metrics */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <MetricCard label="Tổng Lead" value={metrics.total} color="text-white" />
-          <MetricCard label="Hôm nay" value={metrics.newToday} sub="Lead mới" color="text-sky-400" />
-          <MetricCard label="Đã liên hệ" value={metrics.contacted} color="text-amber-400" />
-          <MetricCard label="Đã chốt học" value={metrics.converted} color="text-emerald-400" />
+          <MetricCard label="Tổng Lead" value={metrics.total} color="text-zinc-900" />
+          <MetricCard label="Hôm nay" value={metrics.newToday} sub="Lead mới gửi" color="text-sky-600" />
+          <MetricCard label="Đã liên hệ" value={metrics.contacted} color="text-amber-600" />
+          <MetricCard label="Đã chốt học" value={metrics.converted} color="text-emerald-600" />
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
           {/* Status Tabs */}
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-900 border border-slate-800 text-[11px] font-bold flex-wrap">
-            {([
-              ["all", "Tất cả"],
-              ["new", "Mới"],
-              ["contacted", "Đã liên hệ"],
-              ["converted", "Đã chốt"],
-              ["closed", "Đóng"],
-            ] as const).map(([key, label]) => (
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-zinc-100 border border-zinc-200/80 text-[11px] font-bold flex-wrap">
+            {(
+              [
+                ["all", "Tất cả"],
+                ["new", "Mới"],
+                ["contacted", "Đã liên hệ"],
+                ["converted", "Đã chốt"],
+                ["closed", "Đóng"],
+              ] as const
+            ).map(([key, label]) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => setStatusFilter(key)}
                 className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                   statusFilter === key
-                    ? "bg-amber-500 text-slate-900 shadow-sm font-black"
-                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                    ? "bg-primary text-white shadow-sm font-black"
+                    : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60"
                 }`}
               >
                 {label}
@@ -483,64 +543,80 @@ export default function SaleLeadsPage() {
           </div>
 
           {/* Search */}
-          <div className="relative flex-1 min-w-[200px]">
+          <div className="relative min-w-[240px]">
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Tìm tên, SĐT, mục tiêu..."
-              className="w-full h-9 rounded-xl bg-slate-900 border border-slate-800 px-3 pl-9 text-xs text-slate-200 placeholder-slate-500 outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-all"
+              className="w-full h-9 rounded-xl bg-white border border-zinc-200 px-3 pl-9 text-xs text-zinc-900 placeholder-zinc-400 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all shadow-xs"
             />
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none"
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg
+              className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 pointer-events-none"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900 overflow-hidden">
+        {/* Table Card */}
+        <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden shadow-soft">
           {filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-slate-500">
-              <svg className="h-10 w-10 mb-3 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <div className="flex flex-col items-center justify-center py-16 text-zinc-400 space-y-2">
+              <svg className="h-10 w-10 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              <div className="text-sm font-bold">Không có lead nào</div>
-              <div className="text-xs mt-1">Thử thay đổi bộ lọc hoặc thêm lead mới</div>
+              <div className="text-sm font-bold text-zinc-700">Không có lead nào</div>
+              <div className="text-xs text-zinc-400">Thử thay đổi bộ lọc hoặc thêm lead mới</div>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-slate-800">
-                    <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Tên</th>
-                    <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">SĐT</th>
-                    <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 hidden sm:table-cell">Mục tiêu</th>
-                    <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">Trạng thái</th>
-                    <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 hidden md:table-cell">Ngày gửi</th>
-                    <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-wider text-slate-500 hidden lg:table-cell">Lớp gán</th>
+                  <tr className="border-b border-zinc-200 bg-zinc-50/80 text-[10px] font-black uppercase tracking-wider text-zinc-500">
+                    <th className="px-4 py-3.5 text-left">Tên khách</th>
+                    <th className="px-4 py-3.5 text-left">Số điện thoại</th>
+                    <th className="px-4 py-3.5 text-left hidden sm:table-cell">Mục tiêu</th>
+                    <th className="px-4 py-3.5 text-left">Trạng thái</th>
+                    <th className="px-4 py-3.5 text-left hidden md:table-cell">Ngày gửi</th>
+                    <th className="px-4 py-3.5 text-left hidden lg:table-cell">Lớp gán</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {filtered.map((row, i) => (
+                <tbody className="divide-y divide-zinc-100 font-medium">
+                  {filtered.map((row) => (
                     <tr
                       key={row.id}
                       onClick={() => setActiveLead(row)}
-                      className={`border-b border-slate-800/60 cursor-pointer transition-colors hover:bg-amber-500/5 ${
-                        i % 2 === 0 ? "bg-transparent" : "bg-slate-800/20"
-                      }`}
+                      className="cursor-pointer transition-colors hover:bg-primary-soft/15"
                     >
-                      <td className="px-4 py-3 font-bold text-white">{row.name}</td>
-                      <td className="px-4 py-3 text-slate-400 font-medium tabular-nums">{row.phone}</td>
-                      <td className="px-4 py-3 text-slate-400 font-medium hidden sm:table-cell">{row.aim || "—"}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-black uppercase tracking-wider border ${statusColor(row.status)}`}>
+                      <td className="px-4 py-3.5 font-bold text-zinc-900">
+                        <div>{row.name}</div>
+                        {row.hasDiagnosis ? (
+                          <div className="mt-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-700">
+                            Đã có BCB
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-3.5 text-zinc-600 font-mono tabular-nums">{row.phone}</td>
+                      <td className="px-4 py-3.5 text-zinc-600 hidden sm:table-cell">{row.aim || "—"}</td>
+                      <td className="px-4 py-3.5">
+                        <span
+                          className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-black uppercase tracking-wider border ${statusColor(
+                            row.status
+                          )}`}
+                        >
                           {GUEST_LEAD_STATUS_LABEL[row.status]}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-slate-500 text-xs hidden md:table-cell">{formatDate(row.submittedAt)}</td>
-                      <td className="px-4 py-3 text-slate-500 text-xs hidden lg:table-cell">
-                        {row.assignedClassName || <span className="text-slate-700">—</span>}
+                      <td className="px-4 py-3.5 text-zinc-400 text-xs hidden md:table-cell">
+                        {formatDate(row.submittedAt)}
+                      </td>
+                      <td className="px-4 py-3.5 text-zinc-600 text-xs hidden lg:table-cell font-semibold">
+                        {row.assignedClassName || <span className="text-zinc-300">—</span>}
                       </td>
                     </tr>
                   ))}
@@ -551,7 +627,7 @@ export default function SaleLeadsPage() {
         </div>
 
         {/* Count */}
-        <div className="text-xs text-slate-600 text-right font-medium">
+        <div className="text-xs text-zinc-400 text-right font-medium">
           Hiển thị {filtered.length} / {rows.length} lead
         </div>
       </div>
@@ -576,7 +652,6 @@ export default function SaleLeadsPage() {
           }}
           onSaved={() => {
             sync();
-            // Re-open with fresh data
             void listGuestDiagnosisLeads().then((rows) => {
               setActiveLead((prev) => {
                 if (!prev) return null;

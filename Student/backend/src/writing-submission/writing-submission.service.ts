@@ -16,6 +16,14 @@ import {
   WritingSubmission,
   type WritingSubmissionDocument,
 } from './schemas/writing-submission.schema';
+import {
+  EntranceTestBooking,
+  type EntranceTestBookingDocument,
+} from '../aca/schemas/entrance-test-booking.schema';
+import {
+  FinalTest,
+  type FinalTestDocument,
+} from '../aca/schemas/final-test.schema';
 
 export const ACA_GRADERS = [
   'Grader 1',
@@ -40,6 +48,9 @@ export type WritingSubmissionPublic = {
   task2?: string;
   note?: string;
   assignedGrader?: string;
+  source?: string;
+  entranceBookingId?: string;
+  finalTestId?: string;
 };
 
 type WritingSubmissionLean = WritingSubmission & {
@@ -53,6 +64,10 @@ export class WritingSubmissionService {
   constructor(
     @InjectModel(WritingSubmission.name)
     private readonly model: Model<WritingSubmissionDocument>,
+    @InjectModel(EntranceTestBooking.name)
+    private readonly entranceBookingModel: Model<EntranceTestBookingDocument>,
+    @InjectModel(FinalTest.name)
+    private readonly finalTestModel: Model<FinalTestDocument>,
     private readonly users: UsersService,
   ) {}
 
@@ -99,6 +114,9 @@ export class WritingSubmissionService {
       task2: doc.task2,
       note: doc.note,
       assignedGrader: doc.assignedGrader || '',
+      source: doc.source || 'support',
+      entranceBookingId: doc.entranceBookingId || '',
+      finalTestId: doc.finalTestId || '',
     };
   }
 
@@ -129,7 +147,10 @@ export class WritingSubmissionService {
 
   async listForStudent(studentId: string): Promise<WritingSubmissionPublic[]> {
     const rows = await this.model
-      .find({ studentId })
+      .find({
+        studentId,
+        source: { $nin: ['entrance', 'final'] },
+      })
       .sort({ createdAt: -1 })
       .lean()
       .exec();
@@ -173,7 +194,11 @@ export class WritingSubmissionService {
     const name = await this.resolveStudentName(studentId, studentName);
 
     const existing = await this.model
-      .findOne({ studentId, status: { $in: ['pending', 'grading'] } })
+      .findOne({
+        studentId,
+        status: { $in: ['pending', 'grading'] },
+        source: { $nin: ['entrance', 'final'] },
+      })
       .sort({ createdAt: -1 })
       .exec();
 
@@ -216,11 +241,12 @@ export class WritingSubmissionService {
       status: 'pending',
       dueDate: payload.dueDate?.trim() || '',
       studentGmail: payload.studentGmail?.trim() || '',
-      type: payload.type?.trim() || '',
+      type: payload.type?.trim() || 'Support',
       task1: payload.task1?.trim() || '',
       task2: payload.task2?.trim() || '',
       note: payload.note?.trim() || '',
       assignedGrader,
+      source: 'support',
     });
 
     return this.toPublic(created.toObject() as WritingSubmissionLean);
@@ -280,6 +306,49 @@ export class WritingSubmissionService {
       .lean()
       .exec();
 
-    return this.toPublic(updated as WritingSubmissionLean);
+    const publicRow = this.toPublic(updated as WritingSubmissionLean);
+    if (nextStatus === 'graded') {
+      await this.syncLinkedWritingScore(publicRow);
+    }
+    return publicRow;
+  }
+
+  private async syncLinkedWritingScore(row: WritingSubmissionPublic): Promise<void> {
+    const bookingId = row.entranceBookingId?.trim();
+    if (bookingId && Types.ObjectId.isValid(bookingId)) {
+      await this.entranceBookingModel
+        .findByIdAndUpdate(bookingId, {
+          $set: {
+            scoreWriting: row.score ?? '',
+            status: 'graded',
+            examLink: row.examLink || undefined,
+          },
+        })
+        .exec();
+    }
+
+    const finalId = row.finalTestId?.trim();
+    if (finalId && Types.ObjectId.isValid(finalId)) {
+      const existing = await this.finalTestModel.findById(finalId).lean().exec();
+      if (!existing) return;
+      const testType = String((existing as { testType?: string }).testType || '');
+      const hasSpeaking = Boolean((existing as { scoreSpeaking?: string }).scoreSpeaking);
+      const status =
+        testType === 'full_4_skills' && !hasSpeaking ? 'in_progress' : 'graded';
+      await this.finalTestModel
+        .findByIdAndUpdate(finalId, {
+          $set: {
+            scoreWriting: row.score ?? '',
+            status,
+            submissionLink: row.examLink || undefined,
+            hasTakenTest: true,
+            isChecked: false,
+            isDone: false,
+            releasedAt: '',
+            releasedBy: '',
+          },
+        })
+        .exec();
+    }
   }
 }

@@ -14,6 +14,7 @@ import { RlpModule } from './rlp/rlp.module';
 import { PracticeRlpModule } from './practice-rlp/practice-rlp.module';
 import { TeacherModule } from './teacher/teacher.module';
 import { WritingSubmissionModule } from './writing-submission/writing-submission.module';
+import { AcademicWarningModule } from './academic-warning/academic-warning.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { WritingSubmissionModule } from './writing-submission/writing-submission
     RlpModule,
     PracticeRlpModule,
     TeacherModule,
+    AcademicWarningModule,
   ],
   controllers: [AppController],
   providers: [AppService],

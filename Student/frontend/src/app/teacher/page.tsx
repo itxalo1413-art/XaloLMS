@@ -15,509 +15,24 @@ import {
   displayClassCode,
   classCodesMatch,
 } from "@/lib/acaManagementApi";
-import { DEFAULT_COURSE_RLP_SESSIONS, calculateGradingDeadline, type RlpSession, type Attendance, type HomeworkStatus } from "@/lib/courseSchedule";
-import { refreshRlpSessions, updateRlpSession } from "@/lib/rlpSessionStore";
+import { calculateGradingDeadline, type RlpSession, type Attendance, type HomeworkStatus } from "@/lib/courseSchedule";
+import { getCourseRlpSessions, refreshRlpSessions, updateRlpSession } from "@/lib/rlpSessionStore";
 import { getLoggedInTeacherName, teacherNameMatches } from "@/lib/teacherIdentity";
+import {
+  listTeacherAcademicWarnings,
+  ACADEMIC_WARNING_UPDATE_EVENT,
+  type AcademicWarningRecord,
+} from "@/lib/academicWarningStore";
+import { AcademicWarningEmbeddedTable } from "@/components/academic/AcademicWarningEmbeddedTable";
 
-const getDefaultRlpSessionsForPhase = (phase: string): RlpSession[] => {
-  const normPhase = (phase || "").toUpperCase();
-  if (normPhase.includes("W-L")) {
-    return [
-      {
-        no: 1,
-        date: "02/10/2025",
-        skill: "Writing",
-        contents: "Writing Task 1 - Line Graph (Biểu đồ đường): Cấu trúc, Overview & Từ vựng miêu tả xu hướng",
-        teacherNote: "—",
-        deadline: "09/10/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 2,
-        date: "04/10/2025",
-        skill: "Listening",
-        contents: "Listening Section 1 - Form Completion: Kỹ năng bắt từ khóa, đánh vần tên riêng & chữ số",
-        teacherNote: "—",
-        deadline: "11/10/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 3,
-        date: "09/10/2025",
-        skill: "Writing",
-        contents: "Writing Task 2 - Agree or Disagree Essay: Cách lập dàn ý, viết Introduction & Thesis Statement",
-        teacherNote: "—",
-        deadline: "16/10/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 4,
-        date: "11/10/2025",
-        skill: "Listening",
-        contents: "Listening Section 2 - Map Labelling & Matching: Từ vựng chỉ phương hướng & Bản đồ",
-        teacherNote: "—",
-        deadline: "18/10/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 5,
-        date: "16/10/2025",
-        skill: "Writing",
-        contents: "Writing Task 1 - Bar Chart (Biểu đồ cột): Cấu trúc so sánh, nhóm số liệu & viết Body paragraphs",
-        teacherNote: "—",
-        deadline: "23/10/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 6,
-        date: "18/10/2025",
-        skill: "Listening",
-        contents: "Listening Section 2 - Sentence Completion & Note Completion: Phân tích khoảng trống cần điền",
-        teacherNote: "—",
-        deadline: "25/10/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 7,
-        date: "20/10/2025",
-        skill: "Writing",
-        contents: "Writing Task 2 - Discussion Essay: Thảo luận hai quan điểm, viết Body 1 & Body 2",
-        teacherNote: "—",
-        deadline: "27/10/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 8,
-        date: "22/10/2025",
-        skill: "Listening",
-        contents: "Listening Section 3 - Multiple Choice: Cách xử lý các nhiễu thông tin (distractors) phức tạp",
-        teacherNote: "—",
-        deadline: "29/10/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 9,
-        date: "27/10/2025",
-        skill: "Writing",
-        contents: "Writing Task 1 - Table & Pie Chart (Bảng số liệu & Biểu đồ tròn): Cách phân tích và gộp số liệu",
-        teacherNote: "—",
-        deadline: "03/11/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 10,
-        date: "29/10/2025",
-        skill: "Listening",
-        contents: "Listening Section 3 - Classification & Matching: Chiến thuật phân loại thông tin hội thoại",
-        teacherNote: "—",
-        deadline: "05/11/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 11,
-        date: "03/11/2025",
-        skill: "Writing",
-        contents: "Writing Task 2 - Advantages & Disadvantages Essay: Phát triển lập luận cân bằng & viết Conclusion",
-        teacherNote: "—",
-        deadline: "10/11/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 12,
-        date: "05/11/2025",
-        skill: "Listening",
-        contents: "Listening Section 4 - Academic Lecture Completion: Nghe hiểu và ghi chú bài giảng khoa học",
-        teacherNote: "—",
-        deadline: "12/11/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 13,
-        date: "10/11/2025",
-        skill: "Writing",
-        contents: "Writing Task 1 - Mixed Charts (Biểu đồ hỗn hợp): Kỹ năng viết bài khi kết hợp nhiều dạng biểu đồ",
-        teacherNote: "—",
-        deadline: "17/11/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 14,
-        date: "12/11/2025",
-        skill: "Listening",
-        contents: "Listening Intensive Practice - Trọn bộ Đề thi nghe thực tế (Section 1-4)",
-        teacherNote: "—",
-        deadline: "19/11/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 15,
-        date: "17/11/2025",
-        skill: "Writing",
-        contents: "Writing Task 2 - Problem & Solution / Direct Question Essay: Trả lời câu hỏi trực tiếp",
-        teacherNote: "—",
-        deadline: "24/11/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 16,
-        date: "19/11/2025",
-        skill: "Writing",
-        contents: "Writing & Listening Full Mock Simulation: Phòng thi thực tế & Chữa lỗi thường gặp",
-        teacherNote: "—",
-        deadline: "26/11/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-    ];
-  } else if (normPhase.includes("PRE") || normPhase.includes("CORE")) {
-    return [
-      {
-        no: 1,
-        date: "02/10/2025",
-        skill: "Speaking",
-        contents: "Pre-IELTS Speaking Part 1 - Giới thiệu bản thân, phát âm cơ bản & ngữ điệu tự nhiên",
-        teacherNote: "—",
-        deadline: "09/10/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 2,
-        date: "04/10/2025",
-        skill: "Reading",
-        contents: "Reading Skill - Kỹ thuật Skimming & Scanning, nhận diện cấu trúc bài đọc học thuật",
-        teacherNote: "—",
-        deadline: "11/10/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 3,
-        date: "09/10/2025",
-        skill: "Listening",
-        contents: "Listening Skill - Nhận diện bảng chữ cái, số đếm, ngày tháng & các bẫy phát âm thường gặp",
-        teacherNote: "—",
-        deadline: "16/10/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 4,
-        date: "11/10/2025",
-        skill: "Writing",
-        contents: "Writing Foundation - Cấu trúc câu đơn, câu ghép & tránh các lỗi ngữ pháp cơ bản",
-        teacherNote: "—",
-        deadline: "18/10/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 5,
-        date: "16/10/2025",
-        skill: "Speaking",
-        contents: "Speaking Part 1 - Mở rộng câu trả lời bằng cách nêu ví dụ, lý do và tương phản",
-        teacherNote: "—",
-        deadline: "23/10/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 6,
-        date: "18/10/2025",
-        skill: "Reading",
-        contents: "Reading - Kỹ năng định vị từ khóa (Keywords) & tìm từ đồng nghĩa (Synonyms) trong văn cảnh",
-        teacherNote: "—",
-        deadline: "25/10/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 7,
-        date: "20/10/2025",
-        skill: "Listening",
-        contents: "Listening - Nghe hiểu các đoạn hội thoại thường nhật (Section 1) & Điền thông tin vào mẫu",
-        teacherNote: "—",
-        deadline: "27/10/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 8,
-        date: "22/10/2025",
-        skill: "Writing",
-        contents: "Writing - Phương pháp viết câu phức, sử dụng mệnh đề quan hệ & liên từ liên kết ý",
-        teacherNote: "—",
-        deadline: "29/10/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 9,
-        date: "27/10/2025",
-        skill: "Speaking",
-        contents: "Speaking Part 2 - Xây dựng cốt truyện (Storytelling) & Phân tích chủ đề miêu tả người",
-        teacherNote: "—",
-        deadline: "03/11/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 10,
-        date: "29/10/2025",
-        skill: "Reading",
-        contents: "Reading - Tiếp cận dạng bài True / False / Not Given & cách phân biệt chính xác",
-        teacherNote: "—",
-        deadline: "05/11/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 11,
-        date: "03/11/2025",
-        skill: "Listening",
-        contents: "Listening - Kỹ năng định vị bản đồ & nhận diện từ chỉ vị trí, phương hướng (Section 2)",
-        teacherNote: "—",
-        deadline: "10/11/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 12,
-        date: "05/11/2025",
-        skill: "Writing",
-        contents: "Writing Task 1 Intro - Tiếp cận và phân tích biểu đồ đường (Line graph) & viết Overview",
-        teacherNote: "—",
-        deadline: "12/11/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 13,
-        date: "10/11/2025",
-        skill: "Speaking",
-        contents: "Speaking Part 2 - Describe a place: Từ vựng miêu tả địa điểm, phong cảnh & trải nghiệm",
-        teacherNote: "—",
-        deadline: "17/11/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 14,
-        date: "12/11/2025",
-        skill: "Reading",
-        contents: "Reading - Tiếp cận dạng bài Matching Headings (Tìm tiêu đề cho đoạn văn)",
-        teacherNote: "—",
-        deadline: "19/11/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 15,
-        date: "17/11/2025",
-        skill: "Listening",
-        contents: "Listening Section 2 - Trắc nghiệm nhiều lựa chọn (Multiple choice) & chiến thuật loại trừ",
-        teacherNote: "—",
-        deadline: "24/11/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-      {
-        no: 16,
-        date: "19/11/2025",
-        skill: "Writing",
-        contents: "Writing Task 2 Intro - Cấu trúc bài luận cơ bản (4 đoạn) & cách phát triển ý chính",
-        teacherNote: "—",
-        deadline: "26/11/2025",
-        homeworkStatus: "not_assigned",
-        attendance: "present",
-      },
-    ];
-  }
-
-  // Default to Speaking & Reading (S-R) 16 sessions template
-  return [
-    {
-      no: 1,
-      date: "02/10/2025",
-      skill: "Speaking",
-      contents: "Introduction to Speaking Part 1 - chiến thuật trả lời chủ đề Work, Hobbies, Travel",
-      teacherNote: "Đã nắm được đủ cấu trúc trả lời Part 1, mở rộng ví linh hoạt được.",
-      deadline: "09/10/2025",
-      homeworkStatus: "submitted",
-      attendance: "present",
-      lessonFileUrl: "https://example.com/tailieu-part1.pdf",
-    },
-    {
-      no: 2,
-      date: "04/10/2025",
-      skill: "Speaking",
-      contents: "Speaking Part 2 - Descriptive language, Describe a person",
-      teacherNote: "Hiểu yêu cầu Part 2, thiếu từ vựng cụ thể, cần luyện thêm chèn story.",
-      deadline: "11/10/2025",
-      homeworkStatus: "submitted",
-      attendance: "present",
-      lessonFileUrl: "https://example.com/bai-tap-describe-person.docx",
-    },
-    {
-      no: 3,
-      date: "09/10/2025",
-      skill: "Reading",
-      contents: "Reading - Matching headings, Sentence endings",
-      teacherNote: "Nắm cách định vị đáp án Completion, làm được từ khóa T/F/NG.",
-      deadline: "16/10/2025",
-      homeworkStatus: "overdue",
-      attendance: "present",
-      lessonFileUrl: "https://example.com/slides-headings.pptx",
-    },
-    {
-      no: 4,
-      date: "11/10/2025",
-      skill: "Speaking",
-      contents: "Speaking Part 2 - Describe an item, phát âm & giọng cuối câu",
-      teacherNote: "Cần chú ý hạ giọng khi phát âm, đã biết ở cuối câu hay cụm từ.",
-      deadline: "18/10/2025",
-      homeworkStatus: "in_progress",
-      attendance: "absent",
-      lessonFileUrl: "https://example.com/bang-diem-danh-phat-am.xlsx",
-    },
-    {
-      no: 5,
-      date: "16/10/2025",
-      skill: "Speaking",
-      contents: "Speaking Part 3 - Chiến thuật câu hỏi, phát triển ý",
-      teacherNote: "Nắm được cách kéo dài để suy nghĩ idea cho Part 3.",
-      deadline: "23/10/2025",
-      homeworkStatus: "submitted",
-      attendance: "present",
-      lessonFileUrl: "https://xalo.edu.vn",
-    },
-    {
-      no: 6,
-      date: "18/10/2025",
-      skill: "Reading",
-      contents: "Reading - Matching features, Matching information",
-      teacherNote: "Hiểu cách đọc dày để áp dụng vào bài Matching headings.",
-      deadline: "25/10/2025",
-      homeworkStatus: "submitted",
-      attendance: "present",
-    },
-    {
-      no: 7,
-      date: "18/10/2025",
-      skill: "Speaking",
-      contents: "Speaking Part 2 - Describe a place, cleft sentence",
-      teacherNote: "Hiểu ứng dụng cleft sentence, cần luyện thêm để thành nhuần nhuyễn.",
-      deadline: "25/10/2025",
-      homeworkStatus: "not_assigned",
-      attendance: "absent",
-    },
-    {
-      no: 8,
-      date: "21/10/2025",
-      skill: "Speaking",
-      contents: "Speaking Part 2 & 3 liên tục, tạo ngữ cơ bản, nguyên âm đôi",
-      teacherNote: "Nắm mẫu câu tạo ngữ căn bản, cần luyện phát âm nguyên âm đôi.",
-      deadline: "28/10/2025",
-      homeworkStatus: "submitted",
-      attendance: "present",
-    },
-    {
-      no: 9,
-      date: "23/10/2025",
-      skill: "Reading",
-      contents: "Reading - Multiple choice (Passage 2)",
-      teacherNote: "Xử lý tốt dạng multiple choice đoạn học thuật.",
-      deadline: "30/10/2025",
-      homeworkStatus: "in_progress",
-      attendance: "present",
-    },
-    {
-      no: 10,
-      date: "25/10/2025",
-      skill: "Speaking",
-      contents: "Speaking Part 1 - Accommodation, Sport, Transportation",
-      teacherNote: "Diễn đạt hẹp hơn, nắm thành phần câu cơ bản.",
-      deadline: "01/11/2025",
-      homeworkStatus: "submitted",
-      attendance: "present",
-    },
-    {
-      no: 11,
-      date: "28/10/2025",
-      skill: "Speaking",
-      contents: "Speaking Part 2 - Story telling, Describe an experience",
-      teacherNote: "Luyện cụm động từ danh từ, đa phần hình thành cụm danh từ cơ bản.",
-      deadline: "04/11/2025",
-      homeworkStatus: "overdue",
-      attendance: "present",
-    },
-    {
-      no: 12,
-      date: "30/10/2025",
-      skill: "Reading",
-      contents: "Reading - Information Identification (T/F/NG, Y/N/NG)",
-      teacherNote: "Nắm cách đọc lấy thông tin và so sánh với câu hỏi.",
-      deadline: "06/11/2025",
-      homeworkStatus: "submitted",
-      attendance: "present",
-    },
-    {
-      no: 13,
-      date: "25/04/2026",
-      skill: "Speaking",
-      contents: "Speaking Part 2 - Describe an event (Chặng 1)",
-      teacherNote: "—",
-      deadline: "02/05/2026",
-      homeworkStatus: "in_progress",
-      attendance: "present",
-    },
-    {
-      no: 14,
-      date: "28/04/2026",
-      skill: "Reading",
-      contents: "Reading - Summary completion, flow-chart",
-      teacherNote: "—",
-      deadline: "05/05/2026",
-      homeworkStatus: "not_assigned",
-      attendance: "absent",
-    },
-    {
-      no: 15,
-      date: "25/05/2026",
-      skill: "Speaking",
-      contents: "Speaking mock round - Full test simulation",
-      teacherNote: "—",
-      deadline: "26/05/2026",
-      homeworkStatus: "not_assigned",
-      attendance: "present",
-    },
-    {
-      no: 16,
-      date: "27/05/2026",
-      skill: "Reading",
-      contents: "Reading intensive - Mixed question types review",
-      teacherNote: "—",
-      deadline: "30/05/2026",
-      homeworkStatus: "not_assigned",
-      attendance: "present",
-    },
-  ];
-};
+function resolveClassRlpSessions(
+  studentRlp: RlpSession[],
+  classStudentsRlp: Record<string, RlpSession[]>,
+  studentId?: string,
+): RlpSession[] {
+  if (studentId && classStudentsRlp[studentId]?.length) return classStudentsRlp[studentId];
+  return studentRlp;
+}
 
 // ─── Class management helpers (copied from ACA monthly classes page) ────────
 function hasRecordedScore(value: unknown): boolean {
@@ -850,6 +365,7 @@ export default function TeacherClassesPage() {
 
   // Drilldown navigation states
   const [selectedClass, setSelectedClass] = useState<AcaClass | null>(null);
+  const [warnings, setWarnings] = useState<AcademicWarningRecord[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<AcaStudent | null>(null);
   const [activeTab, setActiveTab] = useState<"students" | "attendance" | "rlp" | "homework">("students");
   const [attendanceSessionNo, setAttendanceSessionNo] = useState<number>(1);
@@ -920,6 +436,19 @@ export default function TeacherClassesPage() {
   }, []);
 
   useEffect(() => {
+    const loadWrn = () => {
+      void listTeacherAcademicWarnings(getLoggedInTeacherName()).then(setWarnings);
+    };
+    loadWrn();
+    window.addEventListener(ACADEMIC_WARNING_UPDATE_EVENT, loadWrn);
+    window.addEventListener("storage", loadWrn);
+    return () => {
+      window.removeEventListener(ACADEMIC_WARNING_UPDATE_EVENT, loadWrn);
+      window.removeEventListener("storage", loadWrn);
+    };
+  }, []);
+
+  useEffect(() => {
     void loadData();
   }, [loadData]);
 
@@ -934,11 +463,11 @@ export default function TeacherClassesPage() {
       try {
         const apiSessions = await refreshRlpSessions(selectedClass.id);
         if (!cancelled) {
-          setStudentRlp(apiSessions.length > 0 ? apiSessions : getDefaultRlpSessionsForPhase(selectedClass.currentPhase || "S-R"));
+          setStudentRlp(apiSessions);
         }
       } catch {
         if (!cancelled) {
-          setStudentRlp(getDefaultRlpSessionsForPhase(selectedClass.currentPhase || "S-R"));
+          setStudentRlp(getCourseRlpSessions());
         }
       }
     }
@@ -1018,6 +547,21 @@ export default function TeacherClassesPage() {
     return unique;
   }, [students, selectedClass, classes]);
 
+  const classWarnings = useMemo(() => {
+    if (!selectedClass) return [];
+    return warnings.filter((w) => {
+      const matchClass =
+        w.classId === selectedClass.id ||
+        w.className === selectedClass.name ||
+        (selectedClass.classCode && classCodesMatch(w.classId, selectedClass.classCode));
+      const matchTeacher =
+        !w.teacherName ||
+        !activeTeacherDisplay ||
+        teacherNameMatches(w.teacherName, activeTeacherDisplay);
+      return matchClass && matchTeacher;
+    });
+  }, [warnings, selectedClass, activeTeacherDisplay]);
+
   // Overlay per-student attendance onto class-level RLP sessions
   const classStudentsRlp = useMemo(() => {
     const map: Record<string, RlpSession[]> = {};
@@ -1025,6 +569,8 @@ export default function TeacherClassesPage() {
       map[st.id] = studentRlp.map((s) => ({
         ...s,
         attendance: s.studentAttendance?.[st.id] ?? s.attendance,
+        homeworkStatus: s.studentHomework?.[st.id]
+          ?? (s.homeworkStatus && s.homeworkStatus !== "not_assigned" ? "in_progress" : "not_assigned"),
       }));
     }
     return map;
@@ -1082,13 +628,19 @@ export default function TeacherClassesPage() {
 
   // Attendance summary metrics
   const attendanceMetrics = useMemo(() => {
-    const activeSessions = studentRlp.slice(0, 16);
-    if (activeSessions.length === 0) return { present: 0, absent: 0, rate: 0, total: 0 };
-    const present = activeSessions.filter((s) => s.attendance === "present").length;
-    const absent = activeSessions.filter((s) => s.attendance === "absent").length;
-    const rate = Math.round((present / activeSessions.length) * 100);
-    return { present, absent, rate, total: activeSessions.length };
-  }, [studentRlp]);
+    const studentId = selectedStudent?.id;
+    const markOf = (s: (typeof studentRlp)[number]) =>
+      studentId ? s.studentAttendance?.[studentId] : undefined;
+    const marked = studentRlp.filter((s) => {
+      const m = markOf(s);
+      return m === "present" || m === "absent";
+    });
+    if (marked.length === 0) return { present: 0, absent: 0, rate: 0, total: 0 };
+    const present = marked.filter((s) => markOf(s) === "present").length;
+    const absent = marked.filter((s) => markOf(s) === "absent").length;
+    const rate = Math.round((present / marked.length) * 100);
+    return { present, absent, rate, total: marked.length };
+  }, [studentRlp, selectedStudent?.id]);
 
   // Get all cycles for the selected student
   const studentCycles = useMemo(() => {
@@ -1153,8 +705,17 @@ export default function TeacherClassesPage() {
   // Handle open RLP edit modal
   const handleOpenEdit = (session: RlpSession) => {
     setActiveSessionNo(session.no);
-    setEditStatus(session.homeworkStatus);
-    setEditAttendance(session.attendance);
+    setEditStatus(
+      selectedStudent
+        ? (session.studentHomework?.[selectedStudent.id]
+          ?? (session.homeworkStatus && session.homeworkStatus !== "not_assigned" ? "in_progress" : "not_assigned"))
+        : session.homeworkStatus,
+    );
+    setEditAttendance(
+      selectedStudent
+        ? (session.studentAttendance?.[selectedStudent.id] ?? session.attendance)
+        : session.attendance,
+    );
     setEditLessonFile(session.lessonFileUrl || "");
     setEditHomeworkFile(session.homeworkFileUrl || "");
     setEditTeacherNote(session.teacherNote === "—" ? "" : session.teacherNote);
@@ -1169,8 +730,14 @@ export default function TeacherClassesPage() {
         if (s.no !== activeSessionNo) return s;
         return {
           ...s,
-          homeworkStatus: editStatus,
-          attendance: editAttendance,
+          homeworkStatus: selectedStudent ? s.homeworkStatus : editStatus,
+          studentHomework: selectedStudent
+            ? { ...(s.studentHomework ?? {}), [selectedStudent.id]: editStatus }
+            : s.studentHomework,
+          attendance: selectedStudent ? s.attendance : editAttendance,
+          studentAttendance: selectedStudent
+            ? { ...(s.studentAttendance ?? {}), [selectedStudent.id]: editAttendance }
+            : s.studentAttendance,
           lessonFileUrl: editLessonFile.trim(),
           homeworkFileUrl: editHomeworkFile.trim(),
           teacherNote: editTeacherNote.trim() || "—",
@@ -1178,8 +745,15 @@ export default function TeacherClassesPage() {
       });
 
       await saveClassRlp(updated, activeSessionNo, {
-        homeworkStatus: editStatus,
-        attendance: editAttendance,
+        ...(selectedStudent
+          ? {
+              studentHomework: { [selectedStudent.id]: editStatus },
+              studentAttendance: { [selectedStudent.id]: editAttendance },
+            }
+          : {
+              homeworkStatus: editStatus,
+              attendance: editAttendance,
+            }),
         lessonFileUrl: editLessonFile.trim(),
         homeworkFileUrl: editHomeworkFile.trim(),
         teacherNote: editTeacherNote.trim() || "—",
@@ -1212,6 +786,10 @@ export default function TeacherClassesPage() {
           homeworkFileUrl: homeworkFileDraft.trim(),
           deadline: homeworkDeadlineDraft.trim() || homeworkEditSession.deadline,
           teacherNote: homeworkNoteDraft.trim() || "—",
+          homeworkStatus:
+            homeworkEditSession.homeworkStatus === "not_assigned"
+              ? "in_progress"
+              : homeworkEditSession.homeworkStatus,
         },
         selectedClass.id,
       );
@@ -1414,6 +992,15 @@ export default function TeacherClassesPage() {
 
             {/* TAB CONTENT: Student list */}
             {activeTab === "students" && (
+              <div className="space-y-4">
+                <AcademicWarningEmbeddedTable
+                  warnings={classWarnings}
+                  showTeacher={false}
+                  onChanged={() => {
+                    void listTeacherAcademicWarnings(getLoggedInTeacherName()).then(setWarnings);
+                  }}
+                  emptyHint="Lớp này chưa có học viên đạt ngưỡng cảnh báo."
+                />
               <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
                 <div className="p-5 border-b border-zinc-100">
                   <h4 className="text-xs font-black uppercase tracking-wider text-zinc-500">Danh sách học viên lớp</h4>
@@ -1453,6 +1040,7 @@ export default function TeacherClassesPage() {
                   </div>
                 )}
               </div>
+              </div>
             )}
 
             {/* TAB CONTENT: Class attendance for selected session/date */}
@@ -1467,8 +1055,7 @@ export default function TeacherClassesPage() {
 
                   {/* Session Selector & Bulk buttons */}
                   {(() => {
-                    const phase = selectedClass?.currentPhase || "S-R";
-                    const sessionsList = getDefaultRlpSessionsForPhase(phase);
+                    const sessionsList = studentRlp;
                     const currentSession = sessionsList.find((s) => s.no === attendanceSessionNo) || sessionsList[0];
 
                     return (
@@ -1517,8 +1104,7 @@ export default function TeacherClassesPage() {
                 ) : (
                   <div className="overflow-x-auto">
                     {(() => {
-                      const phase = selectedClass?.currentPhase || "S-R";
-                      const sessionsList = getDefaultRlpSessionsForPhase(phase);
+                      const sessionsList = studentRlp;
                       const currentSession = sessionsList.find((s) => s.no === attendanceSessionNo) || sessionsList[0];
 
                       return (
@@ -1534,7 +1120,7 @@ export default function TeacherClassesPage() {
                           </thead>
                           <tbody className="divide-y divide-zinc-100 font-semibold text-zinc-700">
                             {classStudents.map((st) => {
-                              const rlpList = classStudentsRlp[st.id] || DEFAULT_COURSE_RLP_SESSIONS;
+                              const rlpList = resolveClassRlpSessions(studentRlp, classStudentsRlp, st.id);
                               const presentCount = rlpList.filter((s) => s.no <= 16 && s.attendance === "present").length;
                               const session = rlpList.find((s) => s.no === attendanceSessionNo);
                               const isPresent = session ? session.attendance === "present" : true;
@@ -1611,12 +1197,11 @@ export default function TeacherClassesPage() {
                     <tbody className="divide-y divide-zinc-100 font-semibold text-zinc-700">
                       {(() => {
                         const firstStudent = classStudents[0];
-                        const defaultSessions = getDefaultRlpSessionsForPhase(selectedClass?.currentPhase || "S-R");
                         const rlpSessions = firstStudent
-                          ? (classStudentsRlp[firstStudent.id] || defaultSessions)
-                          : defaultSessions;
+                          ? resolveClassRlpSessions(studentRlp, classStudentsRlp, firstStudent.id)
+                          : studentRlp;
 
-                        return rlpSessions.slice(0, 20).map((row) => (
+                        return rlpSessions.slice(0, 16).map((row) => (
                           <tr key={row.no} className="hover:bg-zinc-50/50 transition-colors">
                             <td className="px-6 py-4 tabular-nums text-zinc-950 font-bold">Buổi {row.no}</td>
                             <td className="px-6 py-4">
@@ -1733,12 +1318,11 @@ export default function TeacherClassesPage() {
                     <tbody className="divide-y divide-zinc-100 font-semibold text-zinc-700">
                       {(() => {
                         const firstStudent = classStudents[0];
-                        const defaultSessions = getDefaultRlpSessionsForPhase(selectedClass?.currentPhase || "S-R");
                         const rlpSessions = firstStudent
-                          ? (classStudentsRlp[firstStudent.id] || defaultSessions)
-                          : defaultSessions;
+                          ? resolveClassRlpSessions(studentRlp, classStudentsRlp, firstStudent.id)
+                          : studentRlp;
 
-                        return rlpSessions.slice(0, 20).map((row) => (
+                        return rlpSessions.slice(0, 16).map((row) => (
                           <tr key={row.no} className="hover:bg-zinc-50/50 transition-colors">
                             <td className="px-6 py-4 tabular-nums text-zinc-950 font-bold">Buổi {row.no}</td>
                             <td className="px-6 py-4">
@@ -1835,15 +1419,19 @@ export default function TeacherClassesPage() {
                   </div>
                   <div>
                     <div className="text-[9px] text-zinc-400 font-bold uppercase">Số buổi đã học</div>
-                    <div className="text-zinc-800 mt-0.5">{attendanceMetrics.present}/16 buổi</div>
+                    <div className="text-zinc-800 mt-0.5">{attendanceMetrics.present}/{attendanceMetrics.total || 0} buổi (vắng {attendanceMetrics.absent})</div>
                   </div>
                   <div>
                     <div className="text-[9px] text-zinc-400 font-bold uppercase">Hoàn thành bài tập</div>
                     <div className="text-zinc-800 mt-0.5">
                       {(() => {
-                        const activeSessions = studentRlp.filter(s => s.no <= 16);
-                        const assigned = activeSessions.filter(s => s.homeworkStatus !== "not_assigned").length;
-                        const submitted = activeSessions.filter(s => s.homeworkStatus === "submitted" || s.homeworkStatus === "submitted_waiting").length;
+                        const studentId = selectedStudent.id;
+                        const activeSessions = studentRlp.filter(s => s.no <= 16 && s.homeworkStatus !== "not_assigned");
+                        const assigned = activeSessions.length;
+                        const submitted = activeSessions.filter((s) => {
+                          const hw = s.studentHomework?.[studentId];
+                          return hw === "submitted" || hw === "submitted_waiting";
+                        }).length;
                         const pct = assigned > 0 ? Math.round((submitted / assigned) * 100) : 0;
                         return `${pct}% (${submitted}/${assigned} bài)`;
                       })()}
@@ -1875,7 +1463,9 @@ export default function TeacherClassesPage() {
 
                     const unsubmittedThisWeek = studentRlp.filter((s) => {
                       if (s.no > 16) return false;
-                      if (s.homeworkStatus === "submitted" || s.homeworkStatus === "not_assigned") return false;
+                      if (s.homeworkStatus === "not_assigned") return false;
+                      const hw = s.studentHomework?.[selectedStudent.id];
+                      if (hw === "submitted" || hw === "submitted_waiting") return false;
                       const p = parseDDMMYYYY(s.date);
                       if (!p) return false;
                       return p >= monday && p <= sunday;
@@ -2016,20 +1606,25 @@ export default function TeacherClassesPage() {
               </div>
               
               <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-12 gap-2">
-                {studentRlp.slice(0, 16).map((s) => (
+                {studentRlp.slice(0, 16).map((s) => {
+                  const att = selectedStudent
+                    ? (s.studentAttendance?.[selectedStudent.id] ?? s.attendance)
+                    : s.attendance;
+                  return (
                   <div
                     key={s.no}
                     className={`rounded-lg p-2 text-center border text-xs font-bold transition-all ${
-                      s.attendance === "present"
+                      att === "present"
                         ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                         : "bg-rose-50 text-rose-700 border-rose-200"
                     }`}
-                    title={`Buổi ${s.no}: ${s.attendance === "present" ? "Đi học" : "Vắng học"}`}
+                    title={`Buổi ${s.no}: ${att === "present" ? "Đi học" : "Vắng học"}`}
                   >
                     <div>B{s.no}</div>
                     <div className="text-[8px] opacity-75 mt-0.5">{s.date.slice(0, 5)}</div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

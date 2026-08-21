@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { getCourseMetadata, COURSE_METADATA_UPDATE_EVENT } from "@/lib/courseMetadata";
 import {
-  DEFAULT_INSTRUCTOR_PROFILES,
+  emptyInstructorProfileExtra,
   getInstructorProfileExtras,
   INSTRUCTOR_PROFILES_UPDATE_EVENT,
   saveInstructorProfileExtra,
+  syncInstructorProfilesFromBackend,
   type InstructorProfileExtra,
 } from "@/lib/instructorProfileStore";
 
@@ -18,25 +19,17 @@ export function InstructorProfileEditorSection({ portalLabel }: { portalLabel: s
   const [form, setForm] = useState<InstructorProfileExtra>(
     () =>
       getInstructorProfileExtras()[getCourseMetadata().instructor] ??
-      DEFAULT_INSTRUCTOR_PROFILES["Nghiêm Doãn Quỳnh Châu"],
+      emptyInstructorProfileExtra(),
   );
   const [saved, setSaved] = useState(false);
 
   const loadForName = useCallback((name: string) => {
     const extras = getInstructorProfileExtras();
-    setForm(
-      extras[name] ??
-        DEFAULT_INSTRUCTOR_PROFILES[name] ?? {
-          ieltsBand: "—",
-          specialties: ["IELTS"],
-          experience: "—",
-          certifications: [],
-          bio: "",
-        },
-    );
+    setForm(extras[name] ?? emptyInstructorProfileExtra());
   }, []);
 
   useEffect(() => {
+    void syncInstructorProfilesFromBackend();
     const sync = () => {
       const name = getCourseMetadata().instructor;
       setInstructorName(name);

@@ -35,6 +35,9 @@ export type WritingSubmission = {
   task2?: string;
   note?: string;
   assignedGrader?: string;
+  source?: string;
+  entranceBookingId?: string;
+  finalTestId?: string;
 };
 
 export const WRITING_SUBMISSIONS_KEY = "xalo.student.writingSubmissions.v1";
@@ -201,6 +204,8 @@ export function createWritingSubmission(input: {
     testDateTime: input.testDateTime ?? now.toISOString(),
     submittedAt: now.toISOString(),
     status: "pending",
+    type: "Support",
+    source: "support",
     assignedGrader: assigned,
   };
 }
@@ -225,10 +230,15 @@ export async function refreshWritingSubmissionsForTeacher(
 ): Promise<WritingSubmission[]> {
   const filterStatus = status ?? "all";
   if (canUseWritingSubmissionApi()) {
-    const rows = await fetchWritingSubmissionsForTeacher(filterStatus === "all" ? undefined : filterStatus);
-    const deduped = deduplicateWritingSubmissions(rows);
-    saveCache(deduped);
-    return deduped;
+    try {
+      const rows = await fetchWritingSubmissionsForTeacher(filterStatus === "all" ? undefined : filterStatus);
+      const deduped = deduplicateWritingSubmissions(rows);
+      saveCache(deduped);
+      return deduped;
+    } catch (err) {
+      console.warn("Could not refresh teacher writing submissions from API", err);
+      return deduplicateWritingSubmissions(submissionsCache);
+    }
   }
   const local = loadLocal();
   const filtered =
@@ -250,6 +260,7 @@ export async function submitWritingSubmission(input: {
     const remote = await createWritingSubmissionApi({
       examLink: input.examLink,
       testDateTime: input.testDateTime,
+      type: "Support",
     });
     try {
       const fresh = await fetchWritingSubmissionsForStudent();

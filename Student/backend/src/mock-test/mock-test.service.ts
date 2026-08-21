@@ -7,7 +7,16 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { UsersService } from '../users/users.service';
+import {
+  EntranceTestBooking,
+  type EntranceTestBookingDocument,
+} from '../aca/schemas/entrance-test-booking.schema';
+import {
+  FinalTest,
+  type FinalTestDocument,
+} from '../aca/schemas/final-test.schema';
 import { CreateMockTestDto } from './dto/create-mock-test.dto';
+import { CreateStaffMockTestDto } from './dto/create-staff-mock-test.dto';
 import { RecordMockTestResultDto } from './dto/record-mock-test-result.dto';
 import { ReviewMockTestDto } from './dto/review-mock-test.dto';
 import { isMockTestStatus, type MockTestStatus } from './mock-test.constants';
@@ -31,6 +40,12 @@ export type MockTestRequestPublic = {
   reviewedAt?: string;
   score?: string;
   examLink?: string;
+  note?: string;
+  guestPhone?: string;
+  leadId?: string;
+  source?: string;
+  entranceBookingId?: string;
+  finalTestId?: string;
 };
 
 type MockTestLean = MockTestRequest & {
@@ -44,6 +59,10 @@ export class MockTestService {
   constructor(
     @InjectModel(MockTestRequest.name)
     private readonly model: Model<MockTestRequestDocument>,
+    @InjectModel(EntranceTestBooking.name)
+    private readonly entranceBookingModel: Model<EntranceTestBookingDocument>,
+    @InjectModel(FinalTest.name)
+    private readonly finalTestModel: Model<FinalTestDocument>,
     private readonly users: UsersService,
   ) {}
 
@@ -66,6 +85,12 @@ export class MockTestService {
       reviewedAt,
       score: doc.score,
       examLink: doc.examLink,
+      note: doc.note,
+      guestPhone: doc.guestPhone,
+      leadId: doc.leadId,
+      source: doc.source,
+      entranceBookingId: doc.entranceBookingId,
+      finalTestId: doc.finalTestId,
     };
   }
 
@@ -110,7 +135,10 @@ export class MockTestService {
   async listForStudent(studentId: string): Promise<MockTestRequestPublic[]> {
     if (!Types.ObjectId.isValid(studentId)) return [];
     const rows = await this.model
-      .find({ studentId: new Types.ObjectId(studentId) })
+      .find({
+        studentId: new Types.ObjectId(studentId),
+        source: { $nin: ['entrance', 'final'] },
+      })
       .sort({ createdAt: -1 })
       .lean()
       .exec();
@@ -180,9 +208,75 @@ export class MockTestService {
       status: payload.status?.trim() || 'pending',
       examTime: payload.examTime?.trim() || undefined,
       examTeacher: payload.examTeacher?.trim() || undefined,
+      source: 'support',
     });
 
     return this.toPublic(created.toObject() as MockTestLean);
+  }
+
+  async createForStaff(payload: CreateStaffMockTestDto): Promise<MockTestRequestPublic> {
+    const skill = payload.skill?.trim();
+    if (!skill) throw new BadRequestException('Thiếu kỹ năng (skill)');
+    const studentName = payload.studentName?.trim();
+    if (!studentName) throw new BadRequestException('Thiếu tên thí sinh');
+
+    const day = Number(payload.day);
+    const month = Number(payload.month);
+    const year = Number(payload.year);
+    if (
+      !Number.isInteger(day) ||
+      day < 1 ||
+      day > 31 ||
+      !Number.isInteger(month) ||
+      month < 0 ||
+      month > 11 ||
+      !Number.isInteger(year)
+    ) {
+      throw new BadRequestException('Ngày tháng không hợp lệ');
+    }
+
+    const studentId =
+      payload.studentId && Types.ObjectId.isValid(payload.studentId)
+        ? new Types.ObjectId(payload.studentId)
+        : new Types.ObjectId();
+
+    const rawStatus = payload.status?.trim() ?? '';
+    const status: MockTestStatus = isMockTestStatus(rawStatus) ? rawStatus : 'approved';
+    const created = await this.model.create({
+      studentId,
+      studentName,
+      skill,
+      day,
+      month,
+      year,
+      status,
+      examTime: payload.examTime?.trim() || undefined,
+      examTeacher: payload.examTeacher?.trim() || undefined,
+      examLink: payload.examLink?.trim() || undefined,
+      note: payload.note?.trim() || undefined,
+      guestPhone: payload.guestPhone?.trim() || undefined,
+      leadId: payload.leadId?.trim() || undefined,
+      source: payload.source?.trim() || 'staff',
+      entranceBookingId: payload.entranceBookingId?.trim() || undefined,
+      finalTestId: payload.finalTestId?.trim() || undefined,
+    });
+    return this.toPublic(created.toObject() as MockTestLean);
+  }
+
+  async cancelByStaff(id: string): Promise<MockTestRequestPublic> {
+    const doc = await this.findByIdOrThrow(id);
+    if (doc.score) {
+      throw new BadRequestException('Không thể huỷ ca đã có điểm');
+    }
+    const updated = await this.model
+      .findByIdAndUpdate(
+        doc._id,
+        { $set: { status: 'rejected' } },
+        { returnDocument: 'after' },
+      )
+      .lean()
+      .exec();
+    return this.toPublic(updated as MockTestLean);
   }
 
   async cancelPending(studentId: string, id: string): Promise<void> {
@@ -226,10 +320,11 @@ export class MockTestService {
   async listForTeacher(teacherName: string): Promise<MockTestRequestPublic[]> {
     const teacher = teacherName.trim();
     if (!teacher) return [];
+    const escaped = teacher.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const rows = await this.model
       .find({
         status: 'approved',
-        examTeacher: teacher,
+        examTeacher: { $regex: `^${escaped}$`, $options: 'i' },
       })
       .sort({ year: 1, month: 1, day: 1, createdAt: -1 })
       .lean()
@@ -273,7 +368,51 @@ export class MockTestService {
       )
       .lean()
       .exec();
-    return this.toPublic(updated as MockTestLean);
+    const publicRow = this.toPublic(updated as MockTestLean);
+    await this.syncEntranceBookingResult(publicRow);
+    await this.syncFinalTestSpeakingResult(publicRow);
+    return publicRow;
+  }
+
+  private async syncEntranceBookingResult(row: MockTestRequestPublic): Promise<void> {
+    const bookingId = row.entranceBookingId;
+    if (!bookingId || !Types.ObjectId.isValid(bookingId)) return;
+    const skill = (row.skill || '').toLowerCase();
+    const patch: Record<string, unknown> = {
+      status: 'graded',
+      feedback: row.note ?? '',
+    };
+    if (skill.includes('writing')) {
+      patch.scoreWriting = row.score ?? '';
+    } else {
+      patch.scoreSpeaking = row.score ?? '';
+    }
+    if (row.examLink) patch.examLink = row.examLink;
+    await this.entranceBookingModel
+      .findByIdAndUpdate(bookingId, { $set: patch })
+      .exec();
+  }
+
+  private async syncFinalTestSpeakingResult(row: MockTestRequestPublic): Promise<void> {
+    const finalId = row.finalTestId;
+    if (!finalId || !Types.ObjectId.isValid(finalId)) return;
+    const existing = await this.finalTestModel.findById(finalId).lean().exec();
+    if (!existing) return;
+    const testType = String((existing as { testType?: string }).testType || '');
+    const hasWriting = Boolean((existing as { scoreWriting?: string }).scoreWriting);
+    const status =
+      testType === 'full_4_skills' && !hasWriting ? 'in_progress' : 'graded';
+    const patch: Record<string, unknown> = {
+      scoreSpeaking: row.score ?? '',
+      status,
+      hasTakenTest: true,
+      isChecked: false,
+      isDone: false,
+      releasedAt: '',
+      releasedBy: '',
+    };
+    if (row.examLink) patch.examLink = row.examLink;
+    await this.finalTestModel.findByIdAndUpdate(finalId, { $set: patch }).exec();
   }
 
   async reject(id: string): Promise<MockTestRequestPublic> {

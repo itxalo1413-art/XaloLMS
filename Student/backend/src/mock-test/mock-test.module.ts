@@ -2,6 +2,14 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthGuardsModule } from '../auth/auth-guards.module';
 import { UsersModule } from '../users/users.module';
+import {
+  EntranceTestBooking,
+  EntranceTestBookingSchema,
+} from '../aca/schemas/entrance-test-booking.schema';
+import {
+  FinalTest,
+  FinalTestSchema,
+} from '../aca/schemas/final-test.schema';
 import { AcaMockTestController } from './aca-mock-test.controller';
 import { MockTestService } from './mock-test.service';
 import {
@@ -15,6 +23,8 @@ import { TeacherMockTestController } from './teacher-mock-test.controller';
   imports: [
     MongooseModule.forFeature([
       { name: MockTestRequest.name, schema: MockTestRequestSchema },
+      { name: EntranceTestBooking.name, schema: EntranceTestBookingSchema },
+      { name: FinalTest.name, schema: FinalTestSchema },
     ]),
     AuthGuardsModule,
     UsersModule,

@@ -46,6 +46,7 @@ export function BcbQuestionTypeTable({ rows, showWeakCta = false }: Props) {
             <thead>
               <tr className="border-b border-primary/10 bg-background text-[10px] font-black uppercase tracking-widest text-muted">
                 <th className="px-4 py-3">Dạng bài</th>
+                <th className="px-4 py-3 text-center">Đúng / Tổng</th>
                 <th className="px-4 py-3 text-center">Tỷ lệ sai</th>
                 <th className="px-4 py-3">Chẩn đoán</th>
               </tr>
@@ -67,6 +68,9 @@ export function BcbQuestionTypeTable({ rows, showWeakCta = false }: Props) {
                       >
                         {row.title}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-center text-xs tabular-nums font-bold text-zinc-700">
+                      {row.total && row.total > 0 ? `${row.correct ?? 0} / ${row.total}` : "—"}
                     </td>
                     <td className={`px-4 py-3 text-center text-sm tabular-nums ${errorRateTone(row.errorRate)}`}>
                       {row.errorRate}%

@@ -262,6 +262,16 @@ export class AcaManagementController {
     return this.service.createGuestLead(body ?? {});
   }
 
+  @Get('guest-diagnosis-leads/:id')
+  async getGuestLead(@Param('id') id: string) {
+    return this.service.getGuestLead(id);
+  }
+
+  @Put('guest-diagnosis-leads/:id/diagnosis')
+  async saveGuestLeadDiagnosis(@Param('id') id: string, @Body() body: any) {
+    return this.service.saveGuestLeadDiagnosis(id, body ?? {});
+  }
+
   @Put('guest-diagnosis-leads/:id')
   async updateGuestLead(@Param('id') id: string, @Body() body: any) {
     return this.service.updateGuestLead(id, body ?? {});
@@ -297,6 +307,47 @@ export class AcaManagementController {
   @Delete('entrance-bookings/:id')
   async deleteEntranceBooking(@Param('id') id: string) {
     return this.service.deleteEntranceBooking(id);
+  }
+
+  // --- Final Tests ---
+  @Get('final-tests')
+  async listFinalTests() {
+    return this.service.listFinalTests();
+  }
+
+  @Post('final-tests')
+  async createFinalTest(@Body() body: any) {
+    return this.service.createFinalTest(body ?? {});
+  }
+
+  @Put('final-tests/:id')
+  async updateFinalTest(@Param('id') id: string, @Body() body: any) {
+    return this.service.updateFinalTest(id, body ?? {});
+  }
+
+  @Put('final-tests/:id/bcb')
+  async saveFinalTestBcb(@Param('id') id: string, @Body() body: any) {
+    return this.service.updateFinalTest(id, {
+      bcbData: body?.bcbData ?? body ?? {},
+      status: body?.status ?? 'graded',
+    });
+  }
+
+  @Put('final-tests/:id/confirm')
+  async confirmFinalTest(@Param('id') id: string, @Body() body: any) {
+    const confirmed = body?.confirmed !== false && body?.isChecked !== false;
+    const releasedBy = typeof body?.releasedBy === 'string' ? body.releasedBy : '';
+    return this.service.confirmFinalTest(id, confirmed, releasedBy);
+  }
+
+  @Put('final-tests/:id/cancel')
+  async cancelFinalTest(@Param('id') id: string) {
+    return this.service.cancelFinalTest(id);
+  }
+
+  @Delete('final-tests/:id')
+  async deleteFinalTest(@Param('id') id: string) {
+    return this.service.deleteFinalTest(id);
   }
 
   // --- KV Store ---

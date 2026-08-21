@@ -50,9 +50,14 @@ export function useStudentSchedule() {
   const [rlpVersion, setRlpVersion] = useState(0);
 
   const syncRequests = useCallback(() => {
-    void refreshMockTestRequestsForStudent(student.id).then((rows) => {
-      setRequests(rows);
-    });
+    void refreshMockTestRequestsForStudent(student.id)
+      .then((rows) => {
+        setRequests(rows);
+      })
+      .catch((err) => {
+        console.warn("Could not sync mock test requests", err);
+        setRequests(loadMockTestRequests());
+      });
   }, [student.id]);
 
   const syncPracticeSlots = useCallback(() => {
@@ -63,7 +68,11 @@ export function useStudentSchedule() {
   }, [student.id]);
 
   const syncRlp = useCallback(() => {
-    void refreshRlpSessions().finally(() => setRlpVersion((v) => v + 1));
+    void refreshRlpSessions()
+      .catch((err) => {
+        console.warn("Could not sync RLP sessions", err);
+      })
+      .finally(() => setRlpVersion((v) => v + 1));
   }, []);
 
   useEffect(() => {

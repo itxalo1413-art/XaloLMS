@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Schema as MongooseSchema } from 'mongoose';
 
 export type GuestDiagnosisLeadStatus = 'new' | 'contacted' | 'converted' | 'closed';
 export type GuestDiagnosisLeadDocument = HydratedDocument<GuestDiagnosisLead>;
@@ -33,6 +33,9 @@ export class GuestDiagnosisLead {
 
   @Prop({ trim: true, default: '' })
   assignedClassName: string;
+
+  @Prop({ type: MongooseSchema.Types.Mixed, default: null })
+  diagnosis: Record<string, unknown> | null;
 }
 
 export const GuestDiagnosisLeadSchema =

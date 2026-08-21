@@ -5,6 +5,7 @@ import {
   fetchGuestDiagnosisLeadsApi,
   updateGuestDiagnosisLeadApi,
 } from "@/lib/acaManagementApi";
+import { getAuthToken } from "@/lib/auth";
 
 export type GuestDiagnosisLeadStatus = "new" | "contacted" | "converted" | "closed";
 
@@ -18,6 +19,7 @@ export type GuestDiagnosisLead = {
   note: string;
   assignedClassId?: string;
   assignedClassName?: string;
+  hasDiagnosis?: boolean;
 };
 
 const STORAGE_KEY = "xalo.guestDiagnosis.leads.v1";
@@ -59,9 +61,10 @@ export async function listGuestDiagnosisLeads(): Promise<GuestDiagnosisLead[]> {
       const rows = await fetchGuestDiagnosisLeadsApi();
       if (rows) return rows as GuestDiagnosisLead[];
     } catch {
-      // fallthrough to local
+      if (getAuthToken()) return [];
     }
   }
+  if (getAuthToken()) return [];
   const rows = loadLocal();
   return [...rows].sort(
     (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
@@ -77,6 +80,9 @@ export async function submitGuestDiagnosisLead(input: {
     const row = await createGuestDiagnosisLeadApi(input);
     dispatchUpdate();
     return row as GuestDiagnosisLead;
+  }
+  if (getAuthToken()) {
+    throw new Error("Không thể tạo lead khi backend chưa sẵn sàng.");
   }
   const row: GuestDiagnosisLead = {
     id: `lead-${Date.now()}`,
@@ -100,6 +106,9 @@ export async function updateGuestDiagnosisLead(
     dispatchUpdate();
     return updated as GuestDiagnosisLead;
   }
+  if (getAuthToken()) {
+    throw new Error("Không thể cập nhật lead khi backend chưa sẵn sàng.");
+  }
   let updated: GuestDiagnosisLead | null = null;
   const next = loadLocal().map((row) => {
     if (row.id !== id) return row;
@@ -122,6 +131,9 @@ export async function deleteGuestDiagnosisLead(id: string): Promise<void> {
     await deleteGuestDiagnosisLeadApi(id);
     dispatchUpdate();
     return;
+  }
+  if (getAuthToken()) {
+    throw new Error("Không thể xóa lead khi backend chưa sẵn sàng.");
   }
   saveLocal(loadLocal().filter((r) => r.id !== id));
 }

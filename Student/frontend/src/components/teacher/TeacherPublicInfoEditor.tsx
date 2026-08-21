@@ -6,6 +6,9 @@ import { getPortalProfile } from "@/lib/portalProfile";
 import {
   getInstructorProfileExtra,
   saveInstructorProfileExtra,
+  emptyInstructorProfileExtra,
+  syncInstructorProfilesFromBackend,
+  INSTRUCTOR_PROFILES_UPDATE_EVENT,
   type InstructorProfileExtra,
 } from "@/lib/instructorProfileStore";
 import { resolveInstructorPublicProfile } from "@/lib/courseInstructorProfile";
@@ -26,15 +29,7 @@ export function TeacherPublicInfoEditor() {
   const teacherName = getLoggedInTeacherName() || portalGv.name || "";
 
   const [form, setForm] = useState<InstructorProfileExtra>(() => {
-    return (
-      getInstructorProfileExtra(teacherName) ?? {
-        ieltsBand: "8.0",
-        specialties: ["Listening", "Reading", "Writing", "Speaking"],
-        experience: "5+ năm kinh nghiệm giảng dạy IELTS",
-        certifications: ["CELTA", "TESOL"],
-        bio: "Chuyên đồng hành cùng học viên từ 5.5-6.5 lên 7.0+, tập trung chẩn đoán lỗi theo BCB.",
-      }
-    );
+    return getInstructorProfileExtra(teacherName) ?? emptyInstructorProfileExtra();
   });
 
   const [certInput, setCertInput] = useState(() => (form.certifications || []).join(", "));
@@ -42,11 +37,22 @@ export function TeacherPublicInfoEditor() {
   const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
-    const existing = getInstructorProfileExtra(teacherName);
-    if (existing) {
-      setForm(existing);
-      setCertInput((existing.certifications || []).join(", "));
-    }
+    void syncInstructorProfilesFromBackend().then(() => {
+      const existing = getInstructorProfileExtra(teacherName);
+      if (existing) {
+        setForm(existing);
+        setCertInput((existing.certifications || []).join(", "));
+      }
+    });
+    const onUpdate = () => {
+      const existing = getInstructorProfileExtra(teacherName);
+      if (existing) {
+        setForm(existing);
+        setCertInput((existing.certifications || []).join(", "));
+      }
+    };
+    window.addEventListener(INSTRUCTOR_PROFILES_UPDATE_EVENT, onUpdate);
+    return () => window.removeEventListener(INSTRUCTOR_PROFILES_UPDATE_EVENT, onUpdate);
   }, [teacherName]);
 
   const handleToggleSkill = (skill: string) => {

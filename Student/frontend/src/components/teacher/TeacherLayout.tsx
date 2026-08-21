@@ -1,16 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { TeacherSidebar } from "./TeacherSidebar";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { clearAuthToken, isAuthDisabled } from "@/lib/auth";
+import { syncGraderMeetLinksFromBackend } from "@/lib/graderMeetLinks";
+import { syncInstructorProfilesFromBackend } from "@/lib/instructorProfileStore";
 
 export function TeacherLayout({ children }: { children: ReactNode }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+
+  useEffect(() => {
+    void syncGraderMeetLinksFromBackend();
+    void syncInstructorProfilesFromBackend();
+  }, []);
 
   const handleLogout = () => {
     if (isAuthDisabled()) {

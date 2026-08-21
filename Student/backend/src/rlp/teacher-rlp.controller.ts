@@ -16,7 +16,7 @@ import { RlpService } from './rlp.service';
 
 @Controller('teacher/rlp-sessions')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('GV')
+@Roles('GV', 'ACA')
 export class TeacherRlpController {
   constructor(private readonly rlp: RlpService) {}
 

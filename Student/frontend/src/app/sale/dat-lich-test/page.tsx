@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   cancelEntranceTestBooking,
   ENTRANCE_BOOKINGS_UPDATE_EVENT,
@@ -13,7 +13,11 @@ import {
   type EntranceTestType,
 } from "@/lib/entranceTestBookings";
 import { EntranceBookingModal } from "@/components/sale/EntranceBookingModal";
-import { MOCK_TEST_TEACHER_OPTIONS } from "@/lib/mockTestTeacherNames";
+import {
+  getMockTestTeacherOptions,
+  MOCK_TEST_TEACHER_OPTIONS_EVENT,
+  syncMockTestTeacherOptions,
+} from "@/lib/mockTestTeacherNames";
 
 function formatDateDisplay(isoDate: string, time: string) {
   try {
@@ -26,16 +30,17 @@ function formatDateDisplay(isoDate: string, time: string) {
 
 function statusBadge(status: EntranceTestStatus) {
   return {
-    scheduled: "bg-sky-500/15 text-sky-300 border-sky-500/30",
-    in_progress: "bg-amber-500/15 text-amber-300 border-amber-500/30",
-    graded: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
-    cancelled: "bg-slate-600/40 text-slate-400 border-slate-600/40",
+    scheduled: "bg-sky-50 text-sky-700 border-sky-200",
+    in_progress: "bg-amber-50 text-amber-700 border-amber-200",
+    graded: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    cancelled: "bg-zinc-100 text-zinc-600 border-zinc-200",
   }[status];
 }
 
 export default function SaleDatLichTestPage() {
   const [bookings, setBookings] = useState<EntranceTestBooking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [teacherOptions, setTeacherOptions] = useState<string[]>(() => getMockTestTeacherOptions());
 
   // Filters
   const [typeFilter, setTypeFilter] = useState<"all" | EntranceTestType>("all");
@@ -45,7 +50,6 @@ export default function SaleDatLichTestPage() {
 
   // Modals
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [editingBooking, setEditingBooking] = useState<EntranceTestBooking | null>(null);
   const [gradingBooking, setGradingBooking] = useState<EntranceTestBooking | null>(null);
 
   // Quick grading state
@@ -68,6 +72,13 @@ export default function SaleDatLichTestPage() {
       window.removeEventListener("storage", loadData);
     };
   }, [loadData]);
+
+  useEffect(() => {
+    void syncMockTestTeacherOptions().then(setTeacherOptions);
+    const onTeachers = () => setTeacherOptions(getMockTestTeacherOptions());
+    window.addEventListener(MOCK_TEST_TEACHER_OPTIONS_EVENT, onTeachers);
+    return () => window.removeEventListener(MOCK_TEST_TEACHER_OPTIONS_EVENT, onTeachers);
+  }, []);
 
   // Metrics
   const metrics = useMemo(() => {
@@ -151,15 +162,15 @@ export default function SaleDatLichTestPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-black text-white">Quản Lý Đặt Lịch Test Entrance (Speaking & Writing)</h1>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <h1 className="text-xl font-black text-zinc-900">Quản Lý Đặt Lịch Test Entrance (Speaking & Writing)</h1>
+          <p className="text-xs text-zinc-500 mt-0.5 font-medium">
             Xếp lịch chấm bài đầu vào cho khách chẩn đoán và theo dõi kết quả điểm thi từ Grader
           </p>
         </div>
         <button
           type="button"
           onClick={() => setIsCreateOpen(true)}
-          className="flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-black text-slate-950 transition-all shadow-lg hover:shadow-amber-500/20 shrink-0"
+          className="flex items-center gap-2 rounded-xl bg-primary hover:bg-[#6a5acd] px-4 py-2.5 text-xs font-black text-white transition-all shadow-md hover:shadow-primary/20 shrink-0"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -170,49 +181,48 @@ export default function SaleDatLichTestPage() {
 
       {/* Metrics Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-1">
-          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tổng ca test</div>
-          <div className="text-2xl font-black text-white">{metrics.total}</div>
-          <div className="text-[10px] text-slate-500">{metrics.pending} ca đang chờ/sắp diễn ra</div>
+        <div className="rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-xs space-y-1">
+          <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">Tổng ca test</div>
+          <div className="text-2xl font-black text-zinc-900">{metrics.total}</div>
+          <div className="text-[10px] text-zinc-400 font-medium">{metrics.pending} ca đang chờ/sắp diễn ra</div>
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-1">
-          <div className="text-[11px] font-bold text-purple-400 uppercase tracking-wider">Speaking Entrance</div>
-          <div className="text-2xl font-black text-purple-300">{metrics.speaking}</div>
-          <div className="text-[10px] text-slate-500">Ca test nói 1-1 với Grader</div>
+        <div className="rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-xs space-y-1">
+          <div className="text-[11px] font-bold text-primary uppercase tracking-wider">Speaking Entrance</div>
+          <div className="text-2xl font-black text-primary">{metrics.speaking}</div>
+          <div className="text-[10px] text-zinc-400 font-medium">Ca test nói 1-1 với Grader</div>
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-1">
-          <div className="text-[11px] font-bold text-sky-400 uppercase tracking-wider">Writing Entrance</div>
-          <div className="text-2xl font-black text-sky-300">{metrics.writing}</div>
-          <div className="text-[10px] text-slate-500">Ca chấm bài viết tự luận</div>
+        <div className="rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-xs space-y-1">
+          <div className="text-[11px] font-bold text-sky-600 uppercase tracking-wider">Writing Entrance</div>
+          <div className="text-2xl font-black text-sky-600">{metrics.writing}</div>
+          <div className="text-[10px] text-zinc-400 font-medium">Ca chấm bài viết tự luận</div>
         </div>
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-1">
-          <div className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">Đã có điểm</div>
-          <div className="text-2xl font-black text-emerald-400">{metrics.graded}</div>
-          <div className="text-[10px] text-slate-500">Sẵn sàng tư vấn khóa học</div>
+        <div className="rounded-2xl border border-zinc-200/80 bg-white p-4 shadow-xs space-y-1">
+          <div className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Đã có điểm</div>
+          <div className="text-2xl font-black text-emerald-600">{metrics.graded}</div>
+          <div className="text-[10px] text-zinc-400 font-medium">Sẵn sàng tư vấn khóa học</div>
         </div>
       </div>
 
       {/* Filters Bar */}
       <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
         {/* Type Tabs */}
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold flex-wrap">
+        <div className="flex items-center gap-1 p-1 rounded-xl bg-zinc-100 border border-zinc-200/80 text-xs font-bold flex-wrap">
           {[
             { key: "all", label: "Tất cả bài test" },
             { key: "speaking", label: "Speaking" },
             { key: "writing", label: "Writing" },
-            { key: "both", label: "Cả hai (S+W)" },
           ].map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => setTypeFilter(tab.key as any)}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                 typeFilter === tab.key
-                  ? "bg-amber-500 text-slate-950 font-black shadow-sm"
-                  : "text-slate-400 hover:text-white"
+                  ? "bg-primary text-white font-black shadow-sm"
+                  : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60"
               }`}
             >
               {tab.label}
@@ -225,7 +235,7 @@ export default function SaleDatLichTestPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="h-9 rounded-xl border border-slate-800 bg-slate-950 px-3 text-xs font-bold text-slate-300 outline-none focus:border-amber-500/60 cursor-pointer"
+            className="h-9 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-bold text-zinc-700 outline-none focus:border-primary cursor-pointer shadow-xs"
           >
             <option value="all">Tất cả trạng thái</option>
             <option value="scheduled">Đã xếp lịch</option>
@@ -237,10 +247,10 @@ export default function SaleDatLichTestPage() {
           <select
             value={graderFilter}
             onChange={(e) => setGraderFilter(e.target.value)}
-            className="h-9 rounded-xl border border-slate-800 bg-slate-950 px-3 text-xs font-bold text-slate-300 outline-none focus:border-amber-500/60 cursor-pointer"
+            className="h-9 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-bold text-zinc-700 outline-none focus:border-primary cursor-pointer shadow-xs"
           >
             <option value="all">Tất cả Grader</option>
-            {MOCK_TEST_TEACHER_OPTIONS.map((name) => (
+            {teacherOptions.map((name) => (
               <option key={name} value={name}>
                 {name}
               </option>
@@ -253,10 +263,10 @@ export default function SaleDatLichTestPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Tìm tên, SĐT, Grader..."
-              className="h-9 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 pl-8 text-xs text-slate-200 placeholder-slate-500 outline-none focus:border-amber-500/60 transition-all"
+              className="h-9 w-full rounded-xl border border-zinc-200 bg-white px-3 pl-8 text-xs text-zinc-900 placeholder-zinc-400 outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all shadow-xs"
             />
             <svg
-              className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none"
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400 pointer-events-none"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -269,14 +279,13 @@ export default function SaleDatLichTestPage() {
       </div>
 
       {/* Main Table */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-950 overflow-hidden shadow-xl">
+      <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden shadow-soft">
         {loading ? (
-          <div className="p-12 text-center text-slate-500 text-xs font-bold">Đang tải danh sách ca test...</div>
+          <div className="p-12 text-center text-zinc-400 text-xs font-bold">Đang tải danh sách ca test...</div>
         ) : filtered.length === 0 ? (
           <div className="p-16 text-center space-y-3">
-            <div className="text-3xl">🗓️</div>
-            <div className="text-sm font-bold text-white">Chưa tìm thấy ca Entrance Test nào</div>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            <div className="text-sm font-bold text-zinc-800">Chưa tìm thấy ca Entrance Test nào</div>
+            <p className="text-xs text-zinc-400 max-w-sm mx-auto">
               Nhấn nút &quot;Đặt Lịch Test Mới&quot; ở trên để xếp lịch kiểm tra Speaking hoặc Writing cho học viên.
             </p>
           </div>
@@ -284,7 +293,7 @@ export default function SaleDatLichTestPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-slate-800 bg-slate-900/80 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                <tr className="border-b border-zinc-200 bg-zinc-50/80 text-[10px] font-black uppercase tracking-wider text-zinc-500">
                   <th className="px-4 py-3.5">Ứng viên / Khách</th>
                   <th className="px-4 py-3.5">Loại Test</th>
                   <th className="px-4 py-3.5">Grader chấm</th>
@@ -295,15 +304,15 @@ export default function SaleDatLichTestPage() {
                   <th className="px-4 py-3.5 text-right">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 font-medium">
+              <tbody className="divide-y divide-zinc-100 font-medium">
                 {filtered.map((b) => (
-                  <tr key={b.id} className="hover:bg-slate-900/50 transition-colors">
+                  <tr key={b.id} className="hover:bg-zinc-50/60 transition-colors">
                     {/* Candidate */}
                     <td className="px-4 py-3.5">
-                      <div className="font-bold text-white text-sm leading-tight">{b.candidateName}</div>
-                      <div className="text-[11px] text-slate-400 font-mono mt-0.5">{b.candidatePhone}</div>
+                      <div className="font-bold text-zinc-900 text-sm leading-tight">{b.candidateName}</div>
+                      <div className="text-[11px] text-zinc-500 font-mono mt-0.5">{b.candidatePhone}</div>
                       {b.leadId && (
-                        <span className="inline-flex mt-1 rounded bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.2 text-[9px] font-bold text-amber-400">
+                        <span className="inline-flex mt-1 rounded bg-primary/10 border border-primary/20 px-1.5 py-0.2 text-[9px] font-bold text-primary">
                           Lead BCB
                         </span>
                       )}
@@ -311,27 +320,27 @@ export default function SaleDatLichTestPage() {
 
                     {/* Type & Format */}
                     <td className="px-4 py-3.5">
-                      <div className="font-bold text-slate-200">{ENTRANCE_TYPE_LABELS[b.type]}</div>
+                      <div className="font-bold text-zinc-800">{ENTRANCE_TYPE_LABELS[b.type]}</div>
                       <span
                         className={`inline-flex mt-1 rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${
                           b.format === "online"
-                            ? "bg-purple-500/15 text-purple-300 border border-purple-500/30"
-                            : "bg-sky-500/15 text-sky-300 border border-sky-500/30"
+                            ? "bg-[#fae8ff] text-[#86198f] border border-[#f5d0fe]"
+                            : "bg-[#dbeafe] text-[#1e40af] border border-[#bfdbfe]"
                         }`}
                       >
-                        {b.format === "online" ? "🌐 Online" : "🏫 Offline"}
+                        {b.format === "online" ? "Online" : "Offline"}
                       </span>
                     </td>
 
                     {/* Grader */}
                     <td className="px-4 py-3.5">
-                      <div className="font-bold text-amber-300">{b.graderName}</div>
+                      <div className="font-bold text-zinc-800">{b.graderName}</div>
                       {b.meetLink && (
                         <a
                           href={b.meetLink}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-emerald-400 hover:underline"
+                          className="inline-flex items-center gap-1 mt-1 text-[10px] font-bold text-emerald-600 hover:underline"
                         >
                           Google Meet ↗
                         </a>
@@ -340,8 +349,8 @@ export default function SaleDatLichTestPage() {
 
                     {/* Date Time */}
                     <td className="px-4 py-3.5">
-                      <div className="font-bold text-white tabular-nums">{formatDateDisplay(b.date, b.time)}</div>
-                      {b.note && <div className="text-[10px] text-slate-400 italic mt-0.5 truncate max-w-[140px]" title={b.note}>{b.note}</div>}
+                      <div className="font-bold text-zinc-900 tabular-nums">{formatDateDisplay(b.date, b.time)}</div>
+                      {b.note && <div className="text-[10px] text-zinc-400 italic mt-0.5 truncate max-w-[140px]" title={b.note}>{b.note}</div>}
                     </td>
 
                     {/* Links */}
@@ -351,13 +360,13 @@ export default function SaleDatLichTestPage() {
                           href={b.examLink}
                           target="_blank"
                           rel="noreferrer"
-                          className="block text-[11px] font-bold text-indigo-400 hover:underline truncate max-w-[130px]"
+                          className="block text-[11px] font-bold text-primary hover:underline truncate max-w-[130px]"
                           title={b.examLink}
                         >
-                          📄 Link đề thi
+                          Link đề thi
                         </a>
                       ) : (
-                        <span className="text-[11px] text-slate-600">—</span>
+                        <span className="text-[11px] text-zinc-300">—</span>
                       )}
 
                       {b.submissionLink && (
@@ -365,10 +374,10 @@ export default function SaleDatLichTestPage() {
                           href={b.submissionLink}
                           target="_blank"
                           rel="noreferrer"
-                          className="block text-[11px] font-bold text-sky-400 hover:underline truncate max-w-[130px]"
+                          className="block text-[11px] font-bold text-sky-600 hover:underline truncate max-w-[130px]"
                           title={b.submissionLink}
                         >
-                          📝 Bài nộp Writing
+                        Bài nộp Writing
                         </a>
                       )}
                     </td>
@@ -378,13 +387,13 @@ export default function SaleDatLichTestPage() {
                       {(b.scoreSpeaking || b.scoreWriting) ? (
                         <div className="flex flex-col items-center gap-1">
                           {b.scoreSpeaking && (
-                            <div className="text-xs font-black text-white bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded-lg">
-                              Speaking: <span className="text-emerald-400">{b.scoreSpeaking}</span>
+                            <div className="text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">
+                              Speaking: <span>{b.scoreSpeaking}</span>
                             </div>
                           )}
                           {b.scoreWriting && (
-                            <div className="text-xs font-black text-white bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded-lg">
-                              Writing: <span className="text-emerald-400">{b.scoreWriting}</span>
+                            <div className="text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">
+                              Writing: <span>{b.scoreWriting}</span>
                             </div>
                           )}
                         </div>
@@ -392,7 +401,7 @@ export default function SaleDatLichTestPage() {
                         <button
                           type="button"
                           onClick={() => openGradingModal(b)}
-                          className="text-[10px] font-bold text-amber-400 hover:text-amber-300 hover:underline"
+                          className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
                         >
                           + Nhập điểm
                         </button>
@@ -412,19 +421,23 @@ export default function SaleDatLichTestPage() {
                         <button
                           type="button"
                           onClick={() => openGradingModal(b)}
-                          className="rounded-lg p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-900 transition-colors"
+                          className="rounded-lg p-1.5 text-zinc-400 hover:text-primary hover:bg-zinc-100 transition-colors cursor-pointer"
                           title="Cập nhật điểm & nhận xét"
                         >
-                          ✏️
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
                         </button>
                         {b.status !== "cancelled" && (
                           <button
                             type="button"
                             onClick={() => handleCancel(b.id, b.candidateName)}
-                            className="rounded-lg p-1.5 text-slate-500 hover:text-rose-400 hover:bg-slate-900 transition-colors"
+                            className="rounded-lg p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                             title="Hủy ca thi"
                           >
-                            🗑️
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
                           </button>
                         )}
                       </div>
@@ -444,20 +457,20 @@ export default function SaleDatLichTestPage() {
             type="button"
             aria-label="Đóng"
             onClick={() => setGradingBooking(null)}
-            className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 backdrop-blur-xs"
           />
-          <div className="relative w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="relative w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
               <div>
-                <h3 className="text-sm font-black text-white">Nhập Điểm Entrance</h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Ứng viên: <span className="text-amber-400 font-bold">{gradingBooking.candidateName}</span>
+                <h3 className="text-sm font-black text-zinc-900">Nhập Điểm Entrance</h3>
+                <p className="text-xs text-zinc-500 mt-0.5 font-medium">
+                  Ứng viên: <span className="text-primary font-bold">{gradingBooking.candidateName}</span>
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setGradingBooking(null)}
-                className="rounded-lg p-1 text-slate-400 hover:text-white"
+                className="rounded-lg p-1 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors"
               >
                 ✕
               </button>
@@ -466,47 +479,47 @@ export default function SaleDatLichTestPage() {
             <div className="space-y-3">
               {(gradingBooking.type === "speaking" || gradingBooking.type === "both") && (
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1">Điểm Speaking (Band)</label>
+                  <label className="block text-xs font-bold text-zinc-700 mb-1">Điểm Speaking (Band)</label>
                   <input
                     type="text"
                     value={scoreSpeakingDraft}
                     onChange={(e) => setScoreSpeakingDraft(e.target.value)}
                     placeholder="VD: 6.5"
-                    className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2 text-sm font-bold text-white outline-none focus:border-amber-500/60"
+                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-sm font-bold text-zinc-900 outline-none focus:border-primary focus:bg-white"
                   />
                 </div>
               )}
 
               {(gradingBooking.type === "writing" || gradingBooking.type === "both") && (
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1">Điểm Writing (Band)</label>
+                  <label className="block text-xs font-bold text-zinc-700 mb-1">Điểm Writing (Band)</label>
                   <input
                     type="text"
                     value={scoreWritingDraft}
                     onChange={(e) => setScoreWritingDraft(e.target.value)}
                     placeholder="VD: 6.0"
-                    className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2 text-sm font-bold text-white outline-none focus:border-amber-500/60"
+                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-sm font-bold text-zinc-900 outline-none focus:border-primary focus:bg-white"
                   />
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">Nhận xét / Feedback</label>
+                <label className="block text-xs font-bold text-zinc-700 mb-1">Nhận xét / Feedback</label>
                 <textarea
                   rows={3}
                   value={feedbackDraft}
                   onChange={(e) => setFeedbackDraft(e.target.value)}
                   placeholder="Ghi chú nhận xét từ Grader..."
-                  className="w-full rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2 text-xs text-white outline-none focus:border-amber-500/60 resize-none"
+                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-xs text-zinc-900 outline-none focus:border-primary focus:bg-white resize-none"
                 />
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+            <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100">
               <button
                 type="button"
                 onClick={() => setGradingBooking(null)}
-                className="rounded-xl border border-slate-700 px-4 py-2 text-xs font-bold text-slate-400 hover:bg-slate-800"
+                className="rounded-xl border border-zinc-200 px-4 py-2 text-xs font-bold text-zinc-600 hover:bg-zinc-100 transition-colors"
               >
                 Hủy
               </button>
@@ -514,7 +527,7 @@ export default function SaleDatLichTestPage() {
                 type="button"
                 disabled={savingGrade}
                 onClick={handleSaveGrade}
-                className="rounded-xl bg-amber-500 hover:bg-amber-400 px-5 py-2 text-xs font-black text-slate-950 transition-all disabled:opacity-50"
+                className="rounded-xl bg-primary hover:bg-[#6a5acd] px-5 py-2 text-xs font-bold text-white transition-all disabled:opacity-50 shadow-sm"
               >
                 {savingGrade ? "Đang lưu..." : "Lưu Điểm"}
               </button>

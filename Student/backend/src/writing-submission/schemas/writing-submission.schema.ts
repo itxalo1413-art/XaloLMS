@@ -47,6 +47,15 @@ export class WritingSubmission {
 
   @Prop({ trim: true, default: '' })
   assignedGrader?: string;
+
+  @Prop({ trim: true, default: 'support' })
+  source?: string;
+
+  @Prop({ trim: true, default: '', index: true })
+  entranceBookingId?: string;
+
+  @Prop({ trim: true, default: '', index: true })
+  finalTestId?: string;
 }
 
 export const WritingSubmissionSchema =

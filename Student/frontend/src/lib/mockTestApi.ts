@@ -23,16 +23,35 @@ async function parseJson<T>(response: Response): Promise<T> {
   return (await response.json()) as T;
 }
 
+function normalizeRow(raw: any): MockTestRequest {
+  return {
+    ...raw,
+    id: raw?.id || raw?._id,
+    note: raw?.note || raw?.notes || "",
+  };
+}
+
+function unwrapRequest(data: any): MockTestRequest {
+  const row = data?.request ?? data;
+  return normalizeRow(row);
+}
+
+function unwrapList(data: any): MockTestRequest[] {
+  const rows = Array.isArray(data) ? data : Array.isArray(data?.requests) ? data.requests : [];
+  return rows.map(normalizeRow);
+}
+
 export async function fetchMockTestsForStudent(): Promise<MockTestRequest[]> {
-  const response = await apiFetch("/api/aca/mock-test-requests", { method: "GET" });
-  return parseJson(response);
+  const response = await apiFetch("/api/student/mock-tests", { method: "GET" });
+  return unwrapList(await parseJson(response));
 }
 
 export async function fetchMockTestsForAca(
   status?: "pending" | "approved" | "rejected" | "all",
 ): Promise<MockTestRequest[]> {
-  const response = await apiFetch(`/api/aca/mock-test-requests`, { method: "GET" });
-  return parseJson(response);
+  const q = status && status !== "all" ? `?status=${encodeURIComponent(status)}` : "";
+  const response = await apiFetch(`/api/aca/mock-tests${q}`, { method: "GET" });
+  return unwrapList(await parseJson(response));
 }
 
 export async function createMockTestApi(input: {
@@ -43,17 +62,32 @@ export async function createMockTestApi(input: {
   examTime?: string;
   status?: string;
   examTeacher?: string;
+  studentName?: string;
+  examLink?: string;
+  note?: string;
+  guestPhone?: string;
+  leadId?: string;
+  source?: string;
 }): Promise<MockTestRequest> {
-  const response = await apiFetch("/api/aca/mock-test-requests", {
+  const isStaffCreate = Boolean(input.studentName || input.source === "entrance" || input.examTeacher);
+  const path = isStaffCreate ? "/api/aca/mock-tests" : "/api/student/mock-tests";
+  const response = await apiFetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  return parseJson<MockTestRequest>(response);
+  return unwrapRequest(await parseJson(response));
 }
 
 export async function cancelMockTestApi(id: string): Promise<void> {
-  const response = await apiFetch(`/api/aca/mock-test-requests/${id}`, {
+  const studentRes = await apiFetch(`/api/student/mock-tests/${id}`, {
+    method: "DELETE",
+  });
+  if (studentRes.ok || studentRes.status === 404) {
+    if (studentRes.ok) await parseJson(studentRes);
+    if (studentRes.ok) return;
+  }
+  const response = await apiFetch(`/api/aca/mock-tests/${id}`, {
     method: "DELETE",
   });
   await parseJson(response);
@@ -68,7 +102,7 @@ export async function approveMockTestApi(
     body: JSON.stringify(payload),
   });
   const data = await parseJson<{ request: MockTestRequest }>(response);
-  return data.request;
+  return unwrapRequest(data);
 }
 
 export async function rejectMockTestApi(id: string): Promise<MockTestRequest> {
@@ -76,7 +110,7 @@ export async function rejectMockTestApi(id: string): Promise<MockTestRequest> {
     method: "PATCH",
   });
   const data = await parseJson<{ request: MockTestRequest }>(response);
-  return data.request;
+  return unwrapRequest(data);
 }
 
 export async function fetchMockTestsForTeacher(
@@ -86,7 +120,7 @@ export async function fetchMockTestsForTeacher(
   const response = await apiFetch(`/api/teacher/mock-tests?teacherName=${q}`, {
     method: "GET",
   });
-  return parseJson(response);
+  return unwrapList(await parseJson(response));
 }
 
 export async function recordMockTestResultApi(
@@ -98,5 +132,5 @@ export async function recordMockTestResultApi(
     body: JSON.stringify(payload),
   });
   const data = await parseJson<{ request: MockTestRequest }>(response);
-  return data.request;
+  return unwrapRequest(data);
 }
