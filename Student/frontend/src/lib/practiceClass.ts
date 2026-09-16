@@ -8,19 +8,28 @@ import {
 } from "@/lib/mockTestRequests";
 import {
   canUsePracticeClassApi,
+  fetchPracticeCurrentWeek,
   fetchPracticeRegistrations,
   fetchPracticeRegistrationsForAca,
   fetchPracticeScheduleForAca,
   fetchPracticeScheduleForStudent,
+  fetchPracticeWeeklyScores,
   registerPracticeSlotApi,
   savePracticeScheduleForAca,
   savePracticeZoomForAca,
   unregisterPracticeSlotApi,
   updatePracticeSlotMaterialsApi,
   updateStudentPracticeLinkFolderApi,
+  type PracticeCurrentWeekResponse,
   type PracticeRegistrationAcaRow,
   type PracticeScheduleResponse,
+  type PracticeWeeklyScoreRow,
 } from "@/lib/practiceClassApi";
+import {
+  getCurrentRealtimePracticeWeekRange,
+  parsePracticeWeekRange,
+  registrationMatchesPracticeWeek,
+} from "@/lib/acaManagementApi";
 
 export const PRACTICE_CLASS_SKILL = "Lớp luyện đề tập trung";
 
@@ -34,11 +43,14 @@ export type PracticeSlotId = (typeof PRACTICE_SLOT_IDS)[number];
 export type PracticeMeetingAccess = {
   meetingId: string;
   password: string;
+  /** Link vào lớp: ưu tiên Meet/Zoom từ ACA tuần hiện tại, fallback Zoom ID. */
   joinUrl: string;
+  /** Link Meet/Zoom thô từ tuần ACA (có thể trống). */
+  meetLink?: string;
 };
 
-const DEFAULT_PRACTICE_ZOOM_ID = "842 1963 4521";
-const DEFAULT_PRACTICE_ZOOM_PASSWORD = "XaloLrw26";
+const DEFAULT_PRACTICE_ZOOM_ID = "853 7727 0229";
+const DEFAULT_PRACTICE_ZOOM_PASSWORD = "123456";
 
 const PRACTICE_ZOOM_INFO_KEY = "lms_practice_zoom_info_v1";
 
@@ -46,7 +58,8 @@ let zoomCache = {
   zoomId: DEFAULT_PRACTICE_ZOOM_ID,
   zoomPassword: DEFAULT_PRACTICE_ZOOM_PASSWORD,
 };
-const linkFolderByStudentCache: Record<string, string> = {};
+/** Cache folder theo `studentId::weekRange` — mỗi tuần một folder, không giữ sang tuần mới. */
+const linkFolderByStudentWeekCache: Record<string, string> = {};
 
 function loadLocalZoomInfo(): { zoomId: string; zoomPassword: string } {
   if (typeof window === "undefined") return zoomCache;
@@ -54,16 +67,17 @@ function loadLocalZoomInfo(): { zoomId: string; zoomPassword: string } {
     const raw = localStorage.getItem(PRACTICE_ZOOM_INFO_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as { zoomId?: string; zoomPassword?: string };
-      if (parsed.zoomId && parsed.zoomPassword) {
-        return { zoomId: parsed.zoomId, zoomPassword: parsed.zoomPassword };
-      }
+      return {
+        zoomId: parsed.zoomId?.trim() || "",
+        zoomPassword: parsed.zoomPassword?.trim() || "",
+      };
     }
   } catch {
     // ignore
   }
   return {
-    zoomId: DEFAULT_PRACTICE_ZOOM_ID,
-    zoomPassword: DEFAULT_PRACTICE_ZOOM_PASSWORD,
+    zoomId: "",
+    zoomPassword: "",
   };
 }
 
@@ -78,8 +92,8 @@ function saveLocalZoomInfo(info: { zoomId: string; zoomPassword: string }) {
 
 export function applyPracticeZoomCache(info: { zoomId: string; zoomPassword: string }) {
   zoomCache = {
-    zoomId: info.zoomId.trim() || DEFAULT_PRACTICE_ZOOM_ID,
-    zoomPassword: info.zoomPassword.trim() || DEFAULT_PRACTICE_ZOOM_PASSWORD,
+    zoomId: info.zoomId.trim(),
+    zoomPassword: info.zoomPassword.trim(),
   };
 }
 
@@ -115,7 +129,7 @@ export const PRACTICE_CLASS_ZOOM_ROOM: PracticeMeetingAccess = {
   get password() { return getPracticeZoomInfo().zoomPassword; },
   get joinUrl() {
     const cleanId = getPracticeZoomInfo().zoomId.replace(/\s+/g, "");
-    return `https://zoom.us/j/${cleanId}?pwd=example-lrw`;
+    return cleanId ? `https://zoom.us/j/${cleanId}` : "";
   },
 };
 
@@ -126,10 +140,17 @@ export function isPracticeZoomPlatform(platform: string): boolean {
 export function resolvePracticeMeetingAccess(_slot?: PracticeClassSlot): PracticeMeetingAccess {
   const current = getPracticeZoomInfo();
   const cleanId = current.zoomId.replace(/\s+/g, "");
+  const zoomJoin = cleanId ? `https://zoom.us/j/${cleanId}` : "";
+  const meetLink =
+    currentWeekCache?.linkMeet?.trim() ||
+    "";
+  const fromWeekZoomId = currentWeekCache?.zoomId?.trim();
+  const fromWeekZoomPass = currentWeekCache?.zoomPassword?.trim();
   return {
-    meetingId: current.zoomId,
-    password: current.zoomPassword,
-    joinUrl: `https://zoom.us/j/${cleanId}?pwd=example-lrw`,
+    meetingId: fromWeekZoomId || current.zoomId,
+    password: fromWeekZoomPass || current.zoomPassword,
+    meetLink: meetLink || undefined,
+    joinUrl: meetLink || zoomJoin,
   };
 }
 
@@ -151,10 +172,10 @@ const DEFAULT_PRACTICE_CLASS_WEEKLY_SCHEDULE: PracticeClassSlot[] = [
     id: "tue-lrw",
     dayOfWeek: 2,
     dayLabel: "Thứ 3",
-    time: "19h45 – 21h45",
-    title: "Luyện tập Speaking theo chuyên đề",
+    time: "19h45 – 21h30",
+    title: "Chữa đề W-L-R",
     detail:
-      "Tham gia bằng Zoom, học với Giáo viên, phân tích bộ đề Speaking 3 part, được cung cấp từ vựng/phương pháp tiếp cận và luyện tập trực tiếp với Giáo viên.",
+      "Tham gia bằng Zoom, học với Giáo viên, tập trung chữa đề Writing và các thắc mắc về Listening – Reading.",
     platform: "Zoom",
     meeting: PRACTICE_CLASS_ZOOM_ROOM,
   },
@@ -162,10 +183,10 @@ const DEFAULT_PRACTICE_CLASS_WEEKLY_SCHEDULE: PracticeClassSlot[] = [
     id: "sun-lrw",
     dayOfWeek: 4,
     dayLabel: "Thứ 5",
-    time: "19h45 – 21h45",
-    title: "Chữa đề L-R-W",
+    time: "19h45 – 21h30",
+    title: "Làm đề L-R-W tập trung",
     detail:
-      "Tham gia bằng Zoom, học với Giáo viên, tập trung chữa đề Writing và các thắc mắc về Listening – Reading.",
+      "Tham gia bằng Zoom, làm bài trên Google Docs, có nhân viên canh thời gian làm bài và các bạn học viên khác tham gia.",
     platform: "Zoom",
     meeting: PRACTICE_CLASS_ZOOM_ROOM,
   },
@@ -173,10 +194,10 @@ const DEFAULT_PRACTICE_CLASS_WEEKLY_SCHEDULE: PracticeClassSlot[] = [
     id: "sat-speaking",
     dayOfWeek: 6,
     dayLabel: "Thứ 7",
-    time: "19h – 21h30",
-    title: "Làm đề L-R-W tập trung",
+    time: "19h45 – 21h30",
+    title: "Chữa / luyện Speaking",
     detail:
-      "Tham gia bằng Zoom, làm bài trên Google Docs, có nhân viên canh thời gian làm bài và các bạn học viên khác tham gia.",
+      "Tham gia bằng Zoom, học với Giáo viên, phân tích bộ đề Speaking, được cung cấp từ vựng/phương pháp tiếp cận và luyện tập trực tiếp với Giáo viên.",
     platform: "Zoom",
     meeting: PRACTICE_CLASS_ZOOM_ROOM,
   },
@@ -204,6 +225,7 @@ export type PracticeSlotRegistration = {
   studentId: string;
   slotId: PracticeSlotId;
   registeredAt: string;
+  weekRange?: string;
   linkFolder?: string;
 };
 
@@ -217,12 +239,12 @@ const WEEKLY_RESET_MARKER_KEY = "xalo.student.practiceClassWeeklyResetMarker.v1"
 export const PRACTICE_CLASS_UPDATE_EVENT = "xalo-practice-class-updated";
 export const PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT = "xalo-practice-class-schedule-updated";
 
-let scheduleCache: PracticeClassSlot[] = DEFAULT_PRACTICE_CLASS_WEEKLY_SCHEDULE.map((s) => ({
-  ...s,
-}));
+let scheduleCache: PracticeClassSlot[] = [];
 let weekRangeLabelCache = "";
 let scheduleUpdatedAtCache: string | null = null;
 let registrationsCache: PracticeSlotRegistration[] = [];
+let currentWeekCache: PracticeCurrentWeekResponse | null = null;
+let weeklyScoresCache: PracticeWeeklyScoreRow[] = [];
 
 const JOINED_KEY = "xalo.student.practiceClassJoined.v1";
 const MOCK_TEST_STORAGE_KEY = "lms_mock_test_requests_v1";
@@ -362,6 +384,9 @@ function normalizePracticeSlot(slot: PracticeClassSlot): PracticeClassSlot {
   const merged: PracticeClassSlot = {
     ...base,
     ...slot,
+    // Luôn giữ dayOfWeek / dayLabel theo lịch chuẩn T3/T5/T7.
+    dayOfWeek: base?.dayOfWeek ?? slot.dayOfWeek,
+    dayLabel: base?.dayLabel ?? slot.dayLabel,
     platform: "Zoom",
     meeting: PRACTICE_CLASS_ZOOM_ROOM,
   };
@@ -379,18 +404,28 @@ export function applyPracticeScheduleCache(res: PracticeScheduleResponse) {
 
 export function applyPracticeRegistrationsCache(
   studentId: string,
-  rows: { slotId: PracticeSlotId; registeredAt: string; linkFolder?: string }[],
+  rows: {
+    slotId: PracticeSlotId;
+    registeredAt: string;
+    weekRange?: string;
+    linkFolder?: string;
+  }[],
 ) {
   registrationsCache = rows.map((r) => ({
     studentId,
     slotId: r.slotId,
     registeredAt: r.registeredAt,
+    weekRange: r.weekRange?.trim() || undefined,
     linkFolder: r.linkFolder?.trim() || undefined,
   }));
-  const folder = rows.map((r) => r.linkFolder?.trim()).find(Boolean);
-  if (folder) {
-    linkFolderByStudentCache[studentId] = folder;
-  }
+  const week =
+    rows.map((r) => r.weekRange?.trim()).find(Boolean) ||
+    currentWeekCache?.weekRange?.trim() ||
+    weekRangeLabelCache.trim() ||
+    getCurrentRealtimePracticeWeekRange();
+  // Luôn ghi (kể cả rỗng) để tuần mới không giữ folder tuần trước.
+  const folder = rows.map((r) => r.linkFolder?.trim()).find(Boolean) || "";
+  linkFolderByStudentWeekCache[`${studentId}::${week}`] = folder;
 }
 
 export function getDefaultPracticeWeeklySchedule(): PracticeClassSlot[] {
@@ -448,6 +483,51 @@ export function getPracticeWeekRangeLabel(): string | null {
   return label || null;
 }
 
+export function getPracticeCurrentWeek(): PracticeCurrentWeekResponse | null {
+  return currentWeekCache;
+}
+
+export function getPracticeExamWeekNumber(): number {
+  return currentWeekCache?.examWeekNumber ?? getSaturdayRotatedWeekNumber();
+}
+
+export function getPracticeWeeklyScores(): PracticeWeeklyScoreRow[] {
+  return weeklyScoresCache;
+}
+
+export async function refreshPracticeCurrentWeek(): Promise<PracticeCurrentWeekResponse | null> {
+  if (!canUsePracticeClassApi()) {
+    currentWeekCache = null;
+    return null;
+  }
+  try {
+    const res = await fetchPracticeCurrentWeek();
+    currentWeekCache = res;
+    if (res.zoomId && res.zoomPassword) {
+      applyPracticeZoomCache({ zoomId: res.zoomId, zoomPassword: res.zoomPassword });
+    }
+    // Không dispatch event ở đây — listener sẽ gọi refresh lại và loop tới ERR_INSUFFICIENT_RESOURCES.
+    return res;
+  } catch {
+    currentWeekCache = null;
+    return null;
+  }
+}
+
+export async function refreshPracticeWeeklyScores(): Promise<PracticeWeeklyScoreRow[]> {
+  if (!canUsePracticeClassApi()) {
+    weeklyScoresCache = [];
+    return [];
+  }
+  try {
+    weeklyScoresCache = await fetchPracticeWeeklyScores();
+    return weeklyScoresCache;
+  } catch {
+    weeklyScoresCache = [];
+    return [];
+  }
+}
+
 export function getPracticeScheduleUpdatedAt(): string | null {
   return scheduleUpdatedAtCache;
 }
@@ -459,7 +539,16 @@ export async function refreshPracticeScheduleForStudent(): Promise<PracticeSched
       applyPracticeScheduleCache(res);
       return res;
     } catch {
-      // fall through to local
+      // Đã login: không fallback lịch/zoom cứng.
+      const empty: PracticeScheduleResponse = {
+        weekRangeLabel: "",
+        updatedAt: null,
+        slots: [],
+        zoomId: "",
+        zoomPassword: "",
+      };
+      applyPracticeScheduleCache(empty);
+      return empty;
     }
   }
   const local = mergeScheduleFromLocalStore();
@@ -548,27 +637,33 @@ function loadPracticeSlotRegistrationsLocal(): PracticeSlotRegistration[] {
   }
 }
 
-export async function refreshAllPracticeRegistrationsForAca(): Promise<
-  PracticeRegistrationAcaRow[]
-> {
+export async function refreshAllPracticeRegistrationsForAca(
+  weekRange?: string,
+): Promise<PracticeRegistrationAcaRow[]> {
   if (canUsePracticeClassApi()) {
     try {
-      return await fetchPracticeRegistrationsForAca();
+      return await fetchPracticeRegistrationsForAca(weekRange);
     } catch {
       // fall through
     }
   }
+  const target =
+    weekRange?.trim() ||
+    weekRangeLabelCache.trim() ||
+    getCurrentRealtimePracticeWeekRange();
   return loadPracticeSlotRegistrationsLocal()
+    .filter((row) => registrationMatchesPracticeWeek(row, target))
     .map((row) => {
       const slot = getPracticeSlotById(row.slotId);
       return {
-        id: `${row.studentId}_${row.slotId}`,
+        id: `${row.studentId}_${row.slotId}_${row.weekRange || "legacy"}`,
         studentId: row.studentId,
         studentName: resolveStudentNameForAca(row.studentId),
         slotId: row.slotId,
         slotTitle: slot?.title ?? row.slotId,
         slotSchedule: slot ? `${slot.dayLabel} · ${slot.time}` : "—",
         registeredAt: row.registeredAt,
+        weekRange: row.weekRange || target,
       };
     })
     .sort(
@@ -577,13 +672,16 @@ export async function refreshAllPracticeRegistrationsForAca(): Promise<
     );
 }
 
-function filterCurrentWeekRegistrations(list: PracticeSlotRegistration[]): PracticeSlotRegistration[] {
-  const latestResetMarker = getLatestWeeklyResetMarker(new Date());
-  return list.filter((r) => {
-    if (!r.registeredAt) return false;
-    const time = new Date(r.registeredAt).getTime();
-    return !isNaN(time) && time >= latestResetMarker;
-  });
+function filterCurrentWeekRegistrations(
+  list: PracticeSlotRegistration[],
+  weekRange?: string,
+): PracticeSlotRegistration[] {
+  const target =
+    weekRange?.trim() ||
+    currentWeekCache?.weekRange?.trim() ||
+    weekRangeLabelCache.trim() ||
+    getCurrentRealtimePracticeWeekRange();
+  return list.filter((r) => registrationMatchesPracticeWeek(r, target));
 }
 
 export async function refreshPracticeRegistrations(
@@ -671,14 +769,22 @@ export async function resetPracticeClassTestState(studentId: string): Promise<vo
 function registerPracticeSlotLocal(studentId: string, slotId: PracticeSlotId): void {
   if (isPracticeSlotRegistered(studentId, slotId)) return;
   setPracticeClassJoined(studentId, true);
+  const weekRange =
+    currentWeekCache?.weekRange?.trim() ||
+    weekRangeLabelCache.trim() ||
+    getCurrentRealtimePracticeWeekRange();
   const row: PracticeSlotRegistration = {
     studentId,
     slotId,
     registeredAt: new Date().toISOString(),
+    weekRange,
   };
   const next = [...loadPracticeSlotRegistrationsLocal(), row];
   localStorage.setItem(REGISTRATIONS_KEY, JSON.stringify(next));
-  registrationsCache = [...registrationsCache.filter((r) => r.studentId !== studentId), ...next.filter((r) => r.studentId === studentId)];
+  registrationsCache = [
+    ...registrationsCache.filter((r) => r.studentId !== studentId),
+    ...filterCurrentWeekRegistrations(next.filter((r) => r.studentId === studentId)),
+  ];
   dispatchPracticeEvents();
 
   const slotIds = registrationsCache.filter((r) => r.studentId === studentId).map((r) => r.slotId);
@@ -686,12 +792,19 @@ function registerPracticeSlotLocal(studentId: string, slotId: PracticeSlotId): v
 }
 
 function unregisterPracticeSlotLocal(studentId: string, slotId: PracticeSlotId): void {
-  const next = loadPracticeSlotRegistrationsLocal().filter(
-    (r) => !(r.studentId === studentId && r.slotId === slotId),
-  );
+  const weekRange =
+    currentWeekCache?.weekRange?.trim() ||
+    weekRangeLabelCache.trim() ||
+    getCurrentRealtimePracticeWeekRange();
+  const next = loadPracticeSlotRegistrationsLocal().filter((r) => {
+    if (!(r.studentId === studentId && r.slotId === slotId)) return true;
+    if (r.weekRange?.trim()) return r.weekRange.trim() !== weekRange;
+    // legacy row without weekRange: treat as current-week only
+    return false;
+  });
   localStorage.setItem(REGISTRATIONS_KEY, JSON.stringify(next));
-  registrationsCache = registrationsCache.filter(
-    (r) => !(r.studentId === studentId && r.slotId === slotId),
+  registrationsCache = filterCurrentWeekRegistrations(
+    next.filter((r) => r.studentId === studentId),
   );
   dispatchPracticeEvents();
 
@@ -745,15 +858,29 @@ export function getSaturdayRotatedWeekNumber(date: Date = new Date()): number {
   return weekNo;
 }
 
-const PRACTICE_STUDENT_FOLDERS_KEY = "lms_practice_student_folders_v1";
+const PRACTICE_STUDENT_FOLDERS_KEY = "lms_practice_student_folders_v2";
 
-function loadLocalStudentFolder(studentId: string): string {
+function activeFolderWeekRange(explicit?: string): string {
+  return (
+    explicit?.trim() ||
+    currentWeekCache?.weekRange?.trim() ||
+    weekRangeLabelCache.trim() ||
+    getCurrentRealtimePracticeWeekRange()
+  );
+}
+
+function folderCacheKey(studentId: string, weekRange?: string): string {
+  return `${studentId}::${activeFolderWeekRange(weekRange)}`;
+}
+
+function loadLocalStudentFolder(studentId: string, weekRange?: string): string {
   if (typeof window === "undefined" || !studentId) return "";
   try {
     const raw = localStorage.getItem(PRACTICE_STUDENT_FOLDERS_KEY);
     if (raw) {
       const map = JSON.parse(raw) as Record<string, string>;
-      if (map[studentId]) return map[studentId];
+      const key = folderCacheKey(studentId, weekRange);
+      if (typeof map[key] === "string") return map[key];
     }
   } catch {
     // ignore
@@ -761,34 +888,40 @@ function loadLocalStudentFolder(studentId: string): string {
   return "";
 }
 
-function saveLocalStudentFolder(studentId: string, url: string) {
+function saveLocalStudentFolder(studentId: string, url: string, weekRange?: string) {
   if (typeof window === "undefined" || !studentId) return;
   try {
     const raw = localStorage.getItem(PRACTICE_STUDENT_FOLDERS_KEY);
     const map = raw ? (JSON.parse(raw) as Record<string, string>) : {};
-    map[studentId] = url;
+    map[folderCacheKey(studentId, weekRange)] = url;
     localStorage.setItem(PRACTICE_STUDENT_FOLDERS_KEY, JSON.stringify(map));
   } catch {
     // ignore
   }
 }
 
-export function getStudentPracticeFolderUrl(studentId: string): string {
+export function getStudentPracticeFolderUrl(studentId: string, weekRange?: string): string {
   if (!studentId) return "";
-  const cached = linkFolderByStudentCache[studentId]?.trim();
-  if (cached) return cached;
+  const key = folderCacheKey(studentId, weekRange);
+  if (Object.prototype.hasOwnProperty.call(linkFolderByStudentWeekCache, key)) {
+    return linkFolderByStudentWeekCache[key]?.trim() || "";
+  }
   if (!canUsePracticeClassApi()) {
-    const local = loadLocalStudentFolder(studentId);
-    if (local) return local;
+    return loadLocalStudentFolder(studentId, weekRange);
   }
   return "";
 }
 
-export function setStudentPracticeFolderUrl(studentId: string, url: string): void {
+export function setStudentPracticeFolderUrl(
+  studentId: string,
+  url: string,
+  weekRange?: string,
+): void {
   if (!studentId) return;
-  linkFolderByStudentCache[studentId] = url.trim();
+  const key = folderCacheKey(studentId, weekRange);
+  linkFolderByStudentWeekCache[key] = url.trim();
   if (!canUsePracticeClassApi()) {
-    saveLocalStudentFolder(studentId, url.trim());
+    saveLocalStudentFolder(studentId, url.trim(), weekRange);
   }
   dispatchPracticeEvents();
 }
@@ -796,12 +929,13 @@ export function setStudentPracticeFolderUrl(studentId: string, url: string): voi
 export async function saveStudentPracticeFolderUrl(
   studentId: string,
   url: string,
-  options?: { asTeacher?: boolean },
+  options?: { asTeacher?: boolean; weekRange?: string },
 ): Promise<void> {
   const trimmed = url.trim();
-  setStudentPracticeFolderUrl(studentId, trimmed);
+  const week = activeFolderWeekRange(options?.weekRange);
+  setStudentPracticeFolderUrl(studentId, trimmed, week);
   if (canUsePracticeClassApi()) {
-    await updateStudentPracticeLinkFolderApi(studentId, trimmed, options?.asTeacher === true);
+    await updateStudentPracticeLinkFolderApi(studentId, trimmed, options?.asTeacher === true, week);
   }
 }
 
@@ -837,11 +971,13 @@ export function getPracticeSlotMaterialsUrl(slotId: string, defaultUrl?: string)
   const slot = getPracticeSlotById(slotId as PracticeSlotId);
   const fromSchedule = slot?.materialsUrl?.trim();
   if (fromSchedule) return fromSchedule;
+  const fromWeek = currentWeekCache?.linkTab?.trim();
+  if (fromWeek) return fromWeek;
   if (!canUsePracticeClassApi()) {
     const local = loadLocalSlotMaterials(slotId);
     if (local) return local;
   }
-  return defaultUrl || "https://drive.google.com";
+  return defaultUrl || "";
 }
 
 export function setPracticeSlotMaterialsUrl(slotId: string, url: string): void {
@@ -885,6 +1021,23 @@ export function getISOWeekKey(date: Date): string {
   return `${d.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
 }
 
+/** Tuần luyện đề đang dùng cho TKB (Sat–Fri / label ACA), không dùng ISO Mon–Sun. */
+function getActivePracticeWeekRangeForCalendar(): string {
+  return (
+    currentWeekCache?.weekRange?.trim() ||
+    weekRangeLabelCache.trim() ||
+    getCurrentRealtimePracticeWeekRange()
+  );
+}
+
+function isDateInPracticeWeekRange(date: Date, weekRange: string): boolean {
+  const range = parsePracticeWeekRange(weekRange);
+  if (!range) return false;
+  const d = new Date(date);
+  d.setHours(12, 0, 0, 0);
+  return d.getTime() >= range.start.getTime() && d.getTime() <= range.end.getTime();
+}
+
 export function getRegisteredPracticeSlotsOnCalendarDay(
   studentId: string,
   day: number,
@@ -892,11 +1045,10 @@ export function getRegisteredPracticeSlotsOnCalendarDay(
   year: number,
 ): PracticeSlotRegistration[] {
   const targetDate = new Date(year, month, day);
-  const now = new Date();
 
-  // Lớp luyện đề đăng ký theo tuần và reset hàng tuần.
-  // Chỉ hiển thị highlight trên Thời khóa biểu đối với các ngày thuộc TUẦN HIỆN TẠI.
-  if (getISOWeekKey(targetDate) !== getISOWeekKey(now)) {
+  // Chỉ highlight ngày thuộc tuần luyện đề hiện tại (cùng weekRange với đăng ký).
+  const activeWeek = getActivePracticeWeekRangeForCalendar();
+  if (!isDateInPracticeWeekRange(targetDate, activeWeek)) {
     return [];
   }
 

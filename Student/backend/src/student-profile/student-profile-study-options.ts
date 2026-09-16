@@ -62,3 +62,40 @@ export function isAllowedStudyValue(
   const list = STUDY_FIELD_ALLOWLISTS[field] as readonly string[];
   return list.includes(value);
 }
+
+const STUDY_DEFAULTS: Record<Exclude<StudySelectionField, 'focusSkills'>, string> =
+  {
+    method: STUDY_METHOD_OPTIONS[0],
+    weeklyHours: STUDY_WEEKLY_HOURS_OPTIONS[2],
+    classEnvironment: STUDY_CLASS_ENVIRONMENT_OPTIONS[0],
+    ieltsMeaning: STUDY_IELTS_MEANING_OPTIONS[0],
+    previousBand: STUDY_PREVIOUS_BAND_OPTIONS[0],
+  };
+
+/** Chuẩn hoá 1 lựa chọn; chuỗi rỗng / lạ → undefined (bỏ qua). */
+export function sanitizeStudyString(
+  field: Exclude<StudySelectionField, 'focusSkills'>,
+  raw: unknown,
+): string | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  const v = String(raw).trim();
+  if (!v) return undefined;
+  if (isAllowedStudyValue(field, v)) return v;
+  if (field === 'previousBand') {
+    const n = Number.parseFloat(v.replace(',', '.').replace('+', ''));
+    if (Number.isFinite(n)) {
+      if (n >= 6.5) return '6.5+';
+      const as = n.toFixed(1);
+      if (isAllowedStudyValue(field, as)) return as;
+    }
+  }
+  return undefined;
+}
+
+export function studyStringOrDefault<K extends Exclude<StudySelectionField, 'focusSkills'>>(
+  field: K,
+  raw: unknown,
+): (typeof STUDY_FIELD_ALLOWLISTS)[K][number] {
+  return (sanitizeStudyString(field, raw) ??
+    STUDY_DEFAULTS[field]) as (typeof STUDY_FIELD_ALLOWLISTS)[K][number];
+}

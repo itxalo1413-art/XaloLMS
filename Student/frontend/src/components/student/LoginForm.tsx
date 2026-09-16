@@ -9,7 +9,7 @@ import {
   fetchMe,
   getAuthToken,
   getCachedAuthUser,
-  homePathForRole,
+  homePathForUser,
   isAuthDisabled,
   isAuthSessionError,
   login,
@@ -18,10 +18,10 @@ import {
 
 const LOGIN_QUOTE_POPUP_KEY = "xalo.showLoginQuotePopup";
 
-export type RoleCategory = "ALL" | "HS" | "ACA" | "GV" | "SALE";
+export type RoleCategory = "ALL" | "HS" | "ACA" | "GRADER" | "GV" | "SALE";
 
 // Tài khoản thật đã seed trong MongoDB — dùng để test nhanh
-const REAL_ACCOUNTS: { label: string; email: string; password: string; role: "HS" | "ACA" | "GV" | "SALE" }[] = [
+const REAL_ACCOUNTS: { label: string; email: string; password: string; role: "HS" | "ACA" | "GRADER" | "GV" | "SALE" }[] = [
   {
     label: "SALE — Nguyễn Phương Thảo",
     email: "sale@xalo.edu.vn",
@@ -35,6 +35,18 @@ const REAL_ACCOUNTS: { label: string; email: string; password: string; role: "HS
     role: "HS",
   },
   {
+    label: "Học viên — Văn Thị Thanh Trúc",
+    email: "thankxetai0911@gmail.com",
+    password: "Student@123!",
+    role: "HS",
+  },
+  {
+    label: "Học viên — Thiều Thảo Chi",
+    email: "tchithieu@gmail.com",
+    password: "Student@123!",
+    role: "HS",
+  },
+  {
     label: "ACA Full Quyền — Lê Nguyễn Khánh Thi",
     email: "aca@xaloenglish.vn",
     password: "test@123!",
@@ -44,19 +56,19 @@ const REAL_ACCOUNTS: { label: string; email: string; password: string; role: "HS
     label: "Grader 1 (Chấm Writing) — Bộ phận Grader 1",
     email: "aca_1@gmail.com",
     password: "test@123!",
-    role: "ACA",
+    role: "GRADER",
   },
   {
     label: "Grader 2 (Chấm Writing) — Bộ phận Grader 2",
     email: "aca_2@gmail.com",
     password: "test@123!",
-    role: "ACA",
+    role: "GRADER",
   },
   {
     label: "Grader 3 (Chấm Writing) — Grader Hệ thống",
     email: "aca@xalo.internal",
     password: "test@123!",
-    role: "ACA",
+    role: "GRADER",
   },
   {
     label: "Giáo viên — Nghiêm Doãn Quỳnh Châu",
@@ -159,7 +171,7 @@ export function LoginForm() {
         if (cancelled) return;
         cacheAuthUser(me);
         setAuthToken(token);
-        router.replace(me.role === "HS" ? "/" : homePathForRole(me.role));
+        router.replace(me.role === "HS" ? "/" : homePathForUser(me));
       })
       .catch((err) => {
         if (cancelled) return;
@@ -254,7 +266,7 @@ export function LoginForm() {
       if (typeof window !== "undefined") {
         window.sessionStorage.setItem(LOGIN_QUOTE_POPUP_KEY, "1");
       }
-      router.replace(homePathForRole(result.user.role));
+      router.replace(homePathForUser(result.user));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Đăng nhập thất bại");
     } finally {
@@ -274,7 +286,7 @@ export function LoginForm() {
         window.sessionStorage.setItem(LOGIN_QUOTE_POPUP_KEY, "1");
       }
       if (result.user.role !== "HS") {
-        router.replace(homePathForRole(result.user.role));
+        router.replace(homePathForUser(result.user));
         return;
       }
       router.replace("/");
@@ -327,10 +339,11 @@ export function LoginForm() {
             <div className="flex items-center gap-1 p-1 rounded-xl bg-black/15 backdrop-blur-xs border border-white/15 text-[11px] font-bold">
               {[
                 { key: "ALL", label: "Tất cả" },
-                { key: "HS", label: "Học viên" },
+                { key: "HS", label: "HS" },
                 { key: "ACA", label: "ACA" },
-                { key: "GV", label: "Giáo viên" },
-                { key: "SALE", label: "SALE" },
+                { key: "GRADER", label: "Grader" },
+                { key: "GV", label: "GV" },
+                { key: "SALE", label: "Sale" },
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -401,6 +414,8 @@ export function LoginForm() {
                           ? "bg-emerald-400 text-emerald-950"
                           : acc.role === "ACA"
                           ? "bg-amber-300 text-amber-950"
+                          : acc.role === "GRADER"
+                          ? "bg-violet-300 text-violet-950"
                           : acc.role === "SALE"
                           ? "bg-orange-300 text-orange-950"
                           : "bg-white text-[#6a5acd]"

@@ -12,7 +12,15 @@ import {
   PracticeClassSchedule,
   PracticeClassScheduleSchema,
 } from './schemas/practice-class-schedule.schema';
-import { AcaPracticeStudent, AcaPracticeStudentSchema } from '../aca/schemas/aca-practice-student.schema';
+import { AcaPracticeWeek, AcaPracticeWeekSchema } from '../aca/schemas/aca-practice-week.schema';
+import {
+  AcaPracticeStudent,
+  AcaPracticeStudentSchema,
+} from '../aca/schemas/aca-practice-student.schema';
+import {
+  PracticeClassWeeklyScore,
+  PracticeClassWeeklyScoreSchema,
+} from './schemas/practice-class-weekly-score.schema';
 import { AcaStudent, AcaStudentSchema } from '../aca/schemas/aca-student.schema';
 import { StudentPracticeClassController } from './student-practice-class.controller';
 import { TeacherPracticeClassController } from './teacher-practice-class.controller';
@@ -26,6 +34,8 @@ import { TeacherPracticeClassController } from './teacher-practice-class.control
         schema: PracticeClassRegistrationSchema,
       },
       { name: AcaPracticeStudent.name, schema: AcaPracticeStudentSchema },
+      { name: AcaPracticeWeek.name, schema: AcaPracticeWeekSchema },
+      { name: PracticeClassWeeklyScore.name, schema: PracticeClassWeeklyScoreSchema },
       { name: AcaStudent.name, schema: AcaStudentSchema },
     ]),
     AuthGuardsModule,

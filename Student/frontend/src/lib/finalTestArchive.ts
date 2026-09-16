@@ -9,16 +9,24 @@ import {
   createMyFinalTestApi,
   fetchFinalTestsApi,
   fetchMyFinalTestsApi,
+  fetchTeacherFinalTestsApi,
+  submitStudentFinalWritingApi,
+  submitTeacherFinalTestResultApi,
   updateFinalTestApi,
+  deleteFinalTestApi,
 } from "@/lib/acaManagementApi";
 import { getAuthToken } from "@/lib/auth";
 import { getGraderMeetLink } from "@/lib/graderMeetLinks";
+
+import type { BcbQuestionTypeRow } from "@/lib/guestBcbDiagnosis";
 
 export type FinalTestType = "full_4_skills" | "speaking" | "writing" | "lr";
 export type FinalTestStatus = "scheduled" | "in_progress" | "graded" | "cancelled";
 export type FinalTestFormat = "online" | "offline";
 
 export interface FinalTestBcbData {
+  overviewTitle?: string;
+  overviewSummary?: string;
   speaking?: {
     fc: string; // Fluency & Coherence
     lr: string; // Lexical Resource
@@ -27,22 +35,43 @@ export interface FinalTestBcbData {
     strengths?: string;
     weaknesses?: string;
     prescription?: string;
+    summary?: string;
   };
   writing?: {
-    ta: string; // Task Achievement
-    cc: string; // Coherence & Cohesion
-    lr: string; // Lexical Resource
-    gra: string; // Grammatical Range & Accuracy
+    task1?: {
+      ta: string; // Task Achievement
+      cc: string; // Coherence & Cohesion
+      lr: string; // Lexical Resource
+      gra: string; // Grammatical Range & Accuracy
+      notes?: string;
+    };
+    task2?: {
+      tr: string; // Task Response
+      cc: string; // Coherence & Cohesion
+      lr: string; // Lexical Resource
+      gra: string; // Grammatical Range & Accuracy
+      notes?: string;
+    };
     task1Notes?: string;
     task2Notes?: string;
     prescription?: string;
+    summary?: string;
+    // For backwards compatibility
+    ta?: string;
+    cc?: string;
+    lr?: string;
+    gra?: string;
   };
   lr?: {
     listeningCorrect?: string;
     readingCorrect?: string;
     listeningWeaknesses?: string;
     readingWeaknesses?: string;
+    listeningSummary?: string;
+    readingSummary?: string;
   };
+  bcbListening?: BcbQuestionTypeRow[];
+  bcbReading?: BcbQuestionTypeRow[];
   generalPrescription?: string;
   targetAchieved?: boolean;
   nextCourseRecommendation?: string;
@@ -64,6 +93,9 @@ export interface FinalTestRecord {
   examinerName: string;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
+  examDate?: string; // Ngày học viên đăng ký thi final
+  speakingDate?: string; // Ngày học viên đăng ký thi speaking final
+  speakingTime?: string; // Giờ thi speaking final
   day: number;
   month: number; // 0-indexed
   year: number;
@@ -79,9 +111,9 @@ export interface FinalTestRecord {
   scoreWriting?: string; // "W"
   scoreSpeaking?: string; // "S"
   bcbSpreadsheetLink?: string; // "BCB" spreadsheet url
-  graderWTask1?: string; // "Chấm W task 1"
-  graderWTask2?: string; // "Chấm W task 2"
-  graderSpeaking?: string; // "Chấm S"
+  graderWTask1?: string; // "Chấm W" (đồng bộ cả task 1 & 2)
+  graderWTask2?: string;
+  graderSpeaking?: string; // do học viên tự đăng ký Speaking
   isChecked?: boolean; // "Check" (khi bật cái đó lên thì kết quả mới được trả về học viên)
   resultStatus?: "Đạt" | "Không đạt"; // "Đạt/Không đạt"
   isDone?: boolean; // "DONE"
@@ -160,6 +192,9 @@ function asRecord(row: unknown): FinalTestRecord | null {
     examinerName: r.examinerName ?? "",
     date: r.date ?? "",
     time: r.time ?? "",
+    examDate: r.examDate || r.date || undefined,
+    speakingDate: r.speakingDate || undefined,
+    speakingTime: r.speakingTime || undefined,
     day: r.day ?? 0,
     month: r.month ?? 0,
     year: r.year ?? 0,
@@ -234,6 +269,62 @@ export async function listMyFinalTestRecords(identity?: {
     .map((r) => (r.isChecked ? r : redactUnreleased(r)));
 }
 
+export async function listTeacherFinalTestRecords(
+  examinerName?: string,
+): Promise<FinalTestRecord[]> {
+  try {
+    const rows = mapApiRows(await fetchTeacherFinalTestsApi(examinerName));
+    if (rows) return rows;
+  } catch {
+    if (getAuthToken()) return [];
+  }
+  if (getAuthToken()) return [];
+
+  const name = (examinerName || "").trim().toLowerCase();
+  return sortByDateDesc(
+    loadAll().filter((r) => {
+      if (r.status === "cancelled") return false;
+      if (!name) return true;
+      return (r.examinerName || "").trim().toLowerCase() === name;
+    }),
+  );
+}
+
+export async function submitTeacherFinalTestResult(
+  id: string,
+  patch: Partial<
+    Pick<
+      FinalTestRecord,
+      | "scoreOverall"
+      | "scoreListening"
+      | "scoreReading"
+      | "scoreWriting"
+      | "scoreSpeaking"
+      | "examLink"
+      | "feedback"
+      | "resultStatus"
+      | "status"
+      | "isDone"
+    >
+  >,
+): Promise<FinalTestRecord> {
+  const payload = {
+    ...patch,
+    status: patch.status || ("graded" as const),
+    isDone: patch.isDone ?? true,
+  };
+  try {
+    const updated = asRecord(await submitTeacherFinalTestResultApi(id, payload));
+    if (updated) {
+      dispatchUpdate();
+      return updated;
+    }
+  } catch (err) {
+    if (getAuthToken()) throw err;
+  }
+  return updateFinalTestRecord(id, payload);
+}
+
 function redactUnreleased(r: FinalTestRecord): FinalTestRecord {
   return {
     ...r,
@@ -260,9 +351,12 @@ export async function createFinalTestRecord(input: {
   targetBand?: string;
   testType: FinalTestType;
   format: FinalTestFormat;
-  examinerName: string;
+  examinerName?: string;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
+  examDate?: string;
+  speakingDate?: string;
+  speakingTime?: string;
   meetLink?: string;
   examLink?: string;
   submissionLink?: string;
@@ -287,7 +381,7 @@ export async function createFinalTestRecord(input: {
   const month = parseInt(mStr, 10) - 1;
   const day = parseInt(dStr, 10);
 
-  const meetLink = input.meetLink || "https://meet.google.com/vdy-dhpa-djj";
+  const meetLink = input.meetLink || "";
   const payload = {
     hasTakenTest: input.isChecked ?? false,
     candidateName: input.candidateName.trim(),
@@ -296,13 +390,16 @@ export async function createFinalTestRecord(input: {
     studentId: input.studentId || "",
     classCode: input.classCode || "",
     className: input.className || "",
-    classification: input.classification || "M/U",
-    targetBand: input.targetBand || "6.0",
+    classification: input.classification || "",
+    targetBand: input.targetBand || "",
     testType: input.testType,
     format: input.format,
-    examinerName: input.examinerName.trim(),
+    examinerName: (input.examinerName || "").trim(),
     date: input.date,
     time: input.time,
+    examDate: input.examDate || input.date,
+    speakingDate: input.speakingDate || (input.testType === "speaking" ? input.date : ""),
+    speakingTime: input.speakingTime || (input.testType === "speaking" ? input.time : ""),
     day,
     month,
     year,
@@ -322,7 +419,7 @@ export async function createFinalTestRecord(input: {
     graderWTask2: input.graderWTask2?.trim() || "",
     graderSpeaking: input.graderSpeaking?.trim() || "",
     isChecked: input.isChecked ?? false,
-    resultStatus: input.resultStatus || "Không đạt",
+    resultStatus: input.resultStatus || undefined,
     isDone: input.isDone ?? false,
     note: input.note?.trim() || "",
   };
@@ -334,22 +431,26 @@ export async function createFinalTestRecord(input: {
         dispatchUpdate();
         return created;
       }
-    } catch {
+    } catch (acaErr) {
       try {
         const created = asRecord(await createMyFinalTestApi(payload));
         if (created) {
           dispatchUpdate();
           return created;
         }
-      } catch {
+      } catch (studentErr) {
         if (getAuthToken()) {
-          throw new Error("Không thể tạo Final Test khi backend chưa sẵn sàng.");
+          const msg =
+            (studentErr instanceof Error && studentErr.message) ||
+            (acaErr instanceof Error && acaErr.message) ||
+            "Không thể tạo Final Test.";
+          throw new Error(msg);
         }
       }
     }
   }
   if (getAuthToken()) {
-    throw new Error("Không thể tạo Final Test khi backend chưa sẵn sàng.");
+    throw new Error("Không thể tạo Final Test (chưa nhận được phản hồi từ server).");
   }
 
   const id = `ft-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -362,6 +463,31 @@ export async function createFinalTestRecord(input: {
   const current = loadAll();
   saveAll([record, ...current]);
   return record;
+}
+
+export async function submitFinalWritingSubmission(
+  id: string,
+  submissionLink: string
+): Promise<FinalTestRecord> {
+  if (canUseAcaApi()) {
+    try {
+      const updated = asRecord(await submitStudentFinalWritingApi(id, submissionLink));
+      if (updated) {
+        dispatchUpdate();
+        return updated;
+      }
+    } catch (err) {
+      if (getAuthToken()) {
+        const msg = err instanceof Error ? err.message : "Không thể nộp bài Final Writing.";
+        throw new Error(msg);
+      }
+    }
+  }
+  return updateFinalTestRecord(id, {
+    submissionLink,
+    examLink: submissionLink,
+    status: "in_progress",
+  });
 }
 
 export async function updateFinalTestRecord(
@@ -400,8 +526,32 @@ export async function updateFinalTestRecord(
     return b;
   });
 
-  if (!updated) throw new Error("Không tìm thấy ca Final Test");
+  if (!updated) {
+    updated = {
+      id,
+      candidateName: patch.candidateName || "Học viên",
+      candidatePhone: patch.candidatePhone || "",
+      candidateEmail: patch.candidateEmail || "",
+      classCode: patch.classCode || "Chưa xếp lớp",
+      className: patch.className || patch.classCode || "Chưa xếp lớp",
+      classification: patch.classification || "M/U",
+      testType: "full_4_skills",
+      format: "online",
+      examinerName: patch.examinerName || "Giám khảo",
+      date: patch.date || new Date().toISOString().split("T")[0],
+      time: "18:00",
+      day: new Date().getDate(),
+      month: new Date().getMonth(),
+      year: new Date().getFullYear(),
+      status: "scheduled",
+      ...patch,
+      updatedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+    next.unshift(updated);
+  }
   saveAll(next);
+  dispatchUpdate();
   return updated;
 }
 
@@ -458,6 +608,16 @@ export async function cancelFinalTestRecord(id: string): Promise<void> {
 }
 
 export async function deleteFinalTestRecord(id: string): Promise<void> {
+  if (canUseAcaApi()) {
+    try {
+      await deleteFinalTestApi(id);
+      dispatchUpdate();
+      return;
+    } catch {
+      // fallthrough to local
+    }
+  }
+
   const all = loadAll();
   const next = all.filter((b) => b.id !== id);
   saveAll(next);

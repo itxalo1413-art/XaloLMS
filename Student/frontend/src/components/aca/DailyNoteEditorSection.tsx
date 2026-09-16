@@ -20,6 +20,7 @@ import {
   type QuoteMode,
   type StudentDailyNote,
 } from "@/lib/studentDailyNote";
+import { confirmDialog } from "@/components/shared/ConfirmDialog";
 
 export function DailyNoteEditorSection() {
   const [mode, setMode] = useState<QuoteMode>("random");
@@ -107,8 +108,15 @@ export function DailyNoteEditorSection() {
     showNotification("Đã cập nhật câu quote!");
   };
 
-  const handleDelete = (id: string) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa câu quote này?")) return;
+  const handleDelete = async (id: string) => {
+    const ok = await confirmDialog({
+      title: "Xóa câu quote",
+      message: "Bạn có chắc chắn muốn xóa câu quote này không?",
+      confirmText: "Đồng ý xóa",
+      cancelText: "Giữ lại",
+      variant: "danger",
+    });
+    if (!ok) return;
     const updated = deleteQuote(id);
     setQuotes(updated);
     showNotification("Đã xóa câu quote!");

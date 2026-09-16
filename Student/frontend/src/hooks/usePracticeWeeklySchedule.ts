@@ -5,6 +5,7 @@ import {
   getPracticeWeekRangeLabel,
   getPracticeWeeklySchedule,
   PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT,
+  refreshPracticeCurrentWeek,
   refreshPracticeScheduleForStudent,
 } from "@/lib/practiceClass";
 
@@ -15,12 +16,13 @@ export function usePracticeWeeklySchedule() {
 
   useEffect(() => {
     let cancelled = false;
-    void refreshPracticeScheduleForStudent().then(() => {
+    void Promise.all([
+      refreshPracticeScheduleForStudent(),
+      refreshPracticeCurrentWeek(),
+    ]).then(() => {
       if (!cancelled) bump();
     });
-    const onUpdate = () => {
-      void refreshPracticeScheduleForStudent().then(() => bump());
-    };
+    const onUpdate = () => bump();
     window.addEventListener(PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT, onUpdate);
     return () => {
       cancelled = true;

@@ -15,21 +15,27 @@ interface NavItem {
   match: (p: string) => boolean;
 }
 
-const IconLeads = () => (
-  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-  </svg>
-);
-
 const IconCalendar = () => (
   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
   </svg>
 );
 
-const IconTest = () => (
+const IconSpeaking = () => (
   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+  </svg>
+);
+
+const IconWriting = () => (
+  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+  </svg>
+);
+
+const IconScores = () => (
+  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
   </svg>
 );
 
@@ -39,33 +45,40 @@ const IconLogout = () => (
   </svg>
 );
 
-const IconArchive = () => (
+const IconBcb = () => (
   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
   </svg>
 );
 
 const NAV_ITEMS: NavItem[] = [
   {
-    href: "/sale/leads",
-    label: "Lead BCB",
-    desc: "Khách chẩn đoán & chuyển đổi",
-    icon: <IconLeads />,
-    match: (p) => p.startsWith("/sale/leads") || p === "/sale",
+    href: "/sale/bcb",
+    label: "Bảng Chẩn Bệnh (BCB)",
+    desc: "Sale điền L & R — W/S do Grader",
+    icon: <IconBcb />,
+    match: (p) => (p.startsWith("/sale/bcb") && !p.startsWith("/sale/bcb-entrance")) || p === "/sale",
   },
   {
-    href: "/sale/lich-ranh",
-    label: "Lịch rảnh Grader",
-    desc: "Daily schedule & ca rảnh Grader",
-    icon: <IconCalendar />,
-    match: (p) => p.startsWith("/sale/lich-ranh"),
+    href: "/sale/bcb-entrance",
+    label: "BCB Entrance",
+    desc: "BCB chi tiết theo booking Entrance",
+    icon: <IconBcb />,
+    match: (p) => p.startsWith("/sale/bcb-entrance"),
   },
   {
-    href: "/sale/dat-lich-test",
-    label: "Đặt lịch Test Entrance",
-    desc: "Chấm Speaking & Writing đầu vào",
-    icon: <IconTest />,
-    match: (p) => p.startsWith("/sale/dat-lich-test"),
+    href: "/sale/test-speaking",
+    label: "Test Speaking Entrance",
+    desc: "Lịch rảnh & xếp ca phỏng vấn 1-1",
+    icon: <IconSpeaking />,
+    match: (p) => p.startsWith("/sale/test-speaking") || p.startsWith("/sale/lich-ranh"),
+  },
+  {
+    href: "/sale/cham-writing",
+    label: "Writing Entrance",
+    desc: "Nộp link bài làm — tự phân Grader",
+    icon: <IconWriting />,
+    match: (p) => p.startsWith("/sale/cham-writing"),
   },
 ];
 

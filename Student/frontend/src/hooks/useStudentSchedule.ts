@@ -15,6 +15,7 @@ import {
   getPracticeSlotsForStudent,
   getRegisteredPracticeSlotsOnCalendarDay,
   hasRegisteredPracticeOnCalendarDay,
+  getPracticeCurrentWeek,
   PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT,
   PRACTICE_CLASS_UPDATE_EVENT,
   refreshPracticeRegistrations,
@@ -26,7 +27,11 @@ import {
   refreshMockTestRequestsForStudent,
   type MockTestRequest,
 } from "@/lib/mockTestRequests";
-import { getGraderMeetLink, GRADER_MEET_LINKS_EVENT } from "@/lib/graderMeetLinks";
+import {
+  getGraderMeetLink,
+  GRADER_MEET_LINKS_EVENT,
+  syncGraderMeetLinksFromBackend,
+} from "@/lib/graderMeetLinks";
 import {
   DEFAULT_SCHEDULE_VIEW,
   loadScheduleViewState,
@@ -82,6 +87,7 @@ export function useStudentSchedule() {
         syncRequests();
         syncPracticeSlots();
         syncRlp();
+        void syncGraderMeetLinksFromBackend();
       }
     });
     window.addEventListener(MOCK_TEST_UPDATE_EVENT, syncRequests);
@@ -139,7 +145,7 @@ export function useStudentSchedule() {
         setViewState({ year: nearestYear, month: nearestMonth, selectedDay: null });
       }
     }
-  }, [rlpVersion, viewState.month, viewState.year]);
+  }, [viewState]);
 
   const viewDate = useMemo(
     () => new Date(viewState.year, viewState.month, 1),
@@ -221,12 +227,18 @@ export function useStudentSchedule() {
     if (!selectedDay) return [];
     const approvedEvents = approvedTests
       .filter((t) => t.day === selectedDay && t.month === month && t.year === year)
-      .map((t) => ({
-        type: "mock" as const,
-        label: t.skill,
-        detail: `Giờ ${t.examTime ?? "—"} · ${t.examTeacher ?? "GV —"}`,
-        meetLink: getGraderMeetLink(t.examTeacher),
-      }));
+      .map((t) => {
+        const directMeet =
+          t.note && (t.note.startsWith("http://") || t.note.startsWith("https://"))
+            ? t.note
+            : undefined;
+        return {
+          type: "mock" as const,
+          label: t.skill,
+          detail: `Giờ ${t.examTime ?? "—"} · ${t.examTeacher ?? "GV —"}`,
+          meetLink: directMeet || getGraderMeetLink(t.examTeacher),
+        };
+      });
 
     const rlpSessions = findSessionsOnDay(selectedDay, month, year);
     const rlpEvents = rlpSessions.map((s) => ({
@@ -242,13 +254,14 @@ export function useStudentSchedule() {
       month,
       year,
     );
+    const weekMeet = getPracticeCurrentWeek()?.linkMeet?.trim() || undefined;
     const practiceEvents = practiceRegs.map((reg) => {
       const slot = getPracticeSlotById(reg.slotId);
       return {
         type: "practice" as const,
         label: slot?.title ?? "Lớp luyện đề",
         detail: slot ? `${slot.dayLabel} · ${slot.time} · ${slot.platform}` : "—",
-        meetLink: undefined as string | undefined,
+        meetLink: weekMeet,
       };
     });
 

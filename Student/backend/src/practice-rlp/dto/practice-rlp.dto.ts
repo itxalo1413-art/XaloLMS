@@ -1,5 +1,9 @@
 import type { Attendance, HomeworkStatus } from '../../rlp/rlp.types';
 
+export class StudentUpdatePracticeRlpHomeworkDto {
+  homeworkStatus!: HomeworkStatus;
+}
+
 export class UpdatePracticeRlpSessionDto {
   attendance?: Attendance;
   homeworkStatus?: HomeworkStatus;

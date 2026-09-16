@@ -9,6 +9,10 @@ import { UsersService } from '../users/users.service';
 import { CreateWritingSubmissionDto } from './dto/create-writing-submission.dto';
 import { GradeWritingSubmissionDto } from './dto/grade-writing-submission.dto';
 import {
+  computeWritingDueDateFromSubmitted,
+  resolveWritingDueDateStored,
+} from './writing-deadline.util';
+import {
   isWritingSubmissionStatus,
   type WritingSubmissionStatus,
 } from './writing-submission.constants';
@@ -49,8 +53,10 @@ export type WritingSubmissionPublic = {
   note?: string;
   assignedGrader?: string;
   source?: string;
+  submittedByRole?: string;
   entranceBookingId?: string;
   finalTestId?: string;
+  criteriaScores?: Record<string, unknown> | null;
 };
 
 type WritingSubmissionLean = WritingSubmission & {
@@ -93,6 +99,16 @@ export class WritingSubmissionService {
     return selected;
   }
 
+  private resolveSubmittedByRole(doc: WritingSubmissionLean): string {
+    const stored = String(doc.submittedByRole || '').trim();
+    if (stored === 'sale' || stored === 'student' || stored === 'staff') return stored;
+    if (doc.entranceBookingId || doc.source === 'entrance') return 'sale';
+    if (doc.source === 'final' || doc.finalTestId || doc.source === 'support') {
+      return 'student';
+    }
+    return 'staff';
+  }
+
   private toPublic(doc: WritingSubmissionLean): WritingSubmissionPublic {
     const status = isWritingSubmissionStatus(doc.status)
       ? doc.status
@@ -107,7 +123,7 @@ export class WritingSubmissionService {
       status,
       score: doc.score,
       gradedAt: doc.gradedAt,
-      dueDate: doc.dueDate,
+      dueDate: resolveWritingDueDateStored(doc.dueDate, doc.createdAt),
       studentGmail: doc.studentGmail,
       type: doc.type,
       task1: doc.task1,
@@ -115,8 +131,10 @@ export class WritingSubmissionService {
       note: doc.note,
       assignedGrader: doc.assignedGrader || '',
       source: doc.source || 'support',
+      submittedByRole: this.resolveSubmittedByRole(doc),
       entranceBookingId: doc.entranceBookingId || '',
       finalTestId: doc.finalTestId || '',
+      criteriaScores: (doc.criteriaScores as Record<string, unknown> | null) ?? null,
     };
   }
 
@@ -160,11 +178,31 @@ export class WritingSubmissionService {
   async listForTeacher(
     status?: string,
   ): Promise<WritingSubmissionPublic[]> {
-    // Backfill any existing submissions missing assignedGrader
-    const unassigned = await this.model.find({ $or: [{ assignedGrader: { $exists: false } }, { assignedGrader: '' }] }).exec();
-    for (const doc of unassigned) {
-      doc.assignedGrader = await this.selectNextGrader();
-      await doc.save();
+    // Backfill missing assignedGrader — không để lỗi 1 document làm fail cả API
+    try {
+      const unassigned = await this.model
+        .find({
+          $or: [
+            { assignedGrader: { $exists: false } },
+            { assignedGrader: '' },
+            { assignedGrader: null },
+          ],
+        })
+        .select('_id')
+        .lean()
+        .exec();
+      for (const row of unassigned) {
+        try {
+          const grader = await this.selectNextGrader();
+          await this.model
+            .updateOne({ _id: row._id }, { $set: { assignedGrader: grader } })
+            .exec();
+        } catch (err) {
+          console.warn('Writing grader backfill skipped:', err);
+        }
+      }
+    } catch (err) {
+      console.warn('Writing grader backfill failed:', err);
     }
 
     const filter: Record<string, unknown> = {};
@@ -208,6 +246,7 @@ export class WritingSubmissionService {
       existing.status = 'pending';
       existing.score = undefined;
       existing.gradedAt = undefined;
+      existing.dueDate = computeWritingDueDateFromSubmitted(now);
       if (!existing.assignedGrader) {
         existing.assignedGrader = await this.selectNextGrader();
       }
@@ -239,7 +278,9 @@ export class WritingSubmissionService {
       examLink,
       testDateTime,
       status: 'pending',
-      dueDate: payload.dueDate?.trim() || '',
+      dueDate:
+        payload.dueDate?.trim() ||
+        computeWritingDueDateFromSubmitted(now),
       studentGmail: payload.studentGmail?.trim() || '',
       type: payload.type?.trim() || 'Support',
       task1: payload.task1?.trim() || '',
@@ -247,6 +288,7 @@ export class WritingSubmissionService {
       note: payload.note?.trim() || '',
       assignedGrader,
       source: 'support',
+      submittedByRole: 'student',
     });
 
     return this.toPublic(created.toObject() as WritingSubmissionLean);
@@ -264,13 +306,18 @@ export class WritingSubmissionService {
 
     const score = payload.score?.trim() !== undefined ? payload.score.trim() : doc.score;
     const examLink = payload.examLink?.trim() !== undefined ? payload.examLink.trim() : doc.examLink;
-    const dueDate = payload.dueDate?.trim() !== undefined ? payload.dueDate.trim() : doc.dueDate;
+    const dueDate =
+      payload.dueDate?.trim() !== undefined
+        ? payload.dueDate.trim()
+        : resolveWritingDueDateStored(doc.dueDate, doc.createdAt);
     const studentGmail = payload.studentGmail?.trim() !== undefined ? payload.studentGmail.trim() : doc.studentGmail;
     const type = payload.type?.trim() !== undefined ? payload.type.trim() : doc.type;
     const task1 = payload.task1?.trim() !== undefined ? payload.task1.trim() : doc.task1;
     const task2 = payload.task2?.trim() !== undefined ? payload.task2.trim() : doc.task2;
     const note = payload.note?.trim() !== undefined ? payload.note.trim() : doc.note;
     const assignedGrader = payload.assignedGrader?.trim() !== undefined ? payload.assignedGrader.trim() : doc.assignedGrader;
+    const criteriaScores =
+      payload.criteriaScores !== undefined ? payload.criteriaScores : doc.criteriaScores;
 
     if (nextStatus === 'graded' && !score) {
       throw new BadRequestException('Cần nhập điểm khi chấm xong');
@@ -299,6 +346,7 @@ export class WritingSubmissionService {
             task2,
             note,
             assignedGrader,
+            criteriaScores: criteriaScores ?? null,
           },
         },
         { returnDocument: 'after' },
@@ -306,25 +354,71 @@ export class WritingSubmissionService {
       .lean()
       .exec();
 
+    if (!updated) {
+      throw new NotFoundException('Không tìm thấy bài nộp');
+    }
+
     const publicRow = this.toPublic(updated as WritingSubmissionLean);
     if (nextStatus === 'graded') {
-      await this.syncLinkedWritingScore(publicRow);
+      try {
+        await this.syncLinkedWritingScore(publicRow);
+      } catch (err) {
+        console.warn('syncLinkedWritingScore failed:', err);
+      }
     }
     return publicRow;
   }
 
   private async syncLinkedWritingScore(row: WritingSubmissionPublic): Promise<void> {
+    const criteria = row.criteriaScores ?? null;
     const bookingId = row.entranceBookingId?.trim();
     if (bookingId && Types.ObjectId.isValid(bookingId)) {
-      await this.entranceBookingModel
-        .findByIdAndUpdate(bookingId, {
-          $set: {
-            scoreWriting: row.score ?? '',
-            status: 'graded',
-            examLink: row.examLink || undefined,
-          },
-        })
-        .exec();
+      const existing = await this.entranceBookingModel.findById(bookingId).lean().exec();
+      if (existing) {
+        const prevBcb =
+          ((existing as { bcbData?: Record<string, unknown> | null }).bcbData as Record<
+            string,
+            unknown
+          > | null) || {};
+        const prevWriting =
+          (prevBcb.writing as Record<string, unknown> | undefined) || {};
+        const t1 = (criteria?.task1 as Record<string, unknown> | undefined) || {};
+        const t2 = (criteria?.task2 as Record<string, unknown> | undefined) || {};
+        const nextBcb = criteria
+          ? {
+              ...prevBcb,
+              writing: {
+                ...prevWriting,
+                task1: {
+                  ta: String(t1.taskAchievement ?? ''),
+                  cc: String(t1.coherenceCohesion ?? ''),
+                  lr: String(t1.lexicalResource ?? ''),
+                  gra: String(t1.grammaticalRange ?? ''),
+                  notes: (prevWriting.task1 as { notes?: string } | undefined)?.notes,
+                },
+                task2: {
+                  tr: String(t2.taskResponse ?? ''),
+                  cc: String(t2.coherenceCohesion ?? ''),
+                  lr: String(t2.lexicalResource ?? ''),
+                  gra: String(t2.grammaticalRange ?? ''),
+                  notes: (prevWriting.task2 as { notes?: string } | undefined)?.notes,
+                },
+              },
+            }
+          : undefined;
+
+        await this.entranceBookingModel
+          .findByIdAndUpdate(bookingId, {
+            $set: {
+              scoreWriting: row.score ?? '',
+              status: 'graded',
+              examLink: row.examLink || undefined,
+              ...(criteria ? { writingCriteria: criteria } : {}),
+              ...(nextBcb ? { bcbData: nextBcb } : {}),
+            },
+          })
+          .exec();
+      }
     }
 
     const finalId = row.finalTestId?.trim();
@@ -335,6 +429,39 @@ export class WritingSubmissionService {
       const hasSpeaking = Boolean((existing as { scoreSpeaking?: string }).scoreSpeaking);
       const status =
         testType === 'full_4_skills' && !hasSpeaking ? 'in_progress' : 'graded';
+
+      const prevBcb =
+        ((existing as { bcbData?: Record<string, unknown> | null }).bcbData as Record<
+          string,
+          unknown
+        > | null) || {};
+      const prevWriting =
+        (prevBcb.writing as Record<string, unknown> | undefined) || {};
+      const t1 = (criteria?.task1 as Record<string, unknown> | undefined) || {};
+      const t2 = (criteria?.task2 as Record<string, unknown> | undefined) || {};
+      const nextBcb = criteria
+        ? {
+            ...prevBcb,
+            writing: {
+              ...prevWriting,
+              task1: {
+                ta: String(t1.taskAchievement ?? ''),
+                cc: String(t1.coherenceCohesion ?? ''),
+                lr: String(t1.lexicalResource ?? ''),
+                gra: String(t1.grammaticalRange ?? ''),
+                notes: (prevWriting.task1 as { notes?: string } | undefined)?.notes,
+              },
+              task2: {
+                tr: String(t2.taskResponse ?? ''),
+                cc: String(t2.coherenceCohesion ?? ''),
+                lr: String(t2.lexicalResource ?? ''),
+                gra: String(t2.grammaticalRange ?? ''),
+                notes: (prevWriting.task2 as { notes?: string } | undefined)?.notes,
+              },
+            },
+          }
+        : undefined;
+
       await this.finalTestModel
         .findByIdAndUpdate(finalId, {
           $set: {
@@ -346,6 +473,7 @@ export class WritingSubmissionService {
             isDone: false,
             releasedAt: '',
             releasedBy: '',
+            ...(nextBcb ? { bcbData: nextBcb } : {}),
           },
         })
         .exec();

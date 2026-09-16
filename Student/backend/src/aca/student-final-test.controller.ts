@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -54,6 +55,20 @@ export class StudentFinalTestController {
       isChecked: false,
       isDone: false,
     });
+  }
+
+  @Put(':id/submit-writing')
+  async submitWritingMine(
+    @Req() req: AuthedRequest,
+    @Param('id') id: string,
+    @Body() body: { submissionLink?: string; examLink?: string },
+  ) {
+    await this.assertOwned(req, id);
+    const link = ((body?.submissionLink || body?.examLink || '') as string).trim();
+    if (!link) {
+      throw new BadRequestException('Vui lòng nhập link bài làm Google Docs');
+    }
+    return this.service.submitStudentFinalWriting(id, link);
   }
 
   @Put(':id/cancel')

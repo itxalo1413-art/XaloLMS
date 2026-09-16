@@ -26,9 +26,13 @@ import {
   type MockTestRequest,
 } from "@/lib/mockTestRequests";
 import { isSpeakingMockTest } from "@/lib/selfStudyFormat";
+import {
+  getWritingDeadlineStatus,
+  WRITING_GRADING_DEADLINE_DAYS,
+} from "@/lib/writingDeadline";
 
-// Mock Current Date Context for LMS calculation: June 19, 2026
-const CURRENT_DATE = new Date(2026, 5, 19);
+// Use real "today" for late/on-time writing grading stats
+const CURRENT_DATE = new Date();
 
 const AVAILABLE_SKILLS = ["Writing", "Speaking", "Reading", "Listening", "Quản lý", "Chăm sóc học viên"];
 
@@ -46,6 +50,7 @@ interface TeacherFullStats {
     classCode: string;
     className: string;
     daysTaken: number;
+    daysLate: number;
     isLate: boolean;
   }>;
 }
@@ -174,17 +179,18 @@ export default function AcaTeacherManagementPage() {
 
       const subDate = new Date(sub.submittedAt);
       let daysTaken = 0;
+      const deadline = getWritingDeadlineStatus(sub);
       let isLate = false;
 
       if (sub.status === "graded") {
         const gradeDate = sub.gradedAt ? new Date(sub.gradedAt) : CURRENT_DATE;
         const diffTime = gradeDate.getTime() - subDate.getTime();
         daysTaken = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
-        isLate = daysTaken > 10;
+        isLate = deadline.daysLate > 0;
       } else {
         const diffTime = CURRENT_DATE.getTime() - subDate.getTime();
         daysTaken = Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
-        isLate = daysTaken > 10;
+        isLate = deadline.isOverdue;
       }
 
       map[tName].totalSubmissions++;
@@ -205,6 +211,7 @@ export default function AcaTeacherManagementPage() {
         classCode,
         className,
         daysTaken,
+        daysLate: deadline.daysLate,
         isLate,
       });
     }
@@ -392,7 +399,7 @@ export default function AcaTeacherManagementPage() {
     <AcaLayout>
       <AcaTopbar
         title="Quản lý Giáo viên & Hiệu suất"
-        subtitle="Danh sách giáo viên, thông tin chuyên môn, lịch giảng dạy và theo dõi thời hạn chấm bài (Tối đa 10 ngày)."
+        subtitle={`Danh sách giáo viên, thông tin chuyên môn, lịch giảng dạy và theo dõi thời hạn chấm Writing (tối đa ${WRITING_GRADING_DEADLINE_DAYS} ngày).`}
       />
       <main className="mx-auto w-full px-6 py-6 pb-16 md:px-8 space-y-6">
         {error && (
@@ -428,7 +435,7 @@ export default function AcaTeacherManagementPage() {
           </div>
 
           <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm flex flex-col justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Bài trễ hạn (&gt;10n)</span>
+            <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Bài trễ hạn (&gt;{WRITING_GRADING_DEADLINE_DAYS}n)</span>
             <div className="mt-2 flex items-baseline justify-between">
               <span className={`text-2xl font-black ${kpiSummary.totalLate > 0 ? "text-rose-600 animate-pulse" : "text-zinc-400"}`}>
                 {kpiSummary.totalLate}
@@ -823,7 +830,7 @@ export default function AcaTeacherManagementPage() {
                                 }`}
                               >
                                 {item.isLate
-                                  ? `Trễ hạn ${item.daysTaken - 10} ngày`
+                                  ? `Trễ hạn ${item.daysLate} ngày`
                                   : item.sub.status === "graded"
                                   ? "Đúng hạn"
                                   : "Đang chờ"}

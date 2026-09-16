@@ -3,6 +3,7 @@ import {
   Controller,
   Param,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -14,7 +15,7 @@ import { PracticeClassService } from './practice-class.service';
 
 @Controller('teacher/practice-class')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('GV', 'ACA')
+@Roles('GV', 'ACA', 'GRADER')
 export class TeacherPracticeClassController {
   constructor(private readonly practiceClass: PracticeClassService) {}
 
@@ -22,10 +23,12 @@ export class TeacherPracticeClassController {
   updateStudentLinkFolder(
     @Param('studentId') studentId: string,
     @Body() body: UpdatePracticeLinkFolderDto,
+    @Query('weekRange') weekRange?: string,
   ) {
     return this.practiceClass.updateStudentLinkFolder(
       studentId,
       body?.linkFolder ?? '',
+      weekRange,
     );
   }
 

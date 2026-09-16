@@ -1,7 +1,7 @@
 import { PRACTICE_CLASS_WEEKLY_REREGISTER_WARNING } from "@/lib/practiceClass";
 
 export function PracticeClassWeeklyWarning({ announcement }: { announcement?: string }) {
-  const message = announcement?.trim() || PRACTICE_CLASS_WEEKLY_REREGISTER_WARNING;
+  const weekNotice = announcement?.trim() || "";
 
   return (
     <div
@@ -14,12 +14,22 @@ export function PracticeClassWeeklyWarning({ announcement }: { announcement?: st
           <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
         </svg>
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 space-y-2">
         <div className="text-[10px] font-black uppercase tracking-widest text-warning">
           Lưu ý & Thông báo từ Học vụ
         </div>
-        <p className="mt-1 text-sm font-semibold leading-relaxed text-foreground whitespace-pre-wrap">
-          {message}
+        {weekNotice ? (
+          <p className="text-sm font-semibold leading-relaxed text-foreground whitespace-pre-wrap">
+            {weekNotice}
+          </p>
+        ) : null}
+        <p
+          className={[
+            "text-sm font-semibold leading-relaxed whitespace-pre-wrap",
+            weekNotice ? "text-muted" : "text-foreground",
+          ].join(" ")}
+        >
+          {PRACTICE_CLASS_WEEKLY_REREGISTER_WARNING}
         </p>
       </div>
     </div>

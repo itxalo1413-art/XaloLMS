@@ -9,6 +9,7 @@ import {
   fetchWritingSubmissionsForTeacher,
   gradeWritingSubmissionApi,
 } from "@/lib/writingSubmissionApi";
+import { computeWritingDueDateFromSubmitted } from "@/lib/writingDeadline";
 
 export const ACA_GRADERS = [
   "Grader 1",
@@ -36,8 +37,23 @@ export type WritingSubmission = {
   note?: string;
   assignedGrader?: string;
   source?: string;
+  submittedByRole?: string;
   entranceBookingId?: string;
   finalTestId?: string;
+  criteriaScores?: {
+    task1?: {
+      taskAchievement?: number;
+      coherenceCohesion?: number;
+      lexicalResource?: number;
+      grammaticalRange?: number;
+    };
+    task2?: {
+      taskResponse?: number;
+      coherenceCohesion?: number;
+      lexicalResource?: number;
+      grammaticalRange?: number;
+    };
+  } | null;
 };
 
 export const WRITING_SUBMISSIONS_KEY = "xalo.student.writingSubmissions.v1";
@@ -204,6 +220,7 @@ export function createWritingSubmission(input: {
     testDateTime: input.testDateTime ?? now.toISOString(),
     submittedAt: now.toISOString(),
     status: "pending",
+    dueDate: computeWritingDueDateFromSubmitted(now),
     type: "Support",
     source: "support",
     assignedGrader: assigned,
@@ -214,10 +231,20 @@ export async function refreshWritingSubmissionsForStudent(
   studentId: string,
 ): Promise<WritingSubmission[]> {
   if (canUseWritingSubmissionApi()) {
-    const rows = await fetchWritingSubmissionsForStudent();
-    const deduped = deduplicateWritingSubmissions(rows);
-    saveCache(deduped);
-    return deduped;
+    try {
+      const rows = await fetchWritingSubmissionsForStudent();
+      const deduped = deduplicateWritingSubmissions(rows);
+      applyWritingSubmissionsCache(deduped);
+      return deduped;
+    } catch (err) {
+      console.warn("Could not refresh student writing submissions from API", err);
+      const cached = deduplicateWritingSubmissions(
+        submissionsCache.filter((r) => r.studentId === studentId),
+      );
+      if (cached.length > 0) return cached;
+      const local = loadLocal().filter((r) => r.studentId === studentId);
+      return deduplicateWritingSubmissions(local);
+    }
   }
   const local = loadLocal();
   const filtered = deduplicateWritingSubmissions(local.filter((r) => r.studentId === studentId));
@@ -233,7 +260,7 @@ export async function refreshWritingSubmissionsForTeacher(
     try {
       const rows = await fetchWritingSubmissionsForTeacher(filterStatus === "all" ? undefined : filterStatus);
       const deduped = deduplicateWritingSubmissions(rows);
-      saveCache(deduped);
+      applyWritingSubmissionsCache(deduped);
       return deduped;
     } catch (err) {
       console.warn("Could not refresh teacher writing submissions from API", err);
@@ -312,6 +339,7 @@ export async function gradeWritingSubmission(
     task2?: string;
     note?: string;
     assignedGrader?: string;
+    criteriaScores?: WritingSubmission["criteriaScores"];
   },
 ): Promise<WritingSubmission> {
   if (canUseWritingSubmissionApi()) {
@@ -339,8 +367,13 @@ export async function gradeWritingSubmission(
       task1: payload.task1?.trim() !== undefined ? payload.task1.trim() : r.task1,
       task2: payload.task2?.trim() !== undefined ? payload.task2.trim() : r.task2,
       note: payload.note?.trim() !== undefined ? payload.note.trim() : r.note,
-      assignedGrader: payload.assignedGrader?.trim() !== undefined ? payload.assignedGrader.trim() : r.assignedGrader,
-      gradedAt: payload.status === "graded" ? now : r.gradedAt,
+      assignedGrader:
+        payload.assignedGrader?.trim() !== undefined
+          ? payload.assignedGrader.trim()
+          : r.assignedGrader,
+      criteriaScores:
+        payload.criteriaScores !== undefined ? payload.criteriaScores : r.criteriaScores,
+      gradedAt: payload.status === "graded" ? now : payload.status === "pending" ? undefined : r.gradedAt,
     };
     return updated;
   });

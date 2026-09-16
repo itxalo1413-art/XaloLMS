@@ -51,11 +51,19 @@ export class WritingSubmission {
   @Prop({ trim: true, default: 'support' })
   source?: string;
 
+  /** Ai tạo/nộp task cho grader: sale | student | staff */
+  @Prop({ trim: true, default: '' })
+  submittedByRole?: string;
+
   @Prop({ trim: true, default: '', index: true })
   entranceBookingId?: string;
 
   @Prop({ trim: true, default: '', index: true })
   finalTestId?: string;
+
+  /** Điểm thành phần W (Entrance/Final): task1 TA/CC/LR/GRA + task2 TR/CC/LR/GRA */
+  @Prop({ type: Object, default: null })
+  criteriaScores?: Record<string, unknown> | null;
 }
 
 export const WritingSubmissionSchema =

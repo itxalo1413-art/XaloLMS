@@ -7,11 +7,11 @@ import {
   getStudentProfile,
   registerStudentInfoCache,
   saveStudentProfile,
-  STUDENT_PROFILE_UPDATE_EVENT,
   type StudentProfile,
 } from "@/lib/studentProfile";
-import { fetchStudentProfile, updateStudentProfile } from "@/lib/studentProfileApi";
+import { updateStudentProfile } from "@/lib/studentProfileApi";
 import { resolveActiveStudentId } from "@/lib/studentRoster";
+import { fetchAcaStudent, saveStudentIdentityForAca, updateAcaStudent } from "@/lib/acaManagementApi";
 
 type Props = {
   portalLabel: string;
@@ -20,6 +20,10 @@ type Props = {
     name?: string;
     email?: string;
     phone?: string;
+    dob?: string;
+    zodiac?: string;
+    avatarUrl?: string;
+    examDate?: string;
   };
 };
 
@@ -29,63 +33,92 @@ const inputClass =
 export function StudentProfileEditorSection({ portalLabel, studentId, studentData }: Props) {
   const [profile, setProfile] = useState<StudentProfile>(DEFAULT_STUDENT_PROFILE);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const isActiveStudent = studentId === resolveActiveStudentId();
+
+  const applyIdentity = useCallback((current: StudentProfile, data?: Props["studentData"]) => {
+    const next = { ...current };
+    if (data) {
+      if (data.name) next.name = data.name;
+      if (data.email) next.email = data.email;
+      if (data.phone) next.phone = data.phone;
+      if (data.dob) next.dob = data.dob;
+      if (data.zodiac) next.zodiac = data.zodiac;
+      if (data.avatarUrl) next.avatarUrl = data.avatarUrl;
+      if (data.examDate !== undefined && String(data.examDate).trim()) {
+        next.examDate = String(data.examDate).trim();
+      }
+    }
+    return next;
+  }, []);
 
   const sync = useCallback(() => {
     if (studentData) {
       registerStudentInfoCache(studentId, studentData);
     }
-    const current = getStudentProfile(studentId);
-    if (studentData) {
-      if (studentData.name && (!current.name || current.name === "Học viên mới")) {
-        current.name = studentData.name;
-      }
-      if (studentData.email && !current.email) {
-        current.email = studentData.email;
-      }
-      if (studentData.phone && !current.phone) {
-        current.phone = studentData.phone;
-      }
-    }
-    setProfile(current);
-
-    if (isActiveStudent) {
-      void fetchStudentProfile()
-        .then((remote) => {
-          if (remote) {
-            setProfile(remote);
-            saveStudentProfile(remote, studentId);
-          }
-        })
-        .catch(() => {});
-    }
-  }, [studentId, isActiveStudent, studentData]);
+    setProfile(applyIdentity(getStudentProfile(studentId), studentData));
+  }, [studentId, studentData, applyIdentity]);
 
   useEffect(() => {
     sync();
-    const onUpdate = (event: Event) => {
-      const detail = (event as CustomEvent<{ studentId?: string }>).detail;
-      if (!detail?.studentId || detail.studentId === studentId) sync();
-    };
-    window.addEventListener(STUDENT_PROFILE_UPDATE_EVENT, onUpdate);
-    window.addEventListener("storage", sync);
+    let alive = true;
+    void fetchAcaStudent(studentId).then((fresh) => {
+      if (!alive || !fresh) return;
+      setProfile((prev) =>
+        applyIdentity(prev, {
+          name: fresh.name,
+          email: fresh.email,
+          phone: fresh.phone,
+          dob: fresh.dob,
+          zodiac: fresh.zodiac,
+          avatarUrl: fresh.avatarUrl,
+          examDate: fresh.examDate,
+        }),
+      );
+    });
     return () => {
-      window.removeEventListener(STUDENT_PROFILE_UPDATE_EVENT, onUpdate);
-      window.removeEventListener("storage", sync);
+      alive = false;
     };
-  }, [sync, studentId]);
+  }, [studentId, studentData, sync, applyIdentity]);
 
   const save = async () => {
-    saveStudentProfile(profile, studentId);
-    if (isActiveStudent) {
-      try {
-        await updateStudentProfile(profile);
-      } catch {
-        /* local already saved */
+    setError(null);
+    const next = { ...profile };
+    try {
+      if (studentId) {
+        await updateAcaStudent(studentId, {
+          name: next.name,
+          email: next.email,
+          phone: next.phone,
+          dob: next.dob,
+          zodiac: next.zodiac,
+          avatarUrl: next.avatarUrl,
+          examDate: next.examDate,
+        });
       }
+      const email = next.email.trim();
+      if (email || studentId) {
+        await saveStudentIdentityForAca(email || studentData?.email || "", {
+          studentId,
+          name: next.name,
+          email: next.email,
+          phone: next.phone,
+          dob: next.dob,
+          zodiac: next.zodiac,
+          avatarUrl: next.avatarUrl,
+          examDate: next.examDate,
+        });
+      }
+      if (isActiveStudent) {
+        await updateStudentProfile(next);
+      }
+      saveStudentProfile(next, studentId);
+      setProfile(next);
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không lưu được hồ sơ");
     }
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 2000);
   };
 
   const onAvatarFile = (file: File | null) => {
@@ -182,8 +215,10 @@ export function StudentProfileEditorSection({ portalLabel, studentId, studentDat
             className={`mt-1 ${inputClass}`}
             value={profile.zodiac}
             onChange={(e) => setProfile((p) => ({ ...p, zodiac: e.target.value }))}
+            placeholder="Tự nhập nếu có"
           />
         </label>
+
         <div className="md:col-span-2 flex flex-wrap items-center gap-3">
           <button
             type="button"
@@ -193,8 +228,9 @@ export function StudentProfileEditorSection({ portalLabel, studentId, studentDat
             Lưu hồ sơ
           </button>
           {saved ? (
-            <span className="text-xs font-bold text-success">Đã lưu — học viên sẽ thấy khi đăng nhập đúng tài khoản.</span>
+            <span className="text-xs font-bold text-success">Đã lưu — học viên thấy trên Thông tin học viên.</span>
           ) : null}
+          {error ? <span className="text-xs font-bold text-rose-600">{error}</span> : null}
         </div>
       </div>
     </div>

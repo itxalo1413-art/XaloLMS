@@ -1,5 +1,5 @@
 import { parseApiJson } from "@/lib/apiBase";
-import { apiFetch, isAuthDisabled, getAuthToken } from "@/lib/auth";
+import { apiFetch, getCachedAuthUser, isAuthDisabled, getAuthToken } from "@/lib/auth";
 
 export function normalizeClassification(cls: string): string {
   const c = (cls || "").trim().toLowerCase();
@@ -9,10 +9,115 @@ export function normalizeClassification(cls: string): string {
   return "Lớp lẻ mới";
 }
 
-/** Bỏ đuôi `-số` tháng ở cuối mã lớp (vd. -4, -5, -6, -12). */
+/** Bỏ đuôi `-số` tháng ở cuối mã lớp và chuyển tên lớp dài thành mã lớp chuẩn (vd. U246C1, M357C2). */
 export function displayClassCode(code: string): string {
   const c = (code || "").trim();
-  return c.replace(/-\d+$/i, "");
+  if (!c) return "";
+
+  // Bỏ đuôi tháng -4, -5,...
+  const stripped = c.replace(/-\d+$/i, "").trim();
+
+  // Nếu đã là mã chuẩn dạng U246C1, U246C2.2, M357C2, PC246, SSSC1,...
+  if (/^[A-Z]{1,3}\d{0,3}(?:\.\d+)?(?:S\/S|SS)?C?\d?(?:\.\d+)?$/i.test(stripped) && !/\s/.test(stripped)) {
+    return stripped.toUpperCase();
+  }
+
+  // Tên dài (vd: XLE RLP_MOMENTUM - 357 - C2 - GV NGHIÊM DOÃN QUỲNH CHÂU) -> M357C2
+  const derived = deriveClassCodeFromName(stripped);
+  if (derived) return derived;
+
+  // Fallback loại bỏ tiền tố và phần - GV ...
+  return stripped
+    .replace(/^XLE\s*RLP_/i, "")
+    .replace(/^2026RLP_/i, "")
+    .replace(/^RLP_/i, "")
+    .replace(/\s*-\s*GV\s+.*$/i, "")
+    .replace(/\s*-\s*Giáo viên\s+.*$/i, "")
+    .trim() || stripped;
+}
+
+/**
+ * Nhãn lớp ngắn để hiển thị UI (vd. M357C2, U246C2, S357C2).
+ * Ưu tiên classCode; nếu có tên dài (như "XLE RLP_Momentum - 357 - C2 - GV Nghiêm Doãn Quỳnh Châu") thì suy ra đúng mã lớp chuẩn M357C2.
+ */
+export function shortClassLabel(
+  classCodeOrName?: string | null,
+  classCode?: string | null,
+): string {
+  const fromCode = displayClassCode(String(classCode || "").trim());
+  if (fromCode && !fromCode.toLowerCase().includes("gv") && !fromCode.toLowerCase().includes("xle rlp")) {
+    return fromCode;
+  }
+
+  const raw = String(classCodeOrName || classCode || "").trim();
+  if (!raw) return "";
+
+  if (raw === "Chưa xếp lớp" || raw === "Chưa có lớp" || raw === "Chưa gán") {
+    return raw;
+  }
+
+  const derived = deriveClassCodeFromName(raw);
+  if (derived) return derived;
+
+  const alreadyCode = displayClassCode(raw);
+  if (/^[A-Z]{1,3}\d{0,3}(?:S\/S|SS)?C?\d?(?:\.\d+)?$/i.test(alreadyCode) && !/\s/.test(raw)) {
+    return alreadyCode;
+  }
+
+  // Fallback: strip "XLE RLP_", "RLP_", "2026RLP_" prefix and "- GV ..." suffix
+  return raw
+    .replace(/^XLE\s*RLP_/i, "")
+    .replace(/^2026RLP_/i, "")
+    .replace(/^RLP_/i, "")
+    .replace(/\s*-\s*GV\s+.*$/i, "")
+    .replace(/\s*-\s*Giáo viên\s+.*$/i, "")
+    .trim() || raw;
+}
+
+export function deriveClassCodeFromName(name: string): string {
+  const n = name.trim();
+  if (!n) return "";
+
+  // If already matches M357C2 / U246C1 / PC246 format
+  const directMatch = n.match(/^([A-Z]{1,3}\d{0,3}(?:S\/S|SS)?C?\d?)(?:-\d+)?$/i);
+  if (directMatch && directMatch[1] && !/\s/.test(directMatch[1])) {
+    return directMatch[1].toUpperCase();
+  }
+
+  const level = /momentum/i.test(n)
+    ? "M"
+    : /upstream/i.test(n)
+      ? "U"
+      : /soar/i.test(n)
+        ? "S"
+        : /foundation/i.test(n)
+          ? "F"
+          : /pre\s*core|precore/i.test(n)
+            ? "PC"
+            : /advanced/i.test(n)
+              ? "A"
+              : "";
+  if (!level) {
+    if (/^Final\s+/i.test(n)) {
+      return n;
+    }
+    return "";
+  }
+
+  const ss = /\bS\s*\/\s*S\b/i.test(n) || /\bSS\b/i.test(n);
+  const sched = ss ? "SS" : n.match(/\b(246|357)\b/)?.[1] || "";
+  const cohort = n.match(/\b(C[12])\b/i)?.[1]?.toUpperCase() || "";
+
+  if (sched && cohort) {
+    return `${level}${sched}${cohort}`;
+  }
+  if (sched) {
+    return `${level}${sched}`;
+  }
+  if (cohort) {
+    return `${level}${cohort}`;
+  }
+  return level;
 }
 
 export function classCodesMatch(a?: string | null, b?: string | null): boolean {
@@ -88,6 +193,11 @@ export interface AcaClass {
   progressNote?: string;
   /** Số ngày thời lượng chặng để chiếu lịch custom */
   phaseDurationDays?: number;
+  room?: string;
+  zoomPassword?: string;
+  zoomLink?: string;
+  schedule?: string;
+  links?: { id: string; label: string; value: string; url: string }[];
 }
 
 export interface AcaStudentCycle {
@@ -159,7 +269,8 @@ export interface AcaStudent {
   f2?: string;
   l3?: string;
   f3?: string;
-  bcbLink: string;
+  bcbLink?: string;
+  aim?: string;
   note: string;
   cycles?: AcaStudentCycle[];
   dob?: string;
@@ -171,6 +282,7 @@ export interface AcaStudent {
   ieltsMeaning?: string;
   previousBand?: string;
   focusSkills?: string[];
+  examDate?: string;
   practiceJoined?: boolean;
   registeredSlotIds?: string[];
 }
@@ -194,6 +306,7 @@ export interface AcaPracticeWeek {
   scheduleThuTime?: string;
   scheduleSatTime?: string;
   linkFolder?: string; // Link Folder Bài Tập Cá Nhân và điểm mỗi tuần
+  examWeekNumber?: number;
 }
 
 export interface AcaPracticeStudent {
@@ -216,6 +329,9 @@ export interface Aca11Class {
   id: string;
   status: "Đang diễn ra" | "Bảo lưu" | "Đã kết thúc";
   className: string;
+  studentEmail?: string;
+  studentName?: string;
+  studentId?: string;
   inputNeed: string;
   teacher: string;
   schedule: string;
@@ -347,6 +463,23 @@ export async function createAcaStudent(data: Partial<AcaStudent>): Promise<AcaSt
   });
 }
 
+export async function fetchAcaStudent(id: string): Promise<AcaStudent | null> {
+  if (!id) return null;
+  try {
+    const res = await apiFetch(`/api/aca/students/${id}`, { method: "GET" });
+    if (!res.ok) return null;
+    const raw = await parseJson<any>(res);
+    if (!raw) return null;
+    return normalizeAcaStudent({
+      ...raw,
+      id: raw._id || raw.id,
+      classification: normalizeClassification(raw.classification || ""),
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function updateAcaStudent(id: string, data: Partial<AcaStudent>): Promise<AcaStudent> {
   const res = await apiFetch(`/api/aca/students/${id}`, {
     method: "PUT",
@@ -417,6 +550,49 @@ export function getCurrentRealtimePracticeWeekRange(refDate: Date = new Date()):
   const format = (dt: Date) => `${pad(dt.getDate())}/${pad(dt.getMonth() + 1)}/${dt.getFullYear()}`;
 
   return `${format(startDate)} - ${format(endDate)}`;
+}
+
+/** Parse "dd/mm/yyyy - dd/mm/yyyy" → khoảng thời gian tuần luyện đề. */
+export function parsePracticeWeekRange(
+  rangeStr: string,
+): { start: Date; end: Date } | null {
+  const parts = rangeStr.split("-").map((s) => s.trim());
+  if (parts.length !== 2) return null;
+
+  const parseVi = (dateStr: string): Date | null => {
+    const segs = dateStr.trim().split("/");
+    if (segs.length !== 3) return null;
+    const day = Number(segs[0]);
+    const month = Number(segs[1]) - 1;
+    const year = Number(segs[2]);
+    if (!day || month < 0 || !year) return null;
+    const d = new Date(year, month, day);
+    d.setHours(0, 0, 0, 0);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const start = parseVi(parts[0]);
+  const end = parseVi(parts[1]);
+  if (!start || !end) return null;
+  end.setHours(23, 59, 59, 999);
+  return { start, end };
+}
+
+/** Tick đăng ký chỉ thuộc đúng tuần (hỗ trợ bản ghi cũ chưa có weekRange). */
+export function registrationMatchesPracticeWeek(
+  row: { weekRange?: string | null; registeredAt?: string | null },
+  weekRange: string,
+): boolean {
+  const target = weekRange.trim();
+  if (!target) return false;
+  const stored = row.weekRange?.trim();
+  if (stored) return stored === target;
+  if (!row.registeredAt) return false;
+  const range = parsePracticeWeekRange(target);
+  if (!range) return false;
+  const created = new Date(row.registeredAt);
+  if (Number.isNaN(created.getTime())) return false;
+  return created.getTime() >= range.start.getTime() && created.getTime() <= range.end.getTime();
 }
 
 export async function ensureCurrentRealtimeWeekExists(existingWeeks: AcaPracticeWeek[]): Promise<AcaPracticeWeek[]> {
@@ -591,6 +767,8 @@ export async function deleteAca11Class(id: string): Promise<void> {
 export interface WeeklyDoc {
   id: string;
   student: string;
+  studentEmail?: string;
+  studentId?: string;
   className: string;
   week: string;
   link: string;
@@ -750,6 +928,32 @@ export async function fetchAcaTeacherProfiles(): Promise<AcaTeacherProfileApi[]>
   }
 }
 
+export type AcaGraderUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+};
+
+export async function fetchAcaGraders(): Promise<AcaGraderUser[]> {
+  try {
+    const res = await apiFetch("/api/users?role=GRADER&limit=100", { method: "GET" });
+    const raw = await parseJson<any>(res);
+    const list = Array.isArray(raw) ? raw : (raw?.users || raw?.data || []);
+    return list.map((item: any) => ({
+      id: item.id || item._id,
+      name: item.name,
+      email: item.email,
+      role: item.role,
+      status: item.status,
+    }));
+  } catch (err) {
+    console.warn("[acaManagementApi] fetchAcaGraders failed, returning empty array", err);
+    return [];
+  }
+}
+
 export async function createAcaTeacherProfileApi(
   data: Partial<AcaTeacherProfileApi>
 ): Promise<AcaTeacherProfileApi> {
@@ -806,6 +1010,18 @@ export async function fetchGuestDiagnosisLeadApi(id: string) {
   return parseJson<any>(res);
 }
 
+/** Public: guest portal đọc BCB theo leadId (không cần đăng nhập). */
+export async function fetchGuestDiagnosisLeadPublicApi(id: string) {
+  const res = await apiFetch(`/api/aca/guest-diagnosis-leads/${id}/public`);
+  return parseJson<{
+    id: string;
+    name: string;
+    aim: string;
+    hasDiagnosis: boolean;
+    diagnosis: Record<string, unknown> | null;
+  }>(res);
+}
+
 export async function saveGuestLeadDiagnosisApi(
   id: string,
   diagnosis: Record<string, unknown>,
@@ -846,11 +1062,19 @@ export async function deleteGuestDiagnosisLeadApi(id: string) {
 export type AcaDashboardKpi = {
   totalUsers: number;
   totalStudents: number;
+  activeClasses?: number;
+  active11Classes?: number;
   totalWriting: number;
   pendingWriting: number;
+  gradedWriting?: number;
   pendingMockTest: number;
+  approvedMockTest?: number;
+  testedMockTest?: number;
   totalLeads: number;
   newLeads: number;
+  practiceStudents?: number;
+  weeklyDocsPending?: number;
+  finalTestsOpen?: number;
 };
 
 export async function fetchAcaDashboardKpi(): Promise<AcaDashboardKpi | null> {
@@ -932,6 +1156,18 @@ export async function fetchTeacherFinalTestsApi(examinerName?: string) {
   return parseJson<any[]>(res);
 }
 
+export async function submitTeacherFinalTestResultApi(
+  id: string,
+  patch: Record<string, unknown>,
+) {
+  const res = await apiFetch(`/api/teacher/final-tests/${id}/result`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  return parseJson<any>(res);
+}
+
 export async function createFinalTestApi(input: Record<string, unknown>) {
   const res = await apiFetch("/api/aca/final-tests", {
     method: "POST",
@@ -948,6 +1184,21 @@ export async function createMyFinalTestApi(input: Record<string, unknown>) {
     body: JSON.stringify(input),
   });
   return parseJson<any>(res);
+}
+
+export async function submitStudentFinalWritingApi(
+  id: string,
+  submissionLink: string,
+) {
+  const res = await apiFetch(`/api/student/final-tests/${id}/submit-writing`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ submissionLink, examLink: submissionLink }),
+  });
+  if (res.ok) {
+    return parseJson<any>(res);
+  }
+  return updateFinalTestApi(id, { submissionLink, examLink: submissionLink, status: "in_progress" });
 }
 
 export async function updateFinalTestApi(
@@ -1043,12 +1294,17 @@ export async function mergeAcaKv(
 }
 
 // --- Student Diagnosis (ACA) ---
-export async function fetchStudentDiagnosisForAca(email: string) {
-  if (!getAuthToken()) return null;
+export async function fetchStudentDiagnosisForAca(
+  email: string,
+  studentId?: string,
+) {
   try {
-    const res = await apiFetch(
-      `/api/aca/student-diagnosis/${encodeURIComponent(email)}`,
-    );
+    const params = new URLSearchParams();
+    if (email.trim()) params.set("email", email.trim());
+    if (studentId?.trim()) params.set("studentId", studentId.trim());
+    const q = params.toString();
+    if (!q) return null;
+    const res = await apiFetch(`/api/aca/student-diagnosis?${q}`);
     if (!res.ok) return null;
     return parseJson<any>(res);
   } catch {
@@ -1106,7 +1362,12 @@ export async function updateAcademicWarningApi(
 }
 
 export async function notifyAcademicWarningApi(id: string, message?: string) {
-  const res = await apiFetch(`/api/aca/academic-warnings/${id}/notify`, {
+  const role = getCachedAuthUser()?.role;
+  const path =
+    role === "GV"
+      ? `/api/teacher/academic-warnings/${id}/notify`
+      : `/api/aca/academic-warnings/${id}/notify`;
+  const res = await apiFetch(path, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message: message || "" }),
@@ -1132,14 +1393,41 @@ export async function deleteAcademicWarningApi(id: string) {
 export async function saveStudentDiagnosisForAca(
   email: string,
   data: Record<string, unknown>,
+  studentId?: string,
 ) {
-  const res = await apiFetch(
-    `/api/aca/student-diagnosis/${encodeURIComponent(email)}`,
-    {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    },
-  );
+  const res = await apiFetch("/api/aca/student-diagnosis", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...data,
+      email,
+      ...(studentId ? { studentId } : {}),
+    }),
+  });
+  const result = await parseJson<{ ok?: boolean; error?: string }>(res);
+  if (result && result.ok === false) {
+    throw new Error(result.error || "Không lưu được BCB lên server.");
+  }
+  return result;
+}
+
+export async function saveStudentIdentityForAca(
+  email: string,
+  data: {
+    studentId?: string;
+    name?: string;
+    email?: string;
+    phone?: string;
+    dob?: string;
+    zodiac?: string;
+    examDate?: string;
+    avatarUrl?: string;
+  },
+) {
+  const res = await apiFetch("/api/aca/student-identity", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...data, email }),
+  });
   return parseJson<any>(res);
 }

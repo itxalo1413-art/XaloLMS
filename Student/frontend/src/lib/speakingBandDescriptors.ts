@@ -51,7 +51,9 @@ type SpeakingBandRow = {
 };
 
 function clampBand(band: number): number {
-  return Math.min(9, Math.max(4, Math.round(band)));
+  const n = Number(band);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(9, Math.max(0, Math.round(n)));
 }
 
 export function getSpeakingCriterionDescriptor(
@@ -64,6 +66,19 @@ export function getSpeakingCriterionDescriptor(
 
 export const SPEAKING_WEIGHT_NOTE =
   "4 tiêu chí Speaking (FC, LR, GRA, PRN) đóng góp ngang nhau: mỗi tiêu chí chiếm 25% điểm Speaking.";
+
+/** Trung bình 4 tiêu chí Speaking, làm tròn band 0.5. */
+export function computeSpeakingOverallBand(scores: SpeakingCriterionScores): number {
+  const vals = [
+    scores.fluencyCoherence,
+    scores.lexicalResource,
+    scores.grammaticalRangeAccuracy,
+    scores.pronunciation,
+  ].map((n) => Number(n) || 0);
+  if (vals.every((n) => n <= 0)) return 0;
+  const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+  return Math.round(mean * 2) / 2;
+}
 
 const SPEAKING_BAND_DESCRIPTORS: SpeakingBandRow[] = [
   {

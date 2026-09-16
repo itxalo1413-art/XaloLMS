@@ -134,7 +134,8 @@ export function StudentAcademicWarningAlert() {
                         )}{" "}
                         deadline
                       </strong>{" "}
-                      đã tới hạn nhưng chưa hoàn thành (ngưỡng từ 4 deadline chưa nộp).
+                      đã tới hạn nhưng chưa hoàn thành (ngưỡng từ 20% buổi học của
+                      lớp).
                       Đã nộp {warning.homeworkSubmitted}/{warning.homeworkTotal} bài
                       có deadline ≤ hôm nay.
                     </div>

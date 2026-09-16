@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthGuardsModule } from '../auth/auth-guards.module';
+import { User, UserSchema } from '../users/schemas/user.schema';
 import {
   PracticeRlpStore,
   PracticeRlpStoreSchema,
@@ -13,6 +14,7 @@ import { TeacherPracticeRlpController } from './teacher-practice-rlp.controller'
   imports: [
     MongooseModule.forFeature([
       { name: PracticeRlpStore.name, schema: PracticeRlpStoreSchema },
+      { name: User.name, schema: UserSchema },
     ]),
     AuthGuardsModule,
   ],

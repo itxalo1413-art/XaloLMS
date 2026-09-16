@@ -33,17 +33,11 @@ export function DashboardHome() {
       v: loading ? "…" : fmt(kpi?.pendingMockTest ?? 0),
       tint: "text-[#0369a1]",
     },
-    {
-      k: "Lead chẩn đoán",
-      v: loading ? "…" : fmt(kpi?.totalLeads ?? 0),
-      tint: "text-[#fe7794]",
-      badge: kpi?.newLeads ? `${kpi.newLeads} mới` : undefined,
-    },
   ];
 
   return (
     <div className="space-y-8">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {cards.map((card) => (
           <div
             key={card.k}

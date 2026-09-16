@@ -6,6 +6,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -25,6 +26,16 @@ type AuthedRequest = Request & { user: JwtPayload };
 @Roles('HS')
 export class StudentPracticeClassController {
   constructor(private readonly practiceClass: PracticeClassService) {}
+
+  @Get('current-week')
+  getCurrentWeek() {
+    return this.practiceClass.getCurrentWeekPublic();
+  }
+
+  @Get('scores')
+  listScores(@Req() req: AuthedRequest) {
+    return this.practiceClass.getStudentWeeklyScores(req.user.sub);
+  }
 
   @Get('schedule')
   getSchedule() {
@@ -61,10 +72,12 @@ export class StudentPracticeClassController {
   updateLinkFolder(
     @Req() req: AuthedRequest,
     @Body() body: UpdatePracticeLinkFolderDto,
+    @Query('weekRange') weekRange?: string,
   ) {
     return this.practiceClass.updateStudentLinkFolder(
       req.user.sub,
       body?.linkFolder ?? '',
+      weekRange,
     );
   }
 }

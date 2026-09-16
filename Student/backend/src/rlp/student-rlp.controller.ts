@@ -32,14 +32,16 @@ export class StudentRlpController {
   updateMine(
     @Req() req: Request & { user: JwtPayload },
     @Param('no', ParseIntPipe) no: number,
-    @Body() body: { homeworkStatus?: HomeworkStatus },
+    @Body() body: { homeworkStatus?: HomeworkStatus; homeworkFileUrl?: string },
   ) {
     const status = body?.homeworkStatus;
     if (status !== 'submitted_waiting' && status !== 'in_progress') {
       throw new BadRequestException('Học viên chỉ được đánh dấu Đã nộp hoặc Chưa nộp');
     }
-    return this.rlp.updateHomeworkForStudent(req.user.email, no, status).then((session) => ({
-      session,
-    }));
+    return this.rlp
+      .updateHomeworkForStudent(req.user.email, no, status, body?.homeworkFileUrl)
+      .then((session) => ({
+        session,
+      }));
   }
 }

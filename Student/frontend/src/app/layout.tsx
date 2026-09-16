@@ -26,6 +26,8 @@ export const metadata: Metadata = {
   ],
 };
 
+import { GlobalConfirmDialog } from "@/components/shared/ConfirmDialog";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -36,7 +38,10 @@ export default function RootLayout({
       lang="vi"
       className={`${geistSans.variable} ${geistMono.variable} ${montserrat.variable} h-full antialiased`}
     >
-      <body className="min-h-full text-zinc-900">{children}</body>
+      <body className="min-h-full text-zinc-900">
+        {children}
+        <GlobalConfirmDialog />
+      </body>
     </html>
   );
 }

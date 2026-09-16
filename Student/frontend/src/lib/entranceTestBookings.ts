@@ -11,10 +11,13 @@ import {
 import { getAuthToken } from "@/lib/auth";
 import { MOCK_TEST_UPDATE_EVENT } from "@/lib/mockTestRequests";
 import { getGraderMeetLink } from "@/lib/graderMeetLinks";
+import type { FinalTestBcbData } from "@/lib/finalTestArchive";
 
 export type EntranceTestType = "speaking" | "writing" | "both";
 export type EntranceTestFormat = "online" | "offline";
 export type EntranceTestStatus = "scheduled" | "in_progress" | "graded" | "cancelled";
+
+export type EntranceTestBcbData = FinalTestBcbData;
 
 export interface EntranceTestBooking {
   id: string;
@@ -38,9 +41,19 @@ export interface EntranceTestBooking {
   scoreSpeaking?: string;
   scoreWriting?: string;
   feedback?: string;
+  speakingCriteria?: {
+    fluencyCoherence?: number;
+    lexicalResource?: number;
+    grammaticalRangeAccuracy?: number;
+    pronunciation?: number;
+  } | null;
+  writingCriteria?: Record<string, unknown> | null;
+  /** BCB chi tiết Entrance — cặp với Final.bcbData */
+  bcbData?: EntranceTestBcbData | null;
   createdAt: string;
   slotId?: string;
   mockTestId?: string;
+  writingSubmissionId?: string;
 }
 
 const STORAGE_KEY = "xalo.sale.entrance_test_bookings.v2";
@@ -97,6 +110,31 @@ export async function listEntranceTestBookings(): Promise<EntranceTestBooking[]>
   return [...rows].sort(
     (a, b) => new Date(`${b.date}T${b.time || "00:00"}`).getTime() - new Date(`${a.date}T${a.time || "00:00"}`).getTime()
   );
+}
+
+function digitsPhone(value?: string) {
+  return (value || "").replace(/\D/g, "");
+}
+
+/** Chỉ ca Entrance của học viên đang xem — không fallback sang booking người khác. */
+export async function listMyEntranceTestBookings(identity: {
+  name?: string;
+  email?: string;
+  phone?: string;
+}): Promise<EntranceTestBooking[]> {
+  const all = await listEntranceTestBookings();
+  const name = identity.name?.trim().toLowerCase();
+  const email = identity.email?.trim().toLowerCase();
+  const phoneTail = digitsPhone(identity.phone).slice(-9);
+  return all.filter((b) => {
+    const bEmail = (b.candidateEmail || "").trim().toLowerCase();
+    const bName = (b.candidateName || "").trim().toLowerCase();
+    const bPhone = digitsPhone(b.candidatePhone);
+    if (email && bEmail && bEmail === email) return true;
+    if (phoneTail.length >= 8 && bPhone.endsWith(phoneTail)) return true;
+    if (name && bName && bName === name) return true;
+    return false;
+  });
 }
 
 export async function createEntranceTestBooking(input: {
@@ -271,4 +309,42 @@ export async function cancelEntranceTestBooking(id: string): Promise<void> {
 
   // Update status to cancelled
   await updateEntranceTestBooking(id, { status: "cancelled" });
+}
+
+/** Map booking → shape dùng chung với FinalTestBcbDrawer. */
+export function entranceBookingAsBcbRecord(
+  booking: EntranceTestBooking,
+): import("@/lib/finalTestArchive").FinalTestRecord {
+  const testType =
+    booking.type === "writing"
+      ? "writing"
+      : booking.type === "both"
+        ? "full_4_skills"
+        : "speaking";
+  return {
+    id: booking.id,
+    candidateName: booking.candidateName,
+    candidatePhone: booking.candidatePhone,
+    candidateEmail: booking.candidateEmail,
+    classCode: "Entrance",
+    className: "Entrance Test",
+    testType,
+    format: booking.format,
+    examinerName: booking.graderName,
+    date: booking.date,
+    time: booking.time,
+    day: booking.day,
+    month: booking.month,
+    year: booking.year,
+    status: booking.status,
+    meetLink: booking.meetLink,
+    examLink: booking.examLink,
+    submissionLink: booking.submissionLink,
+    scoreSpeaking: booking.scoreSpeaking,
+    scoreWriting: booking.scoreWriting,
+    feedback: booking.feedback,
+    bcbData: booking.bcbData || undefined,
+    note: booking.note,
+    createdAt: booking.createdAt,
+  };
 }

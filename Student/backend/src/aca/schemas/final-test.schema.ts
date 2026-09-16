@@ -52,6 +52,15 @@ export class FinalTest {
   @Prop({ trim: true, default: '' })
   time: string;
 
+  @Prop({ trim: true, default: '' })
+  examDate: string;
+
+  @Prop({ trim: true, default: '' })
+  speakingDate: string;
+
+  @Prop({ trim: true, default: '' })
+  speakingTime: string;
+
   @Prop({ type: Number, default: 0 })
   day: number;
 
@@ -134,7 +143,7 @@ export class FinalTest {
   @Prop({ type: Boolean, default: false, index: true })
   isChecked: boolean;
 
-  @Prop({ trim: true, default: 'Không đạt' })
+  @Prop({ trim: true, default: '' })
   resultStatus: string;
 
   @Prop({ type: Boolean, default: false })

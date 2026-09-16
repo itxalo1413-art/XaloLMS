@@ -2,10 +2,19 @@ import {
   canUseAcaApi,
   createGuestDiagnosisLeadApi,
   deleteGuestDiagnosisLeadApi,
+  fetchGuestDiagnosisLeadApi,
+  fetchGuestDiagnosisLeadPublicApi,
   fetchGuestDiagnosisLeadsApi,
+  saveGuestLeadDiagnosisApi,
   updateGuestDiagnosisLeadApi,
 } from "@/lib/acaManagementApi";
 import { getAuthToken } from "@/lib/auth";
+import {
+  normalizeLeadDiagnosis,
+  type LeadDiagnosisRecord,
+} from "@/lib/leadDiagnosis";
+import type { GuestDiagnosisRecord } from "@/lib/guestDiagnosisStore";
+import { DEFAULT_GUEST_DIAGNOSIS } from "@/lib/guestDiagnosisStore";
 
 export type GuestDiagnosisLeadStatus = "new" | "contacted" | "converted" | "closed";
 
@@ -136,4 +145,82 @@ export async function deleteGuestDiagnosisLead(id: string): Promise<void> {
     throw new Error("Không thể xóa lead khi backend chưa sẵn sàng.");
   }
   saveLocal(loadLocal().filter((r) => r.id !== id));
+}
+
+export async function getGuestLeadWithDiagnosis(id: string): Promise<{
+  lead: GuestDiagnosisLead;
+  diagnosis: LeadDiagnosisRecord;
+}> {
+  const row = await fetchGuestDiagnosisLeadApi(id);
+  const lead: GuestDiagnosisLead = {
+    id: row.id || row._id,
+    name: row.name || "",
+    phone: row.phone || "",
+    aim: row.aim || "",
+    submittedAt: row.submittedAt || new Date().toISOString(),
+    status: (row.status || "new") as GuestDiagnosisLeadStatus,
+    note: row.note || "",
+    assignedClassId: row.assignedClassId,
+    assignedClassName: row.assignedClassName,
+    hasDiagnosis: Boolean(row.hasDiagnosis ?? row.diagnosis),
+  };
+  return {
+    lead,
+    diagnosis: normalizeLeadDiagnosis(lead, row.diagnosis ?? null),
+  };
+}
+
+/** Guest portal (public): load BCB theo leadId. */
+export async function getGuestLeadDiagnosisPublic(
+  id: string,
+): Promise<GuestDiagnosisRecord | null> {
+  try {
+    const row = await fetchGuestDiagnosisLeadPublicApi(id);
+    const lead: GuestDiagnosisLead = {
+      id: row.id,
+      name: row.name || "",
+      phone: "",
+      aim: row.aim || "",
+      submittedAt: new Date().toISOString(),
+      status: "new",
+      note: "",
+      hasDiagnosis: row.hasDiagnosis,
+    };
+    if (!row.hasDiagnosis || !row.diagnosis) {
+      // Chưa có BCB Sale điền → giữ template demo, gắn tên/aim lead
+      return {
+        ...structuredClone(DEFAULT_GUEST_DIAGNOSIS),
+        name: lead.name || DEFAULT_GUEST_DIAGNOSIS.name,
+        aim: lead.aim || DEFAULT_GUEST_DIAGNOSIS.aim,
+      };
+    }
+    return normalizeLeadDiagnosis(lead, row.diagnosis as Partial<LeadDiagnosisRecord>);
+  } catch {
+    return null;
+  }
+}
+
+export async function saveGuestLeadDiagnosis(
+  id: string,
+  diagnosis: Partial<GuestDiagnosisRecord | LeadDiagnosisRecord>,
+): Promise<LeadDiagnosisRecord> {
+  const { updatedAt: _u, ...rest } = diagnosis as LeadDiagnosisRecord & {
+    updatedAt?: string;
+  };
+  const saved = await saveGuestLeadDiagnosisApi(id, {
+    ...rest,
+    updatedAt: new Date().toISOString(),
+  });
+  dispatchUpdate();
+  const lead: GuestDiagnosisLead = {
+    id: saved.id || id,
+    name: saved.name || rest.name || "",
+    phone: saved.phone || "",
+    aim: saved.aim || rest.aim || "",
+    submittedAt: saved.submittedAt || new Date().toISOString(),
+    status: (saved.status || "new") as GuestDiagnosisLeadStatus,
+    note: saved.note || "",
+    hasDiagnosis: true,
+  };
+  return normalizeLeadDiagnosis(lead, saved.diagnosis ?? rest);
 }

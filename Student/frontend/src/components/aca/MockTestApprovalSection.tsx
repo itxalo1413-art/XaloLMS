@@ -14,6 +14,7 @@ import { MOCK_TEST_TEACHER_OPTIONS } from "@/lib/mockTestTeacherNames";
 import { MockTestTeacherSchedulePreview } from "./MockTestTeacherSchedulePreview";
 import { NativeSelectChevron } from "@/components/student/ui";
 import { fetchAcaFreeSlots, updateAcaFreeSlot } from "@/lib/acaManagementApi";
+import { confirmDialog } from "@/components/shared/ConfirmDialog";
 
 const months = [
   "Tháng 1",
@@ -88,7 +89,14 @@ export function MockTestApprovalSection() {
   };
 
   const reject = async (r: MockTestRequest) => {
-    if (!confirm(`Từ chối yêu cầu Mock Test của ${r.studentName}?`)) return;
+    const ok = await confirmDialog({
+      title: "Từ chối yêu cầu Mock Test",
+      message: `Bạn có chắc chắn muốn từ chối yêu cầu Mock Test của học viên "${r.studentName}" không?`,
+      confirmText: "Từ chối",
+      cancelText: "Giữ lại",
+      variant: "danger",
+    });
+    if (!ok) return;
     try {
       await rejectMockTestRequest(r.id);
       

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { confirmDialog } from "@/components/shared/ConfirmDialog";
 import { systemCategories, systemTags } from "./mockData";
 
 export function SystemControlSection() {
@@ -9,9 +10,15 @@ export function SystemControlSection() {
   const [cats] = useState(() => [...systemCategories]);
   const [tags] = useState(() => [...systemTags]);
 
-  const destructive = (msg: string) => {
-    if (!confirm(`${msg}\n\nHành động nhạy cảm — bạn có chắc?`)) return;
-    alert("Đã xác nhận (demo — không có backend).");
+  const destructive = async (msg: string) => {
+    const ok = await confirmDialog({
+      title: "Hành động hệ thống nhạy cảm",
+      message: `${msg}\n\nBạn có chắc chắn muốn tiếp tục thực hiện hành động này?`,
+      confirmText: "Tiếp tục",
+      cancelText: "Hủy",
+      variant: "danger",
+    });
+    if (!ok) return;
   };
 
   return (

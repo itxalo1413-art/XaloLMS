@@ -19,17 +19,29 @@ export class StudentProfileController {
 
   @Get()
   getProfile(@Req() req: AuthedRequest) {
-    return this.studentProfileService.getProfile(req.user.sub);
+    return this.studentProfileService.getProfile(req.user.sub, {
+      email: req.user.email,
+      name: req.user.name,
+    });
   }
 
   @Get('diagnosis')
-  getDiagnosis(@Req() req: AuthedRequest) {
-    return this.studentProfileService.getStudentDiagnosis(req.user.email);
+  async getDiagnosis(@Req() req: AuthedRequest) {
+    const profile = await this.studentProfileService.getProfile(req.user.sub, {
+      email: req.user.email,
+      name: req.user.name,
+    });
+    return this.studentProfileService.getStudentDiagnosis({
+      userId: req.user.sub,
+      email: req.user.email || profile.email,
+      name: req.user.name || profile.name,
+      phone: profile.phone,
+    });
   }
 
   @Get('class-info')
   getClassInfo(@Req() req: AuthedRequest) {
-    return this.studentProfileService.getClassInfoForStudent(req.user.email);
+    return this.studentProfileService.getClassInfoForStudent(req.user.email, req.user.name);
   }
 
   @Patch()
@@ -37,7 +49,10 @@ export class StudentProfileController {
     @Req() req: AuthedRequest,
     @Body() payload: UpdateStudentProfileDto,
   ) {
-    return this.studentProfileService.updateProfile(req.user.sub, payload);
+    return this.studentProfileService.updateProfile(req.user.sub, payload, {
+      email: req.user.email,
+      name: req.user.name,
+    });
   }
 
   @Post('avatar')

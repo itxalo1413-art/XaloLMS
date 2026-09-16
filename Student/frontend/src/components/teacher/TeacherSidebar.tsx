@@ -6,6 +6,9 @@ import { clearAuthToken, isAuthDisabled } from "@/lib/auth";
 
 const items = [
   { href: "/teacher", label: "Danh sách lớp" },
+  { href: "/teacher/rlp", label: "RLP" },
+  { href: "/teacher/cham-writing", label: "Chấm Writing" },
+  { href: "/teacher/final-test", label: "Final Test" },
   { href: "/teacher/lich", label: "Lịch" },
   { href: "/teacher/teaching-materials", label: "Teaching Materials" },
   { href: "/teacher/performance", label: "Performance" },

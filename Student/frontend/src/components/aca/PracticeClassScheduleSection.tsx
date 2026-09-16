@@ -215,7 +215,7 @@ export function PracticeClassScheduleSection() {
                     <div>
                       <div className="text-sm font-bold text-zinc-900">{draft.title || base.title}</div>
                       <div className="mt-0.5 text-xs font-semibold text-primary">
-                        {base.dayLabel} ({base.dayOfWeek === 4 ? "Thứ 5" : base.dayOfWeek === 2 ? "Thứ 3" : "Thứ 7"}) · {draft.time || base.time}
+                        {draft.dayLabel || base.dayLabel} · {draft.time || base.time}
                       </div>
                     </div>
                     <span className="rounded-lg bg-zinc-100 px-2.5 py-1 text-[10px] font-black uppercase text-zinc-600 border border-zinc-200">

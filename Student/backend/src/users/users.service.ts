@@ -96,7 +96,7 @@ export class UsersService implements OnModuleInit {
     if (payload.title !== undefined) updateData.title = payload.title.trim();
 
     const doc = await this.userModel
-      .findByIdAndUpdate(userId, { $set: updateData }, { new: true })
+      .findByIdAndUpdate(userId, { $set: updateData }, { returnDocument: 'after' })
       .lean()
       .exec();
 
@@ -107,30 +107,41 @@ export class UsersService implements OnModuleInit {
   }
 
   async ensureSeedAca(): Promise<void> {
-    const acaAccounts = [
-      { name: "Bộ phận Học vụ (ACA 1)", email: "aca_1@gmail.com" },
-      { name: "Bộ phận Học vụ (ACA 2)", email: "aca_2@gmail.com" },
-      { name: "Quản lý Học vụ", email: "aca@xaloenglish.vn" },
-      { name: "Học vụ Hệ thống", email: "aca@xalo.internal" },
+    const headAccounts = [
+      { name: 'Lê Nguyễn Khánh Thi', email: 'aca@xaloenglish.vn', role: 'ACA' as const },
     ];
-    const passwordHash = await bcrypt.hash("test@123!", SALT_ROUNDS);
+    const graderAccounts = [
+      { name: 'Bộ phận Grader 1', email: 'aca_1@gmail.com', role: 'GRADER' as const },
+      { name: 'Bộ phận Grader 2', email: 'aca_2@gmail.com', role: 'GRADER' as const },
+      { name: 'Grader Hệ thống', email: 'aca@xalo.internal', role: 'GRADER' as const },
+    ];
+    const passwordHash = await bcrypt.hash('test@123!', SALT_ROUNDS);
 
-    for (const a of acaAccounts) {
+    for (const a of [...headAccounts, ...graderAccounts]) {
       const email = this.normalizeEmail(a.email);
       const existing = await this.userModel.findOne({ email }).exec();
       if (!existing) {
         await this.userModel.create({
           email,
           name: a.name,
-          role: "ACA",
-          status: "ACTIVE",
+          role: a.role,
+          status: 'ACTIVE',
           passwordHash,
         });
       } else {
-        await this.userModel.updateOne(
-          { email },
-          { $set: { name: a.name, role: "ACA", status: "ACTIVE", passwordHash } },
-        ).exec();
+        await this.userModel
+          .updateOne(
+            { email },
+            {
+              $set: {
+                name: a.name,
+                role: a.role,
+                status: 'ACTIVE',
+                passwordHash,
+              },
+            },
+          )
+          .exec();
       }
     }
   }
@@ -243,11 +254,48 @@ export class UsersService implements OnModuleInit {
     return this.userModel.findOne({ email: this.normalizeEmail(email) }).exec();
   }
 
+  /** Đổi email đăng nhập nếu email mới chưa tồn tại; nếu đã có thì giữ tài khoản mới. */
+  async renameLoginEmail(fromEmail: string, toEmail: string): Promise<UserDocument | null> {
+    const from = this.normalizeEmail(fromEmail);
+    const to = this.normalizeEmail(toEmail);
+    if (!from.includes('@') || !to.includes('@') || from === to) {
+      return this.findByEmail(toEmail);
+    }
+    const existingTo = await this.findByEmail(to);
+    if (existingTo) return existingTo;
+    const fromUser = await this.findByEmail(from);
+    if (!fromUser) return null;
+    fromUser.email = to;
+    await fromUser.save();
+    return fromUser;
+  }
+
   async findPublicById(id: string): Promise<PublicUser | undefined> {
     if (!Types.ObjectId.isValid(id)) return undefined;
     const doc = await this.userModel.findById(id).lean<UserLean>().exec();
     if (!doc) return undefined;
     return this.toPublic(doc);
+  }
+
+  async findIdsByEmails(emails: string[]): Promise<Map<string, string>> {
+    const normalized = [
+      ...new Set(
+        emails
+          .map((e) => this.normalizeEmail(e))
+          .filter((e) => e.includes('@')),
+      ),
+    ];
+    const map = new Map<string, string>();
+    if (normalized.length === 0) return map;
+    const rows = await this.userModel
+      .find({ email: { $in: normalized } })
+      .select({ email: 1 })
+      .lean<{ _id: Types.ObjectId; email: string }[]>()
+      .exec();
+    for (const row of rows) {
+      map.set(this.normalizeEmail(row.email), row._id.toString());
+    }
+    return map;
   }
 
   async findNamesByIds(ids: string[]): Promise<Map<string, string>> {
@@ -359,7 +407,7 @@ export class UsersService implements OnModuleInit {
       throw new BadRequestException('Mật khẩu cần ít nhất 8 ký tự');
     }
     if (!isRole(input.role)) {
-      throw new BadRequestException('Vai trò phải là HS, GV hoặc ACA');
+      throw new BadRequestException('Vai trò phải là HS, GV, ACA, SALE hoặc GRADER');
     }
 
     const email = this.normalizeEmail(emailRaw);
@@ -405,7 +453,7 @@ export class UsersService implements OnModuleInit {
     }
     if (input.role !== undefined) {
       if (!isRole(input.role)) {
-        throw new BadRequestException('Vai trò phải là HS, GV hoặc ACA');
+        throw new BadRequestException('Vai trò phải là HS, GV, ACA, SALE hoặc GRADER');
       }
       payload.role = input.role;
     }

@@ -1,4 +1,4 @@
-import { apiFetch, getAuthToken, isAuthDisabled } from "@/lib/auth";
+import { apiFetch, getAuthToken, getCachedAuthUser, isAuthDisabled } from "@/lib/auth";
 import type { MockTestRequest } from "@/lib/mockTestRequests";
 
 export function canUseMockTestApi(): boolean {
@@ -69,8 +69,14 @@ export async function createMockTestApi(input: {
   leadId?: string;
   source?: string;
 }): Promise<MockTestRequest> {
-  const isStaffCreate = Boolean(input.studentName || input.source === "entrance" || input.examTeacher);
-  const path = isStaffCreate ? "/api/aca/mock-tests" : "/api/student/mock-tests";
+  const user = getCachedAuthUser();
+  const isStaff =
+    user &&
+    (user.role === "ACA" ||
+      user.role === "SALE" ||
+      user.role === "GV" ||
+      user.role === "GRADER");
+  const path = isStaff ? "/api/aca/mock-tests" : "/api/student/mock-tests";
   const response = await apiFetch(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

@@ -47,6 +47,40 @@ export async function fetchPracticeScheduleForStudent(): Promise<PracticeSchedul
   return parseJson(response);
 }
 
+export type PracticeCurrentWeekResponse = {
+  weekRange: string;
+  examWeekNumber: number;
+  announcement: string;
+  linkTab: string;
+  linkMeet: string;
+  linkFolder: string;
+  zoomId: string;
+  zoomPassword: string;
+};
+
+export type PracticeWeeklyScoreRow = {
+  test: string;
+  weekRange: string;
+  examWeekNumber: number;
+  l: string;
+  r: string;
+  w: string;
+};
+
+export async function fetchPracticeCurrentWeek(): Promise<PracticeCurrentWeekResponse> {
+  const response = await apiFetch("/api/student/practice-class/current-week", {
+    method: "GET",
+  });
+  return parseJson(response);
+}
+
+export async function fetchPracticeWeeklyScores(): Promise<PracticeWeeklyScoreRow[]> {
+  const response = await apiFetch("/api/student/practice-class/scores", {
+    method: "GET",
+  });
+  return parseJson(response);
+}
+
 export async function fetchPracticeScheduleForAca(): Promise<PracticeScheduleResponse> {
   const response = await apiFetch("/api/aca/practice-class/schedule", {
     method: "GET",
@@ -103,16 +137,20 @@ export type PracticeRegistrationAcaRow = {
   slotTitle: string;
   slotSchedule: string;
   registeredAt: string;
+  weekRange?: string;
   linkFolder?: string;
   scoreR?: string;
   scoreL?: string;
   scoreW?: string;
 };
 
-export async function fetchPracticeRegistrationsForAca(): Promise<
-  PracticeRegistrationAcaRow[]
-> {
-  const response = await apiFetch("/api/aca/practice-class/registrations", {
+export async function fetchPracticeRegistrationsForAca(
+  weekRange?: string,
+): Promise<PracticeRegistrationAcaRow[]> {
+  const q = weekRange?.trim()
+    ? `?weekRange=${encodeURIComponent(weekRange.trim())}`
+    : "";
+  const response = await apiFetch(`/api/aca/practice-class/registrations${q}`, {
     method: "GET",
   });
   return parseJson(response);
@@ -133,10 +171,14 @@ export async function updateStudentPracticeLinkFolderApi(
   studentId: string,
   linkFolder: string,
   asTeacher = false,
-): Promise<{ linkFolder: string }> {
+  weekRange?: string,
+): Promise<{ linkFolder: string; weekRange?: string }> {
+  const q = weekRange?.trim()
+    ? `?weekRange=${encodeURIComponent(weekRange.trim())}`
+    : "";
   const base = asTeacher
-    ? `/api/teacher/practice-class/students/${encodeURIComponent(studentId)}/link-folder`
-    : "/api/student/practice-class/link-folder";
+    ? `/api/teacher/practice-class/students/${encodeURIComponent(studentId)}/link-folder${q}`
+    : `/api/student/practice-class/link-folder${q}`;
   const response = await apiFetch(base, {
     method: "PUT",
     body: JSON.stringify({ linkFolder }),
@@ -160,7 +202,13 @@ export async function updatePracticeSlotMaterialsApi(
 
 export async function updateRegistrationDetailsApi(
   id: string,
-  payload: { linkFolder?: string; scoreR?: string; scoreL?: string; scoreW?: string }
+  payload: {
+    linkFolder?: string;
+    scoreR?: string;
+    scoreL?: string;
+    scoreW?: string;
+    weekRange?: string;
+  }
 ): Promise<PracticeRegistrationAcaRow> {
   const response = await apiFetch(`/api/aca/practice-class/registration/${id}`, {
     method: "PUT",

@@ -1,25 +1,25 @@
 import { apiFetch, getAuthToken } from "@/lib/auth";
+import type { StudentDiagnosisRecord } from "@/lib/studentDiagnosisStore";
+
+export type LiveSkillScores = {
+  listening: number;
+  reading: number;
+  writing: number;
+  speaking: number;
+  overall: number;
+};
 
 export type LiveStudentDiagnosis = {
   name: string;
   email: string;
   phone: string;
   classId: string;
-  bcbLink: string;
-  scores: {
-    listening: number;
-    reading: number;
-    writing: number;
-    speaking: number;
-    overall: number;
-  };
-  finalScores: {
-    listening: number;
-    reading: number;
-    writing: number;
-    speaking: number;
-    overall: number;
-  };
+  aim?: string;
+  examDate?: string;
+  examCountdownAnchor?: string;
+  scores: LiveSkillScores;
+  finalScores: LiveSkillScores;
+  diagnosisData?: Partial<StudentDiagnosisRecord> | null;
 };
 
 export async function fetchLiveStudentDiagnosis(): Promise<LiveStudentDiagnosis | null> {

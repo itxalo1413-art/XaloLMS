@@ -1,133 +1,98 @@
 "use client";
 
-import { useState } from "react";
-import { analyticsSnapshot, subjectComparison } from "./mockData";
-import { NativeSelectChevron } from "@/components/student/ui";
+import { useEffect, useState } from "react";
+import { fetchAcaDashboardKpi, type AcaDashboardKpi } from "@/lib/acaManagementApi";
 
 const fmt = (n: number) => n.toLocaleString("vi-VN");
 
 export function AnalyticsSection() {
-  const [period, setPeriod] = useState("7d");
-  const [cat, setCat] = useState("all");
+  const [kpi, setKpi] = useState<AcaDashboardKpi | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchAcaDashboardKpi()
+      .then((data) => {
+        setKpi(data);
+        setError(data ? null : "Không tải được KPI.");
+      })
+      .catch(() => {
+        setKpi(null);
+        setError("Không tải được KPI từ API.");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const cards = [
+    { k: "Học viên", v: kpi?.totalStudents, hint: "aca_students" },
+    { k: "Lớp đang mở", v: kpi?.activeClasses, hint: "aca_classes" },
+    { k: "Lớp 1:1 đang học", v: kpi?.active11Classes, hint: "aca_11_classes" },
+    {
+      k: "Writing chờ chấm",
+      v: kpi?.pendingWriting,
+      hint: kpi ? `${fmt(kpi.gradedWriting ?? 0)} đã chấm / ${fmt(kpi.totalWriting)} tổng` : undefined,
+    },
+    { k: "Speaking chờ duyệt", v: kpi?.pendingMockTest, hint: "mock_test_requests" },
+    {
+      k: "Speaking đã test",
+      v: kpi?.testedMockTest,
+      hint: kpi ? `${fmt(kpi.approvedMockTest ?? 0)} đã duyệt` : undefined,
+    },
+    { k: "Lead mới", v: kpi?.newLeads, hint: kpi ? `${fmt(kpi.totalLeads)} tổng lead` : undefined },
+    { k: "HV luyện đề", v: kpi?.practiceStudents, hint: "aca_practice_students" },
+    { k: "Final còn mở", v: kpi?.finalTestsOpen, hint: "final_tests" },
+  ];
+
+  const funnel = [
+    { label: "Writing pending", value: kpi?.pendingWriting ?? 0, total: kpi?.totalWriting ?? 0 },
+    { label: "Speaking pending", value: kpi?.pendingMockTest ?? 0, total: (kpi?.pendingMockTest ?? 0) + (kpi?.approvedMockTest ?? 0) + (kpi?.testedMockTest ?? 0) },
+    { label: "HV luyện đề", value: kpi?.practiceStudents ?? 0, total: Math.max(kpi?.totalStudents ?? 0, 1) },
+  ];
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <div>
-          <label className="text-[10px] font-bold uppercase text-zinc-500">
-            Chu kỳ
-          </label>
-          <NativeSelectChevron
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            className="mt-2 h-11 rounded-2xl border border-zinc-200 bg-white text-sm font-bold text-foreground shadow-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
-          >
-            <option value="7d">7 ngày</option>
-            <option value="30d">30 ngày</option>
-            <option value="90d">90 ngày</option>
-          </NativeSelectChevron>
-        </div>
-        <div>
-          <label className="text-[10px] font-bold uppercase text-zinc-500">
-            Danh mục (lọc)
-          </label>
-          <NativeSelectChevron
-            value={cat}
-            onChange={(e) => setCat(e.target.value)}
-            className="mt-2 h-11 rounded-2xl border border-zinc-200 bg-white text-sm font-bold text-foreground shadow-sm focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
-          >
-            <option value="all">Toàn hệ</option>
-            <option value="ielts">IELTS</option>
-            <option value="vocab">Từ vựng</option>
-          </NativeSelectChevron>
-        </div>
-        <p className="ml-auto max-w-xs text-[11px] text-zinc-500">
-          Bộ lọc chỉ làm đổi nhãn trên chip (demo) — không gọi API.
+      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <h2 className="text-sm font-bold text-zinc-900">Vận hành LMS (dữ liệu thật)</h2>
+        <p className="mt-1 text-xs text-zinc-500">
+          Tổng hợp từ học viên, lớp, writing, speaking, luyện đề và Final — không dùng mock analytics.
         </p>
+        {error ? <p className="mt-2 text-xs font-semibold text-rose-600">{error}</p> : null}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          { k: "Lượt mở tài liệu", v: fmt(analyticsSnapshot.totalViewsPeriod) },
-          { k: "Tổng phút sử dụng", v: fmt(analyticsSnapshot.totalMinutesPeriod) },
-          { k: "Top nội dung", v: analyticsSnapshot.topTitle, small: true },
-          { k: "Ít tương tác", v: analyticsSnapshot.lowTitle, small: true },
-        ].map((m) => (
-          <div
-            key={m.k}
-            className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm"
-          >
-            <div className="text-[10px] font-bold uppercase   text-zinc-500">
-              {m.k}{" "}
-              <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[9px] text-zinc-500">
-                {period}
-              </span>
-              {cat !== "all" ? (
-                <span className="ml-1 rounded bg-[#efeaff] px-1.5 py-0.5 text-[9px] text-[#4b3fb3]">
-                  {cat}
-                </span>
-              ) : null}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        {cards.map((m) => (
+          <div key={m.k} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <div className="text-[10px] font-bold uppercase text-zinc-500">{m.k}</div>
+            <div className="mt-3 text-xl font-black text-zinc-900">
+              {loading ? "…" : fmt(m.v ?? 0)}
             </div>
-            <div
-              className={`mt-3 font-black text-zinc-900 ${m.small ? "text-sm leading-snug" : "text-xl"}`}
-            >
-              {m.v}
-            </div>
+            {m.hint ? <p className="mt-2 text-[11px] text-zinc-500">{m.hint}</p> : null}
           </div>
         ))}
       </div>
 
       <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h2 className="text-sm font-bold text-zinc-900">So sánh mức độ quan tâm theo môn</h2>
-            <p className="mt-1 text-xs text-zinc-500">
-              Drill-down: bấm dòng để xem chi tiết (demo).
-            </p>
-          </div>
-        </div>
-        <div className="mt-6 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="border-b border-zinc-100 text-[10px] font-bold uppercase text-zinc-500">
-              <tr>
-                <th className="py-3 text-left">Môn</th>
-                <th className="py-3 text-right">Lượt mở</th>
-                <th className="py-3 text-right">Phút</th>
-                <th className="py-3 text-right">Chi tiết</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-50">
-              {subjectComparison.map((s) => (
-                <tr key={s.subject} className="hover:bg-[#efeaff]/30">
-                  <td className="py-3 font-semibold text-zinc-900">{s.subject}</td>
-                  <td className="py-3 text-right text-zinc-700">{fmt(s.views)}</td>
-                  <td className="py-3 text-right text-zinc-700">{fmt(s.minutes)}</td>
-                  <td className="py-3 text-right">
-                    <button
-                      type="button"
-                      className="text-xs font-bold text-[#6a5acd] hover:underline"
-                      onClick={() =>
-                        alert(
-                          `Demo drill-down:\n• ${s.subject}\n• Top docs\n• Người dùng thoát sớm`,
-                        )
-                      }
-                    >
-                      Mở
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <h2 className="text-sm font-bold text-zinc-900">Hàng đợi cần xử lý</h2>
+        <div className="mt-4 space-y-4">
+          {funnel.map((row) => {
+            const pct = row.total > 0 ? Math.min(100, Math.round((row.value / row.total) * 100)) : 0;
+            return (
+              <div key={row.label}>
+                <div className="mb-1 flex items-center justify-between text-xs">
+                  <span className="font-semibold text-zinc-800">{row.label}</span>
+                  <span className="tabular-nums text-zinc-500">
+                    {fmt(row.value)}
+                    {row.total > 0 ? ` / ${fmt(row.total)}` : ""}
+                  </span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
+                  <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
-
-      <section className="rounded-2xl border border-dashed border-zinc-200 bg-white/80 p-5">
-        <h3 className="text-xs font-bold uppercase   text-zinc-500">
-          Insight thoát xem (demo)
-        </h3>
-        <p className="mt-2 text-sm text-zinc-700">{analyticsSnapshot.dropoffHint}</p>
-      </section>
     </div>
   );
 }

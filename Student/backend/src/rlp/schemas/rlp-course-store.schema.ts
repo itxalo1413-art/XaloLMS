@@ -13,6 +13,20 @@ export class RlpCourseStore {
 
   @Prop({ type: [Object], default: [] })
   sessions: RlpSessionRecord[];
+
+  /** classId gắn store (đợt RLP theo lớp). */
+  @Prop({ trim: true, default: '' })
+  classId: string;
+
+  /** Đợt khai giảng (slug openDate), ví dụ 16082026. */
+  @Prop({ trim: true, default: '' })
+  cohortKey: string;
+
+  @Prop({ trim: true, default: '' })
+  migratedTo: string;
+
+  @Prop({ type: Date })
+  migratedAt?: Date;
 }
 
 export const RlpCourseStoreSchema = SchemaFactory.createForClass(RlpCourseStore);

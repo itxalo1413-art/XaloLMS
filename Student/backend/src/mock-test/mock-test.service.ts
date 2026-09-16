@@ -44,6 +44,7 @@ export type MockTestRequestPublic = {
   guestPhone?: string;
   leadId?: string;
   source?: string;
+  submittedByRole?: string;
   entranceBookingId?: string;
   finalTestId?: string;
 };
@@ -65,6 +66,21 @@ export class MockTestService {
     private readonly finalTestModel: Model<FinalTestDocument>,
     private readonly users: UsersService,
   ) {}
+
+  private resolveSubmittedByRole(doc: MockTestLean): string {
+    const stored = String(doc.submittedByRole || '').trim();
+    if (stored === 'sale' || stored === 'student' || stored === 'staff') return stored;
+    if (doc.entranceBookingId || doc.source === 'entrance') return 'sale';
+    if (
+      doc.source === 'final' ||
+      doc.finalTestId ||
+      doc.source === 'support' ||
+      doc.source === 'student'
+    ) {
+      return 'student';
+    }
+    return 'staff';
+  }
 
   private toPublic(doc: MockTestLean): MockTestRequestPublic {
     const status = isMockTestStatus(doc.status) ? doc.status : 'pending';
@@ -89,6 +105,7 @@ export class MockTestService {
       guestPhone: doc.guestPhone,
       leadId: doc.leadId,
       source: doc.source,
+      submittedByRole: this.resolveSubmittedByRole(doc),
       entranceBookingId: doc.entranceBookingId,
       finalTestId: doc.finalTestId,
     };
@@ -200,7 +217,7 @@ export class MockTestService {
 
     const created = await this.model.create({
       studentId: new Types.ObjectId(studentId),
-      studentName,
+      studentName: payload.studentName?.trim() || studentName,
       skill,
       day,
       month,
@@ -208,7 +225,10 @@ export class MockTestService {
       status: payload.status?.trim() || 'pending',
       examTime: payload.examTime?.trim() || undefined,
       examTeacher: payload.examTeacher?.trim() || undefined,
+      note: payload.note?.trim() || undefined,
+      examLink: payload.examLink?.trim() || undefined,
       source: 'support',
+      submittedByRole: 'student',
     });
 
     return this.toPublic(created.toObject() as MockTestLean);
@@ -242,6 +262,13 @@ export class MockTestService {
 
     const rawStatus = payload.status?.trim() ?? '';
     const status: MockTestStatus = isMockTestStatus(rawStatus) ? rawStatus : 'approved';
+    const source = payload.source?.trim() || 'staff';
+    const submittedByRole =
+      source === 'entrance'
+        ? 'sale'
+        : source === 'final'
+          ? 'student'
+          : 'staff';
     const created = await this.model.create({
       studentId,
       studentName,
@@ -256,7 +283,8 @@ export class MockTestService {
       note: payload.note?.trim() || undefined,
       guestPhone: payload.guestPhone?.trim() || undefined,
       leadId: payload.leadId?.trim() || undefined,
-      source: payload.source?.trim() || 'staff',
+      source,
+      submittedByRole,
       entranceBookingId: payload.entranceBookingId?.trim() || undefined,
       finalTestId: payload.finalTestId?.trim() || undefined,
     });
@@ -413,6 +441,60 @@ export class MockTestService {
     };
     if (row.examLink) patch.examLink = row.examLink;
     await this.finalTestModel.findByIdAndUpdate(finalId, { $set: patch }).exec();
+  }
+
+  async upsertSeededSupportSpeaking(input: {
+    studentId: string;
+    studentName: string;
+    note: string;
+    skill: string;
+    day: number;
+    month: number;
+    year: number;
+    score: string;
+    examTime?: string;
+    examTeacher?: string;
+    examLink?: string;
+  }): Promise<void> {
+    if (!Types.ObjectId.isValid(input.studentId)) return;
+    const studentId = new Types.ObjectId(input.studentId);
+    await this.model
+      .findOneAndUpdate(
+        { studentId, note: input.note },
+        {
+          $set: {
+            studentName: input.studentName,
+            skill: input.skill,
+            day: input.day,
+            month: input.month,
+            year: input.year,
+            status: 'approved',
+            score: input.score,
+            examTime: input.examTime || '19:00',
+            examTeacher: input.examTeacher || '',
+            examLink: input.examLink || '',
+            source: 'support',
+            note: input.note,
+          },
+          $setOnInsert: { studentId },
+        },
+        { upsert: true },
+      )
+      .exec();
+  }
+
+  /** Xóa bản seed cũ theo pattern note (tránh trùng bảng kết quả). */
+  async deleteSeededByNotePattern(
+    studentId: string,
+    notePattern: RegExp,
+  ): Promise<void> {
+    if (!Types.ObjectId.isValid(studentId)) return;
+    await this.model
+      .deleteMany({
+        studentId: new Types.ObjectId(studentId),
+        note: { $regex: notePattern },
+      })
+      .exec();
   }
 
   async reject(id: string): Promise<MockTestRequestPublic> {

@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import type { RlpSessionRecord } from '../rlp/rlp.types';
+import type { RlpSessionRecord, HomeworkStatus } from '../rlp/rlp.types';
+import { User, type UserDocument } from '../users/schemas/user.schema';
 import {
   PracticeRlpStore,
   type PracticeRlpStoreDocument,
@@ -10,13 +11,40 @@ import {
   CreatePracticeRlpSessionDto,
   UpdatePracticeRlpSessionDto,
 } from './dto/practice-rlp.dto';
+import { PRACTICE_RLP_DEMO_SESSIONS } from './practice-rlp.seed';
 
 @Injectable()
-export class PracticeRlpService {
+export class PracticeRlpService implements OnModuleInit {
   constructor(
     @InjectModel(PracticeRlpStore.name)
     private readonly storeModel: Model<PracticeRlpStoreDocument>,
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    await this.seedDemoSessionsIfEmpty();
+  }
+
+  private async seedDemoSessionsIfEmpty(): Promise<void> {
+    const email = (
+      process.env.STUDENT_SEED_EMAIL ?? 'nguyenduong939705@gmail.com'
+    )
+      .trim()
+      .toLowerCase();
+    const user = await this.userModel.findOne({ email }).lean().exec();
+    if (!user) return;
+
+    const studentId = user._id.toString();
+    const existing = await this.storeModel.findOne({ studentId }).lean().exec();
+    if (existing?.sessions?.length) return;
+
+    await this.storeModel.updateOne(
+      { studentId },
+      { $set: { sessions: PRACTICE_RLP_DEMO_SESSIONS } },
+      { upsert: true },
+    );
+  }
 
   // ── Ensure document exists for student ──────────────────────────────────────
   private async ensureStore(studentId: string): Promise<RlpSessionRecord[]> {
@@ -31,6 +59,43 @@ export class PracticeRlpService {
   // ── List all sessions for a student ─────────────────────────────────────────
   async listSessions(studentId: string): Promise<RlpSessionRecord[]> {
     return this.ensureStore(studentId);
+  }
+
+  /** Học viên đã có RLP luyện đề hoặc đã từng đăng ký ca — cho Minh Tâm/ACA chọn. */
+  async listKnownStudents(): Promise<
+    { id: string; name: string; email: string }[]
+  > {
+    const storeIds = (
+      await this.storeModel.distinct('studentId').exec()
+    ).map((id) => String(id));
+
+    let regIds: string[] = [];
+    try {
+      const raw = await this.storeModel.db
+        .collection('practice_class_registrations')
+        .distinct('userId');
+      regIds = raw.map((id) => String(id));
+    } catch {
+      regIds = [];
+    }
+
+    const allIds = [...new Set([...storeIds, ...regIds])].filter(Boolean);
+    if (allIds.length === 0) return [];
+
+    const objectIds = allIds.filter((id) => /^[a-f\d]{24}$/i.test(id));
+    const users = await this.userModel
+      .find({ _id: { $in: objectIds } })
+      .select({ name: 1, email: 1 })
+      .lean()
+      .exec();
+
+    return users
+      .map((u) => ({
+        id: u._id.toString(),
+        name: String(u.name || '').trim() || u._id.toString(),
+        email: String(u.email || '').trim(),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
   }
 
   // ── Add a new session ────────────────────────────────────────────────────────
@@ -95,6 +160,32 @@ export class PracticeRlpService {
       { $set: { sessions } },
     );
     return updated;
+  }
+
+  /** Học viên chỉ được đánh dấu nộp / hủy nộp BTVN. */
+  async updateStudentHomework(
+    studentId: string,
+    no: number,
+    homeworkStatus: HomeworkStatus,
+  ): Promise<RlpSessionRecord> {
+    const allowed: HomeworkStatus[] = ['in_progress', 'overdue', 'submitted_waiting'];
+    if (!allowed.includes(homeworkStatus)) {
+      throw new BadRequestException('Học viên chỉ có thể đánh dấu Chưa nộp hoặc Đã nộp');
+    }
+
+    const sessions = await this.ensureStore(studentId);
+    const idx = sessions.findIndex((s) => s.no === no);
+    if (idx < 0) throw new NotFoundException(`Không tìm thấy buổi RLP số ${no}`);
+
+    const current = sessions[idx].homeworkStatus;
+    if (current === 'submitted') {
+      throw new BadRequestException('Bài đã được chấm, không thể thay đổi trạng thái');
+    }
+    if (current === 'not_assigned' && homeworkStatus === 'submitted_waiting') {
+      throw new BadRequestException('Buổi học này chưa có bài tập');
+    }
+
+    return this.updateSession(studentId, no, { homeworkStatus });
   }
 
   // ── Delete a session ─────────────────────────────────────────────────────────

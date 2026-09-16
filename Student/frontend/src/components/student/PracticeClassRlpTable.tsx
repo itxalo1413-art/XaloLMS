@@ -384,20 +384,14 @@ function DeleteConfirmDialog({
   );
 }
 
-// ─── Phase Config ─────────────────────────────────────────────────────────────
+// ─── Skill Filter Config ────────────────────────────────────────────────────────
 
-type PhaseConfig = {
-  id: string;
-  label: string;
-  shortLabel: string;
-  min?: number; // session no min (inclusive)
-  max?: number; // session no max (inclusive)
-};
-
-const PRACTICE_RLP_PHASES: PhaseConfig[] = [
-  { id: "all", label: "Tất cả", shortLabel: "Tất cả" },
-  { id: "phase1", label: "Chặng 1 (1–12)", shortLabel: "Chặng 1", min: 1, max: 12 },
-  { id: "phase2", label: "Chặng 2 (13–20)", shortLabel: "Chặng 2", min: 13, max: 20 },
+const PRACTICE_SKILL_FILTERS = [
+  { id: "all", label: "Tất cả" },
+  { id: "Speaking", label: "Speaking" },
+  { id: "Listening", label: "Listening" },
+  { id: "Reading", label: "Reading" },
+  { id: "Writing", label: "Writing" },
 ];
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -411,7 +405,7 @@ export function PracticeClassRlpTable({
   onToggleHomework,
 }: PracticeRlpTableProps) {
   const clientToday = useClientToday();
-  const [activePhaseId, setActivePhaseId] = useState("all");
+  const [activeSkillFilter, setActiveSkillFilter] = useState("all");
   const [modal, setModal] = useState<
     | { kind: "add" }
     | { kind: "edit"; row: RlpSession }
@@ -419,13 +413,9 @@ export function PracticeClassRlpTable({
     | null
   >(null);
 
-  const currentPhase = PRACTICE_RLP_PHASES.find((p) => p.id === activePhaseId) ?? PRACTICE_RLP_PHASES[0];
-
   const displayed = sessions.filter((s) => {
-    if (!currentPhase.min && !currentPhase.max) return true;
-    if (currentPhase.min && s.no < currentPhase.min) return false;
-    if (currentPhase.max && s.no > currentPhase.max) return false;
-    return true;
+    if (activeSkillFilter === "all") return true;
+    return s.skill.toLowerCase() === activeSkillFilter.toLowerCase();
   });
 
   const existingNos = sessions.map((s) => s.no);
@@ -477,7 +467,7 @@ export function PracticeClassRlpTable({
           <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
         </svg>
         <p className="text-xs font-semibold text-zinc-400">Chưa có buổi học nào trong bảng RLP</p>
-        <p className="text-[11px] text-zinc-300 mt-1">Giáo viên Thanh Tâm sẽ cập nhật sau mỗi buổi học</p>
+        <p className="text-[11px] text-zinc-300 mt-1">Giáo viên Minh Tâm / Học vụ sẽ cập nhật sau mỗi buổi học</p>
       </div>
     );
   }
@@ -497,27 +487,28 @@ export function PracticeClassRlpTable({
 
         <div className="flex items-center gap-2 flex-wrap">
           {/* Phase tabs */}
+          {/* Skill Filter tabs */}
           <div className="flex items-center gap-1 rounded-xl bg-zinc-100 p-1 shrink-0">
-            {PRACTICE_RLP_PHASES.map((phase) => {
-              const isActive = activePhaseId === phase.id;
+            {PRACTICE_SKILL_FILTERS.map((filter) => {
+              const isActive = activeSkillFilter === filter.id;
               return (
                 <button
-                  key={phase.id}
+                  key={filter.id}
                   type="button"
-                  onClick={() => setActivePhaseId(phase.id)}
+                  onClick={() => setActiveSkillFilter(filter.id)}
                   className={`rounded-lg px-2.5 py-1 text-[10px] font-black uppercase transition-all ${
                     isActive
                       ? "bg-white text-primary shadow-2xs ring-1 ring-black/5"
                       : "text-zinc-500 hover:text-zinc-900"
                   }`}
                 >
-                  {phase.shortLabel}
+                  {filter.label}
                 </button>
               );
             })}
           </div>
 
-          {/* Add button — only for Thanh Tâm & Khánh Thi */}
+          {/* Add button — only for Minh Tâm & Học vụ */}
           {canEdit && onAdd && (
             <button
               type="button"
@@ -537,7 +528,7 @@ export function PracticeClassRlpTable({
       {/* ── Mobile Card View ─────────────────────────────────────────────────── */}
       <div className="block lg:hidden space-y-4">
         {displayed.length === 0 ? (
-          <p className="text-xs text-zinc-400 text-center py-6">Không có buổi học trong chặng này</p>
+          <p className="text-xs text-zinc-400 text-center py-6">Không có buổi học nào</p>
         ) : (
           displayed.map((row) => {
             const past = isSessionPast(row, clientToday);
@@ -628,7 +619,7 @@ export function PracticeClassRlpTable({
                   </div>
                 </div>
 
-                {/* Deadline + Status */}
+                {/* Deadline + Hoàn thành */}
                 <div className="flex items-center justify-between border-t border-primary/5 pt-3">
                   <div className="text-[10px] text-zinc-500 font-medium">Hạn: {row.deadline || "—"}</div>
                   {(() => {
@@ -636,6 +627,13 @@ export function PracticeClassRlpTable({
                       return <span className="rounded-lg bg-emerald-50 px-2 py-1 text-[10px] font-black uppercase text-emerald-800">Đã chấm</span>;
                     }
                     const isWaiting = row.homeworkStatus === "submitted_waiting";
+                    const canSubmit =
+                      row.homeworkStatus === "in_progress" ||
+                      row.homeworkStatus === "overdue" ||
+                      row.homeworkStatus === "submitted_waiting";
+                    if (!canSubmit) {
+                      return <span className="text-[10px] font-bold text-zinc-400">—</span>;
+                    }
                     return onToggleHomework ? (
                       <button
                         type="button"
@@ -675,7 +673,7 @@ export function PracticeClassRlpTable({
                 <th className="px-3.5 py-3 text-center w-[95px]">Điểm danh</th>
                 <th className="px-3.5 py-3 text-center w-[85px]">Homework</th>
                 <th className="px-3.5 py-3 text-center w-[95px]">Deadline</th>
-                <th className="px-3.5 py-3 text-center w-[105px]">Trạng thái</th>
+                <th className="px-3.5 py-3 text-center w-[105px]">{canEdit ? "Trạng thái" : "Hoàn thành"}</th>
                 {canEdit && <th className="px-3.5 py-3 text-center w-[80px]">Thao tác</th>}
               </tr>
             </thead>
@@ -684,8 +682,8 @@ export function PracticeClassRlpTable({
                 <tr>
                   <td colSpan={canEdit ? 11 : 10} className="px-4 py-10 text-center text-xs text-zinc-400">
                     {canEdit
-                      ? `Không có buổi học nào trong chặng này. Nhấn "Thêm buổi" để thêm buổi RLP đầu tiên.`
-                      : "Không có buổi học nào trong chặng này."}
+                      ? `Không có buổi học nào. Nhấn "Thêm buổi" để thêm buổi RLP đầu tiên.`
+                      : "Không có buổi học nào."}
                   </td>
                 </tr>
               ) : (
@@ -796,6 +794,13 @@ export function PracticeClassRlpTable({
                             );
                           }
                           const isWaiting = row.homeworkStatus === "submitted_waiting";
+                          const canSubmit =
+                            row.homeworkStatus === "in_progress" ||
+                            row.homeworkStatus === "overdue" ||
+                            row.homeworkStatus === "submitted_waiting";
+                          if (!canSubmit) {
+                            return <span className="text-[10px] font-bold text-zinc-400">—</span>;
+                          }
                           if (onToggleHomework) {
                             return (
                               <button

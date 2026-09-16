@@ -6,4 +6,7 @@ export class CreateMockTestDto {
   examTime?: string;
   status?: string;
   examTeacher?: string;
+  note?: string;
+  examLink?: string;
+  studentName?: string;
 }

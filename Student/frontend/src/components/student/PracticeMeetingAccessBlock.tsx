@@ -91,7 +91,11 @@ export function MeetingAccessBlock({
         <Row label={idLabel} value={meeting.meetingId} copyable compact={compact} />
         <Row label={passLabel} value={meeting.password} copyable compact={compact} />
         {!credentialsOnly ? (
-          <Row label={linkLabel} value={meeting.joinUrl} compact={compact} />
+          <Row
+            label={meeting.meetLink ? "Link Meet / Zoom" : linkLabel}
+            value={meeting.meetLink || meeting.joinUrl}
+            compact={compact}
+          />
         ) : null}
       </div>
     </div>

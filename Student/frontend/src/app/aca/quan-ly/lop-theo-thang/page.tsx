@@ -19,6 +19,7 @@ import {
   displayClassCode,
   classCodesMatch,
 } from "@/lib/acaManagementApi";
+import { confirmDialog } from "@/components/shared/ConfirmDialog";
 
 function hasRecordedScore(value: unknown): boolean {
   const s = String(value ?? "").trim();
@@ -50,6 +51,32 @@ const parseDuration = (timeRange: string) => {
   }
   return 1.75;
 };
+
+/** Seed có bản ghi cùng classCode cho nhiều tháng (5 + 6) — UI chỉ giữ 1 dòng / mã lớp. */
+function dedupeClassesByCode(list: AcaClass[], preferredMonth: number): AcaClass[] {
+  const byKey = new Map<string, AcaClass>();
+  for (const c of list) {
+    const key = (c.classCode ? displayClassCode(c.classCode) : c.name || c.id)
+      .trim()
+      .toLowerCase();
+    if (!key) continue;
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, c);
+      continue;
+    }
+    if (c.month === preferredMonth && existing.month !== preferredMonth) {
+      byKey.set(key, c);
+      continue;
+    }
+    if (c.month !== preferredMonth && existing.month !== preferredMonth) {
+      if (Math.abs(c.month - preferredMonth) < Math.abs(existing.month - preferredMonth)) {
+        byKey.set(key, c);
+      }
+    }
+  }
+  return Array.from(byKey.values());
+}
 
 interface ClassSchedule {
   days: number[];
@@ -907,6 +934,16 @@ export default function LopTheoThangPage() {
   const [fSlotsToEnroll, setFSlotsToEnroll] = useState(0);
   const [fProgressNote, setFProgressNote] = useState("");
   const [fOpenDateHistory, setFOpenDateHistory] = useState<string[]>([]);
+  const [fRoom, setFRoom] = useState("");
+  const [fZoomPassword, setFZoomPassword] = useState("");
+  const [fZoomLink, setFZoomLink] = useState("");
+  const [fScheduleText, setFScheduleText] = useState("");
+  const [fLinkLesson, setFLinkLesson] = useState("");
+  const [fLinkHomework, setFLinkHomework] = useState("");
+  const [fLinkSurvey, setFLinkSurvey] = useState("");
+  const [fLinkLessonLabel, setFLinkLessonLabel] = useState("");
+  const [fLinkHomeworkLabel, setFLinkHomeworkLabel] = useState("");
+  const [fLinkSurveyLabel, setFLinkSurveyLabel] = useState("");
 
   useEffect(() => {
     if (!ready || !isKhanhThi) return;
@@ -956,6 +993,16 @@ export default function LopTheoThangPage() {
     setFSlotsToEnroll(0);
     setFProgressNote("");
     setFOpenDateHistory([]);
+    setFRoom("");
+    setFZoomPassword("");
+    setFZoomLink("");
+    setFScheduleText("");
+    setFLinkLesson("");
+    setFLinkHomework("");
+    setFLinkSurvey("");
+    setFLinkLessonLabel("");
+    setFLinkHomeworkLabel("");
+    setFLinkSurveyLabel("");
     setIsCrudModalOpen(true);
   };
 
@@ -978,6 +1025,20 @@ export default function LopTheoThangPage() {
     setFSlotsToEnroll(cls.slotsToEnroll);
     setFProgressNote(cls.progressNote || "");
     setFOpenDateHistory(cls.openDateHistory || []);
+    setFRoom(cls.room || "");
+    setFZoomPassword(cls.zoomPassword || "");
+    setFZoomLink(cls.zoomLink || "");
+    setFScheduleText(cls.schedule || "");
+    const links = Array.isArray(cls.links) ? cls.links : [];
+    const lesson = links.find((l) => l.id === "lesson");
+    const homework = links.find((l) => l.id === "homework");
+    const survey = links.find((l) => l.id === "survey");
+    setFLinkLesson(lesson?.url || "");
+    setFLinkHomework(homework?.url || "");
+    setFLinkSurvey(survey?.url || "");
+    setFLinkLessonLabel(lesson?.value || "");
+    setFLinkHomeworkLabel(homework?.value || "");
+    setFLinkSurveyLabel(survey?.value || "");
     setIsCrudModalOpen(true);
   };
 
@@ -1059,6 +1120,16 @@ export default function LopTheoThangPage() {
       nextPhase: fNextPhase.trim(),
       slotsToEnroll: fSlotsToEnroll,
       progressNote: fProgressNote.trim(),
+      room: fRoom.trim(),
+      zoomPassword: fZoomPassword.trim(),
+      zoomLink: fZoomLink.trim(),
+      schedule: fScheduleText.trim(),
+      links: [
+        { id: "rlp", label: "RLP", value: fCurrentPhase.trim() || "RLP", url: "#rlp-section" },
+        { id: "lesson", label: "THƯ MỤC BÀI GIẢNG", value: fLinkLessonLabel.trim() || "Bài giảng", url: fLinkLesson.trim() },
+        { id: "homework", label: "THƯ MỤC BÀI TẬP", value: fLinkHomeworkLabel.trim() || "HW Học viên", url: fLinkHomework.trim() },
+        { id: "survey", label: "KHẢO SÁT HỌC VIÊN", value: fLinkSurveyLabel.trim() || "—", url: fLinkSurvey.trim() },
+      ],
     };
     try {
       if (crudMode === "add") {
@@ -1136,13 +1207,19 @@ export default function LopTheoThangPage() {
 
   // Delete class
   const handleDeleteClass = async (id: string) => {
-    if (confirm("Xóa lớp này? Hành động không thể hoàn tác.")) {
-      try {
-        await deleteAcaClass(id);
-        setClasses((prev) => prev.filter((c) => c.id !== id));
-      } catch (err: any) {
-        alert("Xóa thất bại: " + err.message);
-      }
+    const ok = await confirmDialog({
+      title: "Xóa lớp học",
+      message: "Bạn có chắc chắn muốn xóa lớp học này không?\nHành động này không thể hoàn tác.",
+      confirmText: "Đồng ý xóa",
+      cancelText: "Giữ lại",
+      variant: "danger",
+    });
+    if (!ok) return;
+    try {
+      await deleteAcaClass(id);
+      setClasses((prev) => prev.filter((c) => c.id !== id));
+    } catch (err: any) {
+      alert("Xóa thất bại: " + err.message);
     }
   };
 
@@ -1179,7 +1256,7 @@ export default function LopTheoThangPage() {
   }, [classes]);
 
   const filteredClasses = useMemo(() => {
-    return classes.filter((c) => {
+    const matched = classes.filter((c) => {
       // 1. Strict month match
       if (c.month === selectedMonth) return true;
       
@@ -1216,7 +1293,14 @@ export default function LopTheoThangPage() {
       
       return false;
     });
-  }, [classes, selectedMonth, selectedYear]);
+    return dedupeClassesByCode(matched, selectedMonth);
+  }, [classes, selectedMonth, selectedYear, stopAtMap]);
+
+  /** Bản lớp đã gộp trùng mã — dùng cho lịch / timeline để không hiện 2 lần cùng lớp. */
+  const classesForCalendar = useMemo(
+    () => dedupeClassesByCode(classes, selectedMonth),
+    [classes, selectedMonth],
+  );
 
   const totalPages = Math.ceil(filteredClasses.length / ITEMS_PER_PAGE);
 
@@ -1271,7 +1355,7 @@ export default function LopTheoThangPage() {
       
       // 1. Regular classes events
       // Build a map of successor start dates — reuse the shared stopAtMap memo.
-      classes.forEach((c) => {
+      classesForCalendar.forEach((c) => {
         // Ẩn lớp chưa gán GV khỏi lịch
         if (!c.teacher || c.teacher.trim() === "" || c.teacher.trim() === "Chưa gán") return;
         const stopAt = stopAtMap.get(c.id) || undefined;
@@ -1342,7 +1426,7 @@ export default function LopTheoThangPage() {
     }
     
     return days;
-  }, [selectedMonth, selectedYear, classes, classes11, isSameDay]);
+  }, [selectedMonth, selectedYear, classesForCalendar, classes11, isSameDay, stopAtMap]);
 
   const classStudents = useMemo(() => {
     if (!selectedClass || "className" in selectedClass) return [];
@@ -1380,7 +1464,7 @@ export default function LopTheoThangPage() {
     }[] = [];
 
     // 1. Regular classes
-    classes.forEach((c) => {
+    classesForCalendar.forEach((c) => {
       // Ẩn lớp chưa gán GV khỏi lịch khai giảng
       if (!c.teacher || c.teacher.trim() === "" || c.teacher.trim() === "Chưa gán") return;
       const stopAt = stopAtMap.get(c.id) || undefined;
@@ -1466,7 +1550,7 @@ export default function LopTheoThangPage() {
       };
       return parseDate(a.startDate) - parseDate(b.startDate);
     });
-  }, [classes, classes11, selectedMonth, selectedYear]);
+  }, [classesForCalendar, classes11, selectedMonth, selectedYear, stopAtMap]);
 
   if (!ready) {
     return (
@@ -2361,6 +2445,105 @@ export default function LopTheoThangPage() {
                     <option>Lớp sắp mở</option>
                     <option>Lớp đã kết thúc</option>
                   </select>
+                </div>
+              </div>
+
+              {/* LMS settings theo lớp — hiện bên học viên */}
+              <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4 space-y-3">
+                <div className="text-[10px] font-black uppercase tracking-widest text-primary">
+                  Thông tin LMS học viên (theo lớp)
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1">Phòng / Zoom</label>
+                    <input
+                      type="text"
+                      value={fRoom}
+                      onChange={(e) => setFRoom(e.target.value)}
+                      placeholder="Zoom Online"
+                      className="h-9 w-full rounded-xl border border-zinc-200 px-3 font-bold text-foreground outline-none focus:border-primary/45"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1">Pass Zoom</label>
+                    <input
+                      type="text"
+                      value={fZoomPassword}
+                      onChange={(e) => setFZoomPassword(e.target.value)}
+                      placeholder="xalo2026"
+                      className="h-9 w-full rounded-xl border border-zinc-200 px-3 font-bold text-foreground outline-none focus:border-primary/45"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1">Link Zoom</label>
+                  <input
+                    type="text"
+                    value={fZoomLink}
+                    onChange={(e) => setFZoomLink(e.target.value)}
+                    placeholder="https://zoom.us/j/..."
+                    className="h-9 w-full rounded-xl border border-zinc-200 px-3 font-bold text-foreground outline-none focus:border-primary/45"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1">Lịch học (mỗi dòng 1 slot)</label>
+                  <textarea
+                    value={fScheduleText}
+                    onChange={(e) => setFScheduleText(e.target.value)}
+                    rows={3}
+                    placeholder={"Thứ 3: 19h45 - 21h30\nThứ 5: 19h45 - 21h30"}
+                    className="w-full rounded-xl border border-zinc-200 px-3 py-2 font-bold text-foreground outline-none focus:border-primary/45"
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={fLinkLessonLabel}
+                      onChange={(e) => setFLinkLessonLabel(e.target.value)}
+                      placeholder="Mô tả thư mục bài giảng"
+                      className="h-9 rounded-xl border border-zinc-200 px-3 font-bold text-foreground outline-none"
+                    />
+                    <input
+                      type="text"
+                      value={fLinkLesson}
+                      onChange={(e) => setFLinkLesson(e.target.value)}
+                      placeholder="URL bài giảng"
+                      className="h-9 rounded-xl border border-zinc-200 px-3 font-bold text-foreground outline-none"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={fLinkHomeworkLabel}
+                      onChange={(e) => setFLinkHomeworkLabel(e.target.value)}
+                      placeholder="Mô tả thư mục bài tập"
+                      className="h-9 rounded-xl border border-zinc-200 px-3 font-bold text-foreground outline-none"
+                    />
+                    <input
+                      type="text"
+                      value={fLinkHomework}
+                      onChange={(e) => setFLinkHomework(e.target.value)}
+                      placeholder="URL bài tập"
+                      className="h-9 rounded-xl border border-zinc-200 px-3 font-bold text-foreground outline-none"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={fLinkSurveyLabel}
+                      onChange={(e) => setFLinkSurveyLabel(e.target.value)}
+                      placeholder="Mô tả khảo sát"
+                      className="h-9 rounded-xl border border-zinc-200 px-3 font-bold text-foreground outline-none"
+                    />
+                    <input
+                      type="text"
+                      value={fLinkSurvey}
+                      onChange={(e) => setFLinkSurvey(e.target.value)}
+                      placeholder="URL khảo sát"
+                      className="h-9 rounded-xl border border-zinc-200 px-3 font-bold text-foreground outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 

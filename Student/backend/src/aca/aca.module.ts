@@ -10,6 +10,10 @@ import { Content, ContentSchema } from './schemas/content.schema';
 
 import { AcaClass, AcaClassSchema } from './schemas/aca-class.schema';
 import { AcaStudent, AcaStudentSchema } from './schemas/aca-student.schema';
+import {
+  PracticeClassRegistration,
+  PracticeClassRegistrationSchema,
+} from '../practice-class/schemas/practice-class-registration.schema';
 import { AcaPracticeWeek, AcaPracticeWeekSchema } from './schemas/aca-practice-week.schema';
 import { AcaPracticeStudent, AcaPracticeStudentSchema } from './schemas/aca-practice-student.schema';
 import { Aca11Class, Aca11ClassSchema } from './schemas/aca-11-class.schema';
@@ -21,6 +25,7 @@ import { WritingSubmission, WritingSubmissionSchema } from '../writing-submissio
 import { RlpCourseStore, RlpCourseStoreSchema } from '../rlp/schemas/rlp-course-store.schema';
 import { UsersModule } from '../users/users.module';
 import { MockTestModule } from '../mock-test/mock-test.module';
+import { PracticeClassModule } from '../practice-class/practice-class.module';
 import { AcaManagementService } from './aca-management.service';
 import { AcaManagementController } from './aca-management.controller';
 
@@ -37,19 +42,29 @@ import {
 } from './schemas/entrance-test-booking.schema';
 import { FinalTest, FinalTestSchema } from './schemas/final-test.schema';
 import { AcaKvStore, AcaKvStoreSchema } from './schemas/aca-kv-store.schema';
+import {
+  StudentProfileStore,
+  StudentProfileStoreSchema,
+} from '../student-profile/schemas/student-profile-store.schema';
 import { StudentFinalTestController } from './student-final-test.controller';
 import { TeacherFinalTestController } from './teacher-final-test.controller';
+import { StudentLmsBridgeController } from './student-lms-bridge.controller';
 
 @Module({
   imports: [
     AuthGuardsModule,
     UsersModule,
     MockTestModule,
+    PracticeClassModule,
     MongooseModule.forFeature([
       { name: Content.name, schema: ContentSchema },
       { name: Category.name, schema: CategorySchema },
       { name: AcaClass.name, schema: AcaClassSchema },
       { name: AcaStudent.name, schema: AcaStudentSchema },
+      {
+        name: PracticeClassRegistration.name,
+        schema: PracticeClassRegistrationSchema,
+      },
       { name: AcaPracticeWeek.name, schema: AcaPracticeWeekSchema },
       { name: AcaPracticeStudent.name, schema: AcaPracticeStudentSchema },
       { name: Aca11Class.name, schema: Aca11ClassSchema },
@@ -66,6 +81,7 @@ import { TeacherFinalTestController } from './teacher-final-test.controller';
       { name: EntranceTestBooking.name, schema: EntranceTestBookingSchema },
       { name: FinalTest.name, schema: FinalTestSchema },
       { name: AcaKvStore.name, schema: AcaKvStoreSchema },
+      { name: StudentProfileStore.name, schema: StudentProfileStoreSchema },
     ]),
   ],
   controllers: [
@@ -74,6 +90,7 @@ import { TeacherFinalTestController } from './teacher-final-test.controller';
     AcaManagementController,
     StudentFinalTestController,
     TeacherFinalTestController,
+    StudentLmsBridgeController,
   ],
   providers: [
     AcaContentService,

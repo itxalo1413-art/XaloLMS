@@ -11,6 +11,18 @@ export class Aca11Class {
   @Prop({ required: true, trim: true })
   className: string;
 
+  /** Email học viên (ưu tiên khớp LMS) */
+  @Prop({ trim: true, default: '', index: true })
+  studentEmail: string;
+
+  /** Tên học viên (fallback / hiển thị) */
+  @Prop({ trim: true, default: '' })
+  studentName: string;
+
+  /** Id hồ sơ ACA student nếu đã gắn */
+  @Prop({ trim: true, default: '' })
+  studentId: string;
+
   @Prop({ trim: true, default: '' })
   inputNeed: string;
 

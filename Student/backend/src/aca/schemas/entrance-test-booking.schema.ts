@@ -92,6 +92,16 @@ export class EntranceTestBooking {
 
   @Prop({ trim: true, default: '' })
   writingSubmissionId: string;
+
+  @Prop({ type: Object, default: null })
+  speakingCriteria?: Record<string, unknown> | null;
+
+  @Prop({ type: Object, default: null })
+  writingCriteria?: Record<string, unknown> | null;
+
+  /** BCB chi tiết Entrance (cặp với Final.bcbData). */
+  @Prop({ type: Object, default: null })
+  bcbData?: Record<string, unknown> | null;
 }
 
 export const EntranceTestBookingSchema =

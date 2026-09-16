@@ -77,7 +77,7 @@ export function MockTestScheduleSection() {
         .sort((a, b) => slotTs(a) - slotTs(b));
       setRows(assigned);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không tải được lịch mock test.");
+      setError(err instanceof Error ? err.message : "Không tải được lịch Support Speaking.");
     } finally {
       setLoading(false);
     }
@@ -204,7 +204,7 @@ export function MockTestScheduleSection() {
         <div className="rounded-2xl border border-zinc-200 bg-white px-8 py-14 text-center shadow-sm">
           <p className="text-sm font-semibold text-zinc-800">
             {rows.length === 0
-              ? "Bạn chưa có ca Mock Test Speaking nào được xếp"
+              ? "Bạn chưa có ca Support Speaking nào được xếp"
               : "Không có ca trong mục lọc này"}
           </p>
           <p className="mt-2 mx-auto max-w-lg text-sm leading-relaxed text-zinc-500">

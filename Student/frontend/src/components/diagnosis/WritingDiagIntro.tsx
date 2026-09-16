@@ -52,7 +52,7 @@ export function WritingDiagIntro({
           <div className="text-[10px] font-black uppercase tracking-widest text-muted">
             Đặc trưng Writing Band {formatBandScore(activeBand)}
           </div>
-          <p className="mt-2 max-w-2xl text-xs font-medium leading-relaxed text-foreground">
+          <p className="mt-2 w-full text-xs font-medium leading-relaxed text-foreground">
             {summary}
           </p>
         </div>

@@ -8,6 +8,8 @@ export type RlpSession = {
   date: string;
   skill: string;
   contents: string;
+  /** Giáo viên phụ trách buổi (Responsible Teacher). */
+  responsibleTeacher?: string;
   teacherNote: string;
   deadline: string;
   homeworkStatus: HomeworkStatus;

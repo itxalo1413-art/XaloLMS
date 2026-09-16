@@ -14,7 +14,7 @@ import {
   rejectMockTestApi,
 } from "@/lib/mockTestApi";
 import { DEFAULT_STUDENT_ID } from "@/lib/studentIds";
-import { isSpeakingMockTest, getDemoSpeakingMockTests } from "@/lib/selfStudyFormat";
+import { isSpeakingMockTest } from "@/lib/selfStudyFormat";
 
 export type MockTestRequestStatus = "pending" | "approved" | "rejected";
 
@@ -36,6 +36,7 @@ export type MockTestRequest = {
   note?: string;
   notes?: string;
   source?: string;
+  submittedByRole?: string;
   entranceBookingId?: string;
   finalTestId?: string;
 };
@@ -111,12 +112,7 @@ export function loadMockTestRequests(): MockTestRequest[] {
 }
 
 function fallbackMockTestsForStudent(studentId: string): MockTestRequest[] {
-  let local = loadLocal();
-  if (local.length === 0) {
-    const demo = getDemoSpeakingMockTests(studentId, "Dương Ngọc Khôi Nguyên");
-    saveLocal(demo);
-    local = demo;
-  }
+  const local = loadLocal();
   const filtered = deduplicateMockTestRequests(local.filter((r) => r.studentId === studentId));
   applyMockTestCache(filtered);
   return filtered;
@@ -129,11 +125,13 @@ export async function refreshMockTestRequestsForStudent(
     try {
       const rows = await fetchMockTestsForStudent();
       const deduped = deduplicateMockTestRequests(rows);
-      saveCache(deduped);
+      applyMockTestCache(deduped);
       return deduped;
     } catch (err) {
       console.warn("Could not refresh mock tests from API", err);
-      return fallbackMockTestsForStudent(studentId);
+      // Đã login: không seed demo cứng khi API lỗi.
+      applyMockTestCache([]);
+      return [];
     }
   }
   return fallbackMockTestsForStudent(studentId);
@@ -143,15 +141,10 @@ export async function refreshMockTestRequestsForAca(): Promise<MockTestRequest[]
   if (canUseMockTestApi()) {
     const rows = await fetchMockTestsForAca("all");
     const deduped = deduplicateMockTestRequests(rows);
-    saveCache(deduped);
+    applyMockTestCache(deduped);
     return deduped;
   }
-  let local = loadLocal();
-  if (local.length === 0) {
-    const demo = getDemoSpeakingMockTests(DEFAULT_STUDENT_ID, "Dương Ngọc Khôi Nguyên");
-    saveLocal(demo);
-    local = demo;
-  }
+  const local = loadLocal();
   const deduped = deduplicateMockTestRequests(local);
   applyMockTestCache(deduped);
   return deduped;

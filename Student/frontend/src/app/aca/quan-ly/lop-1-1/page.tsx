@@ -10,6 +10,7 @@ import {
   deleteAca11Class,
   Aca11Class,
 } from "@/lib/acaManagementApi";
+import { confirmDialog } from "@/components/shared/ConfirmDialog";
 
 // ─── Utility: parse "dd/mm/yyyy" → Date ──────────────────────────────────────
 const parseDDMMYYYY = (s: string): Date | null => {
@@ -428,6 +429,8 @@ export default function Lop11Page() {
 
   // Form Fields State
   const [formClassName, setFormClassName] = useState("");
+  const [formStudentEmail, setFormStudentEmail] = useState("");
+  const [formStudentName, setFormStudentName] = useState("");
   const [formInputNeed, setFormInputNeed] = useState("");
   const [formTeacher, setFormTeacher] = useState("");
   const [formSchedule, setFormSchedule] = useState("");
@@ -475,6 +478,8 @@ export default function Lop11Page() {
     setFormMode("add");
     setCurrentId(null);
     setFormClassName("");
+    setFormStudentEmail("");
+    setFormStudentName("");
     setFormInputNeed("");
     setFormTeacher("");
     setFormSchedule("");
@@ -502,6 +507,8 @@ export default function Lop11Page() {
     setFormMode("edit");
     setCurrentId(c.id);
     setFormClassName(c.className);
+    setFormStudentEmail(c.studentEmail || "");
+    setFormStudentName(c.studentName || "");
     setFormInputNeed(c.inputNeed);
     setFormTeacher(c.teacher);
     setFormSchedule(c.schedule);
@@ -623,14 +630,20 @@ export default function Lop11Page() {
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("Bạn có chắc chắn muốn xóa lớp 1:1 này?")) {
-      try {
-        await deleteAca11Class(id);
-        setClassesList((prev) => prev.filter((c) => c.id !== id));
-        if (selectedClass?.id === id) setSelectedClass(null);
-      } catch (err: any) {
-        alert("Xóa thất bại: " + err.message);
-      }
+    const ok = await confirmDialog({
+      title: "Xóa lớp 1:1",
+      message: "Bạn có chắc chắn muốn xóa lớp 1:1 này không?\nThao tác này sẽ xóa lớp khỏi danh sách quản lý.",
+      confirmText: "Đồng ý xóa",
+      cancelText: "Giữ lại",
+      variant: "danger",
+    });
+    if (!ok) return;
+    try {
+      await deleteAca11Class(id);
+      setClassesList((prev) => prev.filter((c) => c.id !== id));
+      if (selectedClass?.id === id) setSelectedClass(null);
+    } catch (err: any) {
+      alert("Xóa thất bại: " + err.message);
     }
   };
 
@@ -706,6 +719,8 @@ export default function Lop11Page() {
 
     const payload = {
       className: formClassName,
+      studentEmail: formStudentEmail.trim().toLowerCase(),
+      studentName: formStudentName.trim() || formClassName.replace(/^.*1\s*:\s*1\s+/i, "").trim(),
       inputNeed: formInputNeed,
       teacher: formTeacher,
       schedule: computedSchedule,
@@ -1541,6 +1556,29 @@ export default function Lop11Page() {
                 <input type="text" required value={formClassName} onChange={(e) => setFormClassName(e.target.value)}
                   placeholder="Ví dụ: 2025RLP_ONL 1:1 Dương Bảo Ngọc"
                   className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Email học viên (LMS)</label>
+                  <input
+                    type="email"
+                    value={formStudentEmail}
+                    onChange={(e) => setFormStudentEmail(e.target.value)}
+                    placeholder="hv@email.com — để hiện bên học viên"
+                    className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Tên học viên</label>
+                  <input
+                    type="text"
+                    value={formStudentName}
+                    onChange={(e) => setFormStudentName(e.target.value)}
+                    placeholder="Để trống = lấy từ tên lớp"
+                    className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

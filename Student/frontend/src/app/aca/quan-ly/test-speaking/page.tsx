@@ -8,6 +8,7 @@ import {
   createMockTestRequest,
   removeMockTestRequest,
   updateMockTestRequest,
+  submitMockTestSpeakingResult,
   MOCK_TEST_UPDATE_EVENT,
   type MockTestRequest,
 } from "@/lib/mockTestRequests";
@@ -18,8 +19,27 @@ import {
   type FinalTestRecord,
 } from "@/lib/finalTestArchive";
 import { getGraderMeetLink, saveGraderMeetLink } from "@/lib/graderMeetLinks";
+import { confirmDialog } from "@/components/shared/ConfirmDialog";
 import { fetchAcaStudents, type AcaStudent } from "@/lib/acaManagementApi";
+import {
+  listEntranceTestBookings,
+  updateEntranceTestBooking,
+  ENTRANCE_BOOKINGS_UPDATE_EVENT,
+} from "@/lib/entranceTestBookings";
+import { resolveGraderTaskKind, resolveSubmittedByRole, SUBMITTED_BY_ROLE_LABEL, submittedByRoleTone } from "@/lib/selfStudyFormat";
 import { formatBandScore } from "@/lib/formatBandScore";
+import {
+  SPEAKING_CRITERIA,
+  computeSpeakingOverallBand,
+  type SpeakingCriterionScores,
+} from "@/lib/speakingBandDescriptors";
+
+const EMPTY_SPEAKING_CRITERIA: SpeakingCriterionScores = {
+  fluencyCoherence: 0,
+  lexicalResource: 0,
+  grammaticalRangeAccuracy: 0,
+  pronunciation: 0,
+};
 
 const GRADER_OPTIONS = [
   "Gia Phú",
@@ -36,8 +56,10 @@ const GRADER_OPTIONS = [
 
 export interface SpeakingRegistrationItem {
   id: string;
-  source: "mock_test" | "final_test";
+  source: "support_test" | "final_test" | "entrance_test";
+  submittedByRole: "sale" | "student" | "staff";
   originalId: string;
+  mockTestId?: string;
   studentId: string;
   studentName: string;
   studentPhone: string;
@@ -50,8 +72,11 @@ export interface SpeakingRegistrationItem {
   meetLink: string;
   status: "scheduled" | "in_progress" | "graded" | "cancelled";
   scoreSpeaking?: string;
+  speakingCriteria?: SpeakingCriterionScores | null;
   notes?: string;
   createdAt: string;
+  /** Giữ bcbData.speaking khi cập nhật Final */
+  bcbData?: FinalTestRecord["bcbData"];
 }
 
 export default function AcaTestSpeakingPage() {
@@ -62,8 +87,8 @@ export default function AcaTestSpeakingPage() {
   // Filters
   const [search, setSearch] = useState("");
   const [graderFilter, setGraderFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState<"all" | "mock_test" | "final_test">("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "graded">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "support_test" | "final_test" | "entrance_test">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "cancelled" | "graded">("all");
 
   // Add / Edit modal
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -73,13 +98,14 @@ export default function AcaTestSpeakingPage() {
   const [gradingItem, setGradingItem] = useState<SpeakingRegistrationItem | null>(null);
   const [gradeScore, setGradeScore] = useState("");
   const [gradeFeedback, setGradeFeedback] = useState("");
+  const [gradeCriteria, setGradeCriteria] = useState<SpeakingCriterionScores>(EMPTY_SPEAKING_CRITERIA);
 
   // Form fields
   const [formStudentName, setFormStudentName] = useState("");
   const [formStudentPhone, setFormStudentPhone] = useState("");
   const [formStudentEmail, setFormStudentEmail] = useState("");
   const [formClassName, setFormClassName] = useState("Solidifying — T357");
-  const [formTestType, setFormTestType] = useState<"mock_test" | "final_test">("mock_test");
+  const [formTestType, setFormTestType] = useState<"support_test" | "final_test">("support_test");
   const [formDate, setFormDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [formTime, setFormTime] = useState("19:30");
   const [formGrader, setFormGrader] = useState<string>("Gia Phú");
@@ -88,31 +114,86 @@ export default function AcaTestSpeakingPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Load mock test speaking requests
+      // 1. Load Support speaking requests (mock test API)
       const mockReqs = loadMockTestRequests();
-      const mockSpeaking: SpeakingRegistrationItem[] = mockReqs
+      const supportSpeaking: SpeakingRegistrationItem[] = mockReqs
         .filter((r) => r.skill.toLowerCase().includes("speaking") || r.skill.toLowerCase().includes("full"))
         .map((r) => {
           const dStr = `${r.year}-${String(r.month + 1).padStart(2, "0")}-${String(r.day).padStart(2, "0")}`;
           const gName = r.examTeacher || "Gia Phú";
+          const kind = resolveGraderTaskKind(r);
+          const isEntrance = kind === "Entrance";
           return {
-            id: `mock-${r.id}`,
-            source: "mock_test",
-            originalId: r.id,
+            id: isEntrance ? `entrance-support-${r.id}` : `support-${r.id}`,
+            source: isEntrance ? "entrance_test" : "support_test",
+            submittedByRole: resolveSubmittedByRole(r),
+            originalId: isEntrance && r.entranceBookingId ? r.entranceBookingId : r.id,
+            mockTestId: r.id,
             studentId: r.studentId,
             studentName: r.studentName,
-            studentPhone: "0947 188 794",
+            studentPhone: "",
             studentEmail: undefined,
-            className: "Mock Speaking Practice",
-            testTypeLabel: "Mock Test Speaking",
+            className: isEntrance ? "Entrance Test" : "Support Speaking",
+            testTypeLabel: isEntrance ? "Entrance Test Speaking" : "Support Speaking",
             date: dStr,
             time: r.examTime || "19:30",
             graderName: gName,
             meetLink: getGraderMeetLink(gName) || "https://meet.google.com/vdy-dhpa-djj",
-            status: r.score ? "graded" : r.status === "approved" ? "scheduled" : "in_progress",
+            status: r.score
+              ? "graded"
+              : r.status === "rejected"
+                ? "cancelled"
+                : r.status === "approved"
+                  ? "scheduled"
+                  : "in_progress",
             scoreSpeaking: r.score || undefined,
             notes: r.note || r.notes || undefined,
             createdAt: r.requestedAt || new Date().toISOString(),
+          };
+        });
+
+      const mockIdsInList = new Set(
+        supportSpeaking.map((m) => m.mockTestId).filter(Boolean) as string[],
+      );
+
+      const entranceBookings = await listEntranceTestBookings().catch(() => []);
+      const entranceSpeaking: SpeakingRegistrationItem[] = entranceBookings
+        .filter(
+          (b) =>
+            (b.type === "speaking" || b.type === "both") &&
+            (!b.mockTestId || !mockIdsInList.has(b.mockTestId)),
+        )
+        .map((b) => {
+          const gName = b.graderName || "Gia Phú";
+          return {
+            id: `entrance-${b.id}`,
+            source: "entrance_test",
+            submittedByRole: "sale",
+            originalId: b.id,
+            mockTestId: b.mockTestId || undefined,
+            studentId: b.leadId || `lead-${b.id}`,
+            studentName: b.candidateName,
+            studentPhone: b.candidatePhone,
+            studentEmail: b.candidateEmail,
+            className: "Entrance Test",
+            testTypeLabel: "Entrance Test Speaking",
+            date: b.date,
+            time: b.time,
+            graderName: gName,
+            meetLink: b.meetLink || getGraderMeetLink(gName) || "https://meet.google.com/vdy-dhpa-djj",
+            status: b.scoreSpeaking ? "graded" : b.status,
+            scoreSpeaking: b.scoreSpeaking || undefined,
+            speakingCriteria: b.speakingCriteria
+              ? {
+                  fluencyCoherence: Number(b.speakingCriteria.fluencyCoherence) || 0,
+                  lexicalResource: Number(b.speakingCriteria.lexicalResource) || 0,
+                  grammaticalRangeAccuracy:
+                    Number(b.speakingCriteria.grammaticalRangeAccuracy) || 0,
+                  pronunciation: Number(b.speakingCriteria.pronunciation) || 0,
+                }
+              : null,
+            notes: b.note || b.feedback || undefined,
+            createdAt: b.createdAt || new Date().toISOString(),
           };
         });
 
@@ -122,9 +203,11 @@ export default function AcaTestSpeakingPage() {
         .filter((r) => r.testType === "speaking" || r.testType === "full_4_skills")
         .map((r) => {
           const gName = r.graderSpeaking || r.examinerName || "Gia Phú";
+          const sp = r.bcbData?.speaking;
           return {
             id: `final-${r.id}`,
             source: "final_test",
+            submittedByRole: "student",
             originalId: r.id,
             studentId: r.studentId || "std-unknown",
             studentName: r.candidateName,
@@ -136,15 +219,24 @@ export default function AcaTestSpeakingPage() {
             time: r.time,
             graderName: gName,
             meetLink: r.meetLink || getGraderMeetLink(gName) || "https://meet.google.com/vdy-dhpa-djj",
-            status: r.status,
+            status: r.scoreSpeaking ? "graded" : r.status,
             scoreSpeaking: r.scoreSpeaking || undefined,
+            speakingCriteria: sp
+              ? {
+                  fluencyCoherence: Number(sp.fc) || 0,
+                  lexicalResource: Number(sp.lr) || 0,
+                  grammaticalRangeAccuracy: Number(sp.gra) || 0,
+                  pronunciation: Number(sp.pr) || 0,
+                }
+              : null,
+            bcbData: r.bcbData,
             notes: r.note || r.feedback || undefined,
             createdAt: r.createdAt || new Date().toISOString(),
           };
         });
 
       // Combine & sort by date desc
-      const combined = [...finalSpeaking, ...mockSpeaking].sort(
+      const combined = [...finalSpeaking, ...entranceSpeaking, ...supportSpeaking].sort(
         (a, b) => new Date(`${b.date}T${b.time || "00:00"}`).getTime() - new Date(`${a.date}T${a.time || "00:00"}`).getTime()
       );
 
@@ -164,10 +256,12 @@ export default function AcaTestSpeakingPage() {
     void loadData();
     window.addEventListener(MOCK_TEST_UPDATE_EVENT, loadData);
     window.addEventListener(FINAL_TEST_UPDATE_EVENT, loadData);
+    window.addEventListener(ENTRANCE_BOOKINGS_UPDATE_EVENT, loadData);
     window.addEventListener("storage", loadData);
     return () => {
       window.removeEventListener(MOCK_TEST_UPDATE_EVENT, loadData);
       window.removeEventListener(FINAL_TEST_UPDATE_EVENT, loadData);
+      window.removeEventListener(ENTRANCE_BOOKINGS_UPDATE_EVENT, loadData);
       window.removeEventListener("storage", loadData);
     };
   }, [loadData]);
@@ -186,8 +280,8 @@ export default function AcaTestSpeakingPage() {
     return items.filter((it) => {
       if (graderFilter !== "all" && it.graderName !== graderFilter) return false;
       if (typeFilter !== "all" && it.source !== typeFilter) return false;
-      if (statusFilter === "pending" && it.status === "graded") return false;
-      if (statusFilter === "graded" && it.status !== "graded") return false;
+      if (statusFilter === "cancelled" && it.status !== "cancelled") return false;
+      if (statusFilter === "graded" && !(it.status === "graded" && it.scoreSpeaking)) return false;
 
       if (search.trim()) {
         const q = search.trim().toLowerCase();
@@ -205,11 +299,38 @@ export default function AcaTestSpeakingPage() {
   // Stats Metrics
   const stats = useMemo(() => {
     const total = items.length;
-    const pending = items.filter((i) => i.status !== "graded").length;
-    const graded = items.filter((i) => i.status === "graded").length;
+    const cancelled = items.filter((i) => i.status === "cancelled").length;
+    const graded = items.filter((i) => i.status === "graded" && i.scoreSpeaking).length;
     const graderCount = activeGraders.length;
-    return { total, pending, graded, graderCount };
+    return { total, cancelled, graded, graderCount };
   }, [items, activeGraders]);
+
+  const handleCancelSpeaking = async (item: SpeakingRegistrationItem) => {
+    if (item.status === "cancelled") return;
+    const ok = await confirmDialog({
+      title: "Hủy ca Speaking",
+      message: `Bạn có chắc chắn muốn hủy ca Speaking của học viên "${item.studentName}" không?`,
+      confirmText: "Đồng ý hủy",
+      cancelText: "Giữ lại",
+      variant: "danger",
+    });
+    if (!ok) return;
+    try {
+      if (item.source === "final_test") {
+        await updateFinalTestRecord(item.originalId, { status: "cancelled" });
+      } else if (item.source === "entrance_test") {
+        await updateEntranceTestBooking(item.originalId, { status: "cancelled" });
+        if (item.mockTestId) {
+          updateMockTestRequest(item.mockTestId, { status: "rejected" });
+        }
+      } else {
+        updateMockTestRequest(item.originalId, { status: "rejected" });
+      }
+      void loadData();
+    } catch (err: any) {
+      alert("Không hủy được ca: " + err.message);
+    }
+  };
 
   // Quick Change Grader
   const handleAssignGrader = async (item: SpeakingRegistrationItem, nextGrader: string) => {
@@ -219,6 +340,15 @@ export default function AcaTestSpeakingPage() {
           graderSpeaking: nextGrader,
           examinerName: nextGrader,
         });
+      } else if (item.source === "entrance_test") {
+        await updateEntranceTestBooking(item.originalId, {
+          graderName: nextGrader,
+        });
+        if (item.mockTestId) {
+          updateMockTestRequest(item.mockTestId, {
+            examTeacher: nextGrader,
+          });
+        }
       } else {
         updateMockTestRequest(item.originalId, {
           examTeacher: nextGrader,
@@ -234,23 +364,53 @@ export default function AcaTestSpeakingPage() {
   const handleSaveGrade = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!gradingItem) return;
+    const needsCriteria =
+      gradingItem.source === "final_test" || gradingItem.source === "entrance_test";
     try {
       if (gradingItem.source === "final_test") {
+        const prevSpeaking = gradingItem.bcbData?.speaking || {};
         await updateFinalTestRecord(gradingItem.originalId, {
           scoreSpeaking: gradeScore.trim(),
           status: "graded",
           feedback: gradeFeedback.trim() || undefined,
+          ...(needsCriteria
+            ? {
+                bcbData: {
+                  ...gradingItem.bcbData,
+                  speaking: {
+                    ...prevSpeaking,
+                    fc: String(gradeCriteria.fluencyCoherence || ""),
+                    lr: String(gradeCriteria.lexicalResource || ""),
+                    gra: String(gradeCriteria.grammaticalRangeAccuracy || ""),
+                    pr: String(gradeCriteria.pronunciation || ""),
+                  },
+                },
+              }
+            : {}),
         });
+      } else if (gradingItem.source === "entrance_test") {
+        if (gradingItem.mockTestId) {
+          await submitMockTestSpeakingResult(gradingItem.mockTestId, gradingItem.graderName, {
+            score: gradeScore.trim(),
+          });
+        }
+        if (!gradingItem.mockTestId || gradingItem.originalId !== gradingItem.mockTestId) {
+          await updateEntranceTestBooking(gradingItem.originalId, {
+            scoreSpeaking: gradeScore.trim(),
+            status: "graded",
+            feedback: gradeFeedback.trim() || undefined,
+            speakingCriteria: gradeCriteria,
+          });
+        }
       } else {
-        updateMockTestRequest(gradingItem.originalId, {
+        await submitMockTestSpeakingResult(gradingItem.originalId, gradingItem.graderName, {
           score: gradeScore.trim(),
-          status: "approved",
-          notes: gradeFeedback.trim() || undefined,
         });
       }
       setGradingItem(null);
       setGradeScore("");
       setGradeFeedback("");
+      setGradeCriteria(EMPTY_SPEAKING_CRITERIA);
       void loadData();
     } catch (err: any) {
       alert("Lỗi nhập điểm: " + err.message);
@@ -308,7 +468,7 @@ export default function AcaTestSpeakingPage() {
                 Quản lý học viên đăng ký Speaking, theo dõi và phân công Grader phụ trách ca thi
               </h2>
               <p className="text-xs text-zinc-500 font-medium mt-0.5">
-                Tổng hợp toàn bộ lượt đăng ký Mock Test Speaking & Final Test Speaking trên toàn hệ thống.
+                Tổng hợp toàn bộ lượt đăng ký Entrance / Support Speaking & Final Test Speaking trên toàn hệ thống.
               </p>
             </div>
           </div>
@@ -320,7 +480,7 @@ export default function AcaTestSpeakingPage() {
               setFormStudentPhone("");
               setFormStudentEmail("");
               setFormClassName("Solidifying — T357");
-              setFormTestType("mock_test");
+              setFormTestType("support_test");
               setFormDate(new Date().toISOString().split("T")[0]);
               setFormTime("19:30");
               setFormGrader("Gia Phú");
@@ -338,9 +498,9 @@ export default function AcaTestSpeakingPage() {
             <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Tổng Đăng Ký Speaking</div>
             <div className="text-xl font-black text-zinc-900 mt-1 tabular-nums">{stats.total}</div>
           </div>
-          <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-4 text-center shadow-xs">
-            <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">Chờ Thi / Chờ Chấm</div>
-            <div className="text-xl font-black text-amber-600 mt-1 tabular-nums">{stats.pending}</div>
+          <div className="rounded-2xl border border-rose-200 bg-rose-50/50 p-4 text-center shadow-xs">
+            <div className="text-[10px] font-bold text-rose-700 uppercase tracking-wider">Cancelled</div>
+            <div className="text-xl font-black text-rose-600 mt-1 tabular-nums">{stats.cancelled}</div>
           </div>
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 text-center shadow-xs">
             <div className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Đã Hoàn Thành & Có Điểm</div>
@@ -384,8 +544,9 @@ export default function AcaTestSpeakingPage() {
               className="h-10 rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-xs font-bold text-zinc-700 outline-none"
             >
               <option value="all">Tất cả loại bài thi</option>
+              <option value="entrance_test">Entrance Test Speaking</option>
               <option value="final_test">Final Test Speaking</option>
-              <option value="mock_test">Mock Test Speaking</option>
+              <option value="support_test">Support Speaking</option>
             </select>
 
             {/* Filter by Status */}
@@ -395,8 +556,8 @@ export default function AcaTestSpeakingPage() {
               className="h-10 rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-xs font-bold text-zinc-700 outline-none"
             >
               <option value="all">Tất cả trạng thái</option>
-              <option value="pending">Chờ thi / Chờ chấm</option>
-              <option value="graded">Đã có điểm</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="graded">Có điểm</option>
             </select>
           </div>
         </div>
@@ -430,7 +591,8 @@ export default function AcaTestSpeakingPage() {
                 </thead>
                 <tbody className="divide-y divide-zinc-100 font-medium">
                   {filtered.map((it) => {
-                    const isGraded = it.status === "graded" && Boolean(it.scoreSpeaking);
+                    const isCancelled = it.status === "cancelled";
+                    const isGraded = !isCancelled && Boolean(it.scoreSpeaking);
 
                     return (
                       <tr key={it.id} className="hover:bg-zinc-50/70 transition-colors">
@@ -444,15 +606,24 @@ export default function AcaTestSpeakingPage() {
 
                         {/* 2. Loại ca */}
                         <td className="px-3.5 py-3.5">
-                          <span
-                            className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold border ${
-                              it.source === "final_test"
-                                ? "bg-purple-50 text-purple-700 border-purple-200"
-                                : "bg-sky-50 text-sky-700 border-sky-200"
-                            }`}
-                          >
-                            {it.testTypeLabel}
-                          </span>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span
+                              className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold border ${
+                                it.source === "final_test"
+                                  ? "bg-purple-50 text-purple-700 border-purple-200"
+                                  : it.source === "entrance_test"
+                                    ? "bg-amber-50 text-amber-800 border-amber-200"
+                                    : "bg-sky-50 text-sky-700 border-sky-200"
+                              }`}
+                            >
+                              {it.testTypeLabel}
+                            </span>
+                            <span
+                              className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold ${submittedByRoleTone(it.submittedByRole)}`}
+                            >
+                              {SUBMITTED_BY_ROLE_LABEL[it.submittedByRole]}
+                            </span>
+                          </div>
                         </td>
 
                         {/* 3. Ngày giờ thi */}
@@ -467,7 +638,8 @@ export default function AcaTestSpeakingPage() {
                             <select
                               value={it.graderName}
                               onChange={(e) => handleAssignGrader(it, e.target.value)}
-                              className="text-xs font-black text-primary bg-white rounded-lg border border-primary/30 px-2.5 py-1.5 outline-none hover:border-primary transition-all cursor-pointer shadow-2xs"
+                              disabled={isCancelled}
+                              className="text-xs font-black text-primary bg-white rounded-lg border border-primary/30 px-2.5 py-1.5 outline-none hover:border-primary transition-all cursor-pointer shadow-2xs disabled:opacity-50"
                             >
                               {activeGraders.map((g) => (
                                 <option key={g} value={g}>
@@ -480,7 +652,7 @@ export default function AcaTestSpeakingPage() {
 
                         {/* 5. Google Meet */}
                         <td className="px-3.5 py-3.5 text-center">
-                          {it.meetLink ? (
+                          {it.meetLink && !isCancelled ? (
                             <a
                               href={it.meetLink}
                               target="_blank"
@@ -494,23 +666,25 @@ export default function AcaTestSpeakingPage() {
                           )}
                         </td>
 
-                        {/* 6. Trạng thái */}
+                        {/* 6. Trạng thái: Cancelled hoặc điểm Speaking */}
                         <td className="px-3 py-3.5 text-center">
-                          {isGraded ? (
-                            <span className="inline-flex rounded-md bg-emerald-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-emerald-700 border border-emerald-200">
-                              Đã có điểm
+                          {isCancelled ? (
+                            <span className="inline-flex rounded-md bg-rose-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-rose-700 border border-rose-200">
+                              Cancelled
+                            </span>
+                          ) : isGraded ? (
+                            <span className="inline-flex rounded-md bg-emerald-50 px-2.5 py-0.5 text-sm font-black tabular-nums text-emerald-700 border border-emerald-200">
+                              {formatBandScore(it.scoreSpeaking)}
                             </span>
                           ) : (
-                            <span className="inline-flex rounded-md bg-amber-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-700 border border-amber-200">
-                              Chờ chấm
-                            </span>
+                            <span className="text-zinc-400 text-xs">—</span>
                           )}
                         </td>
 
                         {/* 7. Điểm Speaking */}
                         <td className="px-3 py-3.5 text-center">
                           <span className="text-sm font-black text-primary tabular-nums">
-                            {it.scoreSpeaking ? formatBandScore(it.scoreSpeaking) : "—"}
+                            {it.scoreSpeaking && !isCancelled ? formatBandScore(it.scoreSpeaking) : "—"}
                           </span>
                         </td>
 
@@ -524,17 +698,31 @@ export default function AcaTestSpeakingPage() {
                         {/* 9. Thao tác */}
                         <td className="px-3 py-3.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setGradingItem(it);
-                                setGradeScore(it.scoreSpeaking || "");
-                                setGradeFeedback(it.notes || "");
-                              }}
-                              className="px-2.5 py-1 rounded-lg bg-primary text-white text-[10px] font-black hover:bg-[#6a5acd] transition-all shadow-2xs cursor-pointer active:scale-95"
-                            >
-                              {isGraded ? "Sửa điểm" : "Nhập điểm"}
-                            </button>
+                            {!isCancelled && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setGradingItem(it);
+                                    setGradeScore(it.scoreSpeaking || "");
+                                    setGradeFeedback(it.notes || "");
+                                    setGradeCriteria(it.speakingCriteria || EMPTY_SPEAKING_CRITERIA);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-primary text-white text-[10px] font-black hover:bg-[#6a5acd] transition-all shadow-2xs cursor-pointer active:scale-95"
+                                >
+                                  {isGraded ? "Sửa điểm" : "Nhập điểm"}
+                                </button>
+                                {!isGraded && (
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleCancelSpeaking(it)}
+                                    className="px-2.5 py-1 rounded-lg border border-rose-200 bg-rose-50 text-rose-700 text-[10px] font-black hover:bg-rose-100 transition-all cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                )}
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -558,7 +746,11 @@ export default function AcaTestSpeakingPage() {
           />
           <form
             onSubmit={handleSaveGrade}
-            className="relative w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl space-y-4"
+            className={`relative w-full rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto ${
+              gradingItem.source === "entrance_test" || gradingItem.source === "final_test"
+                ? "max-w-lg"
+                : "max-w-md"
+            }`}
           >
             <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
               <div>
@@ -577,6 +769,44 @@ export default function AcaTestSpeakingPage() {
                 ✕
               </button>
             </div>
+
+            {(gradingItem.source === "entrance_test" || gradingItem.source === "final_test") && (
+              <div className="rounded-xl border border-purple-200 bg-purple-50/40 p-3.5 space-y-3">
+                <div className="text-[11px] font-black uppercase tracking-wider text-purple-900">
+                  Điểm thành phần Speaking → BCB (Entrance / Final)
+                </div>
+                <p className="text-xs text-zinc-500 font-medium">
+                  Nhập FC / LR / GRA / PR — đồng bộ vào Bảng Chẩn Bệnh học viên (Sale không điền S).
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {SPEAKING_CRITERIA.map((c) => (
+                    <label key={c.key} className="block">
+                      <span className="text-[10px] font-bold text-zinc-500 uppercase">{c.label}</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={9}
+                        step={0.5}
+                        value={gradeCriteria[c.key] || ""}
+                        onChange={(e) => {
+                          const next = {
+                            ...gradeCriteria,
+                            [c.key]: Number(e.target.value) || 0,
+                          };
+                          setGradeCriteria(next);
+                          const overall = computeSpeakingOverallBand(next);
+                          if (overall > 0) setGradeScore(formatBandScore(overall));
+                        }}
+                        className="mt-1 h-9 w-full rounded-lg border border-zinc-200 px-2 text-sm font-bold tabular-nums outline-none focus:border-primary"
+                      />
+                    </label>
+                  ))}
+                </div>
+                <p className="text-[10px] text-zinc-500 font-medium">
+                  Overall S tự tính trung bình 4 tiêu chí — có thể chỉnh tay ô Band bên dưới.
+                </p>
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-bold text-zinc-700 mb-1">Điểm Band Speaking (IELTS)</label>

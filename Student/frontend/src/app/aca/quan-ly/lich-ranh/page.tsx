@@ -120,8 +120,8 @@ export default function AcaLichRanhPage() {
     }
   }, []);
 
-  const sync = useCallback(async () => {
-    setLoading(true);
+  const sync = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const [slotsData, requestsData, studentsData] = await Promise.all([
@@ -140,8 +140,8 @@ export default function AcaLichRanhPage() {
   }, []);
 
   useEffect(() => {
-    void sync();
-    const onUpdate = () => void sync();
+    void sync(false);
+    const onUpdate = () => void sync(true);
     window.addEventListener(MOCK_TEST_UPDATE_EVENT, onUpdate);
     window.addEventListener("storage", onUpdate);
     return () => {
@@ -507,7 +507,14 @@ export default function AcaLichRanhPage() {
                 <h2 className="text-sm font-bold text-zinc-950 uppercase tracking-wide">
                   Speaking Test Schedule
                 </h2>
-                <a href="#test-link" className="text-[10px] text-primary font-bold hover:underline">Link test speak</a>
+                <a
+                  href={graderMeetLink || "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[10px] text-primary font-bold hover:underline inline-flex items-center gap-1"
+                >
+                  Link test speak ↗
+                </a>
               </div>
 
               {loading ? (
@@ -524,7 +531,7 @@ export default function AcaLichRanhPage() {
                         <th className="px-2 py-2 border-r border-zinc-200">TÊN</th>
                         <th className="px-2 py-2 border-r border-zinc-200">BCB</th>
                         <th className="px-2 py-2 border-r border-zinc-200">DẠNG</th>
-                        <th className="px-2 py-2 border-r border-zinc-200">LINK ĐỀ</th>
+                        <th className="px-2 py-2 border-r border-zinc-200">Link</th>
                         <th className="px-2 py-2 border-r border-zinc-200">ĐIỂM S</th>
                         <th className="px-2 py-2 border-r border-zinc-200">TÌNH TRẠNG</th>
                         <th className="px-2 py-2">Note</th>
@@ -649,26 +656,70 @@ export default function AcaLichRanhPage() {
                               
                               {/* DẠNG */}
                               <td className="border-r border-zinc-200">
-                                <span className="inline-flex rounded px-1.5 py-0.5 text-[9px] font-black uppercase bg-[#fae8ff] border border-[#f5d0fe] text-[#86198f]">
-                                  Support
-                                </span>
+                                {(() => {
+                                  const isFinal =
+                                    req.source === "final" ||
+                                    Boolean(req.finalTestId) ||
+                                    (req.skill ?? "").toLowerCase().includes("final");
+                                  const isEntrance =
+                                    req.source === "entrance" ||
+                                    Boolean(req.entranceBookingId) ||
+                                    (req.skill ?? "").toLowerCase().includes("entrance") ||
+                                    (req.skill ?? "").toLowerCase().includes("đầu vào");
+
+                                  if (isFinal) {
+                                    return (
+                                      <span className="inline-flex rounded px-1.5 py-0.5 text-[9px] font-black uppercase bg-purple-100 border border-purple-200 text-purple-800">
+                                        Final
+                                      </span>
+                                    );
+                                  }
+                                  if (isEntrance) {
+                                    return (
+                                      <span className="inline-flex rounded px-1.5 py-0.5 text-[9px] font-black uppercase bg-sky-100 border border-sky-200 text-sky-800">
+                                        Entrance
+                                      </span>
+                                    );
+                                  }
+                                  return (
+                                    <span className="inline-flex rounded px-1.5 py-0.5 text-[9px] font-black uppercase bg-[#fae8ff] border border-[#f5d0fe] text-[#86198f]">
+                                      Support
+                                    </span>
+                                  );
+                                })()}
                               </td>
                               
-                              {/* LINK ĐỀ */}
-                              <td className="border-r border-zinc-200 px-1">
-                                <input
-                                  type="text"
-                                  defaultValue={req.examLink || ""}
-                                  placeholder="Dán link..."
-                                  onBlur={(e) => handleSaveValue("examLink", e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      handleSaveValue("examLink", e.currentTarget.value);
-                                      e.currentTarget.blur();
-                                    }
-                                  }}
-                                  className="w-full bg-transparent border-0 hover:bg-zinc-50 focus:bg-white text-[10px] font-bold text-primary underline truncate text-center outline-none focus:ring-1 focus:ring-primary/20 rounded py-0.5"
-                                />
+                              {/* Link Meet */}
+                              <td className="border-r border-zinc-200 px-1 text-center">
+                                {(() => {
+                                  const isOff = req.examTime?.includes("Offline") || req.skill?.toLowerCase().includes("offline");
+                                  if (isOff) {
+                                    return <span className="text-[10px] font-bold text-zinc-400">Offline</span>;
+                                  }
+                                  const meetUrl =
+                                    req.examLink?.startsWith("http")
+                                      ? req.examLink
+                                      : req.note?.startsWith("http")
+                                      ? req.note
+                                      : getGraderMeetLink(req.examTeacher || selectedTeacher) || graderMeetLink;
+
+                                  if (!meetUrl) {
+                                    return <span className="text-zinc-400 text-[10px] font-semibold">—</span>;
+                                  }
+
+                                  return (
+                                    <a
+                                      href={meetUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 transition-colors shadow-2xs"
+                                      title={`Link Meet: ${meetUrl}`}
+                                    >
+                                      <span>Mở Meet</span>
+                                      <span className="text-[9px]">↗</span>
+                                    </a>
+                                  );
+                                })()}
                               </td>
                               
                               {/* ĐIỂM S */}

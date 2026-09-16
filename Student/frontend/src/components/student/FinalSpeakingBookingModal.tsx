@@ -1,12 +1,20 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   fetchAcaFreeSlots,
   updateAcaFreeSlot,
   type AcaFreeSlot,
 } from "@/lib/acaManagementApi";
-import { createFinalTestRecord } from "@/lib/finalTestArchive";
+import {
+  createFinalTestRecord,
+  listMyFinalTestRecords,
+  cancelFinalTestRecord,
+  type FinalTestRecord,
+} from "@/lib/finalTestArchive";
+import { getGraderMeetLink } from "@/lib/graderMeetLinks";
+import { confirmDialog } from "@/components/shared/ConfirmDialog";
 
 interface FinalSpeakingBookingModalProps {
   open: boolean;
@@ -14,6 +22,8 @@ interface FinalSpeakingBookingModalProps {
   studentId: string;
   studentName: string;
   studentPhone?: string;
+  studentEmail?: string;
+  targetBand?: string;
   onSuccess?: () => void;
 }
 
@@ -31,6 +41,8 @@ export function FinalSpeakingBookingModal({
   studentId,
   studentName,
   studentPhone,
+  studentEmail,
+  targetBand = "",
   onSuccess,
 }: FinalSpeakingBookingModalProps) {
   const today = useMemo(() => {
@@ -40,7 +52,9 @@ export function FinalSpeakingBookingModal({
   }, []);
 
   const [freeSlots, setFreeSlots] = useState<AcaFreeSlot[]>([]);
+  const [myFinalTests, setMyFinalTests] = useState<FinalTestRecord[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   // Calendar nav
   const [calMonth, setCalMonth] = useState<{ month: number; year: number }>({
@@ -68,9 +82,19 @@ export function FinalSpeakingBookingModal({
     }
   };
 
+  const loadFinalTests = async () => {
+    try {
+      const records = await listMyFinalTestRecords({ id: studentId, name: studentName });
+      setMyFinalTests(records || []);
+    } catch {
+      setMyFinalTests([]);
+    }
+  };
+
   useEffect(() => {
     if (open) {
       void loadSlots();
+      void loadFinalTests();
     } else {
       setStep(1);
       setSelectedDate(null);
@@ -81,6 +105,42 @@ export function FinalSpeakingBookingModal({
       setCalMonth({ month: today.getMonth(), year: today.getFullYear() });
     }
   }, [open, today]);
+
+  const activeSpeakingBooking = useMemo(() => {
+    return myFinalTests.find(
+      (r) =>
+        (r.testType === "speaking" || r.testType === "full_4_skills") &&
+        r.status !== "graded" &&
+        r.status !== "cancelled",
+    );
+  }, [myFinalTests]);
+
+  const handleCancelExisting = async () => {
+    if (!activeSpeakingBooking) return;
+    const ok = await confirmDialog({
+      title: "Hủy ca thi Speaking",
+      message: "Bạn có chắc chắn muốn hủy ca thi Final Speaking hiện tại để đăng ký ca mới không?\nCa thi đã đặt sẽ được nhả lại cho các học viên khác.",
+      confirmText: "Đồng ý hủy",
+      cancelText: "Giữ lịch thi",
+      variant: "warning",
+    });
+    if (!ok) return;
+    setCancelling(true);
+    setErrorMsg(null);
+    try {
+      await cancelFinalTestRecord(activeSpeakingBooking.id);
+      await Promise.all([loadSlots(), loadFinalTests()]);
+      setStep(1);
+      setSelectedDate(null);
+      setSelectedTeacher(null);
+      setConfirmSlot(null);
+      if (onSuccess) onSuccess();
+    } catch (err: any) {
+      setErrorMsg(err.message || "Không thể hủy ca thi. Vui lòng thử lại.");
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   // Dates that have available slots
   const availableDateKeys = useMemo(() => {
@@ -120,7 +180,7 @@ export function FinalSpeakingBookingModal({
     const selYear = selectedDate.getFullYear();
     const target = selectedTeacher.trim().toLowerCase();
 
-    return freeSlots
+    const filtered = freeSlots
       .filter((s) => {
         if (s.status !== "available") return false;
         if (s.day !== selDay || s.month !== selMonth || s.year !== selYear) return false;
@@ -130,6 +190,17 @@ export function FinalSpeakingBookingModal({
         return tName === target || tName.includes(target) || target.includes(tName);
       })
       .sort((a, b) => a.time.localeCompare(b.time));
+
+    const seen = new Set<string>();
+    const unique: AcaFreeSlot[] = [];
+    for (const s of filtered) {
+      const key = `${s.time}_${s.type || ""}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(s);
+      }
+    }
+    return unique;
   }, [freeSlots, selectedDate, selectedTeacher, today]);
 
   // Group step-3 slots by date
@@ -146,7 +217,7 @@ export function FinalSpeakingBookingModal({
   // Calendar builders
   function buildCalendarDays(month: number, year: number): (Date | null)[] {
     const first = new Date(year, month, 1);
-    const startDow = (first.getDay() + 6) % 7; // Mon=0
+    const startDow = (first.getDay() + 6) % 7; 
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const cells: (Date | null)[] = Array(startDow).fill(null);
     for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
@@ -154,29 +225,29 @@ export function FinalSpeakingBookingModal({
     return cells;
   }
 
-  function MiniCalendar({ month, year }: { month: number; year: number }) {
+  function renderMiniCalendar(month: number, year: number) {
     const cells = buildCalendarDays(month, year);
     return (
       <div>
         <div className="text-xs font-black text-center text-zinc-700 mb-2">
           {MONTH_NAMES[month]} {year}
         </div>
-        <div className="grid grid-cols-7 gap-0.5">
+        <div className="grid grid-cols-7 gap-1">
           {["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((d) => (
-            <div key={d} className="text-[9px] font-bold text-zinc-400 text-center py-1">
+            <div key={d} className="text-[9px] font-bold text-zinc-400 text-center py-1 select-none">
               {d}
             </div>
           ))}
           {cells.map((date, i) => {
-            if (!date) return <div key={i} />;
+            if (!date) return <div key={i} className="h-8" />;
             const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
             const hasDot = availableDateKeys.has(key);
             const isPast = date < today;
-            const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
+            const isSelected = Boolean(selectedDate && date.toDateString() === selectedDate.toDateString());
             const isToday = date.toDateString() === today.toDateString();
             return (
               <button
-                key={i}
+                key={key}
                 type="button"
                 disabled={isPast}
                 onClick={() => {
@@ -184,21 +255,21 @@ export function FinalSpeakingBookingModal({
                   setStep(2);
                   setSelectedTeacher(null);
                 }}
-                className={`relative flex flex-col items-center justify-center rounded-lg py-1.5 text-[11px] font-bold transition-all ${
+                className={`relative flex h-8 w-full flex-col items-center justify-center rounded-lg text-[11px] font-bold select-none transition-colors duration-150 ${
                   isPast
-                    ? "text-zinc-300 cursor-not-allowed"
+                    ? "text-zinc-300 cursor-not-allowed bg-transparent"
                     : "hover:bg-primary/10 cursor-pointer"
                 } ${
                   isSelected
-                    ? "bg-primary text-white shadow-sm"
+                    ? "bg-primary text-white shadow-sm font-black hover:bg-primary"
                     : isToday
-                    ? "ring-1 ring-primary/40 text-primary"
+                    ? "ring-1 ring-primary/40 text-primary bg-primary/5"
                     : "text-zinc-700"
                 }`}
               >
-                {date.getDate()}
+                <span>{date.getDate()}</span>
                 {hasDot && !isSelected && (
-                  <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-emerald-400" />
+                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-emerald-400 pointer-events-none" />
                 )}
               </button>
             );
@@ -217,66 +288,91 @@ export function FinalSpeakingBookingModal({
       const monthFormatted = String(confirmSlot.month + 1).padStart(2, "0");
       const dayFormatted = String(confirmSlot.day).padStart(2, "0");
       const dateStr = `${confirmSlot.year}-${monthFormatted}-${dayFormatted}`;
+      const meetUrl = getGraderMeetLink(confirmSlot.teacherName);
 
       await createFinalTestRecord({
         candidateName: studentName,
-        candidatePhone: studentPhone || "0947 188 794",
+        candidatePhone: studentPhone || "",
+        candidateEmail: studentEmail || "",
         studentId: studentId,
         testType: "speaking",
         format: isOffline ? "offline" : "online",
         examinerName: confirmSlot.teacherName || "Giám khảo",
         date: dateStr,
         time: confirmSlot.time,
-        targetBand: "6.5",
+        speakingDate: dateStr,
+        speakingTime: confirmSlot.time,
+        graderSpeaking: confirmSlot.teacherName || "Giám khảo",
+        meetLink: meetUrl,
+        targetBand: targetBand.trim(),
       });
 
-      await updateAcaFreeSlot(confirmSlot.id, { status: "booked" });
+      if (confirmSlot.id) {
+        try {
+          await updateAcaFreeSlot(confirmSlot.id, { status: "booked" });
+        } catch {}
+      }
 
       if (onSuccess) onSuccess();
       onClose();
     } catch (err: any) {
-      setErrorMsg(err?.message || "Đăng ký ca thi thất bại. Vui lòng thử lại.");
+      setErrorMsg(err.message || "Không thể đặt lịch. Vui lòng thử lại.");
     } finally {
       setBooking(false);
-      setConfirmSlot(null);
     }
   };
 
+  const currentTeacherSlots = useMemo(() => {
+    if (!selectedTeacher || !selectedDate) return [];
+    return freeSlots
+      .filter((s) => {
+        if (s.status !== "available") return false;
+        if (
+          s.day !== selectedDate.getDate() ||
+          s.month !== selectedDate.getMonth() ||
+          s.year !== selectedDate.getFullYear()
+        )
+          return false;
+        return (
+          (s.teacherName ?? "").trim().toLowerCase() ===
+          selectedTeacher.trim().toLowerCase()
+        );
+      })
+      .sort((a, b) => a.time.localeCompare(b.time));
+  }, [freeSlots, selectedDate, selectedTeacher]);
+
   if (!open) return null;
 
-  return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-
-      {/* Modal Card */}
-      <div className="relative z-10 w-full max-w-3xl rounded-3xl bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-auto">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b border-zinc-100 px-6 py-5 flex items-center justify-between">
+  const modalNode = (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg rounded-3xl bg-white shadow-2xl overflow-hidden border border-zinc-100 animate-in zoom-in-95 duration-200">
+        
+        {/* Top Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 bg-gradient-to-r from-primary/5 to-purple-50">
           <div>
-            <div className="text-[10px] font-black uppercase tracking-widest text-primary mb-0.5">
-              {step === 1 ? "Bước 1 / 3" : step === 2 ? "Bước 2 / 3" : "Bước 3 / 3"}
+            <div className="text-[10px] font-black uppercase tracking-wider text-primary">
+              Đăng Ký Final Test Speaking 1-1
             </div>
-            <h3 className="text-base font-black text-foreground">
+            <h2 className="text-sm font-black text-zinc-900 mt-0.5">
               {step === 1
                 ? "Chọn ngày muốn thi Final Test Speaking"
                 : step === 2
-                ? `Chọn Giám khảo — Ngày ${selectedDate ? `${selectedDate.getDate()}/${selectedDate.getMonth() + 1}` : ""}`
-                : `Lịch rảnh thi Speaking — ${selectedTeacher}`}
-            </h3>
+                ? `Chọn Giám khảo chấm Speaking — Ngày ${selectedDate?.getDate()}/${(selectedDate?.getMonth() ?? 0) + 1}`
+                : "Xác nhận ca thi Final Test Speaking"}
+            </h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-zinc-100 text-zinc-400 transition-colors cursor-pointer"
+            className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/80 text-zinc-400 hover:text-zinc-700 transition-colors cursor-pointer"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        {/* Body */}
+        {/* Content Body */}
         <div className="px-6 py-5 max-h-[78vh] overflow-y-auto">
           {errorMsg && (
             <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-bold text-rose-700">
@@ -284,15 +380,90 @@ export function FinalSpeakingBookingModal({
             </div>
           )}
 
-          {/* ── STEP 1: Calendar ── */}
-          {step === 1 && (
-            <div>
-              <p className="text-xs text-zinc-500 font-medium mb-4">
-                Chọn ngày bạn muốn thi Speaking 1-1 với Giám khảo.
-              </p>
+          {activeSpeakingBooking ? (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50/90 to-amber-100/40 p-4">
+                <div className="flex items-center gap-2 text-amber-900">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-white font-black text-[11px]">
+                    !
+                  </span>
+                  <h3 className="text-xs font-black uppercase tracking-wide">
+                    Bạn đã có lịch đăng ký Final Test Speaking
+                  </h3>
+                </div>
+                <p className="mt-2 text-[11px] font-medium text-amber-950 leading-relaxed">
+                  Mỗi học viên chỉ được đăng ký tối đa <strong>1 ca Final Test Speaking</strong>. Nếu muốn đổi ngày hoặc đổi giám khảo, bạn cần <strong>hủy ca thi hiện tại</strong> trước khi chọn ca mới.
+                </p>
+              </div>
 
-              {/* Calendar nav */}
-              <div className="flex items-center justify-between mb-3">
+              <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm space-y-3">
+                <div className="flex items-center justify-between border-b border-zinc-100 pb-2.5">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-zinc-400">
+                    Trạng thái ca thi
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 border border-sky-200 px-3 py-0.5 text-xs font-black text-sky-800">
+                    <span className="h-1.5 w-1.5 rounded-full bg-sky-500 animate-pulse" />
+                    Đã xếp lịch thi
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="rounded-xl bg-zinc-50 p-3 border border-zinc-100">
+                    <span className="text-[10px] font-bold text-zinc-400 block uppercase">Ngày thi</span>
+                    <span className="font-black text-zinc-900 mt-0.5 block text-sm">
+                      {activeSpeakingBooking.date || `${activeSpeakingBooking.day}/${activeSpeakingBooking.month + 1}/${activeSpeakingBooking.year}`}
+                    </span>
+                  </div>
+                  <div className="rounded-xl bg-zinc-50 p-3 border border-zinc-100">
+                    <span className="text-[10px] font-bold text-zinc-400 block uppercase">Giờ & Hình thức</span>
+                    <span className="font-black text-zinc-900 mt-0.5 block text-sm">
+                      {activeSpeakingBooking.time || "—"} ({activeSpeakingBooking.format === "offline" ? "Offline" : "Online"})
+                    </span>
+                  </div>
+                  <div className="col-span-2 rounded-xl bg-zinc-50 p-3 border border-zinc-100">
+                    <span className="text-[10px] font-bold text-zinc-400 block uppercase">Giám khảo chấm thi</span>
+                    <span className="font-black text-primary mt-0.5 block text-sm">
+                      {activeSpeakingBooking.examinerName || "Giám khảo"}
+                    </span>
+                  </div>
+                </div>
+
+                {activeSpeakingBooking.meetLink && activeSpeakingBooking.format !== "offline" && (
+                  <div className="rounded-xl border border-sky-100 bg-sky-50/60 p-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[10px] font-black text-sky-800 uppercase block">Link Google Meet</span>
+                      <span className="text-xs font-semibold text-zinc-600 truncate block mt-0.5">
+                        {activeSpeakingBooking.meetLink}
+                      </span>
+                    </div>
+                    <a
+                      href={activeSpeakingBooking.meetLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-sky-700 shadow-sm shrink-0"
+                    >
+                      Mở Meet
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleCancelExisting}
+                  disabled={cancelling}
+                  className="w-full rounded-xl bg-rose-600 py-3 text-xs font-black uppercase tracking-wider text-white hover:bg-rose-700 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                >
+                  {cancelling ? "Đang hủy ca thi..." : "Hủy ca thi này để đăng ký ca mới"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {step === 1 && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
                 <button
                   type="button"
                   onClick={() => {
@@ -301,13 +472,10 @@ export function FinalSpeakingBookingModal({
                   }}
                   className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-zinc-100 text-zinc-500 transition-colors cursor-pointer"
                 >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
-                <span className="text-xs font-black text-zinc-600">
-                  {MONTH_NAMES[calMonth.month]} {calMonth.year}
-                </span>
                 <button
                   type="button"
                   onClick={() => {
@@ -316,24 +484,21 @@ export function FinalSpeakingBookingModal({
                   }}
                   className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-zinc-100 text-zinc-500 transition-colors cursor-pointer"
                 >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
               </div>
 
-              {/* Current month */}
-              <MiniCalendar month={calMonth.month} year={calMonth.year} />
+              {renderMiniCalendar(calMonth.month, calMonth.year)}
 
-              {/* Next month */}
               <div className="mt-5 pt-5 border-t border-zinc-100">
                 {(() => {
                   const next = new Date(calMonth.year, calMonth.month + 1, 1);
-                  return <MiniCalendar month={next.getMonth()} year={next.getFullYear()} />;
+                  return renderMiniCalendar(next.getMonth(), next.getFullYear());
                 })()}
               </div>
 
-              {/* Legend */}
               <div className="mt-4 flex items-center gap-3 text-[10px] text-zinc-500">
                 <span className="flex items-center gap-1">
                   <span className="h-2 w-2 rounded-full bg-emerald-400 inline-block" /> Có ca rảnh
@@ -373,7 +538,9 @@ export function FinalSpeakingBookingModal({
 
               {teachersForDate.length === 0 ? (
                 <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-8 text-center">
-                  <div className="text-2xl mb-2">📅</div>
+                  <svg className="mx-auto h-8 w-8 text-zinc-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.253 18.75m3-18.75H3.75a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 003.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3z" />
+                  </svg>
                   <div className="text-sm font-bold text-zinc-500">Không có ca rảnh nào</div>
                   <div className="text-xs text-zinc-400 mt-1">
                     Ngày này chưa có Giám khảo đăng ký ca rảnh. Vui lòng chọn ngày khác.
@@ -441,7 +608,7 @@ export function FinalSpeakingBookingModal({
                   <div>
                     <div className="text-sm font-black text-foreground">{selectedTeacher}</div>
                     <div className="text-[10px] font-bold text-primary mt-0.5 flex items-center gap-1.5">
-                      <span>✨ Giám khảo chấm thi Speaking</span>
+                      <span>Giám khảo chấm thi Speaking</span>
                       <span>·</span>
                       <span>{teacherDateSlots.length} ca rảnh ngày này</span>
                     </div>
@@ -461,7 +628,9 @@ export function FinalSpeakingBookingModal({
 
               {groupedByDate.length === 0 ? (
                 <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-8 text-center">
-                  <div className="text-2xl mb-2">📅</div>
+                  <svg className="mx-auto h-8 w-8 text-zinc-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.253 18.75m3-18.75H3.75a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 003.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3z" />
+                  </svg>
                   <div className="text-sm font-bold text-zinc-500">Không có ca rảnh</div>
                   <div className="text-xs text-zinc-400 mt-1">
                     Giám khảo này chưa có ca rảnh vào ngày đã chọn. Vui lòng chọn Giám khảo khác.
@@ -554,7 +723,7 @@ export function FinalSpeakingBookingModal({
                                           key={slot.id}
                                           type="button"
                                           onClick={() => setConfirmSlot(slot)}
-                                          className={`w-full flex items-center justify-between rounded-xl px-3 py-2 border text-xs font-bold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xs cursor-pointer ${
+                                          className={`w-full flex items-center justify-between rounded-xl px-3 py-2 border text-xs font-bold transition-colors shadow-2xs cursor-pointer ${
                                             isOffline
                                               ? "bg-blue-50 border-blue-200 text-blue-800 hover:bg-blue-100"
                                               : "bg-purple-50 border-purple-200 text-purple-800 hover:bg-purple-100"
@@ -587,7 +756,9 @@ export function FinalSpeakingBookingModal({
               )}
             </div>
           )}
-        </div>
+        </>
+      )}
+    </div>
 
         {/* Footer */}
         <div className="border-t border-zinc-100 px-6 py-4">
@@ -661,4 +832,6 @@ export function FinalSpeakingBookingModal({
       )}
     </div>
   );
+
+  return typeof window !== "undefined" ? createPortal(modalNode, document.body) : null;
 }

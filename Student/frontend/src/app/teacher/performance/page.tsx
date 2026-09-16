@@ -86,7 +86,7 @@ import {
   type WritingSubmission,
 } from "@/lib/writingSubmissions";
 import {
-  refreshMockTestRequestsForAca,
+  refreshMockTestRequestsForTeacher,
   type MockTestRequest,
 } from "@/lib/mockTestRequests";
 import { isSpeakingMockTest } from "@/lib/selfStudyFormat";
@@ -108,11 +108,12 @@ export default function PerformancePage() {
         const loggedUser = getCachedAuthUser();
         setCurrentUser(loggedUser);
 
+        const teacherName = getLoggedInTeacherName();
         const [cData, c11Data, subData, mtData, attMap] = await Promise.all([
           fetchAcaClasses(),
           fetchAca11Classes(),
           refreshWritingSubmissionsForTeacher("all"),
-          refreshMockTestRequestsForAca(),
+          refreshMockTestRequestsForTeacher(teacherName),
           fetchTeacherAttendance().catch(() => ({}) as Record<string, boolean>),
         ]);
         setClasses(cData);

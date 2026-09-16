@@ -1,11 +1,14 @@
 export const FIRST_STAGE_DAYS = 46;
-export const FIRST_STAGE_SESSIONS = 8;
-/** Khóa 3 tháng = 2 chặng ≈ 16 buổi RLP. */
-export const FULL_COURSE_SESSIONS = 16;
+/** 1 chặng = 18 buổi RLP. */
+export const FIRST_STAGE_SESSIONS = 18;
+/** 2 chặng (1 khóa học phần) = 36 buổi RLP. */
+export const FULL_COURSE_SESSIONS = 36;
 /**
- * Ngưỡng cảnh báo BTVN: số deadline đã tới (≤ ngày hiện tại) mà học viên chưa hoàn thành.
- * Không còn dùng % nộp bài.
+ * Ngưỡng cảnh báo BTVN: số deadline đã tới (≤ hôm nay) chưa hoàn thành
+ * ≥ 20% tổng buổi học của lớp (mỗi lớp số buổi có thể khác nhau).
  */
+export const HOMEWORK_UNFINISHED_OF_SESSIONS_RATE = 0.2;
+/** @deprecated dùng homeworkUnfinishedWarningThreshold(totalClassSessions) */
 export const HOMEWORK_UNFINISHED_WARNING_THRESHOLD = 4;
 /** Vắng 3 buổi: hệ thống tự gửi noti cho học viên (không lên bảng học vụ). */
 export const ABSENT_STUDENT_NOTI_THRESHOLD = 3;
@@ -13,6 +16,19 @@ export const ABSENT_STUDENT_NOTI_THRESHOLD = 3;
 export const ABSENT_ACA_TABLE_THRESHOLD = 4;
 /** @deprecated dùng ABSENT_ACA_TABLE_THRESHOLD */
 export const ABSENT_WARNING_THRESHOLD = ABSENT_ACA_TABLE_THRESHOLD;
+
+/** Số buổi chưa nộp tối thiểu để cảnh báo = ceil(20% × tổng buổi lớp). */
+export function homeworkUnfinishedWarningThreshold(
+  totalClassSessions?: number | null,
+  classCode?: string | null,
+): number {
+  const fromClass = Math.max(0, Math.floor(Number(totalClassSessions) || 0));
+  const n =
+    fromClass > 0
+      ? fromClass
+      : requiredFullCourseSessions(classCode || undefined);
+  return Math.max(1, Math.ceil(n * HOMEWORK_UNFINISHED_OF_SESSIONS_RATE));
+}
 
 export type WarningType =
   | 'absent_notice'
@@ -68,7 +84,7 @@ export function hasCompletedFirstStage(input: {
 
   const sessionsNeeded =
     input.phaseDurationDays && input.phaseDurationDays > 0
-      ? Math.max(8, Math.round((input.phaseDurationDays / 7) * 2))
+      ? Math.max(FIRST_STAGE_SESSIONS, Math.round((input.phaseDurationDays / 7) * 2))
       : FIRST_STAGE_SESSIONS;
   if ((input.totalSessionsElapsed ?? 0) >= sessionsNeeded) return true;
 
@@ -155,15 +171,24 @@ export function unfinishedHomeworkCount(
   return Math.max(0, (homeworkTotal || 0) - (homeworkSubmitted || 0));
 }
 
-/** Cảnh báo BTVN khi ≥ 4 deadline đã tới mà chưa hoàn thành (tính từ ngày hiện tại). */
-export function shouldWarnHomework(unfinishedCount: number): boolean {
-  return unfinishedCount >= HOMEWORK_UNFINISHED_WARNING_THRESHOLD;
+/** Cảnh báo BTVN khi chưa nộp ≥ 20% tổng buổi học của lớp. */
+export function shouldWarnHomework(
+  unfinishedCount: number,
+  totalClassSessions?: number | null,
+  classCode?: string | null,
+): boolean {
+  return (
+    unfinishedCount >=
+    homeworkUnfinishedWarningThreshold(totalClassSessions, classCode)
+  );
 }
 
 export function buildWarningTypes(
   absentCount: number,
   homeworkSubmitted: number,
   homeworkTotal: number,
+  totalClassSessions?: number | null,
+  classCode?: string | null,
 ): WarningType[] {
   const types: WarningType[] = [];
   if (shouldWarnAbsent(absentCount)) types.push('absent_exceeded');
@@ -171,6 +196,8 @@ export function buildWarningTypes(
   if (
     shouldWarnHomework(
       unfinishedHomeworkCount(homeworkSubmitted, homeworkTotal),
+      totalClassSessions,
+      classCode,
     )
   ) {
     types.push('homework_insufficient');
@@ -178,7 +205,7 @@ export function buildWarningTypes(
   return types;
 }
 
-/** Dòng cần học vụ xử lý trên bảng (t4+ vắng hoặc BTVN ≥ 4). Không gồm soft t3. */
+/** Dòng cần học vụ xử lý trên bảng (t4+ vắng hoặc BTVN ≥ 20% buổi lớp). Không gồm soft t3. */
 export function isAcaTableWarning(types: WarningType[]): boolean {
   return (
     types.includes('absent_exceeded') || types.includes('homework_insufficient')

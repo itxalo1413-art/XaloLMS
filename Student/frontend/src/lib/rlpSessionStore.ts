@@ -9,15 +9,18 @@ import {
   canUseTeacherRlpApi,
   fetchRlpSessionsForStudent,
   fetchRlpSessionsForTeacher,
+  addRlpSessionApi,
+  deleteRlpSessionApi,
   updateRlpSessionApi,
   updateStudentHomeworkApi,
+  type CreateRlpSessionPayload,
   type UpdateRlpSessionPayload,
 } from "@/lib/rlpSessionApi";
 
 export const RLP_SESSIONS_STORAGE_KEY = "xalo.course.rlpSessions.v2";
 export const RLP_SESSIONS_UPDATE_EVENT = "xalo-rlp-sessions-updated";
 
-let sessionsCache: RlpSession[] = [...DEFAULT_COURSE_RLP_SESSIONS];
+let sessionsCache: RlpSession[] = [];
 
 function dispatchRlpUpdate() {
   if (typeof window === "undefined") return;
@@ -42,10 +45,13 @@ function parse(raw: string | null): RlpSession[] {
 }
 
 function loadLocal(): RlpSession[] {
-  if (typeof window === "undefined") return [...DEFAULT_COURSE_RLP_SESSIONS];
+  if (typeof window === "undefined") return [];
   const raw = localStorage.getItem(RLP_SESSIONS_STORAGE_KEY);
   const stored = parse(raw);
-  return stored.length > 0 ? stored : [...DEFAULT_COURSE_RLP_SESSIONS];
+  // Chỉ dùng seed DEFAULT khi chưa đăng nhập / không có API.
+  if (stored.length > 0) return stored;
+  if (!canUseRlpSessionApi()) return [...DEFAULT_COURSE_RLP_SESSIONS];
+  return [];
 }
 
 function saveLocal(rows: RlpSession[], silent = false) {
@@ -59,13 +65,13 @@ function saveLocal(rows: RlpSession[], silent = false) {
 }
 
 function saveCache(rows: RlpSession[]) {
-  sessionsCache = rows.length > 0 ? rows : [...DEFAULT_COURSE_RLP_SESSIONS];
+  sessionsCache = rows;
   setActiveRlpSessions(sessionsCache);
   dispatchRlpUpdate();
 }
 
 export function applyRlpSessionsCache(rows: RlpSession[]) {
-  sessionsCache = rows.length > 0 ? rows : [...DEFAULT_COURSE_RLP_SESSIONS];
+  sessionsCache = rows;
   setActiveRlpSessions(sessionsCache);
 }
 
@@ -77,6 +83,10 @@ export function getCourseRlpSessions(): RlpSession[] {
 }
 
 function fallbackRlpSessions(): RlpSession[] {
+  // Đã login: giữ cache hiện tại / rỗng — không đổ lịch RLP giả.
+  if (canUseRlpSessionApi()) {
+    return sessionsCache;
+  }
   if (sessionsCache.length > 0) return sessionsCache;
   const local = loadLocal();
   applyRlpSessionsCache(local);
@@ -89,7 +99,7 @@ export async function refreshRlpSessions(classId?: string): Promise<RlpSession[]
       const rows = canUseTeacherRlpApi()
         ? await fetchRlpSessionsForTeacher(classId)
         : await fetchRlpSessionsForStudent();
-      saveCache(rows);
+      applyRlpSessionsCache(rows);
       return rows;
     } catch (err) {
       console.warn("Could not refresh RLP sessions from API", err);
@@ -118,7 +128,11 @@ export async function updateRlpSession(
   }
 
   if (canUseStudentRlpApi() && payload.homeworkStatus) {
-    const remote = await updateStudentHomeworkApi(no, payload.homeworkStatus);
+    const remote = await updateStudentHomeworkApi(
+      no,
+      payload.homeworkStatus,
+      payload.homeworkFileUrl,
+    );
     const next = getCourseRlpSessions().map((s) => (s.no === no ? remote : s));
     saveCache(next);
     return remote;
@@ -159,6 +173,29 @@ export async function updateRlpSession(
   if (!updated) throw new Error("Không tìm thấy buổi RLP");
   saveLocal(next);
   return updated;
+}
+
+export async function addRlpSession(
+  classId: string,
+  payload: CreateRlpSessionPayload = {},
+): Promise<RlpSession> {
+  if (!canUseTeacherRlpApi()) {
+    throw new Error("Chỉ giáo viên / học vụ mới thêm được buổi RLP");
+  }
+  const remote = await addRlpSessionApi(classId, payload);
+  const next = [...getCourseRlpSessions().filter((s) => s.no !== remote.no), remote].sort(
+    (a, b) => a.no - b.no,
+  );
+  saveCache(next);
+  return remote;
+}
+
+export async function deleteRlpSession(no: number, classId: string): Promise<void> {
+  if (!canUseTeacherRlpApi()) {
+    throw new Error("Chỉ giáo viên / học vụ mới xóa được buổi RLP");
+  }
+  await deleteRlpSessionApi(no, classId);
+  saveCache(getCourseRlpSessions().filter((s) => s.no !== no));
 }
 
 export type { Attendance, HomeworkStatus };

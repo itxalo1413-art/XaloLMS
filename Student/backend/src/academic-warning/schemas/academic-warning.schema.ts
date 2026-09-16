@@ -34,6 +34,10 @@ export class AcademicWarning {
   @Prop({ trim: true, default: '' })
   className: string;
 
+  /** Mã lớp ngắn (vd. M357C2) — dùng để hiển thị thay tên đầy đủ. */
+  @Prop({ trim: true, default: '' })
+  classCode: string;
+
   @Prop({ trim: true, default: '' })
   teacherName: string;
 
@@ -45,6 +49,10 @@ export class AcademicWarning {
 
   @Prop({ type: Number, default: 0 })
   totalSessionsElapsed: number;
+
+  /** Tổng buổi RLP của lớp/đợt — dùng ngưỡng BTVN = 20% buổi học. */
+  @Prop({ type: Number, default: 0 })
+  totalClassSessions: number;
 
   @Prop({ type: Number, default: 0 })
   absentCount: number;

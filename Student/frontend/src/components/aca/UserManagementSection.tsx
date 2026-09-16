@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { confirmDialog } from "@/components/shared/ConfirmDialog";
 import { userRows, type Role, type UserRow, roleLabel } from "./mockData";
 import { NativeSelectChevron } from "@/components/student/ui";
 
@@ -20,11 +21,18 @@ export function UserManagementSection() {
     );
   }, [rows, q, roleFilter]);
 
-  const toggleLock = (id: string) => {
+  const toggleLock = async (id: string) => {
     const u = rows.find((x) => x.id === id);
     if (!u) return;
     const act = u.locked ? "Mở khóa" : "Khóa";
-    if (!confirm(`${act} tài khoản ${u.email}?`)) return;
+    const ok = await confirmDialog({
+      title: `${act} tài khoản`,
+      message: `Bạn có chắc chắn muốn ${act.toLowerCase()} tài khoản ${u.email}?`,
+      confirmText: act,
+      cancelText: "Hủy",
+      variant: u.locked ? "primary" : "warning",
+    });
+    if (!ok) return;
     setRows((prev) =>
       prev.map((row) =>
         row.id === id ? { ...row, locked: !row.locked } : row,

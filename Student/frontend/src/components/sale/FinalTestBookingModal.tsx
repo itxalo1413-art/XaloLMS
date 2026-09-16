@@ -21,7 +21,6 @@ import {
   type FinalTestType,
 } from "@/lib/finalTestArchive";
 import type { FinalTestEligibility } from "@/lib/acaManagementApi";
-import { listGuestDiagnosisLeads, type GuestDiagnosisLead } from "@/lib/guestDiagnosisLeads";
 
 interface FinalTestBookingModalProps {
   initialStudentId?: string;
@@ -41,7 +40,6 @@ export function FinalTestBookingModal({
 
   const [students, setStudents] = useState<AcaStudent[]>([]);
   const [classes, setClasses] = useState<AcaClass[]>([]);
-  const [leads, setLeads] = useState<GuestDiagnosisLead[]>([]);
   const [freeSlots, setFreeSlots] = useState<AcaFreeSlot[]>([]);
 
   const [selectedStudentId, setSelectedStudentId] = useState<string>(initialStudentId || "");
@@ -49,7 +47,7 @@ export function FinalTestBookingModal({
   const [candidatePhone, setCandidatePhone] = useState("");
   const [candidateEmail, setCandidateEmail] = useState("");
   const [selectedClassId, setSelectedClassId] = useState("");
-  const [targetBand, setTargetBand] = useState("6.5");
+  const [targetBand, setTargetBand] = useState("");
   const [teacherOptions, setTeacherOptions] = useState<string[]>(() => getMockTestTeacherOptions());
 
   const [testType, setTestType] = useState<FinalTestType>("full_4_skills");
@@ -72,16 +70,13 @@ export function FinalTestBookingModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load students, classes, leads, and free slots
+  // Load students, classes, and free slots
   useEffect(() => {
     void fetchAcaStudents().then((res) => {
       if (res && res.length > 0) setStudents(res);
     });
     void fetchAcaClasses().then((res) => {
       if (res && res.length > 0) setClasses(res);
-    });
-    void listGuestDiagnosisLeads().then((res) => {
-      if (res && res.length > 0) setLeads(res);
     });
     void fetchAcaFreeSlots().then((res) => {
       if (res && res.length > 0) setFreeSlots(res);
@@ -105,11 +100,6 @@ export function FinalTestBookingModal({
   // Sync candidate info when student is chosen or in student mode
   useEffect(() => {
     if (!selectedStudentId) {
-      if (isStudentMode) {
-        setCandidateName("Dương Ngọc Khôi Nguyên");
-        setCandidatePhone("0947 188 794");
-        setCandidateEmail("nguyenduong939705@gmail.com");
-      }
       return;
     }
     const foundSt = students.find((s) => s.id === selectedStudentId);
@@ -118,12 +108,8 @@ export function FinalTestBookingModal({
       setCandidatePhone(foundSt.phone || "");
       setCandidateEmail(foundSt.email || "");
       if (foundSt.classId) setSelectedClassId(foundSt.classId);
-      const tgt = (foundSt as any).target || (foundSt.scores?.o ? String(foundSt.scores.o) : "6.5");
+      const tgt = (foundSt as any).target || (foundSt.scores?.o ? String(foundSt.scores.o) : "");
       if (tgt) setTargetBand(tgt);
-    } else if (isStudentMode) {
-      setCandidateName("Dương Ngọc Khôi Nguyên");
-      setCandidatePhone("0947 188 794");
-      setCandidateEmail("nguyenduong939705@gmail.com");
     }
   }, [selectedStudentId, students, isStudentMode]);
 
@@ -155,8 +141,8 @@ export function FinalTestBookingModal({
     e.preventDefault();
     setError(null);
 
-    const name = candidateName.trim() || (isStudentMode ? "Dương Ngọc Khôi Nguyên" : "");
-    const phone = candidatePhone.trim() || (isStudentMode ? "0947 188 794" : "");
+    const name = candidateName.trim();
+    const phone = candidatePhone.trim();
 
     if (!name) {
       setError("Vui lòng nhập tên học viên / thí sinh.");
@@ -187,7 +173,7 @@ export function FinalTestBookingModal({
         studentId: selectedStudentId || undefined,
         classCode: chosenClassCode,
         className: chosenClassName,
-        targetBand: targetBand || "6.5",
+        targetBand: targetBand.trim(),
         testType: isStudentMode ? "full_4_skills" : testType,
         format: isStudentMode ? "online" : format,
         examinerName: examiner || "Teacher",
@@ -212,7 +198,7 @@ export function FinalTestBookingModal({
      1. STUDENT MODE: COMPACT POPUP - ONLY PICK DATE (NO SCROLLING)
      ───────────────────────────────────────────────────────────── */
   if (isStudentMode) {
-    const studentDisplayName = candidateName || "Dương Ngọc Khôi Nguyên";
+    const studentDisplayName = candidateName || "Học viên";
     const currentClass = classes.find((c) => c.id === selectedClassId);
     const displayClassName = currentClass ? currentClass.name || currentClass.classCode : "Momentum - 357 - C2";
 
@@ -262,7 +248,10 @@ export function FinalTestBookingModal({
                 {eligibility.reason ||
                   "Bạn cần hoàn thành đủ 2 chặng (1 khóa học) trước khi đăng ký Final Test."}
                 <div className="mt-1 font-medium text-amber-700">
-                  Tiến độ: {eligibility.totalSessionsElapsed}/{eligibility.requiredSessions} buổi
+                  Tiến độ lớp: {eligibility.totalSessionsElapsed}/{eligibility.requiredSessions} buổi đã hoàn thành
+                  <span className="block text-[11px] font-medium opacity-80 mt-0.5">
+                    Theo buổi lớp (điểm danh/lịch), không phụ thuộc bạn có đi học.
+                  </span>
                 </div>
               </div>
             )}
@@ -280,7 +269,7 @@ export function FinalTestBookingModal({
               <div className="flex items-center justify-between">
                 <span className="text-zinc-500 font-medium">Mục tiêu:</span>
                 <span className="font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
-                  {targetBand || "6.5"} Band
+                  {targetBand || "—"} Band
                 </span>
               </div>
             </div>
@@ -422,7 +411,7 @@ export function FinalTestBookingModal({
                 required
                 value={candidatePhone}
                 onChange={(e) => setCandidatePhone(e.target.value)}
-                placeholder="VD: 0947 188 794"
+                placeholder="SĐT học viên"
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-xs text-zinc-900 outline-none focus:border-primary focus:bg-white font-medium"
               />
             </div>

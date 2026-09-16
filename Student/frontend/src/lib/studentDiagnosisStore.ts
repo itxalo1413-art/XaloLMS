@@ -1,6 +1,5 @@
-import type { BcbGrammarRow, BcbQuestionTypeRow } from "@/lib/guestBcbDiagnosis";
+import type { BcbQuestionTypeRow } from "@/lib/guestBcbDiagnosis";
 import {
-  GUEST_BCB_GRAMMAR,
   GUEST_BCB_LISTENING,
   GUEST_BCB_READING,
 } from "@/lib/guestBcbDiagnosis";
@@ -12,7 +11,6 @@ import {
   fetchStudentDiagnosisForAca,
   saveStudentDiagnosisForAca,
 } from "@/lib/acaManagementApi";
-import { getAuthToken } from "@/lib/auth";
 
 export type SkillScores = {
   listening: number;
@@ -23,30 +21,32 @@ export type SkillScores = {
 };
 
 export type StudentDiagnosisRecord = {
+  studentName?: string;
+  studentEmail?: string;
+  studentPhone?: string;
   aim: string;
   examDate: string;
+  /** Mốc tính “Còn X ngày” (YYYY-MM-DD). Nếu có thì không dùng ngày máy. */
+  examCountdownAnchor?: string;
   bcbOverviewTitle: string;
   bcbOverviewSummary: string;
-  bcbLink: string;
   scores: SkillScores;
+  finalScores?: SkillScores;
   skillSummaries: {
     listening: string;
     reading: string;
     speaking: string;
   };
-  listeningLink: string;
-  readingLink: string;
   writingCriteria: WritingCriterionInput;
   writingSummary: { task1: string; task2: string };
   writingLinks: { task1: string; task2: string };
   speakingCriteria: SpeakingCriterionScores;
   bcbListening: BcbQuestionTypeRow[];
   bcbReading: BcbQuestionTypeRow[];
-  bcbGrammar: BcbGrammarRow[];
   updatedAt: string;
 };
 
-const DEFAULT_WRITING_CRITERIA: WritingCriterionInput = {
+const TEMPLATE_WRITING_CRITERIA: WritingCriterionInput = {
   task1: {
     taskAchievement: 6,
     coherenceCohesion: 7,
@@ -61,19 +61,34 @@ const DEFAULT_WRITING_CRITERIA: WritingCriterionInput = {
   },
 };
 
-const writingBands = resolveWritingBands(DEFAULT_WRITING_CRITERIA);
+const EMPTY_WRITING_CRITERIA: WritingCriterionInput = {
+  task1: {
+    taskAchievement: 0,
+    coherenceCohesion: 0,
+    lexicalResource: 0,
+    grammaticalRange: 0,
+  },
+  task2: {
+    taskResponse: 0,
+    coherenceCohesion: 0,
+    lexicalResource: 0,
+    grammaticalRange: 0,
+  },
+};
 
+const templateWritingBands = resolveWritingBands(TEMPLATE_WRITING_CRITERIA);
+
+/** Template cho form ACA khi soạn BCB mới — không dùng làm dữ liệu học viên. */
 export const DEFAULT_STUDENT_DIAGNOSIS: StudentDiagnosisRecord = {
   aim: "7.5",
-  examDate: "2026-08-10",
+  examDate: "",
   bcbOverviewTitle: "Người dùng Khá (Competent)",
   bcbOverviewSummary:
     "Sử dụng ngôn ngữ hiệu quả, thỉnh thoảng có lỗi dùng từ chưa phù hợp. Đã bắt đầu hiểu được ngôn ngữ phức tạp nhưng phong độ chưa đều giữa các kỹ năng.",
-  bcbLink: "",
   scores: {
     listening: 7.5,
     reading: 5.5,
-    writing: writingBands.writingOverall,
+    writing: templateWritingBands.writingOverall,
     speaking: 4.5,
     overall: 6.0,
   },
@@ -85,9 +100,7 @@ export const DEFAULT_STUDENT_DIAGNOSIS: StudentDiagnosisRecord = {
     speaking:
       "Bạn có thể duy trì hội thoại nhưng đôi khi mất mạch lạc; cần mở rộng ý và cải thiện phát âm.",
   },
-  listeningLink: "https://docs.google.com/document/d/example-student-listening-test",
-  readingLink: "https://docs.google.com/document/d/example-student-reading-test",
-  writingCriteria: DEFAULT_WRITING_CRITERIA,
+  writingCriteria: TEMPLATE_WRITING_CRITERIA,
   writingSummary: {
     task1:
       "Bạn đáp ứng cơ bản yêu cầu đề bài, có overview phù hợp nhưng đôi khi thiếu chi tiết hoặc chưa chính xác hoàn toàn.",
@@ -95,8 +108,8 @@ export const DEFAULT_STUDENT_DIAGNOSIS: StudentDiagnosisRecord = {
       "Bạn trình bày quan điểm và triển khai ý tương đối rõ, tuy nhiên luận điểm đôi khi chưa sắc sảo.",
   },
   writingLinks: {
-    task1: "https://docs.google.com/document/d/example-student-writing-task1",
-    task2: "https://docs.google.com/document/d/example-student-writing-task2",
+    task1: "",
+    task2: "",
   },
   speakingCriteria: {
     fluencyCoherence: 5.5,
@@ -106,12 +119,62 @@ export const DEFAULT_STUDENT_DIAGNOSIS: StudentDiagnosisRecord = {
   },
   bcbListening: GUEST_BCB_LISTENING.map((r) => ({ ...r })),
   bcbReading: GUEST_BCB_READING.map((r) => ({ ...r })),
-  bcbGrammar: GUEST_BCB_GRAMMAR.map((r) => ({ ...r })),
   updatedAt: new Date().toISOString(),
 };
 
+/** Trạng thái trống khi học viên chưa có BCB — không seed điểm/mô tả giả. */
+export const EMPTY_STUDENT_DIAGNOSIS: StudentDiagnosisRecord = {
+  studentName: "",
+  studentEmail: "",
+  studentPhone: "",
+  aim: "",
+  examDate: "",
+  bcbOverviewTitle: "",
+  bcbOverviewSummary: "",
+  scores: {
+    listening: 0,
+    reading: 0,
+    writing: 0,
+    speaking: 0,
+    overall: 0,
+  },
+  finalScores: {
+    listening: 0,
+    reading: 0,
+    writing: 0,
+    speaking: 0,
+    overall: 0,
+  },
+  skillSummaries: {
+    listening: "",
+    reading: "",
+    speaking: "",
+  },
+  writingCriteria: EMPTY_WRITING_CRITERIA,
+  writingSummary: { task1: "", task2: "" },
+  writingLinks: { task1: "", task2: "" },
+  speakingCriteria: {
+    fluencyCoherence: 0,
+    lexicalResource: 0,
+    grammaticalRangeAccuracy: 0,
+    pronunciation: 0,
+  },
+  bcbListening: [],
+  bcbReading: [],
+  updatedAt: new Date().toISOString(),
+};
+
+const EMPTY_FINAL_SCORES: SkillScores = {
+  listening: 0,
+  reading: 0,
+  writing: 0,
+  speaking: 0,
+  overall: 0,
+};
+
 const LEGACY_STORAGE_KEY = "xalo.student.diagnosis.v1";
-const STORAGE_KEY = "xalo.student.diagnosis.v2";
+/** v3: bỏ seed mock local từ v2. */
+const STORAGE_KEY = "xalo.student.diagnosis.v4";
 export const STUDENT_DIAGNOSIS_UPDATE_EVENT = "xalo-student-diagnosis-updated";
 
 type DiagnosisMap = Record<string, StudentDiagnosisRecord>;
@@ -126,7 +189,14 @@ function dispatchUpdate(studentId: string) {
 }
 
 function recomputeWritingScore(record: StudentDiagnosisRecord): StudentDiagnosisRecord {
+  // Giữ điểm Writing Sale/API nếu đã có — không thay bằng công thức criteria.
+  if ((record.scores?.writing || 0) > 0) {
+    return record;
+  }
   const bands = resolveWritingBands(record.writingCriteria);
+  if (bands.writingOverall <= 0 && bands.task1Band <= 0 && bands.task2Band <= 0) {
+    return record;
+  }
   const scores = { ...record.scores, writing: bands.writingOverall };
   return { ...record, scores };
 }
@@ -150,8 +220,8 @@ export function registerDynamicStudentScores(studentId: string, rawScores: any) 
   dynamicScoresCache.set(studentId, { listening: l, reading: r, writing: w, speaking: s, overall: o });
 }
 
-function buildDefaultDiagnosis(studentId: string): StudentDiagnosisRecord {
-  const base = structuredClone(DEFAULT_STUDENT_DIAGNOSIS);
+function buildEmptyDiagnosis(studentId: string): StudentDiagnosisRecord {
+  const base = structuredClone(EMPTY_STUDENT_DIAGNOSIS);
   const dynamic = dynamicScoresCache.get(studentId);
 
   if (dynamic) {
@@ -164,17 +234,31 @@ function mergeDiagnosis(
   data: Partial<StudentDiagnosisRecord>,
   studentId: string,
 ): StudentDiagnosisRecord {
-  const defaults = buildDefaultDiagnosis(studentId);
+  const defaults = buildEmptyDiagnosis(studentId);
   const merged: StudentDiagnosisRecord = {
     ...defaults,
     ...data,
-    bcbLink: data.bcbLink !== undefined ? data.bcbLink : defaults.bcbLink,
+    examDate: String(data.examDate || "").trim() || defaults.examDate,
+    bcbOverviewTitle:
+      String(data.bcbOverviewTitle || "").trim() || defaults.bcbOverviewTitle,
+    bcbOverviewSummary:
+      String(data.bcbOverviewSummary || "").trim() || defaults.bcbOverviewSummary,
     scores: { ...defaults.scores, ...data.scores },
+    finalScores: { ...EMPTY_FINAL_SCORES, ...defaults.finalScores, ...data.finalScores },
     skillSummaries: {
       ...defaults.skillSummaries,
       ...data.skillSummaries,
     },
-    writingCriteria: data.writingCriteria ?? defaults.writingCriteria,
+    writingCriteria: {
+      task1: {
+        ...defaults.writingCriteria.task1,
+        ...(data.writingCriteria?.task1 || {}),
+      },
+      task2: {
+        ...defaults.writingCriteria.task2,
+        ...(data.writingCriteria?.task2 || {}),
+      },
+    },
     writingSummary: {
       ...defaults.writingSummary,
       ...data.writingSummary,
@@ -189,7 +273,6 @@ function mergeDiagnosis(
     },
     bcbListening: data.bcbListening?.length ? data.bcbListening : defaults.bcbListening,
     bcbReading: data.bcbReading?.length ? data.bcbReading : defaults.bcbReading,
-    bcbGrammar: data.bcbGrammar?.length ? data.bcbGrammar : defaults.bcbGrammar,
     updatedAt: data.updatedAt ?? defaults.updatedAt,
   };
   return recomputeWritingScore(merged);
@@ -226,11 +309,11 @@ export function getStudentDiagnosis(studentId?: string): StudentDiagnosisRecord 
   const id = studentId ?? resolveActiveStudentId();
   if (typeof window !== "undefined") {
     const all = loadAllDiagnoses();
-    const record = all[id] ?? buildDefaultDiagnosis(id);
+    const record = all[id] ?? buildEmptyDiagnosis(id);
     cacheByStudent.set(id, record);
     return record;
   }
-  return cacheByStudent.get(id) ?? buildDefaultDiagnosis(id);
+  return cacheByStudent.get(id) ?? buildEmptyDiagnosis(id);
 }
 
 export function getStudentWritingBands(
@@ -241,7 +324,7 @@ export function getStudentWritingBands(
 }
 
 export function saveStudentDiagnosis(
-  next: Omit<StudentDiagnosisRecord, "updatedAt">,
+  next: Partial<Omit<StudentDiagnosisRecord, "updatedAt">>,
   studentId?: string,
 ): StudentDiagnosisRecord {
   const id = studentId ?? resolveActiveStudentId();
@@ -259,20 +342,142 @@ export function saveStudentDiagnosis(
   return saved;
 }
 
+const BCB_KEYS = [
+  "writingCriteria",
+  "writingSummary",
+  "speakingCriteria",
+  "skillSummaries",
+  "writingLinks",
+  "bcbListening",
+  "bcbReading",
+  "bcbOverviewTitle",
+  "bcbOverviewSummary",
+] as const;
+
+export function hasWritingBcb(data?: Partial<StudentDiagnosisRecord> | null): boolean {
+  const ta = Number(data?.writingCriteria?.task1?.taskAchievement || 0);
+  const tr = Number(data?.writingCriteria?.task2?.taskResponse || 0);
+  const text1 = String(data?.writingSummary?.task1 || "").trim();
+  const text2 = String(data?.writingSummary?.task2 || "").trim();
+  return ta > 0 || tr > 0 || text1.length > 0 || text2.length > 0;
+}
+
+export function hasSpeakingBcb(data?: Partial<StudentDiagnosisRecord> | null): boolean {
+  const c = data?.speakingCriteria;
+  const scores = [
+    Number(c?.fluencyCoherence || 0),
+    Number(c?.lexicalResource || 0),
+    Number(c?.grammaticalRangeAccuracy || 0),
+    Number(c?.pronunciation || 0),
+  ];
+  const text = String(data?.skillSummaries?.speaking || "").trim();
+  return scores.some((n) => n > 0) || text.length > 0;
+}
+
+export function hasListeningReadingBcb(
+  data?: Partial<StudentDiagnosisRecord> | null,
+): boolean {
+  const listeningText = String(data?.skillSummaries?.listening || "").trim();
+  const readingText = String(data?.skillSummaries?.reading || "").trim();
+  const hasListeningRows = Boolean(data?.bcbListening?.length);
+  const hasReadingRows = Boolean(data?.bcbReading?.length);
+  return Boolean(listeningText || readingText || hasListeningRows || hasReadingRows);
+}
+
+export function unwrapDiagnosisApiResponse(
+  remote: Record<string, unknown>,
+): Partial<StudentDiagnosisRecord> {
+  const nested =
+    remote.diagnosisData && typeof remote.diagnosisData === "object"
+      ? (remote.diagnosisData as Record<string, unknown>)
+      : null;
+  const payload = {
+    ...(nested ? nested : remote),
+  } as Partial<StudentDiagnosisRecord> & Record<string, unknown>;
+  for (const key of BCB_KEYS) {
+    if (payload[key] == null && remote[key] != null) {
+      (payload as Record<string, unknown>)[key] = remote[key];
+    }
+  }
+  if (typeof remote.aim === "string" && remote.aim && !payload.aim) {
+    payload.aim = remote.aim;
+  }
+  if (typeof remote.examDate === "string" && remote.examDate && !payload.examDate) {
+    payload.examDate = remote.examDate;
+  }
+  return payload;
+}
+
 export async function syncStudentDiagnosisFromApi(
   studentId: string,
   email?: string,
 ): Promise<StudentDiagnosisRecord> {
   const id = studentId.trim();
   const normalizedEmail = (email || "").trim();
-  if (!id || !normalizedEmail || !getAuthToken()) {
+  if (!id && !normalizedEmail) {
     return getStudentDiagnosis(id);
   }
 
   try {
-    const remote = await fetchStudentDiagnosisForAca(normalizedEmail);
+    const remote = await fetchStudentDiagnosisForAca(normalizedEmail, id);
     if (remote && typeof remote === "object") {
-      const merged = mergeDiagnosis(remote as Partial<StudentDiagnosisRecord>, id);
+      const payload = unwrapDiagnosisApiResponse(remote as Record<string, unknown>);
+      const local = getStudentDiagnosis(id);
+      if (!hasWritingBcb(payload) && hasWritingBcb(local)) {
+        payload.writingCriteria = local.writingCriteria;
+        payload.writingSummary = local.writingSummary;
+      }
+      if (!hasSpeakingBcb(payload) && hasSpeakingBcb(local)) {
+        payload.speakingCriteria = local.speakingCriteria;
+        payload.skillSummaries = {
+          ...(payload.skillSummaries || local.skillSummaries),
+          speaking: local.skillSummaries.speaking,
+        };
+      }
+      if (!hasListeningReadingBcb(payload) && hasListeningReadingBcb(local)) {
+        payload.bcbListening = local.bcbListening;
+        payload.bcbReading = local.bcbReading;
+        payload.skillSummaries = {
+          ...(local.skillSummaries || {}),
+          ...(payload.skillSummaries || {}),
+          listening:
+            String(payload.skillSummaries?.listening || "").trim() ||
+            local.skillSummaries.listening,
+          reading:
+            String(payload.skillSummaries?.reading || "").trim() ||
+            local.skillSummaries.reading,
+        };
+      } else {
+        payload.skillSummaries = {
+          ...(local.skillSummaries || {}),
+          ...(payload.skillSummaries || {}),
+          listening:
+            String(payload.skillSummaries?.listening || "").trim() ||
+            local.skillSummaries.listening,
+          reading:
+            String(payload.skillSummaries?.reading || "").trim() ||
+            local.skillSummaries.reading,
+          speaking:
+            String(payload.skillSummaries?.speaking || "").trim() ||
+            local.skillSummaries.speaking,
+        };
+        if (!payload.bcbListening?.length && local.bcbListening?.length) {
+          payload.bcbListening = local.bcbListening;
+        }
+        if (!payload.bcbReading?.length && local.bcbReading?.length) {
+          payload.bcbReading = local.bcbReading;
+        }
+      }
+      if (!String(payload.examDate || "").trim() && local.examDate) {
+        payload.examDate = local.examDate;
+      }
+      if (!String(payload.bcbOverviewTitle || "").trim() && local.bcbOverviewTitle) {
+        payload.bcbOverviewTitle = local.bcbOverviewTitle;
+      }
+      if (!String(payload.bcbOverviewSummary || "").trim() && local.bcbOverviewSummary) {
+        payload.bcbOverviewSummary = local.bcbOverviewSummary;
+      }
+      const merged = mergeDiagnosis(payload, id);
       cacheByStudent.set(id, merged);
       if (typeof window !== "undefined") {
         const all = loadAllDiagnoses();
@@ -291,20 +496,21 @@ export async function syncStudentDiagnosisFromApi(
 export async function persistStudentDiagnosisToApi(
   studentId: string,
   email: string | undefined,
-  payload: Omit<StudentDiagnosisRecord, "updatedAt">,
+  payload: Partial<Omit<StudentDiagnosisRecord, "updatedAt">>,
 ): Promise<StudentDiagnosisRecord> {
   const saved = saveStudentDiagnosis(payload, studentId);
-  const normalizedEmail = (email || "").trim();
-  if (normalizedEmail && getAuthToken()) {
-    try {
-      await saveStudentDiagnosisForAca(
-        normalizedEmail,
-        saved as unknown as Record<string, unknown>,
-      );
-    } catch (err) {
-      console.warn("Failed to persist student diagnosis to backend", err);
-    }
+  const normalizedEmail = (email || payload.studentEmail || "").trim();
+  if (!normalizedEmail && !studentId.trim()) {
+    throw new Error("Thiếu email học viên — không lưu được BCB lên server.");
   }
+  const payloadToSave = { ...(saved as unknown as Record<string, unknown>) };
+  delete payloadToSave.bcbLink;
+  delete payloadToSave.listeningLink;
+  delete payloadToSave.readingLink;
+  delete payloadToSave.bcbGrammar;
+  if (payload.studentName) payloadToSave.studentName = payload.studentName;
+  if (payload.studentPhone) payloadToSave.studentPhone = payload.studentPhone;
+  await saveStudentDiagnosisForAca(normalizedEmail, payloadToSave, studentId);
   return saved;
 }
 
@@ -312,7 +518,7 @@ export function refreshStudentDiagnosis(studentId?: string): StudentDiagnosisRec
   const id = studentId ?? resolveActiveStudentId();
   if (typeof window !== "undefined") {
     const all = loadAllDiagnoses();
-    const record = all[id] ?? buildDefaultDiagnosis(id);
+    const record = all[id] ?? buildEmptyDiagnosis(id);
     cacheByStudent.set(id, record);
     dispatchUpdate(id);
     return record;

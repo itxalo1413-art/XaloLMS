@@ -20,15 +20,20 @@ import {
 import { PracticeRlpService } from './practice-rlp.service';
 
 /**
- * Teacher/ACA-only endpoints.
- * Only accounts with role GV or ACA can access these.
- * On the frontend, we further restrict to Thanh Tâm (GV) and Khánh Thi (ACA).
+ * Teacher/ACA endpoints for Practice Class RLP.
+ * FE further restricts GV edit to Minh Tâm; ACA all.
  */
 @Controller('teacher/practice-rlp')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('GV', 'ACA')
+@Roles('GV', 'ACA', 'GRADER')
 export class TeacherPracticeRlpController {
   constructor(private readonly svc: PracticeRlpService) {}
+
+  /** GET /api/teacher/practice-rlp/students */
+  @Get('students')
+  listStudents() {
+    return this.svc.listKnownStudents();
+  }
 
   /** GET /api/teacher/practice-rlp?studentId=xxx */
   @Get()

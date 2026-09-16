@@ -90,7 +90,7 @@ export function TeacherStatsCard() {
         {/* Speaking breakdown */}
         <div className="flex items-center justify-between p-3 rounded-xl border border-zinc-100 bg-[#fae8ff]/30 hover:bg-[#fae8ff]/50 transition-colors">
           <div>
-            <div className="text-xs font-bold text-zinc-900">Speaking Mock Test</div>
+            <div className="text-xs font-bold text-zinc-900">Support Speaking</div>
             <div className="text-[10px] text-zinc-500 mt-0.5">Mỗi ca đã chấm = 30 phút</div>
           </div>
           <div className="text-right">

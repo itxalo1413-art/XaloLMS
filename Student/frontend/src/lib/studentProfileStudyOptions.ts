@@ -56,6 +56,21 @@ export const studyHabitOptionLists = {
   focusSkills: [...STUDY_FOCUS_SKILL_OPTIONS],
 };
 
+const STUDY_FIELD_ALLOWLISTS = {
+  method: STUDY_METHOD_OPTIONS,
+  weeklyHours: STUDY_WEEKLY_HOURS_OPTIONS,
+  classEnvironment: STUDY_CLASS_ENVIRONMENT_OPTIONS,
+  ieltsMeaning: STUDY_IELTS_MEANING_OPTIONS,
+  previousBand: STUDY_PREVIOUS_BAND_OPTIONS,
+  focusSkills: STUDY_FOCUS_SKILL_OPTIONS,
+} as const;
+
+export type StudySelectionField = keyof typeof STUDY_FIELD_ALLOWLISTS;
+
+export function isAllowedStudyValue(field: StudySelectionField, value: string): boolean {
+  return (STUDY_FIELD_ALLOWLISTS[field] as readonly string[]).includes(value);
+}
+
 /** Initial select values — aligned with backend `DEFAULT_STUDENT_PROFILE` study fields. */
 export const defaultStudyHabitForm = {
   method: STUDY_METHOD_OPTIONS[0],

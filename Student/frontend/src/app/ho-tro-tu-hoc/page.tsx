@@ -35,6 +35,7 @@ import {
   mockTestStatusTone,
   sortMockTestsByDateDesc,
   speakingResultExamLink,
+  speakingResultMeetLink,
   speakingResultScore,
   writingStatusLabel,
   writingStatusTone,
@@ -46,15 +47,18 @@ import {
   PRACTICE_CLASS_SKILL,
   PRACTICE_CLASS_WEEKLY_REREGISTER_WARNING,
   PRACTICE_CLASS_UPDATE_EVENT,
+  PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT,
   isPracticeClassJoined,
   refreshPracticeRegistrations,
   registerPracticeSlot,
   resetPracticeClassTestState,
   setPracticeClassJoined,
   unregisterPracticeSlot,
-  getSaturdayRotatedWeekNumber,
+  refreshPracticeCurrentWeek,
+  refreshPracticeWeeklyScores,
   type PracticeSlotId,
 } from "@/lib/practiceClass";
+import type { PracticeCurrentWeekResponse, PracticeWeeklyScoreRow } from "@/lib/practiceClassApi";
 import {
   submitWritingSubmission,
   refreshWritingSubmissionsForStudent,
@@ -67,18 +71,20 @@ import {
   updateAcaFreeSlot,
   type AcaFreeSlot,
 } from "@/lib/acaManagementApi";
-import { MOCK_TEST_TEACHER_OPTIONS } from "@/lib/mockTestTeacherNames";
 import {
   addPracticeRlpSession,
   canEditPracticeClassRlp,
   canViewPracticeClassRlp,
+  canUsePracticeRlpApi,
   deletePracticeRlpSession,
   fetchPracticeRlpForStudent,
   fetchPracticeRlpForTeacher,
+  fetchPracticeRlpStudentsForTeacher,
+  updatePracticeRlpHomeworkForStudent,
   updatePracticeRlpSession,
-  canUsePracticeRlpApi,
-  type PracticeRlpSession,
   type CreatePracticeRlpPayload,
+  type PracticeRlpSession,
+  type PracticeRlpStudentOption,
   type UpdatePracticeRlpPayload,
 } from "@/lib/practiceRlpApi";
 import { getCachedAuthUser } from "@/lib/auth";
@@ -101,8 +107,6 @@ function getISOWeekKey(date: Date): string {
 }
 
 // Teacher list — exclude generic "Grader" entry
-const TEACHER_OPTIONS = MOCK_TEST_TEACHER_OPTIONS.filter((t) => t !== "Grader");
-
 // ─── Types ───────────────────────────────────────────────────────────────────
 type PageDialog =
   | { kind: "confirm-practice"; slotId: PracticeSlotId }
@@ -214,7 +218,7 @@ function SpeakingBookingModal({ open, onClose, freeSlots, onBook }: SpeakingBook
     const selYear = selectedDate.getFullYear();
     const target = selectedTeacher.trim().toLowerCase();
 
-    return freeSlots
+    const filtered = freeSlots
       .filter((s) => {
         if (s.status !== "available") return false;
         if (s.day !== selDay || s.month !== selMonth || s.year !== selYear) return false;
@@ -224,6 +228,17 @@ function SpeakingBookingModal({ open, onClose, freeSlots, onBook }: SpeakingBook
         return tName === target || tName.includes(target) || target.includes(tName);
       })
       .sort((a, b) => a.time.localeCompare(b.time));
+
+    const seen = new Set<string>();
+    const unique: AcaFreeSlot[] = [];
+    for (const s of filtered) {
+      const key = `${s.time}_${s.type || ""}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(s);
+      }
+    }
+    return unique;
   }, [freeSlots, selectedDate, selectedTeacher, today]);
 
   // Group step-3 slots by date
@@ -248,27 +263,27 @@ function SpeakingBookingModal({ open, onClose, freeSlots, onBook }: SpeakingBook
     return cells;
   }
 
-  function MiniCalendar({ month, year }: { month: number; year: number }) {
+  function renderMiniCalendar(month: number, year: number) {
     const cells = buildCalendarDays(month, year);
     return (
       <div>
         <div className="text-xs font-black text-center text-zinc-700 mb-2">
           {MONTH_NAMES[month]} {year}
         </div>
-        <div className="grid grid-cols-7 gap-0.5">
+        <div className="grid grid-cols-7 gap-1">
           {["T2","T3","T4","T5","T6","T7","CN"].map((d) => (
-            <div key={d} className="text-[9px] font-bold text-zinc-400 text-center py-1">{d}</div>
+            <div key={d} className="text-[9px] font-bold text-zinc-400 text-center py-1 select-none">{d}</div>
           ))}
           {cells.map((date, i) => {
-            if (!date) return <div key={i} />;
+            if (!date) return <div key={i} className="h-8" />;
             const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
             const hasDot = availableDateKeys.has(key);
             const isPast = date < today;
-            const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
+            const isSelected = Boolean(selectedDate && date.toDateString() === selectedDate.toDateString());
             const isToday = date.toDateString() === today.toDateString();
             return (
               <button
-                key={i}
+                key={key}
                 type="button"
                 disabled={isPast}
                 onClick={() => {
@@ -276,14 +291,14 @@ function SpeakingBookingModal({ open, onClose, freeSlots, onBook }: SpeakingBook
                   setStep(2);
                   setSelectedTeacher(null);
                 }}
-                className={`relative flex flex-col items-center justify-center rounded-lg py-1 text-[11px] font-bold transition-all
-                  ${isPast ? "text-zinc-300 cursor-not-allowed" : "hover:bg-primary/10 cursor-pointer"}
-                  ${isSelected ? "bg-primary text-white shadow-sm" : isToday ? "ring-1 ring-primary/40 text-primary" : "text-zinc-700"}
+                className={`relative flex h-8 w-full flex-col items-center justify-center rounded-lg text-[11px] font-bold select-none transition-colors duration-150
+                  ${isPast ? "text-zinc-300 cursor-not-allowed bg-transparent" : "hover:bg-primary/10 cursor-pointer"}
+                  ${isSelected ? "bg-primary text-white shadow-sm font-black hover:bg-primary" : isToday ? "ring-1 ring-primary/40 text-primary bg-primary/5" : "text-zinc-700"}
                 `}
               >
-                {date.getDate()}
+                <span>{date.getDate()}</span>
                 {hasDot && !isSelected && (
-                  <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-emerald-400" />
+                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-emerald-400 pointer-events-none" />
                 )}
               </button>
             );
@@ -384,13 +399,13 @@ function SpeakingBookingModal({ open, onClose, freeSlots, onBook }: SpeakingBook
               </div>
 
               {/* Current month */}
-              <MiniCalendar month={calMonth.month} year={calMonth.year} />
+              {renderMiniCalendar(calMonth.month, calMonth.year)}
 
               {/* Next month */}
               <div className="mt-5 pt-5 border-t border-zinc-100">
                 {(() => {
                   const next = new Date(calMonth.year, calMonth.month + 1, 1);
-                  return <MiniCalendar month={next.getMonth()} year={next.getFullYear()} />;
+                  return renderMiniCalendar(next.getMonth(), next.getFullYear());
                 })()}
               </div>
 
@@ -607,7 +622,7 @@ function SpeakingBookingModal({ open, onClose, freeSlots, onBook }: SpeakingBook
                                           key={slot.id}
                                           type="button"
                                           onClick={() => setConfirmSlot(slot)}
-                                          className={`w-full flex items-center justify-between rounded-xl px-3 py-2 border text-xs font-bold transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xs ${
+                                          className={`w-full flex items-center justify-between rounded-xl px-3 py-2 border text-xs font-bold transition-colors shadow-2xs ${
                                             isOffline
                                               ? "bg-blue-50 border-blue-200 text-blue-800 hover:bg-blue-100"
                                               : "bg-purple-50 border-purple-200 text-purple-800 hover:bg-purple-100"
@@ -722,27 +737,31 @@ export default function HoTroTuHocPage() {
   const router = useRouter();
   const schedule = useStudentSchedule();
   const { myRequests, pendingTests, refreshMockTests, appendRequest } = schedule;
-  const [regSkill] = useState("Speaking Mock Test");
+  const [regSkill] = useState("Support Speaking");
 
   const [freeSlots, setFreeSlots] = useState<AcaFreeSlot[]>([]);
   const [writingLink, setWritingLink] = useState("");
   const [writingSubmissions, setWritingSubmissions] = useState<WritingSubmission[]>([]);
   const [practiceSlotVersion, setPracticeSlotVersion] = useState(0);
   const [practiceJoined, setPracticeJoined] = useState(false);
-  const [panel1Open, setPanel1Open] = useState(true);
-  const [panel2Open, setPanel2Open] = useState(true);
-  const [panel3Open, setPanel3Open] = useState(true);
+  const [panel1Open, setPanel1Open] = useState(false);
+  const [panel2Open, setPanel2Open] = useState(false);
+  const [panel3Open, setPanel3Open] = useState(false);
   const [dialog, setDialog] = useState<PageDialog | null>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
   const [meetLinksVersion, setMeetLinksVersion] = useState(0);
   const [rlpSessions, setRlpSessions] = useState<PracticeRlpSession[]>([]);
+  const [practiceCurrentWeek, setPracticeCurrentWeek] = useState<PracticeCurrentWeekResponse | null>(null);
+  const [practiceScores, setPracticeScores] = useState<PracticeWeeklyScoreRow[]>([]);
+  const [practiceRlpStudents, setPracticeRlpStudents] = useState<PracticeRlpStudentOption[]>([]);
+  const [practiceRlpStudentId, setPracticeRlpStudentId] = useState("");
 
-  // Check if current logged-in user can edit Practice RLP (Thanh Tâm or Khánh Thi)
+  // Minh Tâm / Học vụ chỉnh sửa; học viên xem + đánh dấu hoàn thành BTVN
   const canEditRlp = canEditPracticeClassRlp(getCachedAuthUser());
-  // Only students AND Thanh Tâm/Khánh Thi can view — other teachers cannot see the RLP table at all
   const canViewRlp = canViewPracticeClassRlp(getCachedAuthUser());
 
   const student = getStudentIdentity();
+  const rlpTargetStudentId = canEditRlp ? practiceRlpStudentId : student.id;
 
   useEffect(() => {
     const onMeetUpdate = () => setMeetLinksVersion((v) => v + 1);
@@ -754,13 +773,60 @@ export default function HoTroTuHocPage() {
     };
   }, []);
 
-  // Load Practice RLP sessions (only for students & Thanh Tâm/Khánh Thi)
+  useEffect(() => {
+    const loadPracticeMeta = async () => {
+      const [week, scores] = await Promise.all([
+        refreshPracticeCurrentWeek(),
+        refreshPracticeWeeklyScores(),
+      ]);
+      setPracticeCurrentWeek(week);
+      setPracticeScores(scores);
+    };
+    void loadPracticeMeta();
+    const onPracticeUpdate = () => {
+      void loadPracticeMeta();
+    };
+    window.addEventListener(PRACTICE_CLASS_UPDATE_EVENT, onPracticeUpdate);
+    window.addEventListener(PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT, onPracticeUpdate);
+    return () => {
+      window.removeEventListener(PRACTICE_CLASS_UPDATE_EVENT, onPracticeUpdate);
+      window.removeEventListener(PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT, onPracticeUpdate);
+    };
+  }, []);
+
+  // Load Practice RLP students (Minh Tâm / Học vụ chọn HV)
+  useEffect(() => {
+    if (!canUsePracticeRlpApi() || !canEditRlp) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const list = await fetchPracticeRlpStudentsForTeacher();
+        if (cancelled) return;
+        setPracticeRlpStudents(list);
+        setPracticeRlpStudentId((prev) => {
+          if (prev && list.some((s) => s.id === prev)) return prev;
+          return list[0]?.id || "";
+        });
+      } catch (err) {
+        console.warn("Failed to load Practice RLP students:", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [canEditRlp]);
+
+  // Load Practice RLP sessions (học viên + Minh Tâm / Học vụ)
   useEffect(() => {
     if (!canUsePracticeRlpApi() || !canViewRlp) return;
+    if (canEditRlp && !rlpTargetStudentId) {
+      setRlpSessions([]);
+      return;
+    }
     const load = async () => {
       try {
         const sessions = canEditRlp
-          ? await fetchPracticeRlpForTeacher(student.id)
+          ? await fetchPracticeRlpForTeacher(rlpTargetStudentId)
           : await fetchPracticeRlpForStudent();
         setRlpSessions(sessions);
       } catch (err) {
@@ -769,7 +835,7 @@ export default function HoTroTuHocPage() {
     };
     void load();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [student.id]);
+  }, [student.id, canViewRlp, canEditRlp, rlpTargetStudentId]);
 
   // ─── Weekly quota ──────────────────────────────────────────────────────────
   const thisWeekKey = useMemo(() => getISOWeekKey(new Date()), []);
@@ -796,11 +862,20 @@ export default function HoTroTuHocPage() {
     }).length;
   }, [writingSubmissions, thisWeekKey]);
 
-  const currentWeekNumber = useMemo(() => {
-    return getSaturdayRotatedWeekNumber();
-  }, []);
+  const examWeekNumber = practiceCurrentWeek?.examWeekNumber ?? 0;
 
-  // ─── Practice slots ────────────────────────────────────────────────────────
+  const practiceHistoryWithScoreRows = useMemo(() => {
+    const name = student.name || "Học viên";
+    return practiceScores
+      .filter((row) => row.l !== "—" || row.r !== "—" || row.w !== "—")
+      .map((row) => ({
+        test: row.test,
+        name,
+        l: row.l,
+        r: row.r,
+        w: row.w,
+      }));
+  }, [practiceScores, student.name]);
   const bumpPracticeSlots = useCallback(async () => {
     await refreshPracticeRegistrations(student.id);
     setPracticeSlotVersion((v) => v + 1);
@@ -868,9 +943,13 @@ export default function HoTroTuHocPage() {
 
   // ─── Practice RLP handlers ──────────────────────────────────────────────────
   const refreshPracticeRlp = async () => {
+    if (canEditRlp && !rlpTargetStudentId) {
+      setRlpSessions([]);
+      return;
+    }
     try {
       const sessions = canEditRlp
-        ? await fetchPracticeRlpForTeacher(student.id)
+        ? await fetchPracticeRlpForTeacher(rlpTargetStudentId)
         : await fetchPracticeRlpForStudent();
       setRlpSessions(sessions);
     } catch (err) {
@@ -879,17 +958,20 @@ export default function HoTroTuHocPage() {
   };
 
   const handleRlpAdd = async (payload: CreatePracticeRlpPayload) => {
-    await addPracticeRlpSession(student.id, payload);
+    if (!rlpTargetStudentId) throw new Error("Chưa chọn học viên");
+    await addPracticeRlpSession(rlpTargetStudentId, payload);
     await refreshPracticeRlp();
   };
 
   const handleRlpUpdate = async (no: number, payload: UpdatePracticeRlpPayload) => {
-    await updatePracticeRlpSession(student.id, no, payload);
+    if (!rlpTargetStudentId) throw new Error("Chưa chọn học viên");
+    await updatePracticeRlpSession(rlpTargetStudentId, no, payload);
     await refreshPracticeRlp();
   };
 
   const handleRlpDelete = async (no: number) => {
-    await deletePracticeRlpSession(student.id, no);
+    if (!rlpTargetStudentId) throw new Error("Chưa chọn học viên");
+    await deletePracticeRlpSession(rlpTargetStudentId, no);
     await refreshPracticeRlp();
   };
 
@@ -900,7 +982,12 @@ export default function HoTroTuHocPage() {
       prev.map((s) => (s.no === row.no ? { ...s, homeworkStatus: next } : s)),
     );
     try {
-      await updatePracticeRlpSession(student.id, row.no, { homeworkStatus: next });
+      if (canEditRlp) {
+        if (!rlpTargetStudentId) throw new Error("Chưa chọn học viên");
+        await updatePracticeRlpSession(rlpTargetStudentId, row.no, { homeworkStatus: next });
+      } else {
+        await updatePracticeRlpHomeworkForStudent(row.no, { homeworkStatus: next });
+      }
     } catch (err) {
       console.error("Failed to toggle homework:", err);
       await refreshPracticeRlp(); // revert on error
@@ -985,26 +1072,7 @@ export default function HoTroTuHocPage() {
   const filteredWritingSubmissions = useMemo(() => {
     return deduplicateWritingSubmissions(writingSubmissions);
   }, [writingSubmissions]);
-  const practiceHistoryRows = useMemo(
-    () => [
-      { test: "LĐ16", name: "Dương Ngọc Khôi Nguyên", l: "—", r: "—", w: "—", s: "—" },
-      { test: "LĐ17", name: "Dương Ngọc Khôi Nguyên", l: "6.0", r: "5.5", w: "4.5", s: "—" },
-      { test: "LĐ18", name: "Dương Ngọc Khôi Nguyên", l: "—", r: "—", w: "—", s: "—" },
-      { test: "LĐ19", name: "Dương Ngọc Khôi Nguyên", l: "—", r: "—", w: "—", s: "—" },
-      { test: "LĐ20", name: "Dương Ngọc Khôi Nguyên", l: "—", r: "—", w: "—", s: "—" },
-    ],
-    [],
-  );
 
-  const practiceHistoryWithScoreRows = useMemo(
-    () =>
-      practiceHistoryRows.filter(
-        (row) => row.l !== "—" || row.r !== "—" || row.w !== "—" || row.s !== "—",
-      ),
-    [practiceHistoryRows],
-  );
-
-  // ─── Free slots ────────────────────────────────────────────────────────────
   const loadFreeSlots = useCallback(async () => {
     try {
       const slots = await fetchAcaFreeSlots();
@@ -1108,7 +1176,7 @@ export default function HoTroTuHocPage() {
           {/* Left Column */}
           <div className="lg:col-span-9 flex min-h-0 flex-col space-y-6">
             <CollapsiblePanel
-              title="Mock Test Speaking"
+              title="Support Speaking"
               className="w-full"
               transparentTab={true}
               
@@ -1404,14 +1472,19 @@ export default function HoTroTuHocPage() {
                     label: "Link Google Meet",
                     align: "center",
                     render: (row) => {
-                      const meetUrl = getGraderMeetLink(row.examTeacher);
+                      const meetUrl =
+                        speakingResultMeetLink(row) || getGraderMeetLink(row.examTeacher);
                       return (
                         <a
                           href={meetUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-all shadow-2xs"
-                          title={`Link Google Meet cố định của ${row.examTeacher || "Grader"}`}
+                          title={
+                            speakingResultMeetLink(row)
+                              ? "Link Google Meet Mock test Speaking"
+                              : `Link Google Meet cố định của ${row.examTeacher || "Grader"}`
+                          }
                         >
                           <svg className="h-3.5 w-3.5 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -1637,6 +1710,20 @@ export default function HoTroTuHocPage() {
                       </span>
                     ),
                   },
+                  {
+                    key: "note",
+                    label: "Note",
+                    align: "left",
+                    width: "w-[220px]",
+                    render: (row) => (
+                      <span
+                        className="line-clamp-3 whitespace-pre-line text-left text-[11px] font-medium text-muted"
+                        title={row.note || undefined}
+                      >
+                        {row.note?.trim() || "—"}
+                      </span>
+                    ),
+                  },
                 ]}
               />
               </div>
@@ -1647,21 +1734,59 @@ export default function HoTroTuHocPage() {
               title="Đăng ký lớp luyện đề"
               className="w-full"
               transparentTab={true}
-              isOpen={panel3Open}
-              hideToggle={!practiceJoined}
+              isOpen={panel3Open || canEditRlp}
+              hideToggle={!practiceJoined && !canEditRlp}
               onToggle={setPanel3Open}
               topContent={
                 <div className="space-y-4">
+                  {canEditRlp ? (
+                    <div className="rounded-2xl border border-primary/20 bg-primary-soft/40 px-4 py-3 flex flex-wrap items-center gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-primary">
+                          RLP lớp luyện đề — chọn học viên
+                        </div>
+                        <p className="text-[11px] font-medium text-muted mt-0.5">
+                          Minh Tâm / Học vụ chỉnh RLP theo từng HV (không dùng tài khoản GV).
+                        </p>
+                      </div>
+                      <select
+                        value={practiceRlpStudentId}
+                        onChange={(e) => setPracticeRlpStudentId(e.target.value)}
+                        className="h-10 min-w-[220px] max-w-full rounded-xl border border-primary/25 bg-white px-3 text-xs font-bold outline-none focus:ring-2 focus:ring-primary/15"
+                      >
+                        {practiceRlpStudents.length === 0 ? (
+                          <option value="">Chưa có HV đăng ký / RLP</option>
+                        ) : (
+                          practiceRlpStudents.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}
+                              {s.email ? ` · ${s.email}` : ""}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </div>
+                  ) : null}
                   {/* ── Weekly Practice Class info card ── */}
                   <div className="rounded-2xl border border-zinc-100 bg-[#595082] p-5 flex items-center justify-between gap-4 flex-wrap">
                     <div className="flex items-center gap-4">
                       {/* Week badge */}
                       <div className="relative h-16 w-16 shrink-0 rounded-2xl bg-[#6a6096] flex flex-col items-center justify-center border border-[#8578b8]/40 shadow-2xs">
                         <span className="text-[9px] font-black uppercase text-[#f8c662] tracking-wider">Đề tuần</span>
-                        <span className="text-xl font-black text-[#f8c662] tabular-nums leading-none mt-0.5">38</span>
+                        <span className="text-xl font-black text-[#f8c662] tabular-nums leading-none mt-0.5">
+                          {examWeekNumber > 0 ? examWeekNumber : "—"}
+                        </span>
                       </div>
                       <div>
-                        <div className="text-sm font-black text-[#f8c662]">Đề theo tuần (Tuần này là đề số 38)</div>
+                        <div className="text-sm font-black text-[#f8c662]">
+                          Đề theo tuần
+                          {examWeekNumber > 0 ? ` (Tuần này là đề số ${examWeekNumber})` : ""}
+                        </div>
+                        {practiceCurrentWeek?.weekRange ? (
+                          <div className="text-[10px] text-[#f8c662]/80 font-medium mt-0.5">
+                            {practiceCurrentWeek.weekRange}
+                          </div>
+                        ) : null}
                         <div className="text-xs text-[#f8c662] font-bold mt-0.5">
                           Bộ đề thi thử L-R-W & Speaking cập nhật mới mỗi tuần
                         </div>
@@ -1710,17 +1835,20 @@ export default function HoTroTuHocPage() {
                 </div>
               }
             >
-                {practiceJoined && (
+                {(practiceJoined || canEditRlp) && (
                 <PracticeClassPanel
                   registeredSlotIds={registeredPracticeSlotIds}
                   onRegisterSlot={handleRegisterPracticeSlot}
                   onUnregisterSlot={handleUnregisterPracticeSlot}
-                  onResetTest={handleResetPracticeTest}
-                  scoresRows={practiceHistoryWithScoreRows}
-                  studentId={student.id}
+                  onResetTest={canEditRlp ? undefined : handleResetPracticeTest}
+                  scoresRows={practiceHistoryWithScoreRows.length > 0 ? practiceHistoryWithScoreRows : undefined}
+                  examWeekNumber={examWeekNumber > 0 ? examWeekNumber : undefined}
+                  weekAnnouncement={practiceCurrentWeek?.announcement}
+                  weekMeetLink={practiceCurrentWeek?.linkMeet}
+                  studentId={canEditRlp ? rlpTargetStudentId : student.id}
                   rlpSessions={rlpSessions}
-                  showRlp={canViewRlp}
-                  canEditRlp={canEditRlp}
+                  showRlp={canViewRlp && (!canEditRlp || Boolean(rlpTargetStudentId))}
+                  canEditRlp={canEditRlp && Boolean(rlpTargetStudentId)}
                   onRlpAdd={canEditRlp ? handleRlpAdd : undefined}
                   onRlpUpdate={canEditRlp ? handleRlpUpdate : undefined}
                   onRlpDelete={canEditRlp ? handleRlpDelete : undefined}

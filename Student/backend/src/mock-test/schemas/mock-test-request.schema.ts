@@ -51,6 +51,10 @@ export class MockTestRequest {
   @Prop({ default: 'student' })
   source?: string;
 
+  /** Ai tạo/nộp task cho grader: sale | student | staff */
+  @Prop({ trim: true, default: '' })
+  submittedByRole?: string;
+
   @Prop({ index: true })
   entranceBookingId?: string;
 

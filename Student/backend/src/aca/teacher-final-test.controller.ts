@@ -19,7 +19,7 @@ type AuthedRequest = Request & { user: JwtPayload };
 
 @Controller('teacher/final-tests')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('GV', 'ACA')
+@Roles('GV', 'ACA', 'GRADER')
 export class TeacherFinalTestController {
   constructor(private readonly service: AcaManagementService) {}
 

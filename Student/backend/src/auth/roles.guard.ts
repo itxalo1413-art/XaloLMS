@@ -9,12 +9,19 @@ import type { Request } from 'express';
 import type { JwtPayload } from './auth.types';
 import { ROLES_KEY } from './roles.decorator';
 import type { Role } from '../domain/role';
+import { IS_PUBLIC_KEY } from './public.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) return true;
+
     const required = this.reflector.getAllAndOverride<Role[]>(ROLES_KEY, [
       context.getHandler(),
       context.getClass(),

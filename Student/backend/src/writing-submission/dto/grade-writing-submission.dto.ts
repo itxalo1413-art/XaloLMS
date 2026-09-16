@@ -9,4 +9,5 @@ export class GradeWritingSubmissionDto {
   task2?: string;
   note?: string;
   assignedGrader?: string;
+  criteriaScores?: Record<string, unknown> | null;
 }

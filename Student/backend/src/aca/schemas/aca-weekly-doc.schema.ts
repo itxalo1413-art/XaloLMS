@@ -8,6 +8,14 @@ export class AcaWeeklyDoc {
   @Prop({ required: true, trim: true })
   student: string;
 
+  /** Email học viên để lọc trên LMS */
+  @Prop({ trim: true, default: '', index: true })
+  studentEmail: string;
+
+  /** Id học viên ACA / user (tuỳ chọn) */
+  @Prop({ trim: true, default: '' })
+  studentId: string;
+
   @Prop({ required: true, trim: true })
   className: string;
 

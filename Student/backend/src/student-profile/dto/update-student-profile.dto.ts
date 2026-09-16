@@ -11,4 +11,5 @@ export class UpdateStudentProfileDto {
   ieltsMeaning?: string;
   previousBand?: string;
   focusSkills?: string | string[];
+  examDate?: string;
 }

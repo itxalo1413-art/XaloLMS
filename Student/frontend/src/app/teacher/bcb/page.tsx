@@ -29,7 +29,23 @@ export default function TeacherBcbPage() {
       />
       <main className="mx-auto max-w-4xl space-y-8 px-6 py-6 pb-16 md:px-8">
         <StudentRecordPicker value={studentId} onChange={setStudentId} />
-        <StudentProfileEditorSection portalLabel="Giáo viên" studentId={studentId} />
+        <StudentProfileEditorSection
+          portalLabel="Giáo viên"
+          studentId={studentId}
+          studentData={
+            selectedStudent
+              ? {
+                  name: selectedStudent.name,
+                  email: selectedStudent.email,
+                  phone: selectedStudent.phone,
+                  dob: selectedStudent.dob,
+                  zodiac: selectedStudent.zodiac,
+                  avatarUrl: selectedStudent.avatarUrl,
+                  examDate: selectedStudent.examDate,
+                }
+              : undefined
+          }
+        />
         <DiagnosisEditorSection
           variant="student"
           portalLabel="Giáo viên"

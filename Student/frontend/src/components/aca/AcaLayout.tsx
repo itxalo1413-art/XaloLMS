@@ -15,6 +15,7 @@ import {
   isAuthSessionError,
   syncSessionCookie,
 } from "@/lib/auth";
+import { GRADER_PATHS, isAcaAcademicHead, isGraderUser, mapAcaPathToGrader } from "@/lib/acaIdentity";
 
 const RESTRICTED_PATHS = [
   "/aca/quan-ly/lop-theo-thang",
@@ -25,12 +26,12 @@ const RESTRICTED_PATHS = [
   "/aca/quan-ly/phan-tich-final-test",
   "/aca/quan-ly/lop-1-1",
   "/aca/quan-ly/lop-luyen-de-tuan",
+  "/aca/quan-ly/thong-ke-luyen-de",
+  "/aca/quan-ly/weekly-docs",
   "/aca/quan-ly/giao-vien",
-  "/aca/quan-ly/khoa-hoc",
   "/aca/quan-ly/noi-dung",
   "/aca/quan-ly/note",
   "/aca/quan-ly/lop-luyen-de",
-  "/aca/quan-ly/chan-doan-khach",
   "/aca/he-thong",
   "/aca/phan-tich",
 ];
@@ -58,9 +59,16 @@ export function AcaLayout({ children }: { children: ReactNode }) {
       router.replace("/login");
       return;
     }
-    if (cached.role !== "ACA") {
+    if (cached.role !== "ACA" && cached.role !== "GRADER") {
       clearAuthToken();
       router.replace("/login?error=role");
+      return;
+    }
+
+    // Grader → portal /grader (không ở lại /aca)
+    if (isGraderUser(cached) || !isAcaAcademicHead(cached)) {
+      const mapped = mapAcaPathToGrader(pathname) || GRADER_PATHS.home;
+      router.replace(mapped);
       return;
     }
 
@@ -71,12 +79,15 @@ export function AcaLayout({ children }: { children: ReactNode }) {
     void fetchMe()
       .then((me) => {
         if (cancelled) return;
-        if (me.role !== "ACA") {
+        if (me.role !== "ACA" && me.role !== "GRADER") {
           clearAuthToken();
           router.replace("/login?error=role");
           return;
         }
         cacheAuthUser(me);
+        if (isGraderUser(me) || !isAcaAcademicHead(me)) {
+          router.replace(mapAcaPathToGrader(pathname) || GRADER_PATHS.home);
+        }
       })
       .catch((err) => {
         if (cancelled) return;
@@ -90,18 +101,11 @@ export function AcaLayout({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [router]);
+  }, [router, pathname]);
 
   useEffect(() => {
     const user = getCachedAuthUser();
-    const name = (user?.name || "").trim().toLowerCase();
-    const email = (user?.email || "").trim().toLowerCase();
-    
-    setIsKhanhThi(
-      name === "lê nguyễn khánh thi" ||
-        name.includes("khánh thi") ||
-        email === "aca@xaloenglish.vn",
-    );
+    setIsKhanhThi(isAcaAcademicHead(user));
     setReady(true);
   }, []);
 

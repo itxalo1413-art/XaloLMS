@@ -18,7 +18,7 @@ import { MockTestService } from './mock-test.service';
 
 @Controller('aca/mock-tests')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ACA', 'SALE', 'GV')
+@Roles('ACA', 'SALE', 'GV', 'GRADER')
 export class AcaMockTestController {
   constructor(private readonly mockTests: MockTestService) {}
 

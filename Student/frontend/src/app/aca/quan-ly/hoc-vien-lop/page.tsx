@@ -17,6 +17,7 @@ import {
   displayClassCode,
   classCodesMatch,
 } from "@/lib/acaManagementApi";
+import { confirmDialog } from "@/components/shared/ConfirmDialog";
 import {
   listAcademicWarnings,
   ACADEMIC_WARNING_UPDATE_EVENT,
@@ -60,7 +61,6 @@ const STUDENT_IMPORT_FIELDS: ImportField[] = [
   { key: "homeworkPercent3", label: "Homework L3 (%)" },
   { key: "attendanceCount3", label: "Chuyên cần L3" },
 
-  { key: "bcbLink", label: "Link BCB" },
   { key: "note", label: "Ghi chú" },
 ];
 
@@ -200,7 +200,6 @@ export default function HocVienLopPage() {
   const [formF2, setFormF2] = useState("");
   const [formL3, setFormL3] = useState("");
   const [formF3, setFormF3] = useState("");
-  const [formBcbLink, setFormBcbLink] = useState("");
   const [formNote, setFormNote] = useState("");
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [formCycles, setFormCycles] = useState<AcaStudentCycle[]>([]);
@@ -468,7 +467,6 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
         f2: String(row.f2 || "").trim(),
         l3: String(row.l3 || "").trim(),
         f3: String(row.f3 || "").trim(),
-        bcbLink: String(row.bcbLink || "").trim(),
         note: String(row.note || "").trim(),
         cycles,
       };
@@ -599,8 +597,13 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
   };
 
   const getClassInfoByCode = (classCode: string) => {
-    const cls = classesList.find((c) => classCodesMatch(c.classCode, classCode));
-    return { name: cls?.name || "", code: classCode, teacher: cls?.teacher || "" };
+    const cls = classesList.find((c) => classCodesMatch(c.classCode, classCode) || classCodesMatch(c.name, classCode));
+    let teacher = cls?.teacher || "";
+    if (!teacher && /GV\s+/i.test(classCode)) {
+      const match = classCode.match(/GV\s+([^,\-]+)/i);
+      if (match) teacher = match[1].trim();
+    }
+    return { name: cls?.name || "", code: displayClassCode(classCode), teacher };
   };
 
   const getCycleData = (st: AcaStudent, index: number): AcaStudentCycle => {
@@ -877,7 +880,6 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
     setFormF2("");
     setFormL3("");
     setFormF3("");
-    setFormBcbLink("");
     setFormNote("");
     setFormCycles([
       {
@@ -933,7 +935,6 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
     setFormF2(student.f2 || "");
     setFormL3(student.l3 || "");
     setFormF3(student.f3 || "");
-    setFormBcbLink(student.bcbLink);
     setFormNote(student.note || "");
 
     // Populate formCycles with fallback logic
@@ -989,13 +990,19 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Bạn có chắc chắn muốn xóa học viên này ra khỏi danh sách?")) {
-      try {
-        await deleteAcaStudent(id);
-        setStudentsList((prev) => prev.filter((s) => s.id !== id));
-      } catch (err: any) {
-        alert("Xóa thất bại: " + err.message);
-      }
+    const ok = await confirmDialog({
+      title: "Xóa học viên",
+      message: "Bạn có chắc chắn muốn xóa học viên này ra khỏi danh sách không?",
+      confirmText: "Đồng ý xóa",
+      cancelText: "Giữ lại",
+      variant: "danger",
+    });
+    if (!ok) return;
+    try {
+      await deleteAcaStudent(id);
+      setStudentsList((prev) => prev.filter((s) => s.id !== id));
+    } catch (err: any) {
+      alert("Xóa thất bại: " + err.message);
     }
   };
 
@@ -1076,7 +1083,6 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
       l3: c3.classCode || "",
       f3: c3.finalScore || "",
 
-      bcbLink: formBcbLink,
       note: formNote,
       cycles: formCycles,
     };
@@ -1410,17 +1416,8 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
 
                         <td className="px-4 py-4">
                           <div className="flex items-center gap-2">
-                            <a
-                              href={st.bcbLink || "/student#bcb-archive"}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-secondary hover:underline font-black"
-                              title="Mở Bảng Chẩn Bệnh Chi Tiết (BCB)"
-                            >
-                              Xem ↗
-                            </a>
                             <Link
-                              href={`/aca/quan-ly/bcb?studentId=${st.id}`}
+                              href={`/sale/bcb?studentId=${st.id}`}
                               className="text-[10px] font-bold px-2 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                               title="Chỉnh sửa chi tiết BCB cho học viên này"
                             >
@@ -1494,7 +1491,7 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
                                             className="inline-flex items-center gap-1 rounded bg-secondary/10 px-2.5 py-0.5 font-black text-[10px] text-secondary cursor-default text-center break-words"
                                             title={name || line}
                                           >
-                                            {line.trim()}
+                                            {displayClassCode(line)}
                                           </span>
                                         ))}
                                         {teacher && (
@@ -2063,17 +2060,6 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
                   </h4>
 
                   <div>
-                    <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Link bảng điểm chẩn đoán BCB</label>
-                    <input
-                      type="text"
-                      value={formBcbLink}
-                      onChange={(e) => setFormBcbLink(e.target.value)}
-                      placeholder="Đường dẫn Google Sheets..."
-                      className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10 bg-white"
-                    />
-                  </div>
-
-                  <div>
                     <label className="block text-[10px] font-black uppercase text-muted tracking-widest mb-1.5">Ghi chú thêm</label>
                     <input
                       type="text"
@@ -2112,7 +2098,7 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
         title="Nhập danh sách học viên từ Excel"
         fields={STUDENT_IMPORT_FIELDS}
         onImport={handleImportStudents}
-        templateDescription="Các cột hợp lệ: Tên học viên (bắt buộc), Email (bắt buộc), Số điện thoại, Tên lớp học, Phân loại (Lớp lẻ mới/Combo/Học lại/Chuyển lớp), Entrance, L1, F1, L2, F2, L3, F3, Chấm Writing, Mocktest, Lớp luyện đề, Homework (%), Chuyên cần, Link BCB, Ghi chú."
+        templateDescription="Các cột hợp lệ: Tên học viên (bắt buộc), Email (bắt buộc), Số điện thoại, Tên lớp học, Phân loại (Lớp lẻ mới/Combo/Học lại/Chuyển lớp), Entrance, L1, F1, L2, F2, L3, F3, Chấm Writing, Mocktest, Lớp luyện đề, Homework (%), Chuyên cần, Ghi chú."
       />
     </AcaLayout>
   );

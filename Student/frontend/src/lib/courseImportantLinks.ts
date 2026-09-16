@@ -1,3 +1,5 @@
+import { apiFetch, getAuthToken, getCachedAuthUser } from "@/lib/auth";
+
 export type CourseImportantLink = {
   id: string;
   label: string;
@@ -5,23 +7,24 @@ export type CourseImportantLink = {
   url: string;
 };
 
+/** Chỉ dùng khi ACA soạn course-settings offline — không seed tên học viên giả. */
 export const DEFAULT_COURSE_IMPORTANT_LINKS: CourseImportantLink[] = [
   {
     id: "rlp",
     label: "RLP",
-    value: "Chặng 1: Speaking - Reading",
+    value: "",
     url: "#rlp-section",
   },
   {
     id: "lesson",
     label: "THƯ MỤC BÀI GIẢNG",
-    value: "Writing - Listening (21/04/2026)",
+    value: "",
     url: "",
   },
   {
     id: "homework",
     label: "THƯ MỤC BÀI TẬP",
-    value: "HW Dương Ngọc Khôi Nguyên",
+    value: "",
     url: "",
   },
   {
@@ -32,35 +35,41 @@ export const DEFAULT_COURSE_IMPORTANT_LINKS: CourseImportantLink[] = [
   },
 ];
 
-const STORAGE_KEY = "xalo.course.importantLinks.v1";
+const STORAGE_KEY = "xalo.course.importantLinks.v2";
 export const COURSE_IMPORTANT_LINKS_UPDATE_EVENT = "xalo-course-important-links-updated";
 
-let cache: CourseImportantLink[] = DEFAULT_COURSE_IMPORTANT_LINKS.map((l) => ({ ...l }));
+let cache: CourseImportantLink[] = [];
+let activeClassId = "";
+let studentLinksListenerBound = false;
 
 function dispatchUpdate() {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new Event(COURSE_IMPORTANT_LINKS_UPDATE_EVENT));
 }
 
+function isStudentPortalUser(): boolean {
+  const role = getCachedAuthUser()?.role;
+  return role === "HS" || (!role && Boolean(getAuthToken()));
+}
+
 function loadLocal(): CourseImportantLink[] {
-  if (typeof window === "undefined") return DEFAULT_COURSE_IMPORTANT_LINKS.map((l) => ({ ...l }));
+  if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_COURSE_IMPORTANT_LINKS.map((l) => ({ ...l }));
+    if (!raw) return [];
     const data = JSON.parse(raw) as CourseImportantLink[];
-    return data.length ? data : DEFAULT_COURSE_IMPORTANT_LINKS.map((l) => ({ ...l }));
+    return Array.isArray(data) ? data : [];
   } catch {
-    return DEFAULT_COURSE_IMPORTANT_LINKS.map((l) => ({ ...l }));
+    return [];
   }
 }
 
-import { apiFetch } from "@/lib/auth";
-
 export function getCourseImportantLinks(): CourseImportantLink[] {
-  if (typeof window !== "undefined" && cache === DEFAULT_COURSE_IMPORTANT_LINKS) {
-    cache = loadLocal();
-  }
   return cache;
+}
+
+export function setActiveCourseClassId(classId: string) {
+  activeClassId = String(classId || "").trim();
 }
 
 export function saveCourseImportantLinks(links: CourseImportantLink[]): CourseImportantLink[] {
@@ -68,31 +77,53 @@ export function saveCourseImportantLinks(links: CourseImportantLink[]): CourseIm
   if (typeof window !== "undefined") {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(links));
     dispatchUpdate();
+    const body: Record<string, unknown> = { links };
+    if (activeClassId) body.classId = activeClassId;
     void apiFetch("/api/aca/course-settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ links }),
+      body: JSON.stringify(body),
     }).catch((err) => console.warn("Failed to persist course links to backend", err));
   }
   return cache;
 }
 
 export function refreshCourseImportantLinks(): CourseImportantLink[] {
-  if (typeof window !== "undefined") {
-    void apiFetch("/api/aca/course-settings", { method: "GET" })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && Array.isArray(data.links) && data.links.length > 0) {
-          cache = data.links;
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(data.links));
+  if (typeof window === "undefined") return cache;
+
+  // Học viên: links đến từ class-info (event), không gọi global course-settings
+  if (getAuthToken() && isStudentPortalUser()) {
+    if (!studentLinksListenerBound) {
+      studentLinksListenerBound = true;
+      window.addEventListener("xalo-student-class-links", ((ev: Event) => {
+        const detail = (ev as CustomEvent<CourseImportantLink[]>).detail;
+        if (Array.isArray(detail)) {
+          cache = detail;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(detail));
           dispatchUpdate();
         }
-      })
-      .catch(() => {
-        cache = loadLocal();
-        dispatchUpdate();
-      });
+      }) as EventListener);
+    }
+    return cache;
   }
+
+  const qs = activeClassId ? `?classId=${encodeURIComponent(activeClassId)}` : "";
+  void apiFetch(`/api/aca/course-settings${qs}`, { method: "GET" })
+    .then((res) => res.json())
+    .then((data) => {
+      if (data && Array.isArray(data.links) && data.links.length > 0) {
+        cache = data.links;
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data.links));
+        dispatchUpdate();
+      } else if (getAuthToken()) {
+        cache = [];
+        dispatchUpdate();
+      }
+    })
+    .catch(() => {
+      cache = loadLocal();
+      dispatchUpdate();
+    });
   return cache;
 }
 

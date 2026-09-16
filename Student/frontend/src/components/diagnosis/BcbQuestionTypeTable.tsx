@@ -19,6 +19,12 @@ function errorRateTone(rate: number): string {
 
 export function BcbQuestionTypeTable({ rows, showWeakCta = false }: Props) {
   const weakCount = rows.filter(isWeakBcbQuestion).length;
+  const totalCorrect = rows.reduce((sum, r) => sum + (typeof r.correct === "number" ? r.correct : 0), 0);
+  const totalQuestions = rows.reduce((sum, r) => sum + (typeof r.total === "number" ? r.total : 0), 0);
+  const overallErrorRate =
+    totalQuestions > 0
+      ? Math.round(((totalQuestions - Math.min(totalCorrect, totalQuestions)) / totalQuestions) * 100)
+      : 0;
 
   return (
     <div className="space-y-4">
@@ -28,8 +34,13 @@ export function BcbQuestionTypeTable({ rows, showWeakCta = false }: Props) {
             Bảng chẩn đoán theo dạng bài
           </div>
           <p className="mt-1 text-xs font-medium text-muted">
-            Hiển thị toàn bộ {rows.length} dạng bài · {weakCount} dạng cần ưu tiên (tỷ lệ sai &gt;{" "}
+            Hiển thị {rows.length} dạng bài · {weakCount} dạng cần ưu tiên (tỷ lệ sai &gt;{" "}
             {WEAK_BCB_ERROR_RATE_THRESHOLD}%)
+            {totalQuestions > 0 && (
+              <span className="font-bold text-primary ml-1">
+                · Tổng đúng: {totalCorrect}/{totalQuestions} câu
+              </span>
+            )}
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-[10px] font-bold">
@@ -82,11 +93,46 @@ export function BcbQuestionTypeTable({ rows, showWeakCta = false }: Props) {
                 );
               })}
             </tbody>
+            {totalQuestions > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-primary/20 bg-primary/5 font-black text-xs">
+                  <td className="px-4 py-3 text-primary uppercase font-black">
+                    Tổng cộng (Số câu đúng)
+                  </td>
+                  <td className="px-4 py-3 text-center text-primary font-black tabular-nums text-sm">
+                    {totalCorrect} / {totalQuestions}
+                  </td>
+                  <td className={`px-4 py-3 text-center text-sm tabular-nums ${errorRateTone(overallErrorRate)}`}>
+                    {overallErrorRate}%
+                  </td>
+                  <td className="px-4 py-3 text-xs font-bold text-primary">
+                    Đạt {totalCorrect}/{totalQuestions} câu
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
 
       <div className="space-y-3 md:hidden">
+        {totalQuestions > 0 && (
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 flex items-center justify-between shadow-soft">
+            <div>
+              <div className="text-[10px] font-black uppercase text-primary">Tổng số câu đúng</div>
+              <div className="text-base font-black text-foreground mt-0.5">
+                {totalCorrect} / {totalQuestions} câu
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-[10px] font-bold text-muted">Tỷ lệ sai toàn bài</div>
+              <div className={`text-base font-black ${errorRateTone(overallErrorRate)}`}>
+                {overallErrorRate}%
+              </div>
+            </div>
+          </div>
+        )}
+
         {rows.map((row) => {
           const weak = isWeakBcbQuestion(row);
           return (

@@ -5,8 +5,15 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   formatIsoDateTimeVi,
   formatExternalUrl,
+  graderTaskKindTone,
+  resolveSubmittedByRole,
+  resolveWritingTaskKind,
+  SUBMITTED_BY_ROLE_LABEL,
+  submittedByRoleTone,
   writingStatusLabel,
   writingStatusTone,
+  writingTaskKindLabel,
+  type WritingTaskFilter,
 } from "@/lib/selfStudyFormat";
 import { formatBandScore } from "@/lib/formatBandScore";
 import {
@@ -20,20 +27,71 @@ import {
   type WritingSubmissionStatus,
 } from "@/lib/writingSubmissions";
 import { StatusBadge } from "@/components/student/SelfStudyResultsTable";
-
+import { WRITING_TASK1_CRITERIA } from "@/lib/writingTask1BandDescriptors";
+import { WRITING_TASK2_CRITERIA } from "@/lib/writingTask2BandDescriptors";
+import { resolveWritingBands } from "@/lib/writingScore";
 import { getCachedAuthUser } from "@/lib/auth";
+import {
+  getWritingDeadlineStatus,
+  resolveWritingDueDate,
+  WRITING_GRADING_DEADLINE_DAYS,
+} from "@/lib/writingDeadline";
 
 type StatusFilter = WritingSubmissionStatus | "all";
+
+type WritingCriteriaDraft = {
+  task1: {
+    taskAchievement: number;
+    coherenceCohesion: number;
+    lexicalResource: number;
+    grammaticalRange: number;
+  };
+  task2: {
+    taskResponse: number;
+    coherenceCohesion: number;
+    lexicalResource: number;
+    grammaticalRange: number;
+  };
+};
+
+const EMPTY_WRITING_CRITERIA: WritingCriteriaDraft = {
+  task1: {
+    taskAchievement: 0,
+    coherenceCohesion: 0,
+    lexicalResource: 0,
+    grammaticalRange: 0,
+  },
+  task2: {
+    taskResponse: 0,
+    coherenceCohesion: 0,
+    lexicalResource: 0,
+    grammaticalRange: 0,
+  },
+};
 
 function resolveStudentName(row: WritingSubmission): string {
   return row.studentName?.trim() || row.studentId;
 }
 
-const TYPE_OPTIONS = ["Support", "Entrance", "Final", "Mock test", "RLP", "RLP HW"];
+const TYPE_OPTIONS = ["Support", "Entrance", "Final", "RLP", "RLP HW"];
+
+function resolveRowWritingKind(row: WritingSubmission) {
+  return resolveWritingTaskKind(row);
+}
+
+function resolveRowTypeLabel(row: WritingSubmission): string {
+  const kind = resolveRowWritingKind(row);
+  const raw = (row.type || "").trim();
+  if (raw && !["support", "entrance", "final"].includes(raw.toLowerCase())) {
+    return raw;
+  }
+  return writingTaskKindLabel(kind);
+}
 
 export function WritingGradingSection() {
   const [rows, setRows] = useState<WritingSubmission[]>([]);
   const [filter, setFilter] = useState<StatusFilter>("pending");
+  const [typeFilter, setTypeFilter] = useState<WritingTaskFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +108,7 @@ export function WritingGradingSection() {
   const [task2Draft, setTask2Draft] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
   const [graderDraft, setGraderDraft] = useState("");
+  const [criteriaDraft, setCriteriaDraft] = useState<WritingCriteriaDraft>(EMPTY_WRITING_CRITERIA);
   const [saving, setSaving] = useState(false);
 
   // Pagination State
@@ -132,12 +191,21 @@ export function WritingGradingSection() {
   // Reset page when filter or search query changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [filter, searchQuery]);
+  }, [filter, searchQuery, typeFilter]);
 
   const filtered = useMemo(() => {
     let list = visibleRows;
     if (filter !== "all") {
       list = list.filter((r) => r.status === filter);
+    }
+    if (isKhanhThi && typeFilter !== "all") {
+      list = list.filter((r) => {
+        const kind = resolveRowWritingKind(r);
+        if (typeFilter === "entrance") return kind === "Entrance";
+        if (typeFilter === "final") return kind === "Final";
+        if (typeFilter === "support") return kind === "Support";
+        return true;
+      });
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -153,7 +221,7 @@ export function WritingGradingSection() {
     return [...list].sort(
       (a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime(),
     );
-  }, [visibleRows, filter, searchQuery]);
+  }, [visibleRows, filter, searchQuery, typeFilter, isKhanhThi]);
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
   
@@ -184,21 +252,56 @@ export function WritingGradingSection() {
   }, [rows]);
 
   const activeRow = rows.find((r) => r.id === activeId);
+  const activeNeedsCriteria =
+    activeRow != null &&
+    (resolveRowWritingKind(activeRow) === "Entrance" ||
+      resolveRowWritingKind(activeRow) === "Final");
 
   const openGrade = (row: WritingSubmission) => {
     setActiveId(row.id);
     setScoreDraft(row.score ?? "");
     setLinkDraft(row.examLink ?? "");
-    setDueDraft(row.dueDate ?? "");
+    setDueDraft(resolveWritingDueDate(row));
     setGmailDraft(row.studentGmail ?? "");
-    setTypeDraft(row.type || (row.source === "final" ? "Final" : row.source === "entrance" ? "Entrance" : "Support"));
+    const writingKind = resolveRowWritingKind(row);
+    setTypeDraft(
+      row.type ||
+        (writingKind === "Final" ? "Final" : writingKind === "Entrance" ? "Entrance" : "Support"),
+    );
     setTask1Draft(row.task1 ?? "");
     setTask2Draft(row.task2 ?? "");
     setNoteDraft(row.note ?? "");
     setGraderDraft(row.assignedGrader || ACA_GRADERS[0]);
+    setCriteriaDraft({
+      task1: {
+        taskAchievement: Number(row.criteriaScores?.task1?.taskAchievement) || 0,
+        coherenceCohesion: Number(row.criteriaScores?.task1?.coherenceCohesion) || 0,
+        lexicalResource: Number(row.criteriaScores?.task1?.lexicalResource) || 0,
+        grammaticalRange: Number(row.criteriaScores?.task1?.grammaticalRange) || 0,
+      },
+      task2: {
+        taskResponse: Number(row.criteriaScores?.task2?.taskResponse) || 0,
+        coherenceCohesion: Number(row.criteriaScores?.task2?.coherenceCohesion) || 0,
+        lexicalResource: Number(row.criteriaScores?.task2?.lexicalResource) || 0,
+        grammaticalRange: Number(row.criteriaScores?.task2?.grammaticalRange) || 0,
+      },
+    });
 
     if (row.status === "pending") {
       void setStatusQuick(row, "grading");
+    }
+  };
+
+  const applyCriteriaAndScore = (
+    next: WritingCriteriaDraft,
+    opts?: { syncScore?: boolean }
+  ) => {
+    setCriteriaDraft(next);
+    if (opts?.syncScore !== false) {
+      const bands = resolveWritingBands(next);
+      if (bands.writingOverall > 0) {
+        setScoreDraft(formatBandScore(bands.writingOverall));
+      }
     }
   };
 
@@ -210,17 +313,20 @@ export function WritingGradingSection() {
     setSaving(true);
     setError(null);
     try {
+      const kind = resolveRowWritingKind(row);
+      const needsCriteria = kind === "Entrance" || kind === "Final";
       await gradeWritingSubmission(row.id, {
         status: nextStatus,
         score: nextStatus === "graded" ? scoreDraft || row.score : scoreDraft || undefined,
         examLink: linkDraft || row.examLink,
-        dueDate: dueDraft ?? row.dueDate,
+        dueDate: resolveWritingDueDate(row),
         studentGmail: gmailDraft ?? row.studentGmail,
         type: typeDraft ?? row.type,
         task1: task1Draft ?? row.task1,
         task2: task2Draft ?? row.task2,
         note: noteDraft ?? row.note,
         assignedGrader: graderDraft || row.assignedGrader,
+        ...(needsCriteria ? { criteriaScores: criteriaDraft } : {}),
         ...overridePayload,
       });
       await sync();
@@ -248,6 +354,17 @@ export function WritingGradingSection() {
     setRows(updated);
   };
 
+  const kindCounts = useMemo(() => {
+    const counts = { support: 0, entrance: 0, final: 0 };
+    for (const row of visibleRows) {
+      const kind = resolveRowWritingKind(row);
+      if (kind === "Entrance") counts.entrance += 1;
+      else if (kind === "Final") counts.final += 1;
+      else counts.support += 1;
+    }
+    return counts;
+  }, [visibleRows]);
+
   const filters: { id: StatusFilter; label: string; count: number }[] = [
     { id: "pending", label: "Chờ chấm", count: counts.pending },
     { id: "graded", label: "Đã chấm", count: counts.graded },
@@ -262,7 +379,7 @@ export function WritingGradingSection() {
           <div className="flex items-center justify-between gap-2">
             <span className="text-[11px] font-black uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
               <span className="inline-block w-2 h-2 rounded-full bg-purple-600 animate-pulse" />
-              Tự động phân bổ bài chấm Writing cho các Grader (Cân bằng khối lượng công việc)
+              Tự động phân bổ bài chấm Writing — deadline chấm: {WRITING_GRADING_DEADLINE_DAYS} ngày kể từ lúc học viên nộp
             </span>
             <div className="flex items-center gap-2 shrink-0">
               <button
@@ -288,11 +405,25 @@ export function WritingGradingSection() {
               </div>
             ))}
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2 text-center">
+              <div className="text-[10px] font-black uppercase tracking-wider text-amber-800">Entrance Writing</div>
+              <div className="text-lg font-black text-amber-900 tabular-nums">{kindCounts.entrance}</div>
+            </div>
+            <div className="rounded-xl border border-purple-200 bg-purple-50/80 px-3 py-2 text-center">
+              <div className="text-[10px] font-black uppercase tracking-wider text-purple-800">Final Writing</div>
+              <div className="text-lg font-black text-purple-900 tabular-nums">{kindCounts.final}</div>
+            </div>
+            <div className="rounded-xl border border-sky-200 bg-sky-50/80 px-3 py-2 text-center">
+              <div className="text-[10px] font-black uppercase tracking-wider text-sky-800">Support Writing</div>
+              <div className="text-lg font-black text-sky-900 tabular-nums">{kindCounts.support}</div>
+            </div>
+          </div>
         </div>
       )}
 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-center">
           {filters.map((f) => (
             <button
               key={f.id}
@@ -308,6 +439,18 @@ export function WritingGradingSection() {
               <span className="ml-1.5 opacity-80">({f.count})</span>
             </button>
           ))}
+          {isKhanhThi ? (
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value as WritingTaskFilter)}
+              className="h-10 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-bold text-zinc-700 outline-none focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+            >
+              <option value="all">Tất cả phân loại Writing</option>
+              <option value="entrance">Entrance Test Writing ({kindCounts.entrance})</option>
+              <option value="final">Final Test Writing ({kindCounts.final})</option>
+              <option value="support">Support Writing ({kindCounts.support})</option>
+            </select>
+          ) : null}
         </div>
 
         <input
@@ -339,12 +482,12 @@ export function WritingGradingSection() {
             <table className="w-full min-w-[1000px] text-left text-sm">
               <thead>
                 <tr className="border-b border-primary/10 bg-background text-[10px] font-black uppercase tracking-widest text-muted">
-                  <th className="px-4 py-3">DUE</th>
+                  <th className="px-4 py-3">Deadline chấm</th>
                   <th className="px-4 py-3">Tên học viên</th>
                   <th className="px-4 py-3 min-w-[140px]">Grader Chấm bài</th>
                   <th className="px-4 py-3">Gmail</th>
                   <th className="px-4 py-3">Bài làm (BCB)</th>
-                  <th className="px-4 py-3">Dạng</th>
+                  <th className="px-4 py-3">Phân loại</th>
                   <th className="px-4 py-3">Tổng W</th>
                   <th className="px-4 py-3">Task 1</th>
                   <th className="px-4 py-3">Task 2</th>
@@ -359,7 +502,35 @@ export function WritingGradingSection() {
                     key={row.id}
                     className="border-b border-primary/5 hover:bg-primary-soft/20 text-xs font-semibold"
                   >
-                    <td className="px-4 py-3 tabular-nums text-muted">{row.dueDate || "—"}</td>
+                    <td className="px-4 py-3 tabular-nums">
+                      {(() => {
+                        const deadline = getWritingDeadlineStatus(row);
+                        return (
+                          <div className="space-y-0.5">
+                            <div
+                              className={
+                                deadline.isOverdue && row.status !== "graded"
+                                  ? "font-bold text-rose-600"
+                                  : deadline.daysLate > 0
+                                    ? "font-bold text-rose-600"
+                                    : "text-muted"
+                              }
+                            >
+                              {deadline.dueDate}
+                            </div>
+                            {row.status !== "graded" && deadline.isOverdue ? (
+                              <div className="text-[10px] font-bold text-rose-500">
+                                Trễ {deadline.daysLate} ngày
+                              </div>
+                            ) : row.status !== "graded" && deadline.daysRemaining <= 2 ? (
+                              <div className="text-[10px] font-bold text-amber-600">
+                                Còn {deadline.daysRemaining} ngày
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td className="px-4 py-3 font-bold text-foreground">{resolveStudentName(row)}</td>
                     <td className="px-4 py-3">
                       {isKhanhThi ? (
@@ -401,7 +572,28 @@ export function WritingGradingSection() {
                         <span className="text-zinc-400 text-[11px] italic">Chưa có link</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-zinc-600">{row.type || (row.source === "final" ? "Final" : row.source === "entrance" ? "Entrance" : "Support")}</td>
+                    <td className="px-4 py-3">
+                      {(() => {
+                        const kind = resolveRowWritingKind(row);
+                        const label = resolveRowTypeLabel(row);
+                        const by = resolveSubmittedByRole(row);
+                        return (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span
+                              className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold ${graderTaskKindTone(kind)}`}
+                            >
+                              {label}
+                            </span>
+                            <span
+                              className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold ${submittedByRoleTone(by)}`}
+                              title="Nguồn người nộp / tạo task"
+                            >
+                              {SUBMITTED_BY_ROLE_LABEL[by]}
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td className="px-4 py-3 font-black text-secondary text-sm">
                       {row.score ? formatBandScore(row.score) : "—"}
                     </td>
@@ -502,7 +694,9 @@ export function WritingGradingSection() {
       {activeRow && activeId === activeRow.id ? (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/40 p-4 sm:items-center">
           <div
-            className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-premium"
+            className={`w-full rounded-2xl bg-white p-6 shadow-premium ${
+              activeNeedsCriteria ? "max-w-2xl max-h-[90vh] overflow-y-auto" : "max-w-xl"
+            }`}
             role="dialog"
             aria-labelledby="grading-modal-title"
           >
@@ -526,13 +720,14 @@ export function WritingGradingSection() {
               </label>
 
               <label className="block">
-                <span className="text-xs font-bold uppercase tracking-wider text-muted">Hạn nộp (Due)</span>
+                <span className="text-xs font-bold uppercase tracking-wider text-muted">
+                  Deadline chấm ({WRITING_GRADING_DEADLINE_DAYS} ngày từ lúc nộp)
+                </span>
                 <input
                   type="text"
-                  value={dueDraft}
-                  onChange={(e) => setDueDraft(e.target.value)}
-                  placeholder="vd. 03/06"
-                  className="mt-1 h-10 w-full rounded-xl border border-primary/15 px-3 text-sm font-semibold outline-none focus:border-primary/45"
+                  readOnly
+                  value={dueDraft || resolveWritingDueDate(activeRow)}
+                  className="mt-1 h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-sm font-semibold text-zinc-700 outline-none"
                 />
               </label>
 
@@ -611,6 +806,84 @@ export function WritingGradingSection() {
                   className="mt-1 h-10 w-full rounded-xl border border-primary/15 px-3 text-sm font-semibold outline-none focus:border-primary/45"
                 />
               </label>
+
+              {activeNeedsCriteria && (
+                <div className="md:col-span-2 space-y-4 rounded-xl border border-amber-200 bg-amber-50/40 p-4">
+                  <div className="text-[11px] font-black uppercase tracking-wider text-amber-900">
+                    Điểm thành phần Writing → BCB (Entrance / Final)
+                  </div>
+                  <p className="text-xs text-zinc-500 font-medium -mt-2">
+                    Nhập 4 tiêu chí Task 1 &amp; Task 2 — đồng bộ vào Bảng Chẩn Bệnh học viên (Sale không điền W).
+                  </p>
+                  <div>
+                    <div className="text-xs font-bold text-zinc-700 mb-2">
+                      Task 1 — band{" "}
+                      <span className="text-primary tabular-nums">
+                        {formatBandScore(resolveWritingBands(criteriaDraft).task1Band) || "—"}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {WRITING_TASK1_CRITERIA.map((c) => (
+                        <label key={c.key} className="block">
+                          <span className="text-[10px] font-bold text-zinc-500 uppercase">{c.label}</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={9}
+                            step={0.5}
+                            value={criteriaDraft.task1[c.key] || ""}
+                            onChange={(e) =>
+                              applyCriteriaAndScore({
+                                ...criteriaDraft,
+                                task1: {
+                                  ...criteriaDraft.task1,
+                                  [c.key]: Number(e.target.value) || 0,
+                                },
+                              })
+                            }
+                            className="mt-1 h-9 w-full rounded-lg border border-zinc-200 px-2 text-sm font-bold tabular-nums outline-none focus:border-primary"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-zinc-700 mb-2">
+                      Task 2 — band{" "}
+                      <span className="text-primary tabular-nums">
+                        {formatBandScore(resolveWritingBands(criteriaDraft).task2Band) || "—"}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {WRITING_TASK2_CRITERIA.map((c) => (
+                        <label key={c.key} className="block">
+                          <span className="text-[10px] font-bold text-zinc-500 uppercase">{c.label}</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={9}
+                            step={0.5}
+                            value={criteriaDraft.task2[c.key] || ""}
+                            onChange={(e) =>
+                              applyCriteriaAndScore({
+                                ...criteriaDraft,
+                                task2: {
+                                  ...criteriaDraft.task2,
+                                  [c.key]: Number(e.target.value) || 0,
+                                },
+                              })
+                            }
+                            className="mt-1 h-9 w-full rounded-lg border border-zinc-200 px-2 text-sm font-bold tabular-nums outline-none focus:border-primary"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-zinc-500 font-medium">
+                    Overall W tự tính: (Task1 + Task2×2) / 3 — có thể chỉnh tay ô Tổng điểm bên dưới.
+                  </p>
+                </div>
+              )}
 
               <label className="block">
                 <span className="text-xs font-bold uppercase tracking-wider text-muted">Tổng điểm W</span>

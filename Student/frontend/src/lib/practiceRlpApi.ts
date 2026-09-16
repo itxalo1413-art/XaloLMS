@@ -29,32 +29,31 @@ export function canUsePracticeRlpApi(): boolean {
 export function canEditPracticeClassRlp(user?: AuthUser | null): boolean {
   const u = user ?? getCachedAuthUser();
   if (!u) return false;
-  const nameLower = u.name.toLowerCase();
-  const emailLower = u.email.toLowerCase();
-  // Strict: only Giáo viên Thanh Tâm (GV role) and Học vụ Khánh Thi (ACA role)
+  const nameLower = (u.name || "").toLowerCase();
+  const emailLower = (u.email || "").toLowerCase();
+  // Giáo viên: Chỉ Giáo viên Minh Tâm (không áp dụng cho Thanh Tâm)
   if (u.role === "GV") {
-    return nameLower.includes("thanh tâm") || emailLower.includes("thanhtam");
-  }
-  if (u.role === "ACA") {
     return (
-      nameLower.includes("khánh thi") ||
-      nameLower.includes("khanh thi") ||
-      emailLower.includes("khanhthi")
+      nameLower.includes("minh tâm") ||
+      nameLower.includes("minh tam") ||
+      emailLower.includes("minhtam")
     );
+  }
+  // Học vụ: Tất cả học vụ (ACA role)
+  if (u.role === "ACA") {
+    return true;
   }
   return false;
 }
 
 /**
- * Students (HS) can view their own Practice RLP.
- * Teachers/ACA can only view if they are Thanh Tâm or Khánh Thi.
+ * Học viên (HS) xem bảng RLP lớp luyện đề của cô Minh Tâm.
+ * Học vụ (ACA) và Giáo viên Minh Tâm (GV) xem + chỉnh sửa.
  */
 export function canViewPracticeClassRlp(user?: AuthUser | null): boolean {
   const u = user ?? getCachedAuthUser();
   if (!u) return false;
-  // Students always see their own RLP
   if (u.role === "HS") return true;
-  // Teacher/ACA: only Thanh Tâm & Khánh Thi
   return canEditPracticeClassRlp(u);
 }
 
@@ -120,10 +119,39 @@ export async function fetchPracticeRlpForTeacher(
   return parseJson(response);
 }
 
+export type PracticeRlpStudentOption = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+/** Teacher/ACA: danh sách HV đã đăng ký / có RLP luyện đề */
+export async function fetchPracticeRlpStudentsForTeacher(): Promise<
+  PracticeRlpStudentOption[]
+> {
+  const response = await apiFetch("/api/teacher/practice-rlp/students", {
+    method: "GET",
+  });
+  return parseJson(response);
+}
+
 /** Student: Fetch own Practice RLP sessions */
 export async function fetchPracticeRlpForStudent(): Promise<PracticeRlpSession[]> {
   const response = await apiFetch("/api/student/practice-rlp", { method: "GET" });
   return parseJson(response);
+}
+
+/** Student: Mark homework as submitted / not submitted */
+export async function updatePracticeRlpHomeworkForStudent(
+  no: number,
+  payload: { homeworkStatus: HomeworkStatus },
+): Promise<PracticeRlpSession> {
+  const response = await apiFetch(`/api/student/practice-rlp/${no}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  const data = await parseJson<{ session: PracticeRlpSession }>(response);
+  return data.session;
 }
 
 /** Teacher/ACA: Add a new session to a student's Practice RLP */

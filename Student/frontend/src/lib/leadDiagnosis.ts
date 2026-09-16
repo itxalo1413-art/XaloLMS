@@ -1,9 +1,7 @@
 import {
-  ENTRANCE_BCB_GRAMMAR,
   ENTRANCE_BCB_LISTENING,
   ENTRANCE_BCB_READING,
   computeBcbErrorRate,
-  type BcbGrammarRow,
   type BcbQuestionTypeRow,
 } from "@/lib/guestBcbDiagnosis";
 import type { GuestDiagnosisRecord } from "@/lib/guestDiagnosisStore";
@@ -45,8 +43,6 @@ export function emptyLeadDiagnosis(lead: GuestDiagnosisLead): LeadDiagnosisRecor
     },
     writingSummary: { task1: "", task2: "" },
     writingLinks: { task1: "", task2: "" },
-    listeningLink: "",
-    readingLink: "",
     speakingCriteria: {
       fluencyCoherence: 0,
       lexicalResource: 0,
@@ -58,7 +54,6 @@ export function emptyLeadDiagnosis(lead: GuestDiagnosisLead): LeadDiagnosisRecor
     skillSummaries: { listening: "", reading: "", speaking: "" },
     bcbListening: cloneRows(ENTRANCE_BCB_LISTENING),
     bcbReading: cloneRows(ENTRANCE_BCB_READING),
-    bcbGrammar: cloneRows(ENTRANCE_BCB_GRAMMAR),
     listeningCorrect: 0,
     listeningTotal: 40,
     readingCorrect: 0,
@@ -80,15 +75,6 @@ function mergeQuestionRows(
     merged.errorRate = computeBcbErrorRate(merged.correct, merged.total, merged.errorRate ?? 0);
     return merged;
   });
-}
-
-function mergeGrammarRows(
-  saved: BcbGrammarRow[] | undefined,
-  fallback: BcbGrammarRow[],
-): BcbGrammarRow[] {
-  if (!saved?.length) return cloneRows(fallback);
-  const byId = new Map(saved.map((r) => [r.id, r]));
-  return fallback.map((base) => ({ ...base, ...(byId.get(base.id) ?? {}) }));
 }
 
 export function normalizeLeadDiagnosis(
@@ -120,7 +106,6 @@ export function normalizeLeadDiagnosis(
     speakingCriteria: { ...base.speakingCriteria, ...raw.speakingCriteria },
     bcbListening: mergeQuestionRows(raw.bcbListening, ENTRANCE_BCB_LISTENING),
     bcbReading: mergeQuestionRows(raw.bcbReading, ENTRANCE_BCB_READING),
-    bcbGrammar: mergeGrammarRows(raw.bcbGrammar, ENTRANCE_BCB_GRAMMAR),
     listeningCorrect: Number(raw.listeningCorrect) || 0,
     listeningTotal: Number(raw.listeningTotal) || 40,
     readingCorrect: Number(raw.readingCorrect) || 0,

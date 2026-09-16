@@ -10,6 +10,10 @@ export class StudentProfileStore {
 
   @Prop({ type: Object, required: true, default: {} })
   profileData: Record<string, unknown>;
+
+  /** BCB đầu vào do Sale/ACA lưu — học viên đọc ở Thông tin học viên. */
+  @Prop({ type: Object, default: null })
+  diagnosisData: Record<string, unknown> | null;
 }
 
 export const StudentProfileStoreSchema =

@@ -25,6 +25,14 @@ export class AcaClass {
   @Prop({ trim: true, default: '' })
   openDate: string;
 
+  /**
+   * Đợt RLP gắn với ngày khai giảng khóa (openDate).
+   * Đổi openDate (khai giảng mới) → đổi rlpCohortKey → store RLP mới.
+   * Chuyển chặng (đổi phaseStartDate) → giữ nguyên.
+   */
+  @Prop({ trim: true, default: '' })
+  rlpCohortKey: string;
+
   @Prop({ trim: true, default: '' })
   teacher: string;
 
@@ -57,6 +65,39 @@ export class AcaClass {
   /** Số ngày thời lượng chặng để chiếu lịch custom */
   @Prop({ type: Number })
   phaseDurationDays?: number;
+
+  /** Phòng học / Zoom room — theo từng lớp */
+  @Prop({ trim: true, default: '' })
+  room: string;
+
+  /** Mật khẩu Zoom lớp */
+  @Prop({ trim: true, default: '' })
+  zoomPassword: string;
+
+  /** Link Zoom họp lớp */
+  @Prop({ trim: true, default: '' })
+  zoomLink: string;
+
+  /**
+   * Lịch học dạng text (mỗi dòng một slot), ví dụ:
+   * "Thứ 3: 19h45 - 21h30"
+   */
+  @Prop({ trim: true, default: '' })
+  schedule: string;
+
+  /** Link thư mục / tài nguyên theo lớp (RLP, bài giảng, bài tập, khảo sát…) */
+  @Prop({
+    type: [
+      {
+        id: { type: String, required: true },
+        label: { type: String, required: true },
+        value: { type: String, default: '' },
+        url: { type: String, default: '' },
+      },
+    ],
+    default: [],
+  })
+  links: { id: string; label: string; value: string; url: string }[];
 }
 
 export const AcaClassSchema = SchemaFactory.createForClass(AcaClass);

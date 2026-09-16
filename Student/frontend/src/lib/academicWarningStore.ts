@@ -27,10 +27,14 @@ export interface AcademicWarningRecord {
   studentEmail?: string;
   classId: string;
   className: string;
+  /** Mã lớp ngắn (M357C2) — ưu tiên hiển thị hơn className đầy đủ. */
+  classCode?: string;
   teacherName: string;
   courseDurationMonths: number; // usually 3 months
   checkpointPhase: string; // "Chặng 1 (1 nửa khóa học - 1.5 tháng)"
   totalSessionsElapsed: number; // e.g. 12 or 14 sessions
+  /** Tổng buổi RLP của lớp/đợt — ngưỡng BTVN = 20% buổi học. */
+  totalClassSessions?: number;
   absentCount: number; // e.g. 5 or 6
   attendanceRate: number; // percentage
   homeworkSubmitted: number; // e.g. 8
@@ -48,20 +52,22 @@ export interface AcademicWarningRecord {
   updatedAt?: string;
   /** Ngày khai giảng / bắt đầu học (dd/mm/yyyy) — dùng để xét đủ 1 chặng */
   classOpenDate?: string;
-  /** true khi đã học đủ 1 chặng (≈ 8 buổi) */
+  /** true khi đã học đủ 1 chặng (18 buổi) */
   firstStageCompleted?: boolean;
 }
 
-/** Khóa 3 tháng = 2 chặng; 1 chặng = nửa khóa ≈ 1.5 tháng. */
+/** Khóa học phần = 2 chặng; 1 chặng = 18 buổi / ≈ 1.5 tháng. */
 export const COURSE_DURATION_MONTHS = 3;
 export const FIRST_STAGE_MONTHS = 1.5;
 export const FIRST_STAGE_DAYS = 46; // ~1.5 * 30.4
-export const FIRST_STAGE_SESSIONS = 8; // 1 chặng = 8 buổi
-export const FULL_COURSE_SESSIONS = 16; // 2 chặng = 16 buổi
+export const FIRST_STAGE_SESSIONS = 18; // 1 chặng = 18 buổi
+export const FULL_COURSE_SESSIONS = 36; // 2 chặng = 36 buổi RLP
 /**
- * Ngưỡng cảnh báo BTVN: số deadline đã tới (≤ ngày hiện tại) mà học viên chưa hoàn thành.
- * Không còn dùng % nộp bài.
+ * Ngưỡng cảnh báo BTVN: số deadline đã tới (≤ hôm nay) chưa hoàn thành
+ * ≥ 20% tổng buổi học của lớp (mỗi lớp số buổi có thể khác nhau).
  */
+export const HOMEWORK_UNFINISHED_OF_SESSIONS_RATE = 0.2;
+/** @deprecated dùng homeworkUnfinishedWarningThreshold(totalClassSessions) */
 export const HOMEWORK_UNFINISHED_WARNING_THRESHOLD = 4;
 /** Vắng 3 buổi: hệ thống tự gửi noti cho học viên (không lên bảng học vụ). */
 export const ABSENT_STUDENT_NOTI_THRESHOLD = 3;
@@ -69,6 +75,19 @@ export const ABSENT_STUDENT_NOTI_THRESHOLD = 3;
 export const ABSENT_ACA_TABLE_THRESHOLD = 4;
 /** @deprecated dùng ABSENT_ACA_TABLE_THRESHOLD */
 export const ABSENT_WARNING_THRESHOLD = ABSENT_ACA_TABLE_THRESHOLD;
+
+/** Số buổi chưa nộp tối thiểu để cảnh báo = ceil(20% × tổng buổi lớp). */
+export function homeworkUnfinishedWarningThreshold(
+  totalClassSessions?: number | null,
+  classCode?: string | null,
+): number {
+  const fromClass = Math.max(0, Math.floor(Number(totalClassSessions) || 0));
+  const n =
+    fromClass > 0
+      ? fromClass
+      : requiredFullCourseSessions(classCode || undefined);
+  return Math.max(1, Math.ceil(n * HOMEWORK_UNFINISHED_OF_SESSIONS_RATE));
+}
 
 export function parseAcademicDate(dateStr?: string | null): Date | null {
   if (!dateStr) return null;
@@ -115,7 +134,7 @@ export function hasCompletedFirstStage(input: {
 
   const sessionsNeeded =
     input.phaseDurationDays && input.phaseDurationDays > 0
-      ? Math.max(8, Math.round((input.phaseDurationDays / 7) * 2))
+      ? Math.max(FIRST_STAGE_SESSIONS, Math.round((input.phaseDurationDays / 7) * 2))
       : FIRST_STAGE_SESSIONS;
   if ((input.totalSessionsElapsed ?? 0) >= sessionsNeeded) return true;
 
@@ -200,15 +219,24 @@ export function unfinishedHomeworkCount(
   return Math.max(0, (homeworkTotal || 0) - (homeworkSubmitted || 0));
 }
 
-/** Cảnh báo BTVN khi ≥ 4 deadline đã tới mà chưa hoàn thành (tính từ ngày hiện tại). */
-export function shouldWarnHomework(unfinishedCount: number): boolean {
-  return unfinishedCount >= HOMEWORK_UNFINISHED_WARNING_THRESHOLD;
+/** Cảnh báo BTVN khi chưa nộp ≥ 20% tổng buổi học của lớp. */
+export function shouldWarnHomework(
+  unfinishedCount: number,
+  totalClassSessions?: number | null,
+  classCode?: string | null,
+): boolean {
+  return (
+    unfinishedCount >=
+    homeworkUnfinishedWarningThreshold(totalClassSessions, classCode)
+  );
 }
 
 export function buildWarningTypes(
   absentCount: number,
   homeworkSubmitted: number,
   homeworkTotal: number,
+  totalClassSessions?: number | null,
+  classCode?: string | null,
 ): WarningType[] {
   const types: WarningType[] = [];
   if (shouldWarnAbsent(absentCount)) types.push("absent_exceeded");
@@ -216,6 +244,8 @@ export function buildWarningTypes(
   if (
     shouldWarnHomework(
       unfinishedHomeworkCount(homeworkSubmitted, homeworkTotal),
+      totalClassSessions,
+      classCode,
     )
   ) {
     types.push("homework_insufficient");
@@ -235,6 +265,8 @@ export function normalizeAcademicWarning(w: AcademicWarningRecord): AcademicWarn
     w.absentCount,
     w.homeworkSubmitted,
     w.homeworkTotal,
+    w.totalClassSessions,
+    w.classCode,
   );
   return { ...w, firstStageCompleted, warningTypes };
 }

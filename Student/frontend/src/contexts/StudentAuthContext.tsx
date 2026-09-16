@@ -10,7 +10,7 @@ import {
   getAuthBypassUser,
   getAuthToken,
   getCachedAuthUser,
-  homePathForRole,
+  homePathForUser,
   isAuthDisabled,
   isAuthSessionError,
   syncSessionCookie,
@@ -84,10 +84,16 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
         cacheAuthUser(me);
         setUser(me);
 
-        const home = homePathForRole(me.role);
-        const onStudentPath = !pathname.startsWith("/teacher") && !pathname.startsWith("/aca");
+        const home = homePathForUser(me);
+        const onStudentPath =
+          !pathname.startsWith("/teacher") &&
+          !pathname.startsWith("/aca") &&
+          !pathname.startsWith("/grader") &&
+          !pathname.startsWith("/sale");
         const onTeacherPath = pathname.startsWith("/teacher");
         const onAcaPath = pathname.startsWith("/aca");
+        const onGraderPath = pathname.startsWith("/grader");
+        const onSalePath = pathname.startsWith("/sale");
 
         if (me.role === "HS" && !onStudentPath) {
           router.replace("/");
@@ -97,7 +103,16 @@ export function StudentAuthProvider({ children }: { children: React.ReactNode })
           router.replace(home);
           return;
         }
-        if (me.role === "ACA" && !onAcaPath) {
+        if (me.role === "SALE" && !onSalePath) {
+          router.replace(home);
+          return;
+        }
+        if (me.role === "ACA" && !onAcaPath && !onGraderPath) {
+          // legacy grader emails still ACA until re-seed → homePath handles
+          router.replace(home);
+          return;
+        }
+        if (me.role === "GRADER" && !onGraderPath) {
           router.replace(home);
         }
       } catch (err) {

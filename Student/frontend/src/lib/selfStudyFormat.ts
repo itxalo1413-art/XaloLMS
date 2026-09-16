@@ -28,6 +28,44 @@ export function writingStatusLabel(status: WritingSubmissionStatus): string {
   return WRITING_STATUS_LABEL[status];
 }
 
+export type SubmittedByRole = "sale" | "student" | "staff";
+
+export const SUBMITTED_BY_ROLE_LABEL: Record<SubmittedByRole, string> = {
+  sale: "Sale nộp",
+  student: "HV nộp",
+  staff: "Staff",
+};
+
+export function resolveSubmittedByRole(row: {
+  submittedByRole?: string;
+  source?: string;
+  entranceBookingId?: string;
+  finalTestId?: string;
+}): SubmittedByRole {
+  const stored = String(row.submittedByRole || "").trim();
+  if (stored === "sale" || stored === "student" || stored === "staff") return stored;
+  if (row.entranceBookingId || row.source === "entrance" || row.source === "entrance_test") {
+    return "sale";
+  }
+  if (
+    row.source === "final" ||
+    row.source === "final_test" ||
+    row.finalTestId ||
+    row.source === "support" ||
+    row.source === "support_test" ||
+    row.source === "student"
+  ) {
+    return "student";
+  }
+  return "staff";
+}
+
+export function submittedByRoleTone(role: SubmittedByRole): string {
+  if (role === "sale") return "bg-violet-50 text-violet-700 border-violet-200";
+  if (role === "student") return "bg-sky-50 text-sky-700 border-sky-200";
+  return "bg-zinc-50 text-zinc-600 border-zinc-200";
+}
+
 export function formatIsoDateTimeVi(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
@@ -70,7 +108,16 @@ export function speakingResultScore(row: MockTestRequest): string {
 
 export function speakingResultExamLink(row: MockTestRequest): string | null {
   const url = formatExternalUrl(row.examLink);
-  return url || null;
+  if (!url) return null;
+  // Meet URL is shown in the Google Meet column, not "Link đề".
+  if (/meet\.google\.com/i.test(url)) return null;
+  return url;
+}
+
+export function speakingResultMeetLink(row: MockTestRequest): string | null {
+  const url = formatExternalUrl(row.examLink);
+  if (url && /meet\.google\.com/i.test(url)) return url;
+  return null;
 }
 
 export function isSpeakingMockTest(skill: string): boolean {
@@ -91,6 +138,47 @@ export function resolveGraderTaskKind(input: {
   if (src === "entrance" || skill.includes("entrance") || type === "entrance") return "Entrance";
   if (src === "final" || skill.includes("final") || type === "final") return "Final";
   return "Support";
+}
+
+export type WritingTaskFilter = "all" | "support" | "entrance" | "final";
+
+export function resolveWritingTaskKind(input: {
+  source?: string;
+  type?: string;
+  entranceBookingId?: string;
+  finalTestId?: string;
+}): GraderTaskKind {
+  const src = (input.source || "").toLowerCase();
+  const type = (input.type || "").toLowerCase();
+  if (
+    src === "entrance" ||
+    Boolean(input.entranceBookingId?.trim()) ||
+    type === "entrance" ||
+    type.includes("entrance")
+  ) {
+    return "Entrance";
+  }
+  if (
+    src === "final" ||
+    Boolean(input.finalTestId?.trim()) ||
+    type === "final" ||
+    type.includes("final")
+  ) {
+    return "Final";
+  }
+  return "Support";
+}
+
+export function writingTaskKindLabel(kind: GraderTaskKind): string {
+  if (kind === "Entrance") return "Entrance Test Writing";
+  if (kind === "Final") return "Final Test Writing";
+  return "Support Writing";
+}
+
+export function graderTaskKindTone(kind: GraderTaskKind): string {
+  if (kind === "Entrance") return "bg-amber-50 text-amber-800 border-amber-200";
+  if (kind === "Final") return "bg-purple-50 text-purple-700 border-purple-200";
+  return "bg-sky-50 text-sky-700 border-sky-200";
 }
 
 export function mockTestStatusTone(
@@ -118,7 +206,7 @@ export function getDemoSpeakingMockTests(
       id: "speaking-demo-1",
       studentId,
       studentName,
-      skill: "Speaking Mock Test",
+      skill: "Support Speaking",
       day: 5,
       month: 4,
       year: 2026,

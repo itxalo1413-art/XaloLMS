@@ -6,8 +6,9 @@ import {
   STUDY_PREVIOUS_BAND_OPTIONS,
   STUDY_WEEKLY_HOURS_OPTIONS,
 } from "@/lib/studentProfileStudyOptions";
-import { DEFAULT_STUDENT_ID } from "@/lib/studentIds";
 import { getRosterStudent, resolveActiveStudentId } from "@/lib/studentRoster";
+import { fetchAcaStudents } from "@/lib/acaManagementApi";
+import { getCachedAuthUser } from "@/lib/auth";
 
 export type StudentProfile = {
   name: string;
@@ -22,11 +23,53 @@ export type StudentProfile = {
   ieltsMeaning: (typeof STUDY_IELTS_MEANING_OPTIONS)[number];
   previousBand: (typeof STUDY_PREVIOUS_BAND_OPTIONS)[number];
   focusSkills: FocusSkill[];
+  scores?: {
+    listening: number;
+    reading: number;
+    writing: number;
+    speaking: number;
+    overall: number;
+  };
+  aim?: string;
+  examDate?: string;
 };
 
 export const STUDENT_PROFILE_STORAGE_KEY = "xalo.student.profile.v1";
-export const STUDENT_PROFILES_STORAGE_KEY = "xalo.student.profiles.v2";
+export const STUDENT_PROFILES_STORAGE_KEY = "xalo.student.profiles.v3";
 export const STUDENT_PROFILE_UPDATE_EVENT = "xalo-student-profile-updated";
+
+/** Thời điểm học viên vừa ghi Study Habits / Learner's Situation trên máy. */
+let studyHabitsLocalWriteAt = 0;
+
+export function noteStudyHabitsLocalWrite() {
+  studyHabitsLocalWriteAt = Date.now();
+}
+
+export function getStudyHabitsLocalWriteAt() {
+  return studyHabitsLocalWriteAt;
+}
+
+export const STUDY_HABIT_KEYS = [
+  "method",
+  "weeklyHours",
+  "classEnvironment",
+  "ieltsMeaning",
+  "previousBand",
+  "focusSkills",
+] as const;
+
+export function pickStudyHabits(
+  src: Pick<StudentProfile, (typeof STUDY_HABIT_KEYS)[number]>,
+): Pick<StudentProfile, (typeof STUDY_HABIT_KEYS)[number]> {
+  return {
+    method: src.method,
+    weeklyHours: src.weeklyHours,
+    classEnvironment: src.classEnvironment,
+    ieltsMeaning: src.ieltsMeaning,
+    previousBand: src.previousBand,
+    focusSkills: src.focusSkills,
+  };
+}
 
 export const DEFAULT_STUDENT_PROFILE: StudentProfile = {
   name: "",
@@ -41,6 +84,15 @@ export const DEFAULT_STUDENT_PROFILE: StudentProfile = {
   ieltsMeaning: STUDY_IELTS_MEANING_OPTIONS[0],
   previousBand: STUDY_PREVIOUS_BAND_OPTIONS[0],
   focusSkills: ["Listening"],
+  scores: {
+    listening: 0,
+    reading: 0,
+    writing: 0,
+    speaking: 0,
+    overall: 0,
+  },
+  aim: "",
+  examDate: "",
 };
 
 type ProfilesMap = Record<string, StudentProfile>;
@@ -67,28 +119,13 @@ function buildDefaultProfile(studentId: string): StudentProfile {
   const roster = getRosterStudent(studentId);
   const cached = dynamicStudentCache.get(studentId);
 
-  const isDemoDefault = studentId === DEFAULT_STUDENT_ID || studentId === "student_1";
-
-  const name =
-    cached?.name ||
-    roster?.name ||
-    (isDemoDefault ? "Dương Ngọc Khôi Nguyên" : "Học viên mới");
-  const email =
-    cached?.email ||
-    roster?.email ||
-    (isDemoDefault ? "nguyenduong939705@gmail.com" : "");
-  const phone =
-    cached?.phone ||
-    roster?.phone ||
-    (isDemoDefault ? "0947 188 794" : "");
-
   return {
     ...DEFAULT_STUDENT_PROFILE,
-    name,
-    email,
-    phone,
-    dob: isDemoDefault ? "20/08/2006" : "",
-    zodiac: isDemoDefault ? "Sư Tử" : "",
+    name: cached?.name || roster?.name || "",
+    email: cached?.email || roster?.email || "",
+    phone: cached?.phone || roster?.phone || "",
+    dob: "",
+    zodiac: "",
   };
 }
 
@@ -105,36 +142,15 @@ function mergeProfile(parsed: Partial<StudentProfile>, studentId: string): Stude
   return merged;
 }
 
-function migrateLegacyProfile(): ProfilesMap {
+function loadAllProfiles(): ProfilesMap {
   if (typeof window === "undefined") return {};
   try {
-    const raw = localStorage.getItem(STUDENT_PROFILE_STORAGE_KEY);
+    const raw = localStorage.getItem(STUDENT_PROFILES_STORAGE_KEY);
     if (!raw) return {};
-    const parsed = JSON.parse(raw) as Partial<StudentProfile>;
-    const migrated = {
-      [DEFAULT_STUDENT_ID]: mergeProfile(parsed, DEFAULT_STUDENT_ID),
-    };
-    localStorage.setItem(STUDENT_PROFILES_STORAGE_KEY, JSON.stringify(migrated));
-    return migrated;
+    return JSON.parse(raw) as ProfilesMap;
   } catch {
     return {};
   }
-}
-
-function loadAllProfiles(): ProfilesMap {
-  if (typeof window === "undefined") return {};
-  let map: ProfilesMap = {};
-  try {
-    const raw = localStorage.getItem(STUDENT_PROFILES_STORAGE_KEY);
-    if (raw) {
-      map = JSON.parse(raw) as ProfilesMap;
-    } else {
-      map = migrateLegacyProfile();
-    }
-  } catch {
-    map = migrateLegacyProfile();
-  }
-  return map;
 }
 
 export function getStudentProfile(studentId?: string): StudentProfile {
@@ -149,14 +165,21 @@ export function loadStudentProfileFromStorage(studentId?: string): StudentProfil
   return getStudentProfile(studentId);
 }
 
-import { updateAcaStudent, fetchAcaStudents } from "@/lib/acaManagementApi";
-
 export async function syncStudentProfileFromBackend(studentId?: string): Promise<StudentProfile> {
   const id = studentId ?? resolveActiveStudentId();
   if (typeof window === "undefined") return buildDefaultProfile(id);
   try {
     const students = await fetchAcaStudents();
-    const found = students.find((s) => s.id === id || s.email === id);
+    const user = getCachedAuthUser();
+    const email = (user?.email || "").trim().toLowerCase();
+    const name = (user?.name || "").trim().toLowerCase();
+    const found = students.find((s) => {
+      const sEmail = (s.email || "").trim().toLowerCase();
+      const sName = (s.name || "").trim().toLowerCase();
+      const nameFit = Boolean(name && sName && (sName === name || sName.includes(name) || name.includes(sName)));
+      const emailFit = Boolean(email && sEmail === email);
+      return nameFit && emailFit;
+    });
     if (found) {
       const all = loadAllProfiles();
       const merged = mergeProfile({
@@ -192,19 +215,6 @@ export function saveStudentProfile(profile: StudentProfile, studentId?: string):
   all[id] = merged;
   localStorage.setItem(STUDENT_PROFILES_STORAGE_KEY, JSON.stringify(all));
   dispatchProfileUpdate(id);
-
-  // Sync to backend DB
-  void updateAcaStudent(id, {
-    dob: merged.dob,
-    zodiac: merged.zodiac,
-    avatarUrl: merged.avatarUrl,
-    method: merged.method,
-    weeklyHours: merged.weeklyHours,
-    classEnvironment: merged.classEnvironment,
-    ieltsMeaning: merged.ieltsMeaning,
-    previousBand: merged.previousBand,
-    focusSkills: merged.focusSkills as any,
-  }).catch((err) => console.warn("Failed to persist student profile to backend DB", err));
 }
 
 /** @deprecated Use saveStudentProfile */

@@ -9,9 +9,11 @@ import {
   updateAcaStudent,
   createAcaStudent,
   deleteAcaStudent,
+  shortClassLabel,
   type AcaStudent,
   type AcaClass,
 } from "@/lib/acaManagementApi";
+import { confirmDialog } from "@/components/shared/ConfirmDialog";
 import { AcaXlsxImportModal, type ImportField } from "@/components/aca/AcaXlsxImportModal";
 
 const SCORE_IMPORT_FIELDS: ImportField[] = [
@@ -238,12 +240,18 @@ export default function DiemDauVaoCuoiKhoaPage() {
   };
 
   const handleDelete = async (studentId: string, name: string) => {
-    if (!confirm(`Bạn có chắc chắn muốn xóa học viên "${name}"?`)) return;
+    const ok = await confirmDialog({
+      title: "Xóa học viên",
+      message: `Bạn có chắc chắn muốn xóa học viên "${name}" không?\nThao tác này sẽ xóa hồ sơ học viên khỏi danh sách.`,
+      confirmText: "Đồng ý xóa",
+      cancelText: "Giữ lại",
+      variant: "danger",
+    });
+    if (!ok) return;
 
     try {
       await deleteAcaStudent(studentId);
       setStudents((prev) => prev.filter((s) => s.id !== studentId));
-      alert("Đã xóa học viên thành công.");
     } catch (err: any) {
       alert("Không xóa được học viên: " + err.message);
     }
@@ -359,13 +367,8 @@ export default function DiemDauVaoCuoiKhoaPage() {
         ) : null}
 
         {/* Stats */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <div className="text-[10px] font-bold uppercase text-zinc-500">Tổng số Lead</div>
-            <div className="mt-2 text-2xl font-black text-foreground">
-              {loading ? "..." : `${totalLeads} lead`}
-            </div>
-          </div>
+        <div className="grid gap-4 sm:grid-cols-1">
+
           <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
             <div className="text-[10px] font-bold uppercase text-zinc-500">Tổng số Học viên</div>
             <div className="mt-2 text-2xl font-black text-foreground">
@@ -478,7 +481,7 @@ export default function DiemDauVaoCuoiKhoaPage() {
                             <option value="">-- Chưa gán lớp (Guest) --</option>
                             {classes.map((c) => (
                               <option key={c.id} value={c.id}>
-                                {c.name}
+                                {shortClassLabel(c.classCode, c.name)}
                               </option>
                             ))}
                           </select>
@@ -784,7 +787,7 @@ export default function DiemDauVaoCuoiKhoaPage() {
                     <option value="">Không gán lớp (Tự do)</option>
                     {classes.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name}
+                        {shortClassLabel(c.classCode, c.name)}
                       </option>
                     ))}
                   </select>

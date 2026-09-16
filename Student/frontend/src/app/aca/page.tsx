@@ -3,24 +3,17 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getCachedAuthUser } from "@/lib/auth";
+import { GRADER_PATHS, isAcaAcademicHead, isGraderUser } from "@/lib/acaIdentity";
 
-export default function Home() {
+export default function AcaHomePage() {
   const router = useRouter();
 
   useEffect(() => {
     const user = getCachedAuthUser();
-    const name = (user?.name || "").trim().toLowerCase();
-    const email = (user?.email || "").trim().toLowerCase();
-
-    const isKhanhThi =
-      name === "lê nguyễn khánh thi" ||
-      name.includes("khánh thi") ||
-      email === "aca@xaloenglish.vn";
-
-    if (isKhanhThi) {
-      router.replace("/aca/quan-ly/lop-theo-thang");
+    if (isGraderUser(user) || !isAcaAcademicHead(user)) {
+      router.replace(GRADER_PATHS.home);
     } else {
-      router.replace("/aca/quan-ly/cham-writing");
+      router.replace("/aca/quan-ly/lop-theo-thang");
     }
   }, [router]);
 

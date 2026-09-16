@@ -7,7 +7,7 @@ export default function PhanTichPage() {
     <AcaLayout>
       <AcaTopbar
         title="Phân tích & báo cáo"
-        subtitle="Lượt xem, thời gian, nội dung hot/cold và so sánh theo môn — có lọc thời gian & drill-down demo."
+        subtitle="KPI vận hành thật: học viên, lớp, writing, speaking, luyện đề, Final."
       />
       <main className="mx-auto max-w-7xl px-6 py-6 pb-16 md:px-8">
         <AnalyticsSection />

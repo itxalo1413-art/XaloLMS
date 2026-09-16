@@ -7,10 +7,12 @@ import {
   resolvePracticeMeetingAccess,
   getStudentPracticeFolderUrl,
   saveStudentPracticeFolderUrl,
-  getSaturdayRotatedWeekNumber,
+  getPracticeExamWeekNumber,
   getPracticeSlotMaterialsUrl,
   savePracticeSlotMaterialsUrl,
+  getPracticeCurrentWeek,
   PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT,
+  PRACTICE_CLASS_UPDATE_EVENT,
   type PracticeSlotId,
 } from "@/lib/practiceClass";
 import { PracticeClassRlpTable } from "@/components/student/PracticeClassRlpTable";
@@ -33,6 +35,11 @@ type PracticeClassPanelProps = {
   onUnregisterSlot?: (slotId: PracticeSlotId) => void;
   onResetTest?: () => void;
   scoresRows?: PracticeScoreRow[];
+  examWeekNumber?: number;
+  /** Thông báo tuần từ ACA (ưu tiên hơn cảnh báo mặc định). */
+  weekAnnouncement?: string;
+  /** Link Meet/Zoom tuần từ ACA. */
+  weekMeetLink?: string;
   /** Student ID for RLP API */
   studentId?: string;
   /** RLP sessions for this student */
@@ -42,7 +49,7 @@ type PracticeClassPanelProps = {
    *  false = other GV — RLP section is completely hidden
    */
   showRlp?: boolean;
-  /** If true: show Add/Edit/Delete buttons (Thanh Tâm & Khánh Thi only) */
+  /** If true: show Add/Edit/Delete buttons (Minh Tâm & Học vụ) */
   canEditRlp?: boolean;
   onRlpAdd?: (payload: CreatePracticeRlpPayload) => Promise<void>;
   onRlpUpdate?: (no: number, payload: UpdatePracticeRlpPayload) => Promise<void>;
@@ -56,6 +63,9 @@ export function PracticeClassPanel({
   onUnregisterSlot,
   onResetTest,
   scoresRows,
+  examWeekNumber,
+  weekAnnouncement,
+  weekMeetLink,
   studentId = "",
   rlpSessions = [],
   showRlp = false,
@@ -66,8 +76,17 @@ export function PracticeClassPanel({
   onToggleHomework,
 }: PracticeClassPanelProps) {
   const { slots, weekRangeLabel } = usePracticeWeeklySchedule();
+  const weekNo = examWeekNumber ?? getPracticeExamWeekNumber();
+  const currentWeek = getPracticeCurrentWeek();
+  const announcement =
+    weekAnnouncement?.trim() || currentWeek?.announcement?.trim() || "";
+  const meetLink = weekMeetLink?.trim() || currentWeek?.linkMeet?.trim() || "";
+  const folderWeek =
+    currentWeek?.weekRange?.trim() || weekRangeLabel?.trim() || "";
   const [selectedSlotId, setSelectedSlotId] = useState<PracticeSlotId | null>(null);
-  const [folderUrl, setFolderUrl] = useState(() => getStudentPracticeFolderUrl(studentId));
+  const [folderUrl, setFolderUrl] = useState(() =>
+    getStudentPracticeFolderUrl(studentId, folderWeek || undefined),
+  );
   const [isEditingFolder, setIsEditingFolder] = useState(false);
   const [folderInput, setFolderInput] = useState("");
 
@@ -78,11 +97,17 @@ export function PracticeClassPanel({
   const [materialsSaving, setMaterialsSaving] = useState(false);
 
   useEffect(() => {
-    setFolderUrl(getStudentPracticeFolderUrl(studentId));
-    const onUpdate = () => setFolderUrl(getStudentPracticeFolderUrl(studentId));
+    setFolderUrl(getStudentPracticeFolderUrl(studentId, folderWeek || undefined));
+    setIsEditingFolder(false);
+    const onUpdate = () =>
+      setFolderUrl(getStudentPracticeFolderUrl(studentId, folderWeek || undefined));
     window.addEventListener(PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT, onUpdate);
-    return () => window.removeEventListener(PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT, onUpdate);
-  }, [studentId]);
+    window.addEventListener(PRACTICE_CLASS_UPDATE_EVENT, onUpdate);
+    return () => {
+      window.removeEventListener(PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT, onUpdate);
+      window.removeEventListener(PRACTICE_CLASS_UPDATE_EVENT, onUpdate);
+    };
+  }, [studentId, folderWeek]);
 
   const toggleSlot = (id: PracticeSlotId) => {
     if (!registeredSlotIds.has(id)) return;
@@ -91,7 +116,28 @@ export function PracticeClassPanel({
 
   return (
     <div className="space-y-4">
-      <PracticeClassWeeklyWarning />
+      <PracticeClassWeeklyWarning announcement={announcement} />
+
+      {meetLink ? (
+        <div className="rounded-2xl border border-primary/15 bg-primary-soft/40 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[10px] font-black uppercase tracking-widest text-primary">
+              Link vào lớp tuần này
+            </div>
+            <p className="mt-0.5 text-xs font-semibold text-muted truncate max-w-[min(100%,28rem)]">
+              {meetLink}
+            </p>
+          </div>
+          <a
+            href={meetLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-9 shrink-0 items-center rounded-xl bg-primary px-4 text-[10px] font-black uppercase tracking-widest text-white hover:bg-primary/90"
+          >
+            Mở Meet / Zoom
+          </a>
+        </div>
+      ) : null}
 
       {onResetTest ? (
         <div className="mt-3 flex justify-start">
@@ -207,14 +253,16 @@ export function PracticeClassPanel({
                         <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
                         Thông tin lớp học ({slot.platform})
                       </div>
-                      <a
-                        href={meeting.joinUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-3 py-1 text-xs font-black text-white hover:bg-emerald-800 transition-all shadow-2xs"
-                      >
-                        Vào lớp học ngay ↗
-                      </a>
+                      {meeting.joinUrl ? (
+                        <a
+                          href={meeting.joinUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-3 py-1 text-xs font-black text-white hover:bg-emerald-800 transition-all shadow-2xs"
+                        >
+                          Vào lớp học ngay
+                        </a>
+                      ) : null}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-semibold text-zinc-700 bg-emerald-50/70 p-2.5 rounded-lg border border-emerald-200/60">
@@ -225,23 +273,42 @@ export function PracticeClassPanel({
                       <div>
                         <span className="text-[10px] font-black uppercase text-emerald-800 block">Phòng học / ID & Pass:</span>
                         <span className="font-mono text-foreground font-bold">
-                          ID: {meeting.meetingId} · Pass: {meeting.password}
+                          ID: {meeting.meetingId || "—"} · Pass: {meeting.password || "—"}
                         </span>
                       </div>
+                      {meeting.meetLink ? (
+                        <div className="sm:col-span-2">
+                          <span className="text-[10px] font-black uppercase text-emerald-800 block">Link Meet / Zoom tuần:</span>
+                          <a
+                            href={meeting.meetLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-bold text-primary hover:underline break-all"
+                          >
+                            {meeting.meetLink}
+                          </a>
+                        </div>
+                      ) : null}
                     </div>
 
                     {/* 2 Cột: 1) Folder bài tập cá nhân & 2) Bộ đề & bài tập (Xoay đổi Thứ 7) */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-semibold text-zinc-700 bg-emerald-50/40 p-2.5 rounded-lg border border-emerald-200/50">
-                      {/* Column 1: Personal Homework Folder */}
+                      {/* Column 1: Personal Homework Folder (per week) */}
                       <div className="space-y-1">
-                        <span className="text-[10px] font-black uppercase text-emerald-800 block">1. Folder Bài Tập Cá Nhân:</span>
+                        <span className="text-[10px] font-black uppercase text-emerald-800 block">
+                          1. Folder cá nhân tuần này
+                          {folderWeek ? ` (${folderWeek})` : ""}:
+                        </span>
+                        <p className="text-[10px] font-medium text-zinc-500 leading-snug">
+                          Mỗi tuần một folder mới — không giữ link tuần trước.
+                        </p>
                         {isEditingFolder ? (
                           <div className="flex items-center gap-1.5 mt-1">
                             <input
                               type="text"
                               value={folderInput}
                               onChange={(e) => setFolderInput(e.target.value)}
-                              placeholder="Link Drive Folder..."
+                              placeholder="Link Drive Folder tuần này..."
                               className="h-8 flex-1 rounded-lg border border-zinc-300 bg-white px-2 text-[11px]"
                             />
                             <button
@@ -249,14 +316,11 @@ export function PracticeClassPanel({
                               disabled={folderSaving}
                               onClick={() => {
                                 void (async () => {
-                                  if (!folderInput.trim()) {
-                                    setIsEditingFolder(false);
-                                    return;
-                                  }
                                   setFolderSaving(true);
                                   try {
                                     await saveStudentPracticeFolderUrl(studentId, folderInput.trim(), {
                                       asTeacher: canEditRlp,
+                                      weekRange: folderWeek || undefined,
                                     });
                                     setFolderUrl(folderInput.trim());
                                     setIsEditingFolder(false);
@@ -289,23 +353,21 @@ export function PracticeClassPanel({
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 rounded-lg bg-emerald-800 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-emerald-900 transition-all"
                               >
-                                Mở Folder cá nhân
+                                Mở Folder tuần này
                               </a>
                             ) : (
-                              <span className="text-[11px] text-zinc-400 italic">Chưa cài link folder</span>
+                              <span className="text-[11px] text-zinc-400 italic">Chưa gắn folder tuần này</span>
                             )}
-                            {canEditRlp && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setFolderInput(folderUrl);
-                                  setIsEditingFolder(true);
-                                }}
-                                className="text-[10px] font-bold text-emerald-700 underline hover:text-emerald-900 cursor-pointer"
-                              >
-                                Đổi Link
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFolderInput(folderUrl);
+                                setIsEditingFolder(true);
+                              }}
+                              className="text-[10px] font-bold text-emerald-700 underline hover:text-emerald-900 cursor-pointer"
+                            >
+                              {folderUrl ? "Đổi link tuần này" : "Gắn link tuần này"}
+                            </button>
                           </div>
                         )}
                       </div>
@@ -317,7 +379,7 @@ export function PracticeClassPanel({
                         return (
                           <div className="space-y-1">
                             <span className="text-[10px] font-black uppercase text-emerald-800 block">
-                              2. Bộ Đề & Bài Tập (Đã cập nhật Đề Tuần {getSaturdayRotatedWeekNumber()}):
+                              2. Bộ Đề & Bài Tập (Đã cập nhật Đề Tuần {weekNo}):
                             </span>
                             {isEditingMat ? (
                               <div className="flex items-center gap-1.5 mt-1">
@@ -372,7 +434,7 @@ export function PracticeClassPanel({
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-emerald-800 transition-all"
                                 >
-                                  Mở Bộ Đề Tuần {getSaturdayRotatedWeekNumber()}
+                                  Mở Bộ Đề Tuần {weekNo}
                                 </a>
                                 {canEditRlp && (
                                   <button

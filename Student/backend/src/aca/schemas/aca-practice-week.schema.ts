@@ -55,6 +55,10 @@ export class AcaPracticeWeek {
 
   @Prop({ trim: true, default: '' })
   linkFolder: string; // Link Folder Bài Tập Cá Nhân và điểm mỗi tuần
+
+  /** Số đề tuần hiển thị cho học viên (vd. 38). */
+  @Prop({ default: 0 })
+  examWeekNumber: number;
 }
 
 export const AcaPracticeWeekSchema = SchemaFactory.createForClass(AcaPracticeWeek);

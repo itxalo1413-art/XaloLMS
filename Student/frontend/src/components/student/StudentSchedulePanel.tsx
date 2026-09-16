@@ -105,23 +105,23 @@ export function StudentSchedulePanel({
                     if (!isHighlighted) return;
                     setSelectedDay(selectedDay === day ? null : day);
                   }}
-                  className={`relative flex h-8 w-full items-center justify-center rounded-lg text-[11px] font-bold transition-all ${
+                  className={`relative flex h-8 w-full select-none items-center justify-center rounded-lg text-[11px] font-bold transition-colors duration-150 ${
                     isSelected ? "ring-2 ring-primary/35" : ""
                   } ${
                     isToday
-                      ? "z-10 scale-110 bg-sky-600 text-white font-black shadow-premium ring-2 ring-sky-300"
+                      ? "z-10 bg-sky-600 text-white font-black shadow-premium ring-2 ring-sky-300"
                       : sessionsOnDay.length > 0
                         ? sessionStyle
                         : isPracticeDay || isApprovedMock
                           ? "bg-info/15 text-info shadow-sm ring-1 ring-info/20"
                           : "text-foreground/50"
-                  } ${isHighlighted ? "cursor-pointer" : "cursor-default"}`}
+                  } ${isHighlighted ? "cursor-pointer hover:opacity-85" : "cursor-default"}`}
                 >
                   {day}
                   {(isApprovedMock || isPracticeDay) &&
                     !isToday &&
                     sessionsOnDay.length === 0 && (
-                    <div className="absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-info ring-2 ring-white" />
+                    <div className="pointer-events-none absolute -top-0.5 -right-0.5 h-1.5 w-1.5 rounded-full bg-info ring-2 ring-white" />
                   )}
                 </button>
               );
@@ -199,7 +199,7 @@ export function StudentSchedulePanel({
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1 text-xs font-black text-white hover:bg-emerald-800 transition-all shadow-2xs"
                       >
-                        Vào lớp học ngay ↗
+                        Vào lớp học ngay
                       </a>
                     </div>
                   </div>

@@ -69,7 +69,7 @@ export function PracticeClassRegistrationsSection() {
       <div>
         <h2 className="text-lg font-black text-foreground">Danh sách đăng ký</h2>
         <p className="mt-1 text-sm text-muted">
-          Học viên đã đăng ký từng buổi lớp luyện đề trên Hỗ trợ tự học.
+          Đăng ký lớp luyện đề theo tuần hiện tại (đồng bộ với Hỗ trợ tự học).
         </p>
       </div>
 

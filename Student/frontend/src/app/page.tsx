@@ -6,9 +6,9 @@ import { AVATAR_IMAGE_ACCEPT, isAllowedAvatarImageFile } from "@/lib/avatarImage
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   defaultStudyHabitForm,
+  isAllowedStudyValue,
   studyHabitOptionLists,
 } from "@/lib/studentProfileStudyOptions";
-import { BcbGrammarTable } from "@/components/diagnosis/BcbGrammarTable";
 import { BcbQuestionTypeTable } from "@/components/diagnosis/BcbQuestionTypeTable";
 import { SkillDiagIntro } from "@/components/diagnosis/SkillDiagIntro";
 import { WritingDiagIntro } from "@/components/diagnosis/WritingDiagIntro";
@@ -18,11 +18,13 @@ import { WritingTask1CriteriaPanel } from "@/components/diagnosis/WritingTask1Cr
 import { WritingTask2CriteriaPanel } from "@/components/diagnosis/WritingTask2CriteriaPanel";
 import { FocusSkillsSelfStudyHint } from "@/components/student/FocusSkillsSelfStudyHint";
 import { Panel } from "@/components/student/ui";
-import type { FocusSkill } from "@/lib/focusSkills";
+import { normalizeFocusSkills, type FocusSkill } from "@/lib/focusSkills";
 import { formatBandScore } from "@/lib/formatBandScore";
 import { useStudentDiagnosis } from "@/hooks/useStudentDiagnosis";
 import { useStudentProfileDisplay } from "@/hooks/useStudentProfileDisplay";
-import { saveStudentProfile, type StudentProfile } from "@/lib/studentProfile";
+import { saveStudentProfile, noteStudyHabitsLocalWrite, getStudentProfile, type StudentProfile } from "@/lib/studentProfile";
+import { updateStudentProfile } from "@/lib/studentProfileApi";
+import { saveStudentDiagnosis } from "@/lib/studentDiagnosisStore";
 
 type StudyHabitForm = Pick<
   StudentProfile,
@@ -30,6 +32,29 @@ type StudyHabitForm = Pick<
 >;
 
 const studyHabitOptions = studyHabitOptionLists;
+
+/** Chuẩn hoá ngày thi về YYYY-MM-DD (hỗ trợ cả dd/mm/yyyy). */
+function toExamIsoDate(raw: string): string {
+  const v = String(raw || "").trim();
+  if (!v) return "";
+  const iso = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const vi = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (vi) {
+    const d = vi[1].padStart(2, "0");
+    const m = vi[2].padStart(2, "0");
+    return `${vi[3]}-${m}-${d}`;
+  }
+  return "";
+}
+
+function parseExamDate(raw: string): Date | null {
+  const iso = toExamIsoDate(raw);
+  if (!iso) return null;
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  return Number.isNaN(dt.getTime()) ? null : dt;
+}
 
 /** Same pattern as `tai-lieu-them/page.tsx`: wrapper + `appearance-none` + overlay chevron. */
 function HabitSelect({
@@ -48,7 +73,7 @@ function HabitSelect({
       <label className="text-xs font-semibold text-zinc-600">{label}</label>
       <div className="relative group mt-2">
         <select
-          value={value}
+          value={options.includes(value) ? value : options[0] ?? ""}
           onChange={(e) => onValueChange(e.target.value)}
           className="h-11 w-full cursor-pointer appearance-none rounded-2xl border border-zinc-200 bg-white px-4 pr-10 text-sm font-bold text-foreground shadow-sm outline-none transition-all focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
         >
@@ -170,43 +195,117 @@ export default function Home() {
   const { diagnosis, writingBands } = useStudentDiagnosis();
   const [habitForm, setHabitForm] = useState<StudyHabitForm>({ ...defaultStudyHabitForm });
 
+  const entranceScores = useMemo(() => {
+    const fromDiag = diagnosis.scores;
+    const fromProfile = profile.scores;
+    const pick = (a?: number, b?: number) => (a && a > 0 ? a : b && b > 0 ? b : 0);
+    return {
+      listening: pick(fromDiag?.listening, fromProfile?.listening),
+      reading: pick(fromDiag?.reading, fromProfile?.reading),
+      writing: pick(fromDiag?.writing, fromProfile?.writing),
+      speaking: pick(fromDiag?.speaking, fromProfile?.speaking),
+      overall: pick(fromDiag?.overall, fromProfile?.overall),
+    };
+  }, [diagnosis.scores, profile.scores]);
+  const entranceAim = (diagnosis.aim || profile.aim || "").trim();
+
   // Diagnosis interactive states
   const [activeDiagTab, setActiveDiagTab] = useState<"listening" | "reading" | "writing" | "speaking">("listening");
-  const [grammarFilter, setGrammarFilter] = useState<"all" | "red" | "yellow">("all");
-  const [expandedGrammarId, setExpandedGrammarId] = useState<string | null>(null);
-  
+  const [writingTaskMode, setWritingTaskMode] = useState<"task1" | "task2">("task1");
+
   // Speaking mock player state
   const [isPlayingSpeaking, setIsPlayingSpeaking] = useState(false);
   const [speakingPlaybackProgress, setSpeakingPlaybackProgress] = useState(35); // percent
-  const [writingTaskMode, setWritingTaskMode] = useState<"task1" | "task2">("task1");
+
+  const persistHabits = (next: StudyHabitForm) => {
+    noteStudyHabitsLocalWrite();
+    queueMicrotask(() => {
+      const current = getStudentProfile();
+      saveStudentProfile({ ...current, ...next });
+      const payload: Partial<StudentProfile> = {};
+      const scalarKeys = [
+        "method",
+        "weeklyHours",
+        "classEnvironment",
+        "ieltsMeaning",
+        "previousBand",
+      ] as const;
+      for (const key of scalarKeys) {
+        const value = String(next[key] || "").trim();
+        if (isAllowedStudyValue(key, value)) {
+          (payload as Record<string, unknown>)[key] = value;
+        }
+      }
+      const skills = normalizeFocusSkills(next.focusSkills);
+      if (skills.length > 0) payload.focusSkills = skills;
+      if (Object.keys(payload).length === 0) return;
+      void updateStudentProfile(payload)
+        .then((remote) => {
+          const latest = getStudentProfile();
+          saveStudentProfile({
+            ...latest,
+            ...next,
+            method: remote.method,
+            weeklyHours: remote.weeklyHours,
+            classEnvironment: remote.classEnvironment,
+            ieltsMeaning: remote.ieltsMeaning,
+            previousBand: remote.previousBand,
+            focusSkills: remote.focusSkills,
+          });
+        })
+        .catch((err) => {
+          console.error("Không lưu được Study Habits / Learner's Situation lên server", err);
+        });
+    });
+  };
 
   const onHabitChange = (
     key: Exclude<keyof typeof habitForm, "focusSkills">,
     value: string,
   ) => {
-    setHabitForm((prev) => ({
-      ...prev,
-      [key]: value as (typeof prev)[typeof key],
-    }));
+    const next = {
+      ...habitForm,
+      [key]: value as StudyHabitForm[typeof key],
+    };
+    setHabitForm(next);
+    persistHabits(next);
   };
 
   const onFocusSkillsChange = (values: string[]) => {
     const allowed = studyHabitOptions.focusSkills;
-    setHabitForm((prev) => ({
-      ...prev,
-      focusSkills: values.filter((v): v is (typeof prev.focusSkills)[number] =>
+    const next: StudyHabitForm = {
+      ...habitForm,
+      focusSkills: values.filter((v): v is StudyHabitForm["focusSkills"][number] =>
         (allowed as readonly string[]).includes(v),
       ),
-    }));
+    };
+    setHabitForm(next);
+    persistHabits(next);
   };
 
-  const [examDate, setExamDate] = useState(diagnosis.examDate);
+  const persistExamDate = (nextDate: string) => {
+    queueMicrotask(() => {
+      saveStudentProfile({ ...profile, examDate: nextDate });
+      const currentDiag = { ...diagnosis, examDate: nextDate };
+      saveStudentDiagnosis({
+        ...currentDiag,
+        examDate: nextDate,
+        examCountdownAnchor: "",
+      });
+      void updateStudentProfile({ examDate: nextDate }).catch(() => {});
+    });
+  };
+
+  const [examDate, setExamDate] = useState(
+    () => profile.examDate || diagnosis.examDate || "",
+  );
 
   const [countdown, setCountdown] = useState("—");
 
   useEffect(() => {
-    setExamDate(diagnosis.examDate);
-  }, [diagnosis.examDate]);
+    const next = profile.examDate || diagnosis.examDate || "";
+    if (next) setExamDate(next);
+  }, [profile.examDate, diagnosis.examDate]);
 
   useEffect(() => {
     setHabitForm({
@@ -227,18 +326,33 @@ export default function Home() {
   ]);
 
   useEffect(() => {
-    const target = new Date(examDate);
-    const now = new Date();
+    if (!examDate) {
+      setCountdown("—");
+      return;
+    }
+    const target = parseExamDate(examDate);
+    if (!target) {
+      setCountdown("—");
+      return;
+    }
+    const now = (diagnosis.examCountdownAnchor ? parseExamDate(diagnosis.examCountdownAnchor) : null) || new Date();
+    now.setHours(0, 0, 0, 0);
     const diffTime = target.getTime() - now.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     setCountdown(diffDays > 0 ? `Còn ${diffDays} ngày` : "Đã quá ngày");
-  }, [examDate]);
+  }, [examDate, diagnosis.examCountdownAnchor]);
 
   const displayExamDate = useMemo(() => {
     if (!examDate) return "Chưa chọn";
-    const [y, m, d] = examDate.split("-");
-    return `${d}/${m}/${y}`;
+    const iso = toExamIsoDate(examDate);
+    if (iso) {
+      const [y, m, d] = iso.split("-");
+      return `${d}/${m}/${y}`;
+    }
+    return examDate;
   }, [examDate]);
+
+  const examDateInputValue = useMemo(() => toExamIsoDate(examDate) || "", [examDate]);
 
   const examInputRef = useRef<HTMLInputElement>(null);
   const avatarFileInputRef = useRef<HTMLInputElement>(null);
@@ -299,7 +413,7 @@ export default function Home() {
                          <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                        ) : (
                          <div className="w-full h-full flex items-center justify-center bg-primary/10 text-4xl font-black text-primary">
-                           {profile.name.slice(0, 1)}
+                           {(diagnosis.studentName || profile.name).slice(0, 1)}
                          </div>
                        )}
                        {/* Hover Overlay */}
@@ -362,13 +476,17 @@ export default function Home() {
 
                   <div className="flex-1">
                     <h1 className="text-3xl md:text-5xl font-black text-foreground tracking-tight leading-[1.1] mb-4">
-                      {profile.name}
+                      {diagnosis.studentName || profile.name}
                     </h1>
                     
                     <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
                       <div>
                         <div className="text-[10px] font-black text-muted uppercase tracking-widest mb-0.5">Contact Info</div>
-                        <div className="text-xs font-bold text-foreground opacity-80">{profile.email} · {profile.phone}</div>
+                        <div className="text-xs font-bold text-foreground opacity-80">
+                          {diagnosis.studentEmail || profile.email || "—"}
+                          {" · "}
+                          {diagnosis.studentPhone || profile.phone || "—"}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -381,14 +499,14 @@ export default function Home() {
                         <div className="text-[10px] font-black uppercase tracking-widest text-muted">
                           Ngày sinh
                         </div>
-                        <div className="mt-1 text-sm font-bold text-foreground">{profile.dob}</div>
+                        <div className="mt-1 text-sm font-bold text-foreground">{profile.dob || "—"}</div>
                       </div>
 
                       <div className="flex min-h-[5.25rem] flex-col justify-center rounded-2xl bg-background p-4">
                         <div className="text-[10px] font-black uppercase tracking-widest text-muted">
                           Cung hoàng đạo
                         </div>
-                        <div className="mt-1 text-sm font-bold text-primary">{profile.zodiac}</div>
+                        <div className="mt-1 text-sm font-bold text-primary">{profile.zodiac || "—"}</div>
                       </div>
                     </div>
 
@@ -401,8 +519,8 @@ export default function Home() {
                           <div className="text-[14px] font-black uppercase tracking-widest text-muted">
                             Điểm đầu vào
                           </div>
-                          <div className="mt-1 text-md font-bold text-foreground text-warning">
-                            {formatBandScore(diagnosis.scores.overall)} Overall
+                          <div className="mt-1 text-xl font-black text-secondary">
+                            {formatBandScore(entranceScores.overall)} Overall
                           </div>
                         </div>
                         <Link
@@ -416,10 +534,10 @@ export default function Home() {
                           }}
                           className="group flex min-h-[7.5rem] h-full flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-primary bg-white px-4 py-3 text-center shadow-sm ring-1 ring-primary/10 transition-all hover:bg-primary hover:shadow-md md:h-full cursor-pointer"
                         >
-                          <span className="text-[20px] font-black uppercase tracking-widest text-primary transition-colors group-hover:text-[#ed0915] group-hover:text-bold">
+                          <span className="text-[16px] font-black uppercase tracking-widest text-primary transition-colors group-hover:text-black">
                             BCB - Bảng chẩn bệnh
                           </span>
-                          <span className="text-[11px] font-semibold leading-tight text-muted transition-colors group-hover:text-black/85">
+                          <span className="text-[11px] font-semibold leading-tight text-muted transition-colors group-hover:text-black/90">
                             Xem Bảng Chẩn Bệnh Chi Tiết (BCB)
                           </span>
                         </Link>
@@ -427,19 +545,19 @@ export default function Home() {
 
                       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:items-stretch">
                         {[
-                          { k: "Listening", v: formatBandScore(diagnosis.scores.listening) },
-                          { k: "Reading", v: formatBandScore(diagnosis.scores.reading) },
-                          { k: "Writing", v: formatBandScore(diagnosis.scores.writing) },
-                          { k: "Speaking", v: formatBandScore(diagnosis.scores.speaking) },
+                          { k: "Listening", v: entranceScores.listening },
+                          { k: "Reading", v: entranceScores.reading },
+                          { k: "Writing", v: entranceScores.writing },
+                          { k: "Speaking", v: entranceScores.speaking },
                         ].map((s) => (
                           <div
                             key={s.k}
                             className="flex min-h-[5.25rem] flex-col justify-center rounded-xl bg-background p-3 md:h-full"
                           >
-                            <div className="text-[10px] font-black uppercase tracking-widest text-muted">
+                            <div className="text-xs font-black uppercase tracking-widest text-muted">
                               {s.k}
                             </div>
-                            <div className="mt-1 text-lg font-black tabular-nums text-warning">
+                            <div className="mt-1 text-2xl font-black tabular-nums text-secondary">
                               {formatBandScore(s.v)}
                             </div>
                           </div>
@@ -456,10 +574,10 @@ export default function Home() {
                       <div className="mt-4 flex flex-1 flex-col items-center justify-center">
                         <div
                           className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full border-[5px] border-primary bg-white shadow-sm"
-                          aria-label={`Mục tiêu ${diagnosis.aim}`}
+                          aria-label={`Mục tiêu ${entranceAim}`}
                         >
                           <span className="text-4xl font-black tabular-nums leading-none text-primary">
-                            {formatBandScore(diagnosis.aim)}
+                            {formatBandScore(entranceAim)}
                           </span>
                         </div>
 
@@ -478,15 +596,22 @@ export default function Home() {
                       <input 
                         ref={examInputRef}
                         type="date" 
-                        value={examDate}
-                        onChange={(e) => setExamDate(e.target.value)}
+                        value={examDateInputValue}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          setExamDate(next);
+                          persistExamDate(next);
+                        }}
                         className="absolute inset-0 w-full h-full opacity-0 z-20 cursor-pointer"
                       />
                       <div className="relative z-10 flex flex-col items-center text-center">
                         <div className="text-[10px] font-black uppercase tracking-widest text-muted">
-                          Ngày thi dự kiến & Countdown
+                          Ngày thi dự kiến
                         </div>
                         <div className="mt-2 flex items-center justify-center gap-3">
+                          <div className="pointer-events-none flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-secondary shadow-sm">
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                          </div>
                           <div>
                             <div className="text-sm font-extrabold text-foreground">
                               {displayExamDate}
@@ -494,9 +619,6 @@ export default function Home() {
                             <div className="mt-0.5 text-[11px] font-bold text-secondary">
                               {countdown}
                             </div>
-                          </div>
-                          <div className="pointer-events-none flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-secondary shadow-sm">
-                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                           </div>
                         </div>
                       </div>
@@ -628,8 +750,6 @@ export default function Home() {
                     <SkillDiagIntro
                       bandLabel={`Đặc trưng Band ${formatBandScore(diagnosis.scores.listening)}`}
                       summary={diagnosis.skillSummaries.listening}
-                      submissionLink={diagnosis.listeningLink}
-                      linkLabel="Xem bài Listening"
                     />
                     <BcbQuestionTypeTable rows={diagnosis.bcbListening} showWeakCta />
                   </div>
@@ -641,8 +761,6 @@ export default function Home() {
                     <SkillDiagIntro
                       bandLabel={`Đặc trưng Band ${formatBandScore(diagnosis.scores.reading)}`}
                       summary={diagnosis.skillSummaries.reading}
-                      submissionLink={diagnosis.readingLink}
-                      linkLabel="Xem bài Reading"
                     />
                     <BcbQuestionTypeTable rows={diagnosis.bcbReading} showWeakCta />
                   </div>

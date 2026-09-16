@@ -27,6 +27,10 @@ import {
 import type { RlpSessionRecord } from '../rlp/rlp.types';
 import { computeStudentRlpProgress } from '../rlp/rlp-progress.util';
 import {
+  buildRlpStoreKey,
+  resolveClassCohortKey,
+} from '../rlp/rlp-cohort.util';
+import {
   buildWarningTypes,
   deriveRiskLevel,
   hasCompletedFirstStage,
@@ -66,6 +70,8 @@ export class AcademicWarningService {
       Number(doc.absentCount) || 0,
       Number(doc.homeworkSubmitted) || 0,
       Number(doc.homeworkTotal) || 0,
+      Number(doc.totalClassSessions) || 0,
+      doc.classCode,
     );
     const riskLevel = deriveRiskLevel(warningTypes);
     const row = {
@@ -76,10 +82,12 @@ export class AcademicWarningService {
       studentEmail: doc.studentEmail ?? '',
       classId: doc.classId ?? '',
       className: doc.className ?? '',
+      classCode: doc.classCode ?? '',
       teacherName: doc.teacherName ?? '',
       courseDurationMonths: doc.courseDurationMonths ?? 3,
       checkpointPhase: doc.checkpointPhase ?? '',
       totalSessionsElapsed: doc.totalSessionsElapsed ?? 0,
+      totalClassSessions: doc.totalClassSessions ?? 0,
       absentCount: doc.absentCount ?? 0,
       attendanceRate: doc.attendanceRate ?? 0,
       homeworkSubmitted: doc.homeworkSubmitted ?? 0,
@@ -112,7 +120,7 @@ export class AcademicWarningService {
     return (row.warningTypes?.length ?? 0) > 0;
   }
 
-  /** Bảng học vụ: chỉ t4+ vắng / BTVN ≥4 và chưa gửi noti xử lý. */
+  /** Bảng học vụ: chỉ t4+ vắng / BTVN ≥20% buổi lớp và chưa gửi noti xử lý. */
   private isPendingAcaTableRow(row: {
     warningTypes: AcademicWarningType[];
     handledStatus: AcademicWarningHandledStatus;
@@ -145,10 +153,12 @@ export class AcademicWarningService {
     str('studentEmail');
     str('classId');
     str('className');
+    str('classCode');
     str('teacherName');
     num('courseDurationMonths');
     str('checkpointPhase');
     num('totalSessionsElapsed');
+    num('totalClassSessions');
     num('absentCount');
     num('attendanceRate');
     num('homeworkSubmitted');
@@ -179,6 +189,9 @@ export class AcademicWarningService {
       totalSessionsElapsed: Number(
         patch.totalSessionsElapsed ?? input.totalSessionsElapsed ?? 0,
       ),
+      totalClassSessions: Number(
+        patch.totalClassSessions ?? input.totalClassSessions ?? 0,
+      ),
       classOpenDate: String(patch.classOpenDate ?? input.classOpenDate ?? ''),
       phaseStartDate: String(patch.phaseStartDate ?? input.phaseStartDate ?? ''),
       nextPhaseStartDate: String(
@@ -192,12 +205,15 @@ export class AcademicWarningService {
         patch.homeworkSubmitted ?? input.homeworkSubmitted ?? 0,
       ),
       homeworkTotal: Number(patch.homeworkTotal ?? input.homeworkTotal ?? 0),
+      classCode: String(patch.classCode ?? input.classCode ?? ''),
     };
     const firstStageCompleted = hasCompletedFirstStage(merged);
     const warningTypes = buildWarningTypes(
       merged.absentCount,
       merged.homeworkSubmitted,
       merged.homeworkTotal,
+      merged.totalClassSessions,
+      merged.classCode,
     );
     patch.firstStageCompleted = firstStageCompleted;
     patch.warningTypes = warningTypes;
@@ -357,18 +373,31 @@ export class AcademicWarningService {
       _id: unknown;
       name?: string;
       classCode?: string;
+      openDate?: string;
+      phaseStartDate?: string;
+      rlpCohortKey?: string;
     }>,
     rlpMap: Map<string, RlpSessionRecord[]>,
+    studentCohort?: string,
   ): RlpSessionRecord[] {
-    const direct = rlpMap.get(`rlp_store_${classId}`);
-    if (direct?.length) return direct;
-
     const cls = classes.find(
       (c) =>
         String(c._id) === classId ||
         c.name === classId ||
         (c.classCode && c.classCode === classId),
     );
+    const cohort =
+      String(studentCohort || '').trim() ||
+      (cls ? resolveClassCohortKey(cls) : '') ||
+      'default';
+
+    const cohortKey = buildRlpStoreKey(classId, cohort);
+    const directCohort = rlpMap.get(cohortKey);
+    if (directCohort?.length) return directCohort;
+
+    const legacy = rlpMap.get(`rlp_store_${classId}`);
+    if (legacy?.length) return legacy;
+
     if (!cls) return [];
 
     const relatedIds = classes
@@ -381,7 +410,11 @@ export class AcademicWarningService {
       .map((c) => String(c._id));
 
     for (const id of relatedIds) {
-      const sessions = rlpMap.get(`rlp_store_${id}`);
+      const relatedCls = classes.find((c) => String(c._id) === id);
+      const relatedCohort = relatedCls ? resolveClassCohortKey(relatedCls) : cohort;
+      const sessions =
+        rlpMap.get(buildRlpStoreKey(id, relatedCohort)) ||
+        rlpMap.get(`rlp_store_${id}`);
       if (sessions?.length) return sessions;
     }
     return [];
@@ -413,7 +446,12 @@ export class AcademicWarningService {
       const classId = String(st.classId || '').trim();
       if (!classId || classId === 'cls_placeholder') continue;
 
-      const sessions = this.sessionsForClass(classId, classes, rlpMap);
+      const sessions = this.sessionsForClass(
+        classId,
+        classes,
+        rlpMap,
+        String((st as { rlpCohortKey?: string }).rlpCohortKey || ''),
+      );
       if (!sessions.length) continue;
 
       const progress = computeStudentRlpProgress(sessions, {
@@ -433,6 +471,8 @@ export class AcademicWarningService {
       const phaseStartDate = cls?.phaseStartDate || '';
       const nextPhaseStartDate = cls?.nextPhaseStartDate || '';
       const phaseDurationDays = Number(cls?.phaseDurationDays) || 0;
+      const totalClassSessions = sessions.length;
+      const classCode = cls?.classCode || '';
       const firstStageCompleted = hasCompletedFirstStage({
         totalSessionsElapsed: progress.totalSessionsElapsed,
         classOpenDate,
@@ -444,6 +484,8 @@ export class AcademicWarningService {
         progress.absentCount,
         progress.homeworkSubmitted,
         progress.homeworkTotal,
+        totalClassSessions,
+        classCode,
       );
 
       const existing = await this.model.findOne({ studentId, classId }).exec();
@@ -451,10 +493,12 @@ export class AcademicWarningService {
         if (existing) {
           Object.assign(existing, {
             ...progress,
+            totalClassSessions,
             studentName: st.name,
             studentPhone: st.phone || '',
             studentEmail: st.email || '',
             className: cls?.name || existing.className || '',
+            classCode: classCode || existing.classCode || '',
             teacherName: cls?.teacher || existing.teacherName || '',
             classOpenDate,
             phaseStartDate,
@@ -513,11 +557,13 @@ export class AcademicWarningService {
         studentEmail: st.email || '',
         classId,
         className: cls?.name || '',
+        classCode,
         teacherName: cls?.teacher || '',
         courseDurationMonths: 3,
         checkpointPhase:
           cls?.currentPhase || `Chặng 1 (${progress.totalSessionsElapsed} buổi)`,
         ...progress,
+        totalClassSessions,
         warningTypes,
         riskLevel: deriveRiskLevel(warningTypes),
         classOpenDate,

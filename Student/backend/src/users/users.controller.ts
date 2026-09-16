@@ -32,11 +32,11 @@ type UpdatePasswordBody = {
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ACA')
 export class UsersController {
   constructor(private readonly users: UsersService) {}
 
   @Get()
+  @Roles('ACA', 'SALE', 'GRADER', 'GV')
   async list(
     @Query('role') role?: string,
     @Query('status') status?: string,
@@ -56,12 +56,14 @@ export class UsersController {
   }
 
   @Get(':id')
+  @Roles('ACA', 'SALE', 'GRADER', 'GV')
   async detail(@Param('id') id: string) {
     const user = await this.users.getPublicById(id);
     return { user };
   }
 
   @Post()
+  @Roles('ACA')
   async create(@Body() body: CreateUserBody) {
     const user = await this.users.createUser(body);
     return { user };

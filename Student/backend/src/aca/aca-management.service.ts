@@ -1,10 +1,14 @@
-import { Injectable, OnModuleInit, ForbiddenException } from '@nestjs/common';
+import { Injectable, OnModuleInit, ForbiddenException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import * as fs from 'fs';
 import * as path from 'path';
 import { AcaClass, AcaClassDocument } from './schemas/aca-class.schema';
 import { AcaStudent, AcaStudentDocument } from './schemas/aca-student.schema';
+import {
+  PracticeClassRegistration,
+  PracticeClassRegistrationDocument,
+} from '../practice-class/schemas/practice-class-registration.schema';
 import { AcaPracticeWeek, AcaPracticeWeekDocument } from './schemas/aca-practice-week.schema';
 import { AcaPracticeStudent, AcaPracticeStudentDocument } from './schemas/aca-practice-student.schema';
 import { Aca11Class, Aca11ClassDocument } from './schemas/aca-11-class.schema';
@@ -13,16 +17,26 @@ import { AcaTeacherAssignment, AcaTeacherAssignmentDocument } from './schemas/ac
 import { AcaFreeSlot, AcaFreeSlotDocument } from './schemas/aca-free-slot.schema';
 import { AcaTeacherProfile, AcaTeacherProfileDocument } from './schemas/aca-teacher-profile.schema';
 import { WritingSubmission, WritingSubmissionDocument } from '../writing-submission/schemas/writing-submission.schema';
+import { computeWritingDueDateFromSubmitted } from '../writing-submission/writing-deadline.util';
 import { RlpCourseStore, RlpCourseStoreDocument } from '../rlp/schemas/rlp-course-store.schema';
-import { computeStudentRlpProgress, formatAttendanceCount, formatHomeworkPercent } from '../rlp/rlp-progress.util';
+import { computeStudentRlpProgress, countClassSessionsCompleted, formatAttendanceCount, formatHomeworkPercent } from '../rlp/rlp-progress.util';
 import {
+  FIRST_STAGE_SESSIONS,
   FULL_COURSE_SESSIONS,
   hasCompletedFirstStage,
   hasCompletedFullCourse,
   requiredFullCourseSessions,
 } from '../academic-warning/academic-warning.rules';
+import {
+  buildRlpStoreKey,
+  normalizeOpenDate,
+  resolveClassCohortKey,
+  slugCohortDate,
+} from '../rlp/rlp-cohort.util';
 import { UsersService } from '../users/users.service';
 import { MockTestService } from '../mock-test/mock-test.service';
+import { PracticeClassService } from '../practice-class/practice-class.service';
+import { getCurrentRealtimePracticeWeekRange, type PracticeWeekLean } from '../practice-class/practice-class-week.util';
 
 import { DailyNote, DailyNoteDocument } from './schemas/daily-note.schema';
 import { MockTestRequest, MockTestRequestDocument } from './schemas/mock-test-request.schema';
@@ -41,6 +55,24 @@ import {
   AcaKvStoreDocument,
 } from './schemas/aca-kv-store.schema';
 import {
+  StudentProfileStore,
+  StudentProfileStoreDocument,
+} from '../student-profile/schemas/student-profile-store.schema';
+import {
+  VAN_THI_THANH_TRUC,
+  vanThiThanhTrucDiagnosis,
+  VAN_THI_THANH_TRUC_SUPPORT_SPEAKING,
+  VAN_THI_THANH_TRUC_LUYEN_DE,
+  VAN_THI_THANH_TRUC_SOAR_RLP,
+} from './van-thi-thanh-truc.seed';
+import {
+  THIEU_THAO_CHI,
+  thieuThaoChiDiagnosis,
+  THIEU_THAO_CHI_ONL_11_RLP,
+  THIEU_THAO_CHI_SUPPORT_SPEAKING,
+} from './thieu-thao-chi.seed';
+import { buildRlpSchedulePlan, formatViDate, parseViDate } from '../rlp/rlp-schedule.util';
+import {
   FinalTest,
   FinalTestDocument,
   type FinalTestFormat,
@@ -56,11 +88,60 @@ function normalizeClassification(cls: string): string {
   return 'Lớp lẻ mới';
 }
 
+/** Cấp chương trình từ mã lớp: F/M/U/S/A → FOUND/MMNT/UPSTR/SOAR/ADV. */
+function classLevelPrefix(classCode?: string | null): string {
+  const raw = String(classCode || '').trim();
+  if (!raw) return '';
+  const p = raw.split(/[-_\s]/)[0].trim().toUpperCase();
+  if (!p) return '';
+  if (p.startsWith('FOU') || p.startsWith('FOUND') || (p.startsWith('F') && !p.startsWith('FOA'))) {
+    return 'FOUND';
+  }
+  if (p.startsWith('M')) return 'MMNT';
+  if (p.startsWith('U')) return 'UPSTR';
+  if (p.startsWith('S')) return 'SOAR';
+  if (p.startsWith('A')) return 'ADV';
+  return p;
+}
+
+/** Học lại = gán vào cấp đã từng học (cycles / L1–L3 / lớp trước). */
+function isHocLaiEnrollment(
+  student: {
+    l1?: string;
+    l2?: string;
+    l3?: string;
+    cycles?: Array<{ classCode?: string }>;
+  } | null | undefined,
+  nextClassCode: string,
+  prevClassCode?: string,
+): boolean {
+  const nextLevel = classLevelPrefix(nextClassCode);
+  if (!nextLevel) return false;
+
+  const priorCodes = new Set<string>();
+  for (const code of [prevClassCode, student?.l1, student?.l2, student?.l3]) {
+    if (String(code || '').trim()) priorCodes.add(String(code).trim());
+  }
+  for (const cyc of student?.cycles || []) {
+    if (String(cyc?.classCode || '').trim()) {
+      priorCodes.add(String(cyc.classCode).trim());
+    }
+  }
+
+  for (const code of priorCodes) {
+    const level = classLevelPrefix(code);
+    if (level && level === nextLevel) return true;
+  }
+  return false;
+}
+
 @Injectable()
 export class AcaManagementService implements OnModuleInit {
   constructor(
     @InjectModel(AcaClass.name) private readonly classModel: Model<AcaClassDocument>,
     @InjectModel(AcaStudent.name) private readonly studentModel: Model<AcaStudentDocument>,
+    @InjectModel(PracticeClassRegistration.name)
+    private readonly practiceRegistrationModel: Model<PracticeClassRegistrationDocument>,
     @InjectModel(AcaPracticeWeek.name) private readonly practiceWeekModel: Model<AcaPracticeWeekDocument>,
     @InjectModel(AcaPracticeStudent.name) private readonly practiceStudentModel: Model<AcaPracticeStudentDocument>,
     @InjectModel(Aca11Class.name) private readonly aca11Model: Model<Aca11ClassDocument>,
@@ -77,8 +158,11 @@ export class AcaManagementService implements OnModuleInit {
     @InjectModel(EntranceTestBooking.name) private readonly entranceBookingModel: Model<EntranceTestBookingDocument>,
     @InjectModel(FinalTest.name) private readonly finalTestModel: Model<FinalTestDocument>,
     @InjectModel(AcaKvStore.name) private readonly kvModel: Model<AcaKvStoreDocument>,
+    @InjectModel(StudentProfileStore.name)
+    private readonly profileStore: Model<StudentProfileStoreDocument>,
     private readonly usersService: UsersService,
     private readonly mockTests: MockTestService,
+    private readonly practiceClassService: PracticeClassService,
   ) {}
 
   async onModuleInit() {
@@ -226,17 +310,39 @@ export class AcaManagementService implements OnModuleInit {
         l3: "",
         f3: ""
       });
-    } else if (existingStudentUser.l1?.includes("Lê Như Hải")) {
-      await this.studentModel.updateOne(
-        { email: studentUserEmail },
-        {
-          $set: {
-            classId: quynhChauClass?._id?.toString() || existingStudentUser.classId,
-            l1: quynhChauClass?.name || "XLE RLP_Momentum - 357 - C2 - GV Nghiêm Doãn Quỳnh Châu",
-          },
-        }
-      );
+    } else {
+      const sc = existingStudentUser.scores as
+        | { l?: unknown; r?: unknown; w?: unknown; s?: unknown; o?: unknown }
+        | undefined;
+      const bandEmpty = (v: unknown) =>
+        v === undefined || v === null || v === '' || v === '-';
+      const scoresEmpty =
+        !sc ||
+        (bandEmpty(sc.l) &&
+          bandEmpty(sc.r) &&
+          bandEmpty(sc.w) &&
+          bandEmpty(sc.s) &&
+          bandEmpty(sc.o));
+      const patch: Record<string, unknown> = {};
+      if (scoresEmpty) {
+        patch.scores = { l: '6.5', r: '6.5', w: '6.0', s: '6.0', o: '6.5' };
+      }
+      if (!String(existingStudentUser.aim || '').trim()) {
+        patch.aim = '7.0';
+      }
+      if (existingStudentUser.l1?.includes('Lê Như Hải')) {
+        patch.classId = quynhChauClass?._id?.toString() || existingStudentUser.classId;
+        patch.l1 =
+          quynhChauClass?.name ||
+          'XLE RLP_Momentum - 357 - C2 - GV Nghiêm Doãn Quỳnh Châu';
+      }
+      if (Object.keys(patch).length > 0) {
+        await this.studentModel.updateOne({ email: studentUserEmail }, { $set: patch }).exec();
+      }
     }
+
+    await this.ensureVanThiThanhTruc();
+    await this.ensureThieuThaoChi();
 
     // Seed Practice Weeks
     const weekCount = await this.practiceWeekModel.countDocuments().exec();
@@ -245,6 +351,7 @@ export class AcaManagementService implements OnModuleInit {
       const initialWeeks = [
         {
           weekRange: "20/04/2026 - 26/04/2026",
+          examWeekNumber: 36,
           linkMeet: defaultZoomLink,
           linkTab: "https://docs.google.com/spreadsheets/d/1track-practice-test-1",
           announcement: "[Thông báo về lịch học lớp LĐ]\n\nTuần 20/4:\n - Lớp có học Speaking vào 19h45-21h45 thứ 7 25/4\n - Lớp không có lịch test tập trung vào CN\n\nNhận được tin thì em react/confirm giúp chị nhé",
@@ -252,6 +359,7 @@ export class AcaManagementService implements OnModuleInit {
         },
         {
           weekRange: "27/04/2026 - 03/05/2026",
+          examWeekNumber: 37,
           linkMeet: defaultZoomLink,
           linkTab: "https://docs.google.com/spreadsheets/d/1track-practice-test-2",
           announcement: "[Thông báo về lịch học lớp LĐ]\n\nTuần 27/4:\n - Lớp nghỉ, không có lịch học vào T3 và T7\n - Lớp có lịch test tập trung vào CN 3/5 9h-11h30\n\nNhận được tin thì em react/confirm giúp chị nhé",
@@ -259,6 +367,7 @@ export class AcaManagementService implements OnModuleInit {
         },
         {
           weekRange: "08/06/2026 - 14/06/2026",
+          examWeekNumber: 38,
           linkMeet: defaultZoomLink,
           linkTab: "https://docs.google.com/spreadsheets/d/1track-practice-test-3",
           announcement: "[Thông báo về lịch học lớp LĐ]\n\nTuần 8/6:\n - Lớp học bình thường vào thứ 3 và thứ 7\n - Lớp có lịch test tập trung vào CN 14/6 9h-11h30\n\nNhận được tin thì em react/confirm giúp chị nhé",
@@ -326,9 +435,42 @@ export class AcaManagementService implements OnModuleInit {
     return this.classModel.find().lean().exec();
   }
   async createClass(data: any) {
+    const openDate = String(data?.openDate || '').trim();
+    const phaseStartDate = String(data?.phaseStartDate || '').trim();
+    if (!String(data?.rlpCohortKey || '').trim()) {
+      data.rlpCohortKey =
+        slugCohortDate(openDate) ||
+        slugCohortDate(phaseStartDate) ||
+        'default';
+    }
     return this.classModel.create(data);
   }
   async updateClass(id: string, data: any) {
+    const prev = await this.classModel.findById(id).lean().exec();
+    if (!prev) {
+      return this.classModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
+    }
+
+    const nextOpen =
+      data.openDate !== undefined ? String(data.openDate || '').trim() : String(prev.openDate || '').trim();
+    const prevOpen = String(prev.openDate || '').trim();
+    const openDateChanged =
+      data.openDate !== undefined &&
+      normalizeOpenDate(prevOpen) !== normalizeOpenDate(nextOpen) &&
+      Boolean(nextOpen);
+
+    if (openDateChanged) {
+      // Khai giảng mới → đợt RLP mới (HV cũ giữ rlpCohortKey cũ trên hồ sơ).
+      data.rlpCohortKey = slugCohortDate(nextOpen) || `new_${Date.now()}`;
+    } else if (!String(prev.rlpCohortKey || '').trim() && !data.rlpCohortKey) {
+      data.rlpCohortKey = resolveClassCohortKey({
+        openDate: nextOpen || prevOpen,
+        phaseStartDate: String(
+          data.phaseStartDate !== undefined ? data.phaseStartDate : prev.phaseStartDate || '',
+        ),
+      });
+    }
+
     const updated = await this.classModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
     if (updated && updated.classCode) {
       const codePrefix = updated.classCode.replace(/-\d+$/i, '');
@@ -347,7 +489,13 @@ export class AcaManagementService implements OnModuleInit {
               nextPhase: updated.nextPhase,
               nextPhaseStartDate: updated.nextPhaseStartDate,
               slotsToEnroll: updated.slotsToEnroll,
-              progressNote: updated.progressNote
+              progressNote: updated.progressNote,
+              room: (updated as any).room,
+              zoomPassword: (updated as any).zoomPassword,
+              zoomLink: (updated as any).zoomLink,
+              schedule: (updated as any).schedule,
+              links: (updated as any).links,
+              // Không sync rlpCohortKey sang lớp tháng khác — mỗi bản ghi lớp tự quản đợt.
             } 
           }
         ).exec();
@@ -361,15 +509,57 @@ export class AcaManagementService implements OnModuleInit {
 
   // --- Students CRUD ---
   async findAllStudents() {
-    const students = await this.studentModel.find().lean().exec();
+    const students = await this.studentModel
+      .find()
+      .sort({ createdAt: 1, name: 1 })
+      .lean()
+      .exec();
 
-    // 1. Fetch writing submission emails
-    const writingSubmissions = await this.writingSubmissionModel.find({}, { studentGmail: 1, studentId: 1 }).lean().exec();
+    // 1. Fetch writing submission emails / ids
+    const writingSubmissions = await this.writingSubmissionModel
+      .find({}, { studentGmail: 1, studentId: 1 })
+      .lean()
+      .exec();
     const writingEmailsSet = new Set<string>();
+    const writingIdsSet = new Set<string>();
     for (const ws of writingSubmissions) {
       if (ws.studentGmail) writingEmailsSet.add(ws.studentGmail.trim().toLowerCase());
-      if (ws.studentId && ws.studentId.includes('@')) writingEmailsSet.add(ws.studentId.trim().toLowerCase());
+      if (ws.studentId) {
+        writingIdsSet.add(String(ws.studentId).trim());
+        if (ws.studentId.includes('@')) writingEmailsSet.add(ws.studentId.trim().toLowerCase());
+      }
     }
+
+    const emails = students
+      .map((st) => String(st.email || '').trim().toLowerCase())
+      .filter((e) => e.includes('@'));
+    const emailToUserId = await this.usersService.findIdsByEmails(emails);
+
+    const mockRows = await this.mockTestRequestModel
+      .find(
+        {
+          status: { $ne: 'cancelled' },
+          source: { $nin: ['entrance', 'final'] },
+        },
+        { studentId: 1, studentName: 1 },
+      )
+      .lean()
+      .exec();
+    const mockUserIds = new Set<string>();
+    const mockNames = new Set<string>();
+    for (const row of mockRows) {
+      if (row.studentId) mockUserIds.add(String(row.studentId));
+      const name = String(row.studentName || '').trim().toLowerCase();
+      if (name) mockNames.add(name);
+    }
+
+    const practiceRegs = await this.practiceRegistrationModel
+      .find({}, { userId: 1 })
+      .lean()
+      .exec();
+    const practiceUserIds = new Set(
+      practiceRegs.map((row) => String(row.userId)),
+    );
 
     // 2. Fetch RLP course stores for RLP attendance and homework calculations
     const rlpStores = await this.rlpCourseStoreModel.find({}).lean().exec();
@@ -377,14 +567,43 @@ export class AcaManagementService implements OnModuleInit {
     for (const store of rlpStores) {
       rlpStoreMap.set(store.key, store.sessions || []);
     }
+    const classRows = await this.classModel
+      .find({}, { openDate: 1, phaseStartDate: 1, rlpCohortKey: 1 })
+      .lean()
+      .exec();
+    const classByIdForRlp = new Map(
+      classRows.map((c) => [String(c._id), c as { openDate?: string; phaseStartDate?: string; rlpCohortKey?: string }]),
+    );
 
-    return students.map(st => {
+    return students.map((st, index) => {
       const emailNorm = (st.email || '').trim().toLowerCase();
-      const hasSubmittedWriting = writingEmailsSet.has(emailNorm);
+      const userId = emailToUserId.get(emailNorm) || '';
+      const acaId = String(st._id);
+      const hasSubmittedWriting =
+        writingEmailsSet.has(emailNorm) ||
+        writingIdsSet.has(userId) ||
+        writingIdsSet.has(acaId);
+      const hasMocktest =
+        (userId && mockUserIds.has(userId)) ||
+        mockUserIds.has(acaId) ||
+        mockNames.has(String(st.name || '').trim().toLowerCase());
+      const hasLuyenDe =
+        Boolean(st.practiceJoined) ||
+        (Array.isArray(st.registeredSlotIds) && st.registeredSlotIds.length > 0) ||
+        (userId && practiceUserIds.has(userId)) ||
+        practiceUserIds.has(acaId);
 
-      // Get sessions for student's class
-      const storeKey = st.classId ? `rlp_store_${st.classId}` : '';
-      const sessions = (storeKey && rlpStoreMap.get(storeKey)) || [];
+      // Get sessions for student's class + đợt RLP đã pin
+      const classId = String(st.classId || '').trim();
+      const cls = classId ? classByIdForRlp.get(classId) : null;
+      const cohort =
+        String((st as { rlpCohortKey?: string }).rlpCohortKey || '').trim() ||
+        (cls ? resolveClassCohortKey(cls) : '');
+      const storeKey = classId && cohort ? buildRlpStoreKey(classId, cohort) : '';
+      const sessions =
+        (storeKey && rlpStoreMap.get(storeKey)) ||
+        (classId && rlpStoreMap.get(`rlp_store_${classId}`)) ||
+        [];
 
       let computedHomeworkPercent = st.homeworkPercent || '';
       let computedAttendanceCount = st.attendanceCount || '';
@@ -406,13 +625,18 @@ export class AcaManagementService implements OnModuleInit {
       const updatedCycles = (st.cycles || []).map((cyc: any) => ({
         ...cyc,
         registeredWriting: hasSubmittedWriting ? true : !!cyc.registeredWriting,
+        registeredMocktest: hasMocktest ? true : !!cyc.registeredMocktest,
+        registeredLuyenDe: hasLuyenDe ? true : !!cyc.registeredLuyenDe,
         homeworkPercent: computedHomeworkPercent || cyc.homeworkPercent || '',
         attendanceCount: computedAttendanceCount || cyc.attendanceCount || '',
       }));
 
       return {
         ...st,
+        stt: index + 1,
         registeredWriting: hasSubmittedWriting ? true : !!st.registeredWriting,
+        registeredMocktest: hasMocktest ? true : !!st.registeredMocktest,
+        registeredLuyenDe: hasLuyenDe ? true : !!st.registeredLuyenDe,
         homeworkPercent: computedHomeworkPercent || st.homeworkPercent || '',
         attendanceCount: computedAttendanceCount || st.attendanceCount || '',
         cycles: updatedCycles.length > 0 ? updatedCycles : st.cycles,
@@ -439,6 +663,554 @@ export class AcaManagementService implements OnModuleInit {
     }
   }
 
+  /** Upsert học viên Văn Thị Thanh Trúc + BCB Entrance vào LMS. */
+  private async ensureVanThiThanhTruc() {
+    const email = VAN_THI_THANH_TRUC.email;
+    const name = VAN_THI_THANH_TRUC.name;
+    const diagnosis = vanThiThanhTrucDiagnosis();
+    const scores = {
+      l: String(diagnosis.scores.listening),
+      r: String(diagnosis.scores.reading),
+      w: String(diagnosis.scores.writing),
+      s: String(diagnosis.scores.speaking),
+      o: String(diagnosis.scores.overall),
+    };
+
+    const previousEmail = 'thanhtruc.van@xalo.local';
+    const emailRe = (value: string) =>
+      new RegExp(`^${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+    let student = await this.studentModel
+      .findOne({
+        $or: [
+          { email: emailRe(email) },
+          { email: emailRe(previousEmail) },
+          { name: emailRe(name) },
+        ],
+      })
+      .exec();
+
+    if (!student) {
+      const last = await this.studentModel
+        .findOne()
+        .sort({ stt: -1 })
+        .select({ stt: 1 })
+        .lean()
+        .exec();
+      student = await this.studentModel.create({
+        name,
+        email,
+        phone: VAN_THI_THANH_TRUC.phone,
+        classification: 'Lớp lẻ mới',
+        scores,
+        aim: VAN_THI_THANH_TRUC.aim,
+        examDate: VAN_THI_THANH_TRUC.examDate,
+        note: 'BCB Entrance — Văn Thị Thanh Trúc',
+        classId: '',
+        stt: Number((last as { stt?: number } | null)?.stt || 0) + 1,
+      });
+    } else {
+      const existingAim = String(student.aim || '').trim();
+      await this.studentModel
+        .updateOne(
+          { _id: student._id },
+          {
+            $set: {
+              name,
+              email,
+              scores,
+              aim: existingAim || VAN_THI_THANH_TRUC.aim,
+              examDate: VAN_THI_THANH_TRUC.examDate,
+            },
+          },
+        )
+        .exec();
+    }
+
+    await this.usersService.renameLoginEmail(previousEmail, email);
+    await this.ensureUserAccountForStudent({ name, email });
+
+    const persistIds: Types.ObjectId[] = [student._id as Types.ObjectId];
+    const user = await this.usersService.findByEmail(email);
+    if (user?._id && String(user._id) !== String(student._id)) {
+      persistIds.push(user._id as Types.ObjectId);
+    }
+
+    for (const userId of persistIds) {
+      const existing = await this.profileStore.findOne({ userId }).lean().exec();
+      const prev =
+        (existing as { diagnosisData?: Record<string, unknown> } | null)
+          ?.diagnosisData || {};
+      const diagnosisData: Record<string, unknown> = { ...prev, ...diagnosis };
+      const prevAim = String(prev.aim || '').trim();
+      if (prevAim) diagnosisData.aim = prevAim;
+      if (prev.finalScores) diagnosisData.finalScores = prev.finalScores;
+      if (prev.finalBcb) diagnosisData.finalBcb = prev.finalBcb;
+      if (prev.finalReleasedAt) diagnosisData.finalReleasedAt = prev.finalReleasedAt;
+      await this.profileStore
+        .findOneAndUpdate(
+          { userId },
+          {
+            $set: {
+              diagnosisData,
+              'profileData.examDate': VAN_THI_THANH_TRUC.examDate,
+            },
+            $setOnInsert: { userId },
+          },
+          { upsert: true },
+        )
+        .exec();
+    }
+
+    if (user?._id) {
+      await this.seedVanThiThanhTrucSupportSpeaking(user._id as Types.ObjectId, name);
+      await this.seedVanThiThanhTrucLuyenDe(user._id as Types.ObjectId);
+      await this.studentModel
+        .updateOne({ _id: student._id }, { $set: { registeredLuyenDe: true } })
+        .exec();
+    }
+    await this.seedVanThiThanhTrucSoar246(student._id as Types.ObjectId);
+  }
+
+  /** Upsert học viên Thiều Thảo Chi + BCB Entrance + lớp ONL 1:1. */
+  private async ensureThieuThaoChi() {
+    const email = THIEU_THAO_CHI.email;
+    const name = THIEU_THAO_CHI.name;
+    const diagnosis = thieuThaoChiDiagnosis();
+    const scores = {
+      l: String(diagnosis.scores.listening),
+      r: String(diagnosis.scores.reading),
+      w: String(diagnosis.scores.writing),
+      s: String(diagnosis.scores.speaking),
+      o: String(diagnosis.scores.overall),
+    };
+    const emailRe = (value: string) =>
+      new RegExp(`^${value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+    let student = await this.studentModel
+      .findOne({
+        $or: [{ email: emailRe(email) }, { name: emailRe(name) }],
+      })
+      .exec();
+
+    const identityPatch = {
+      name,
+      email,
+      phone: THIEU_THAO_CHI.phone,
+      dob: THIEU_THAO_CHI.dob,
+      zodiac: THIEU_THAO_CHI.zodiac,
+      scores,
+      note: 'BCB Entrance — Thiều Thảo Chi · ONL 1:1',
+    };
+
+    if (!student) {
+      const last = await this.studentModel
+        .findOne()
+        .sort({ stt: -1 })
+        .select({ stt: 1 })
+        .lean()
+        .exec();
+      student = await this.studentModel.create({
+        ...identityPatch,
+        classification: 'Lớp lẻ mới',
+        aim: THIEU_THAO_CHI.aim,
+        classId: '',
+        stt: Number((last as { stt?: number } | null)?.stt || 0) + 1,
+      });
+    } else {
+      const existingAim = String(student.aim || '').trim();
+      await this.studentModel
+        .updateOne(
+          { _id: student._id },
+          {
+            $set: {
+              ...identityPatch,
+              aim: existingAim || THIEU_THAO_CHI.aim,
+            },
+          },
+        )
+        .exec();
+    }
+
+    await this.ensureUserAccountForStudent({ name, email });
+
+    const persistIds: Types.ObjectId[] = [student._id as Types.ObjectId];
+    const user = await this.usersService.findByEmail(email);
+    if (user?._id && String(user._id) !== String(student._id)) {
+      persistIds.push(user._id as Types.ObjectId);
+    }
+
+    for (const userId of persistIds) {
+      const existing = await this.profileStore.findOne({ userId }).lean().exec();
+      const prev =
+        (existing as { diagnosisData?: Record<string, unknown> } | null)
+          ?.diagnosisData || {};
+      const prevProfile =
+        (existing as { profileData?: Record<string, unknown> } | null)
+          ?.profileData || {};
+      const diagnosisData: Record<string, unknown> = { ...prev, ...diagnosis };
+      const prevAim = String(prev.aim || '').trim();
+      if (prevAim) diagnosisData.aim = prevAim;
+      if (prev.finalScores) diagnosisData.finalScores = prev.finalScores;
+      if (prev.finalBcb) diagnosisData.finalBcb = prev.finalBcb;
+      if (prev.finalReleasedAt) diagnosisData.finalReleasedAt = prev.finalReleasedAt;
+      await this.profileStore
+        .findOneAndUpdate(
+          { userId },
+          {
+            $set: {
+              diagnosisData,
+              profileData: {
+                ...prevProfile,
+                name,
+                email,
+                phone: THIEU_THAO_CHI.phone,
+                dob: THIEU_THAO_CHI.dob,
+                zodiac: THIEU_THAO_CHI.zodiac,
+              },
+            },
+            $setOnInsert: { userId },
+          },
+          { upsert: true },
+        )
+        .exec();
+    }
+
+    await this.seedThieuThaoChiOnl11(student._id as Types.ObjectId);
+
+    const speakingSeedId = (user?._id || student._id) as Types.ObjectId;
+    await this.seedThieuThaoChiSupportSpeaking(speakingSeedId, name);
+  }
+
+  private async seedThieuThaoChiSupportSpeaking(
+    studentId: Types.ObjectId,
+    studentName: string,
+  ) {
+    // Xóa seed Q2 cũ (note khác) để không trùng dòng trên bảng kết quả.
+    await this.mockTests.deleteSeededByNotePattern(
+      studentId.toString(),
+      /^seed:thieu-thao-chi-q2-/,
+    );
+    for (const row of THIEU_THAO_CHI_SUPPORT_SPEAKING) {
+      const note = `seed:thieu-thao-chi-st-${row.n}`;
+      await this.mockTests.upsertSeededSupportSpeaking({
+        studentId: studentId.toString(),
+        studentName,
+        note,
+        skill: 'Support Speaking',
+        day: row.day,
+        month: row.month,
+        year: row.year,
+        score: row.score,
+        examTime: THIEU_THAO_CHI.supportSpeakingExamTime,
+        examTeacher: 'Mock test Speaking',
+        examLink: THIEU_THAO_CHI.supportSpeakingMeet,
+      });
+    }
+  }
+
+  private async seedThieuThaoChiOnl11(studentObjectId: Types.ObjectId) {
+    const className = '2026RLP_ONL 1:1 Thiều Thảo Chi';
+    const classCode = 'ONL11TTC';
+    const schedule = [
+      'Thứ 4: 19:00 - 21:00',
+      'Thứ 6: 19:00 - 21:00',
+      'Thứ 7: 16:00 - 18:00',
+    ].join('\n');
+    const startDate = '02/05/2026';
+    const endDate = '27/06/2026';
+
+    let cls = await this.classModel.findOne({ classCode: /^ONL11TTC$/i }).exec();
+    if (!cls) {
+      cls = await this.classModel.create({
+        classCode,
+        name: className,
+        month: 5,
+        type: 'Lớp đang diễn ra',
+        teacher: THIEU_THAO_CHI.teacher,
+        currentPhase: 'ONL 1:1',
+        nextPhase: '',
+        phaseStudents: 1,
+        slotsToEnroll: 1,
+      });
+    }
+    await this.classModel
+      .updateOne(
+        { _id: cls._id },
+        {
+          $set: {
+            name: className,
+            teacher: THIEU_THAO_CHI.teacher,
+            openDate: startDate,
+            endDate,
+            phaseStartDate: startDate,
+            currentPhase: 'ONL 1:1',
+            schedule,
+            room: 'Zoom 1:1',
+            type: 'Lớp đang diễn ra',
+          },
+        },
+      )
+      .exec();
+
+    const classId = String(cls._id);
+    await this.studentModel
+      .updateOne(
+        { _id: studentObjectId },
+        {
+          $set: {
+            classId,
+            l1: className,
+            f1: '1:1',
+            classification: 'Lớp lẻ mới',
+          },
+        },
+      )
+      .exec();
+
+    const emailRe = new RegExp(
+      `^${THIEU_THAO_CHI.email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+      'i',
+    );
+    await this.aca11Model
+      .findOneAndUpdate(
+        {
+          $or: [
+            { studentEmail: emailRe },
+            { className },
+            { studentId: String(studentObjectId) },
+          ],
+        },
+        {
+          $set: {
+            status: 'Đang diễn ra',
+            className,
+            studentEmail: THIEU_THAO_CHI.email,
+            studentName: THIEU_THAO_CHI.name,
+            studentId: String(studentObjectId),
+            inputNeed: '6.0/7.0',
+            teacher: THIEU_THAO_CHI.teacher,
+            schedule: `[36h] ONL 1:1 · 18 buổi · 2h/buổi\nT4 19:00–21:00 · T6 19:00–21:00 · T7 16:00–18:00`,
+            startDate,
+            endDate,
+            progress: '18 buổi từ 02/05/2026 đến 27/06/2026',
+            output: '-',
+            otherNote: 'Lớp 1:1 online',
+            scores: {
+              l: '6.0',
+              r: '7.0',
+              w: '6.0',
+              s: '5.0',
+              o: '6.0',
+            },
+          },
+        },
+        { upsert: true },
+      )
+      .exec();
+
+    const sessions = THIEU_THAO_CHI_ONL_11_RLP.map((lesson, idx) => {
+      let deadline = '';
+      const parsed = parseViDate(lesson.date);
+      if (parsed) {
+        const due = new Date(parsed);
+        due.setDate(due.getDate() + 7);
+        deadline = formatViDate(due);
+      }
+      return {
+        no: idx + 1,
+        date: lesson.date,
+        skill: lesson.skill,
+        contents: lesson.contents,
+        responsibleTeacher: THIEU_THAO_CHI.teacher,
+        teacherNote: '—',
+        deadline,
+        homeworkStatus: 'not_assigned' as const,
+        attendance: 'present' as const,
+        lessonFileUrl: '',
+        homeworkFileUrl: '',
+        recordingUrl: '',
+      };
+    });
+
+    // Ghi đè toàn bộ RLP 1:1 theo đợt (cohort) khai giảng.
+    const cohort = slugCohortDate(startDate) || 'default';
+    await this.classModel.updateOne({ _id: cls._id }, { $set: { rlpCohortKey: cohort } }).exec();
+    await this.studentModel
+      .updateOne(
+        { _id: studentObjectId },
+        { $set: { rlpCohortKey: cohort } },
+      )
+      .exec();
+    await this.rlpCourseStoreModel
+      .findOneAndUpdate(
+        { key: buildRlpStoreKey(classId, cohort) },
+        { $set: { sessions, classId, cohortKey: cohort } },
+        { upsert: true },
+      )
+      .exec();
+  }
+
+  private async seedVanThiThanhTrucSupportSpeaking(
+    studentId: Types.ObjectId,
+    studentName: string,
+  ) {
+    for (const row of VAN_THI_THANH_TRUC_SUPPORT_SPEAKING) {
+      const note = `seed:van-thi-thanh-truc-st-${row.n}`;
+      await this.mockTests.upsertSeededSupportSpeaking({
+        studentId: studentId.toString(),
+        studentName,
+        note,
+        skill: 'Support Speaking',
+        day: row.day,
+        month: row.month,
+        year: row.year,
+        score: row.score,
+        examTime: '19:00',
+        examTeacher: row.n % 2 === 1 ? 'Gia Phú' : 'Diệu Linh',
+      });
+    }
+  }
+
+  private async seedVanThiThanhTrucLuyenDe(userId: Types.ObjectId) {
+    for (const row of VAN_THI_THANH_TRUC_LUYEN_DE) {
+      await this.practiceWeekModel
+        .findOneAndUpdate(
+          { examWeekNumber: row.examWeekNumber },
+          {
+            $setOnInsert: {
+              weekRange: row.weekRange,
+              examWeekNumber: row.examWeekNumber,
+              linkMeet: '',
+              announcement: `Lớp luyện đề LĐ ${row.examWeekNumber}`,
+            },
+          },
+          { upsert: true },
+        )
+        .exec();
+      await this.practiceClassService.upsertWeeklyScoreForUser(userId.toString(), {
+        weekRange: row.weekRange,
+        examWeekNumber: row.examWeekNumber,
+        scoreL: row.scoreL,
+        scoreR: row.scoreR,
+        scoreW: row.scoreW,
+      });
+    }
+  }
+
+  private async seedVanThiThanhTrucSoar246(studentObjectId: Types.ObjectId) {
+    let cls = await this.classModel.findOne({ classCode: /^S246C1$/i }).exec();
+    if (!cls) {
+      cls = await this.classModel
+        .findOne({ name: /Soar\s*-\s*246/i })
+        .exec();
+    }
+    if (!cls) {
+      cls = await this.classModel.create({
+        classCode: 'S246C1',
+        name: 'XLE RLP_Soar - 246 - C1 - GV Trần Quang Minh',
+        month: 8,
+        type: 'Lớp đang diễn ra',
+        teacher: 'Trần Quang Minh',
+        currentPhase: 'W-L',
+        nextPhase: 'S-R',
+        phaseStudents: 1,
+        slotsToEnroll: 10,
+      });
+    }
+
+    const classId = String(cls._id);
+    const schedule = [
+      'Thứ 2: 19h45 - 21h30',
+      'Thứ 4: 19h45 - 21h30',
+      'Thứ 6: 19h45 - 21h30',
+    ].join('\n');
+
+    await this.classModel
+      .updateOne(
+        { _id: cls._id },
+        {
+          $set: {
+            openDate: '16/08/2026',
+            phaseStartDate: '16/08/2026',
+            currentPhase: 'W-L',
+            nextPhase: 'S-R',
+            nextPhaseStartDate: '04/09/2026',
+            schedule,
+            room: cls.room?.trim() || 'Zoom Online',
+            rlpCohortKey: slugCohortDate('16/08/2026'),
+          },
+        },
+      )
+      .exec();
+
+    const cohort = slugCohortDate('16/08/2026') || 'default';
+    await this.studentModel
+      .updateOne(
+        { _id: studentObjectId },
+        {
+          $set: {
+            classId,
+            l1: cls.name,
+            f1: 'Full',
+            classification: 'Lớp lẻ mới',
+            rlpCohortKey: cohort,
+          },
+        },
+      )
+      .exec();
+
+    const plan = buildRlpSchedulePlan({
+      className: cls.name,
+      classCode: cls.classCode || 'S246C1',
+      phaseStartDate: '16/08/2026',
+      openDate: '16/08/2026',
+      nextPhaseStartDate: '04/09/2026',
+    });
+
+    const sessions = VAN_THI_THANH_TRUC_SOAR_RLP.map((lesson, idx) => {
+      const date = plan.dates[idx] || '';
+      let deadline = '';
+      const parsed = parseViDate(date);
+      if (parsed) {
+        const due = new Date(parsed);
+        due.setDate(due.getDate() + 7);
+        deadline = formatViDate(due);
+      }
+      return {
+        no: idx + 1,
+        date,
+        skill: lesson.skill,
+        contents: lesson.contents,
+        teacherNote: '—',
+        deadline,
+        homeworkStatus: 'not_assigned' as const,
+        attendance: 'present' as const,
+        lessonFileUrl: '',
+        homeworkFileUrl: '',
+        recordingUrl: '',
+      };
+    });
+
+    await this.rlpCourseStoreModel
+      .findOneAndUpdate(
+        { key: buildRlpStoreKey(classId, cohort) },
+        { $set: { sessions, classId, cohortKey: cohort } },
+        { upsert: true },
+      )
+      .exec();
+  }
+
+  private async resolveActiveCohortForClassId(classId?: string): Promise<string> {
+    const id = String(classId || '').trim();
+    if (!id || id === 'cls_placeholder') return '';
+    const cls = await this.classModel.findById(id).lean().exec();
+    if (!cls) return '';
+    const cohort = resolveClassCohortKey(cls);
+    if (!String(cls.rlpCohortKey || '').trim()) {
+      await this.classModel.updateOne({ _id: id }, { $set: { rlpCohortKey: cohort } }).exec();
+    }
+    return cohort;
+  }
+
   async createStudent(data: any) {
     if (data.classification) {
       data.classification = normalizeClassification(data.classification);
@@ -447,7 +1219,16 @@ export class AcaManagementService implements OnModuleInit {
       data.classId = '';
     }
     if (!data.stt) {
-      data.stt = (await this.studentModel.countDocuments().exec()) + 1;
+      const last = await this.studentModel
+        .findOne()
+        .sort({ stt: -1 })
+        .select({ stt: 1 })
+        .lean()
+        .exec();
+      data.stt = Number((last as { stt?: number } | null)?.stt || 0) + 1;
+    }
+    if (data.classId && !String(data.rlpCohortKey || '').trim()) {
+      data.rlpCohortKey = await this.resolveActiveCohortForClassId(data.classId);
     }
     const created = await this.studentModel.create(data);
     if (created && created.email) {
@@ -455,15 +1236,201 @@ export class AcaManagementService implements OnModuleInit {
     }
     return created;
   }
+
+  async findStudentById(id: string) {
+    if (!id) return null;
+    return this.studentModel.findById(id).lean().exec();
+  }
+
   async updateStudent(id: string, data: any) {
     if (data.classification) {
       data.classification = normalizeClassification(data.classification);
     }
+    const prev = await this.studentModel.findById(id).lean().exec();
+    const nextClassId =
+      data.classId !== undefined ? String(data.classId || '').trim() : String(prev?.classId || '').trim();
+    const prevClassId = String(prev?.classId || '').trim();
+    const classChanged = data.classId !== undefined && nextClassId !== prevClassId;
+
+    if (classChanged && nextClassId) {
+      // Gán lớp mới → pin đợt RLP đang active của lớp đó.
+      data.rlpCohortKey = await this.resolveActiveCohortForClassId(nextClassId);
+    } else if (
+      nextClassId &&
+      !String(prev?.rlpCohortKey || '').trim() &&
+      data.rlpCohortKey === undefined
+    ) {
+      data.rlpCohortKey = await this.resolveActiveCohortForClassId(nextClassId);
+    }
+
+    // Đổi/gán lớp: tự phân loại Học lại / Chuyển lớp (giữ Combo).
+    if (classChanged && nextClassId && nextClassId !== 'cls_placeholder') {
+      const currentType = normalizeClassification(
+        String(data.classification || prev?.classification || ''),
+      );
+      if (currentType !== 'Combo') {
+        const nextCls = await this.classModel.findById(nextClassId).lean().exec();
+        const prevCls =
+          prevClassId && prevClassId !== 'cls_placeholder'
+            ? await this.classModel.findById(prevClassId).lean().exec()
+            : null;
+        const nextCode = String(nextCls?.classCode || nextCls?.name || '').trim();
+        const prevCode = String(prevCls?.classCode || prevCls?.name || '').trim();
+        const retake = isHocLaiEnrollment(prev, nextCode, prevCode);
+
+        if (retake) {
+          data.classification = 'Học lại';
+        } else if (
+          prevClassId &&
+          prevClassId !== 'cls_placeholder'
+        ) {
+          data.classification = 'Chuyển lớp';
+        }
+      }
+    }
+
     const updated = await this.studentModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
     if (updated && updated.email) {
       await this.ensureUserAccountForStudent(updated);
     }
+    if (updated) {
+      await this.syncStudentPortalIdentity(updated);
+      const aim = String((data as { aim?: string })?.aim ?? updated.aim ?? '').trim();
+      if (aim) {
+        await this.syncRosterAimToDiagnosis(updated, aim);
+      }
+    }
     return updated;
+  }
+
+  private async syncRosterAimToDiagnosis(
+    student: { _id?: Types.ObjectId; email?: string },
+    aim: string,
+  ) {
+    const ids: Types.ObjectId[] = [];
+    if (student._id) ids.push(student._id as Types.ObjectId);
+    const email = String(student.email || '').trim();
+    if (email) {
+      const user = await this.usersService.findByEmail(email);
+      if (user?._id && String(user._id) !== String(student._id)) {
+        ids.push(user._id as Types.ObjectId);
+      }
+    }
+    for (const userId of ids) {
+      const existing = await this.profileStore.findOne({ userId }).lean().exec();
+      const prev =
+        (existing as { diagnosisData?: Record<string, unknown> } | null)
+          ?.diagnosisData || {};
+      await this.profileStore
+        .findOneAndUpdate(
+          { userId },
+          {
+            $set: { diagnosisData: { ...prev, aim } },
+            $setOnInsert: { userId, profileData: {} },
+          },
+          { upsert: true },
+        )
+        .exec();
+    }
+  }
+
+  async saveStudentPortalIdentity(data: {
+    studentId?: string;
+    email?: string;
+    name?: string;
+    phone?: string;
+    dob?: string;
+    zodiac?: string;
+    avatarUrl?: string;
+    examDate?: string;
+  }) {
+    const email = String(data.email || '').trim().toLowerCase();
+    const studentId = String(data.studentId || '').trim();
+    let student = studentId
+      ? await this.studentModel.findById(studentId).exec()
+      : null;
+    if (!student && email) {
+      student = await this.studentModel
+        .findOne({
+          email: new RegExp(
+            `^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+            'i',
+          ),
+        })
+        .exec();
+    }
+    if (!student) return { ok: false, error: 'Không tìm thấy học viên' };
+    const patch: Record<string, string> = {};
+    if (email) patch.email = email;
+    if (data.name !== undefined) patch.name = String(data.name || '').trim();
+    if (data.phone !== undefined) patch.phone = String(data.phone || '').trim();
+    if (data.dob !== undefined) patch.dob = String(data.dob || '').trim();
+    if (data.zodiac !== undefined) patch.zodiac = String(data.zodiac || '').trim();
+    if (data.avatarUrl !== undefined) patch.avatarUrl = String(data.avatarUrl || '').trim();
+    if (data.examDate !== undefined) patch.examDate = String(data.examDate || '').trim();
+    const updated = await this.studentModel
+      .findByIdAndUpdate(student._id, { $set: patch }, { returnDocument: 'after' })
+      .exec();
+    if (updated) {
+      await this.ensureUserAccountForStudent(updated);
+      await this.syncStudentPortalIdentity(updated);
+    }
+    return { ok: true };
+  }
+
+  private async syncStudentPortalIdentity(student: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    dob?: string;
+    zodiac?: string;
+    avatarUrl?: string;
+    examDate?: string;
+    method?: string;
+    weeklyHours?: string;
+    classEnvironment?: string;
+    ieltsMeaning?: string;
+    previousBand?: string;
+    focusSkills?: string[];
+  }) {
+    const email = String(student.email || '').trim();
+    if (!email) return;
+    const user = await this.usersService.findByEmail(email);
+    if (!user?._id) return;
+    const userId = user._id as Types.ObjectId;
+    const doc = await this.profileStore.findOne({ userId }).lean().exec();
+    const current =
+      (doc as { profileData?: Record<string, unknown> } | null)?.profileData || {};
+    await this.profileStore
+      .findOneAndUpdate(
+        { userId },
+        {
+          $set: {
+            profileData: {
+              ...current,
+              name: student.name || current.name || '',
+              email,
+              phone: student.phone ?? current.phone ?? '',
+              dob: student.dob ?? current.dob ?? '',
+              zodiac: student.zodiac ?? current.zodiac ?? '',
+              avatarUrl: student.avatarUrl || current.avatarUrl || '',
+              examDate: student.examDate ?? current.examDate ?? '',
+              method: student.method || current.method || '',
+              weeklyHours: student.weeklyHours || current.weeklyHours || '',
+              classEnvironment:
+                student.classEnvironment || current.classEnvironment || '',
+              ieltsMeaning: student.ieltsMeaning || current.ieltsMeaning || '',
+              previousBand: student.previousBand || current.previousBand || '',
+              focusSkills: student.focusSkills?.length
+                ? student.focusSkills
+                : current.focusSkills || [],
+            },
+          },
+          $setOnInsert: { userId },
+        },
+        { upsert: true, returnDocument: 'after' },
+      )
+      .exec();
   }
   async deleteStudent(id: string) {
     return this.studentModel.findByIdAndDelete(id).exec();
@@ -493,6 +1460,7 @@ export class AcaManagementService implements OnModuleInit {
         const defaultZoomLink = "https://zoom.us/j/84219634521?pwd=example-lrw";
         const created = await this.practiceWeekModel.create({
           weekRange: currentRange,
+          examWeekNumber: await this.nextExamWeekNumber(),
           linkMeet: defaultZoomLink,
           linkTab: "",
           announcement: `[Thông báo về lịch học lớp LĐ]\n\nTuần ${currentRange}:\n - Lớp học bình thường vào thứ 3, thứ 5 và thứ 7\n - Lớp có lịch test tập trung vào CN`,
@@ -510,17 +1478,61 @@ export class AcaManagementService implements OnModuleInit {
           scheduleSatInfo: "Tham gia bằng Zoom, làm bài trên Google Docs, có nhân viên canh thời gian làm bài và các bạn học viên khác tham gia.",
         });
         weeks.push(created.toObject ? created.toObject() : (created as any));
+        try {
+          await this.practiceClassService.applyPracticeWeekToSchedule(
+            (created.toObject ? created.toObject() : created) as PracticeWeekLean,
+          );
+        } catch (err) {
+          console.warn('Could not sync new practice week to student schedule:', err);
+        }
       } catch (err) {
         // ignore race condition
       }
     }
     return weeks;
   }
+  private async nextExamWeekNumber(): Promise<number> {
+    const latest = await this.practiceWeekModel
+      .findOne({ examWeekNumber: { $gt: 0 } })
+      .sort({ examWeekNumber: -1 })
+      .lean()
+      .exec();
+    return (latest?.examWeekNumber ?? 0) + 1;
+  }
+
+  private async syncPracticeWeekToStudentSchedule(week: PracticeWeekLean) {
+    try {
+      await this.practiceClassService.applyPracticeWeekToSchedule(week);
+    } catch (err) {
+      console.warn('Could not sync practice week to student schedule:', err);
+    }
+  }
+
   async createWeek(data: any) {
-    return this.practiceWeekModel.create(data);
+    const payload = { ...data };
+    if (!payload.examWeekNumber) {
+      payload.examWeekNumber = await this.nextExamWeekNumber();
+    }
+    const created = await this.practiceWeekModel.create(payload);
+    const plain = created.toObject ? created.toObject() : created;
+    const currentRange = getCurrentRealtimePracticeWeekRange();
+    if (plain.weekRange === currentRange) {
+      await this.syncPracticeWeekToStudentSchedule(plain as PracticeWeekLean);
+    }
+    return created;
   }
   async updateWeek(id: string, data: any) {
-    return this.practiceWeekModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
+    const updated = await this.practiceWeekModel
+      .findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' })
+      .exec();
+    if (updated) {
+      const plain = updated.toObject ? updated.toObject() : updated;
+      const currentRange = getCurrentRealtimePracticeWeekRange();
+      if (plain.weekRange === currentRange) {
+        await this.syncPracticeWeekToStudentSchedule(plain as PracticeWeekLean);
+      }
+    }
+    return updated;
   }
   async deleteWeek(id: string) {
     return this.practiceWeekModel.findByIdAndDelete(id).exec();
@@ -554,9 +1566,101 @@ export class AcaManagementService implements OnModuleInit {
     return this.aca11Model.findByIdAndDelete(id).exec();
   }
 
+  private extractNameFrom11ClassName(className: string): string {
+    const raw = String(className || '');
+    const m =
+      raw.match(/1\s*:\s*1\s+(.+)$/i) ||
+      raw.match(/1-1\s+(.+)$/i) ||
+      raw.match(/1\/1\s+(.+)$/i);
+    return (m?.[1] || '').trim();
+  }
+
+  private normalizePersonName(value?: string | null): string {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ');
+  }
+
+  private toPublic11Class(doc: any) {
+    return {
+      id: String(doc._id),
+      status: doc.status || '',
+      className: doc.className || '',
+      studentEmail: doc.studentEmail || '',
+      studentName: doc.studentName || this.extractNameFrom11ClassName(doc.className || ''),
+      studentId: doc.studentId || '',
+      inputNeed: doc.inputNeed || '',
+      teacher: doc.teacher || '',
+      schedule: doc.schedule || '',
+      startDate: doc.startDate || '',
+      endDate: doc.endDate || '',
+      progress: doc.progress || '',
+      output: doc.output || '',
+      otherNote: doc.otherNote || '',
+      zoomLink: doc.zoomLink || '',
+      successorLink: doc.successorLink || '',
+      materials: doc.materials || '',
+      scores: doc.scores || null,
+      finalScores: doc.finalScores || null,
+    };
+  }
+
+  /** Học viên: lớp 1:1 đang gắn (ưu tiên Đang diễn ra) */
+  async findOneToOneForStudent(identity: { email?: string; name?: string; userId?: string }) {
+    const email = String(identity.email || '').trim().toLowerCase();
+    const name = this.normalizePersonName(identity.name);
+    const userId = String(identity.userId || '').trim();
+
+    const or: Record<string, unknown>[] = [];
+    if (email) {
+      or.push({ studentEmail: new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') });
+    }
+    if (userId) {
+      or.push({ studentId: userId });
+    }
+    if (name) {
+      or.push({ studentName: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') });
+      or.push({ className: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') });
+    }
+    if (or.length === 0) return null;
+
+    const rows = await this.aca11Model.find({ $or: or }).lean().exec();
+    if (!rows.length) return null;
+
+    const scored = rows.map((row: any) => {
+      const status = String(row.status || '');
+      const statusScore =
+        status === 'Đang diễn ra' ? 3 : status === 'Bảo lưu' ? 2 : 1;
+      const emailHit =
+        email &&
+        String(row.studentEmail || '')
+          .trim()
+          .toLowerCase() === email
+          ? 10
+          : 0;
+      return { row, score: statusScore + emailHit };
+    });
+    scored.sort((a, b) => b.score - a.score);
+    return this.toPublic11Class(scored[0].row);
+  }
+
   // --- Weekly Docs CRUD ---
-  async findAllWeeklyDocs() {
-    return this.weeklyDocModel.find().lean().exec();
+  async findAllWeeklyDocs(query?: { student?: string; studentEmail?: string; className?: string; week?: string }) {
+    const filter: Record<string, unknown> = {};
+    if (query?.studentEmail) {
+      filter.studentEmail = new RegExp(`^${String(query.studentEmail).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+    }
+    if (query?.student) {
+      filter.student = new RegExp(String(query.student).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    }
+    if (query?.className) {
+      filter.className = new RegExp(String(query.className).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    }
+    if (query?.week) {
+      filter.week = String(query.week).trim();
+    }
+    return this.weeklyDocModel.find(filter).sort({ updatedAt: -1 }).lean().exec();
   }
   async createWeeklyDoc(data: any) {
     return this.weeklyDocModel.create(data);
@@ -566,6 +1670,54 @@ export class AcaManagementService implements OnModuleInit {
   }
   async deleteWeeklyDoc(id: string) {
     return this.weeklyDocModel.findByIdAndDelete(id).exec();
+  }
+
+  /** Học viên: danh sách weekly docs của mình */
+  async findWeeklyDocsForStudent(identity: { email?: string; name?: string; userId?: string }) {
+    const email = String(identity.email || '').trim().toLowerCase();
+    const name = String(identity.name || '').trim();
+    const userId = String(identity.userId || '').trim();
+    const or: Record<string, unknown>[] = [];
+    if (email) {
+      or.push({ studentEmail: new RegExp(`^${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') });
+    }
+    if (userId) {
+      or.push({ studentId: userId });
+    }
+    if (name) {
+      or.push({ student: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') });
+    }
+    if (or.length === 0) return [];
+    return this.weeklyDocModel.find({ $or: or }).sort({ week: -1, updatedAt: -1 }).lean().exec();
+  }
+
+  async studentSubmitWeeklyDoc(
+    id: string,
+    identity: { email?: string; name?: string; userId?: string },
+    link: string,
+  ) {
+    const docs = await this.findWeeklyDocsForStudent(identity);
+    const owned = docs.find((d: any) => String(d._id) === String(id));
+    if (!owned) {
+      throw new ForbiddenException('Không tìm thấy tài liệu tuần của bạn.');
+    }
+    const nextStatus =
+      owned.status === 'Đã nhận' || owned.status === 'Đang chấm' ? owned.status : 'Đã nhận';
+    return this.weeklyDocModel
+      .findByIdAndUpdate(
+        id,
+        {
+          $set: {
+            link: String(link || '').trim(),
+            status: nextStatus,
+            ...(identity.email && !owned.studentEmail
+              ? { studentEmail: String(identity.email).trim().toLowerCase() }
+              : {}),
+          },
+        },
+        { returnDocument: 'after' },
+      )
+      .exec();
   }
 
   // --- Teacher Assignments CRUD ---
@@ -587,6 +1739,24 @@ export class AcaManagementService implements OnModuleInit {
     return this.freeSlotModel.find().lean().exec();
   }
   async createFreeSlot(data: any) {
+    const day = Number(data.day);
+    const month = Number(data.month);
+    const year = Number(data.year);
+    const time = String(data.time || '').trim();
+    const teacherName = String(data.teacherName || '').trim();
+    if (Number.isFinite(day) && Number.isFinite(month) && Number.isFinite(year) && time && teacherName) {
+      const existing = await this.freeSlotModel.findOne({
+        day,
+        month,
+        year,
+        time,
+        teacherName: new RegExp(`^${this.escapeRegex(teacherName)}$`, 'i'),
+      }).exec();
+      if (existing) {
+        Object.assign(existing, data);
+        return existing.save();
+      }
+    }
     return this.freeSlotModel.create(data);
   }
   async updateFreeSlot(id: string, data: any) {
@@ -785,7 +1955,7 @@ export class AcaManagementService implements OnModuleInit {
 
   async updateTeacherProfile(id: string, data: any) {
     return this.teacherProfileModel
-      .findOneAndUpdate({ id }, { $set: data }, { new: true, upsert: true })
+      .findOneAndUpdate({ id }, { $set: data }, { returnDocument: 'after', upsert: true })
       .exec();
   }
 
@@ -837,7 +2007,7 @@ export class AcaManagementService implements OnModuleInit {
     if (!doc) {
       return this.dailyNoteModel.create(data);
     }
-    return this.dailyNoteModel.findByIdAndUpdate(doc._id, { $set: data }, { new: true }).exec();
+    return this.dailyNoteModel.findByIdAndUpdate(doc._id, { $set: data }, { returnDocument: 'after' }).exec();
   }
 
   // --- Mock Test Requests CRUD ---
@@ -850,7 +2020,7 @@ export class AcaManagementService implements OnModuleInit {
   }
 
   async updateMockTestRequest(id: string, data: any) {
-    return this.mockTestRequestModel.findByIdAndUpdate(id, { $set: data }, { new: true }).exec();
+    return this.mockTestRequestModel.findByIdAndUpdate(id, { $set: data }, { returnDocument: 'after' }).exec();
   }
 
   async deleteMockTestRequest(id: string) {
@@ -858,38 +2028,154 @@ export class AcaManagementService implements OnModuleInit {
   }
 
   // --- Course Settings & Important Links CRUD ---
-  async getCourseSettings() {
-    let doc = await this.courseSettingsModel.findOne().exec();
-    if (!doc) {
-      doc = await this.courseSettingsModel.create({
-        course: 'Momentum - 357 - C2',
-        room: 'Zoom Online',
-        instructor: 'Nghiêm Doãn Quỳnh Châu',
-        zoomPassword: 'xalo2026',
-        schedule: ['T3: 19h45 - 21h45', 'T5: 19h45 - 21h45', 'T7: 19h45 - 21h45'],
-        openDate: '21/04/2026',
-        endDate: '09/07/2026',
-        phases: [
-          { name: 'Chặng 1: Speaking - Reading', date: '21/04/2026' },
-          { name: 'Chặng 2: Writing - Listening', date: '11/06/2026' },
-        ],
-        links: [
-          { id: 'rlp', label: 'RLP', value: 'Chặng 1: Speaking - Reading', url: '#rlp-section' },
-          { id: 'lesson', label: 'THƯ MỤC BÀI GIẢNG', value: 'Writing - Listening (21/04/2026)', url: '' },
-          { id: 'homework', label: 'THƯ MỤC BÀI TẬP', value: 'HW Học viên', url: '' },
-          { id: 'survey', label: 'KHẢO SÁT HỌC VIÊN', value: '—', url: '' },
-        ],
+  private defaultCourseSettingsPayload(classId = '') {
+    return {
+      classId: classId || '',
+      course: 'Momentum - 357 - C2',
+      room: 'Zoom Online',
+      instructor: 'Nghiêm Doãn Quỳnh Châu',
+      zoomPassword: 'xalo2026',
+      schedule: ['T3: 19h45 - 21h45', 'T5: 19h45 - 21h45', 'T7: 19h45 - 21h45'],
+      openDate: '21/04/2026',
+      endDate: '09/07/2026',
+      phases: [
+        { name: 'Chặng 1: Speaking - Reading', date: '21/04/2026' },
+        { name: 'Chặng 2: Writing - Listening', date: '11/06/2026' },
+      ],
+      links: [
+        { id: 'rlp', label: 'RLP', value: 'Chặng 1: Speaking - Reading', url: '#rlp-section' },
+        { id: 'lesson', label: 'THƯ MỤC BÀI GIẢNG', value: 'Writing - Listening (21/04/2026)', url: '' },
+        { id: 'homework', label: 'THƯ MỤC BÀI TẬP', value: 'HW Học viên', url: '' },
+        { id: 'survey', label: 'KHẢO SÁT HỌC VIÊN', value: '—', url: '' },
+      ],
+    };
+  }
+
+  private courseSettingsFromClass(cls: any) {
+    const scheduleText = String(cls.schedule || '').trim();
+    const schedule = scheduleText
+      ? scheduleText
+          .split(/\n+/)
+          .map((line: string) => line.trim())
+          .filter(Boolean)
+      : [];
+    const phases: { name: string; date: string }[] = [];
+    if (cls.currentPhase || cls.phaseStartDate || cls.openDate) {
+      phases.push({
+        name: cls.currentPhase || 'Chặng 1',
+        date: cls.phaseStartDate || cls.openDate || '',
       });
+    }
+    if (cls.nextPhase || cls.nextPhaseStartDate) {
+      phases.push({
+        name: cls.nextPhase || 'Chặng 2',
+        date: cls.nextPhaseStartDate || '',
+      });
+    }
+    return {
+      classId: String(cls._id || ''),
+      course: cls.classCode || cls.name || '',
+      room: cls.room || '',
+      instructor: cls.teacher || '',
+      zoomPassword: cls.zoomPassword || '—',
+      zoomLink: cls.zoomLink || '',
+      schedule,
+      openDate: cls.openDate || '',
+      endDate: cls.endDate || '',
+      phases,
+      links: Array.isArray(cls.links) ? cls.links : [],
+    };
+  }
+
+  async getCourseSettings(classId?: string) {
+    const cid = String(classId || '').trim();
+    if (cid && Types.ObjectId.isValid(cid)) {
+      const cls = await this.classModel.findById(cid).lean().exec();
+      if (cls) {
+        const fromClass = this.courseSettingsFromClass(cls);
+        // Nếu lớp chưa có links/room/pass → merge template global làm nền
+        const global = await this.courseSettingsModel
+          .findOne({ $or: [{ classId: '' }, { classId: { $exists: false } }] })
+          .lean()
+          .exec();
+        return {
+          ...this.defaultCourseSettingsPayload(cid),
+          ...(global || {}),
+          ...fromClass,
+          links:
+            fromClass.links.length > 0
+              ? fromClass.links
+              : Array.isArray((global as any)?.links)
+                ? (global as any).links
+                : this.defaultCourseSettingsPayload(cid).links,
+          room: fromClass.room || (global as any)?.room || '',
+          zoomPassword:
+            fromClass.zoomPassword && fromClass.zoomPassword !== '—'
+              ? fromClass.zoomPassword
+              : (global as any)?.zoomPassword || '—',
+        };
+      }
+      const byClassId = await this.courseSettingsModel.findOne({ classId: cid }).exec();
+      if (byClassId) return byClassId;
+    }
+
+    let doc = await this.courseSettingsModel
+      .findOne({ $or: [{ classId: '' }, { classId: { $exists: false } }] })
+      .exec();
+    if (!doc) {
+      doc = await this.courseSettingsModel.create(this.defaultCourseSettingsPayload(''));
     }
     return doc;
   }
 
   async updateCourseSettings(data: any) {
-    let doc = await this.courseSettingsModel.findOne().exec();
-    if (!doc) {
-      return this.courseSettingsModel.create(data);
+    const cid = String(data?.classId || '').trim();
+    const { classId: _classId, ...rest } = data || {};
+
+    // Ghi settings lên aca_classes khi có classId
+    if (cid && Types.ObjectId.isValid(cid)) {
+      const scheduleArr = Array.isArray(rest.schedule) ? rest.schedule : [];
+      const scheduleText =
+        typeof rest.schedule === 'string'
+          ? rest.schedule
+          : scheduleArr.map((s: string) => String(s).trim()).filter(Boolean).join('\n');
+      const patch: Record<string, unknown> = {};
+      if (rest.room !== undefined) patch.room = rest.room;
+      if (rest.zoomPassword !== undefined) patch.zoomPassword = rest.zoomPassword;
+      if (rest.zoomLink !== undefined) patch.zoomLink = rest.zoomLink;
+      if (rest.schedule !== undefined) patch.schedule = scheduleText;
+      if (rest.links !== undefined) patch.links = rest.links;
+      if (rest.instructor !== undefined) patch.teacher = rest.instructor;
+      if (rest.openDate !== undefined) patch.openDate = rest.openDate;
+      if (rest.endDate !== undefined) patch.endDate = rest.endDate;
+      if (Object.keys(patch).length > 0) {
+        await this.classModel.findByIdAndUpdate(cid, { $set: patch }).exec();
+      }
+      // Đồng thời lưu bản CourseSettings theo classId (ACA editor / teacher)
+      let perClass = await this.courseSettingsModel.findOne({ classId: cid }).exec();
+      if (!perClass) {
+        perClass = await this.courseSettingsModel.create({
+          ...this.defaultCourseSettingsPayload(cid),
+          ...rest,
+          classId: cid,
+        });
+      } else {
+        perClass = await this.courseSettingsModel
+          .findByIdAndUpdate(perClass._id, { $set: { ...rest, classId: cid } }, { returnDocument: 'after' })
+          .exec();
+      }
+      return this.getCourseSettings(cid);
     }
-    return this.courseSettingsModel.findByIdAndUpdate(doc._id, { $set: data }, { new: true }).exec();
+
+    let doc = await this.courseSettingsModel
+      .findOne({ $or: [{ classId: '' }, { classId: { $exists: false } }] })
+      .exec();
+    if (!doc) {
+      return this.courseSettingsModel.create({ ...rest, classId: '' });
+    }
+    return this.courseSettingsModel
+      .findByIdAndUpdate(doc._id, { $set: { ...rest, classId: '' } }, { returnDocument: 'after' })
+      .exec();
   }
 
   // --- Guest Diagnosis Leads ---
@@ -945,7 +2231,7 @@ export class AcaManagementService implements OnModuleInit {
     if (patch.assignedClassId !== undefined) update.assignedClassId = patch.assignedClassId.trim();
     if (patch.assignedClassName !== undefined) update.assignedClassName = patch.assignedClassName.trim();
     const doc = await this.guestLeadModel
-      .findByIdAndUpdate(id, { $set: update }, { new: true })
+      .findByIdAndUpdate(id, { $set: update }, { returnDocument: 'after' })
       .lean()
       .exec();
     if (!doc) throw new Error('Không tìm thấy lead');
@@ -961,19 +2247,67 @@ export class AcaManagementService implements OnModuleInit {
     };
   }
 
+  async getGuestLeadPublic(id: string) {
+    const doc = await this.guestLeadModel.findById(id).lean().exec();
+    if (!doc) throw new Error('Không tìm thấy lead');
+    const diagnosis = (doc as any).diagnosis ?? null;
+    return {
+      id: doc._id.toString(),
+      name: doc.name ?? '',
+      aim: doc.aim ?? '',
+      hasDiagnosis: Boolean(diagnosis && Object.keys(diagnosis).length > 0),
+      diagnosis,
+    };
+  }
+
   async saveGuestLeadDiagnosis(id: string, diagnosis: Record<string, unknown>) {
+    const existing = await this.guestLeadModel.findById(id).lean().exec();
+    if (!existing) throw new Error('Không tìm thấy lead');
+    const prev =
+      ((existing as { diagnosis?: Record<string, unknown> | null }).diagnosis as
+        | Record<string, unknown>
+        | null) || {};
+    const prevScores =
+      (prev.scores as Record<string, unknown> | undefined) || {};
+    const nextScores =
+      (diagnosis.scores as Record<string, unknown> | undefined) || {};
+    const prevSummaries =
+      (prev.skillSummaries as Record<string, unknown> | undefined) || {};
+    const nextSummaries =
+      (diagnosis.skillSummaries as Record<string, unknown> | undefined) || {};
+
+    const merged: Record<string, unknown> = {
+      ...prev,
+      ...diagnosis,
+      scores: { ...prevScores, ...nextScores },
+      skillSummaries: { ...prevSummaries, ...nextSummaries },
+    };
+    // Sale lr-only: giữ W/S criteria nếu payload không gửi
+    if (diagnosis.writingCriteria === undefined && prev.writingCriteria) {
+      merged.writingCriteria = prev.writingCriteria;
+    }
+    if (diagnosis.writingSummary === undefined && prev.writingSummary) {
+      merged.writingSummary = prev.writingSummary;
+    }
+    if (diagnosis.writingLinks === undefined && prev.writingLinks) {
+      merged.writingLinks = prev.writingLinks;
+    }
+    if (diagnosis.speakingCriteria === undefined && prev.speakingCriteria) {
+      merged.speakingCriteria = prev.speakingCriteria;
+    }
+
     const doc = await this.guestLeadModel
       .findByIdAndUpdate(
         id,
-        { $set: { diagnosis } },
-        { new: true },
+        { $set: { diagnosis: merged } },
+        { returnDocument: 'after' },
       )
       .lean()
       .exec();
     if (!doc) throw new Error('Không tìm thấy lead');
     return {
       ...this.toLeadPublic(doc),
-      diagnosis: (doc as any).diagnosis ?? diagnosis,
+      diagnosis: (doc as any).diagnosis ?? merged,
     };
   }
 
@@ -1006,6 +2340,9 @@ export class AcaManagementService implements OnModuleInit {
       scoreSpeaking: doc.scoreSpeaking ?? '',
       scoreWriting: doc.scoreWriting ?? '',
       feedback: doc.feedback ?? '',
+      speakingCriteria: doc.speakingCriteria ?? null,
+      writingCriteria: doc.writingCriteria ?? null,
+      bcbData: doc.bcbData ?? null,
       slotId: doc.slotId ?? '',
       mockTestId: doc.mockTestId ?? '',
       writingSubmissionId: doc.writingSubmissionId ?? '',
@@ -1080,6 +2417,7 @@ export class AcaManagementService implements OnModuleInit {
 
     if (type === 'writing' || type === 'both') {
       try {
+        const autoGrader = await this.selectNextWritingGrader();
         const writingId = await this.createLinkedWritingSubmission({
           studentId: doc.leadId || `guest:${doc.candidatePhone || doc._id.toString()}`,
           studentName: doc.candidateName,
@@ -1087,14 +2425,20 @@ export class AcaManagementService implements OnModuleInit {
           testDateTime: `${doc.date}T${doc.time || '00:00'}`,
           type: 'Entrance',
           source: 'entrance',
-          assignedGrader: doc.graderName,
+          assignedGrader: autoGrader,
           note: doc.note || `Entrance Writing — ${doc.candidatePhone}`,
           entranceBookingId: doc._id.toString(),
         });
         doc.writingSubmissionId = writingId;
         await this.entranceBookingModel
-          .findByIdAndUpdate(doc._id, { $set: { writingSubmissionId: writingId } })
+          .findByIdAndUpdate(doc._id, {
+            $set: {
+              writingSubmissionId: writingId,
+              graderName: autoGrader,
+            },
+          })
           .exec();
+        doc.graderName = autoGrader;
       } catch (err) {
         console.warn('Could not create writing submission for entrance booking:', err);
       }
@@ -1107,13 +2451,82 @@ export class AcaManagementService implements OnModuleInit {
     const allowed = [
       'status', 'scoreSpeaking', 'scoreWriting', 'feedback',
       'note', 'meetLink', 'examLink', 'submissionLink',
+      'speakingCriteria', 'writingCriteria', 'bcbData',
     ];
     const update: Record<string, unknown> = {};
     for (const key of allowed) {
       if (patch[key] !== undefined) update[key] = patch[key];
     }
+
+    const existing = await this.entranceBookingModel.findById(id).lean().exec();
+    if (!existing) throw new Error('Không tìm thấy lịch thi');
+
+    const speakingCriteria = update.speakingCriteria as
+      | Record<string, unknown>
+      | undefined;
+    const writingCriteria = update.writingCriteria as
+      | Record<string, unknown>
+      | undefined;
+
+    // Đồng bộ criteria → bcbData slices (giống Final), trừ khi caller gửi bcbData đầy đủ.
+    if (update.bcbData === undefined && (speakingCriteria || writingCriteria)) {
+      let nextBcb =
+        ((existing as { bcbData?: Record<string, unknown> | null }).bcbData as Record<
+          string,
+          unknown
+        > | null) || {};
+
+      if (speakingCriteria) {
+        const prevSpeaking =
+          (nextBcb.speaking as Record<string, unknown> | undefined) || {};
+        nextBcb = {
+          ...nextBcb,
+          speaking: {
+            ...prevSpeaking,
+            fc: String(speakingCriteria.fluencyCoherence ?? prevSpeaking.fc ?? ''),
+            lr: String(speakingCriteria.lexicalResource ?? prevSpeaking.lr ?? ''),
+            gra: String(
+              speakingCriteria.grammaticalRangeAccuracy ?? prevSpeaking.gra ?? '',
+            ),
+            pr: String(speakingCriteria.pronunciation ?? prevSpeaking.pr ?? ''),
+          },
+        };
+      }
+
+      if (writingCriteria) {
+        const prevWriting =
+          (nextBcb.writing as Record<string, unknown> | undefined) || {};
+        const t1 =
+          (writingCriteria.task1 as Record<string, unknown> | undefined) || {};
+        const t2 =
+          (writingCriteria.task2 as Record<string, unknown> | undefined) || {};
+        nextBcb = {
+          ...nextBcb,
+          writing: {
+            ...prevWriting,
+            task1: {
+              ta: String(t1.taskAchievement ?? ''),
+              cc: String(t1.coherenceCohesion ?? ''),
+              lr: String(t1.lexicalResource ?? ''),
+              gra: String(t1.grammaticalRange ?? ''),
+              notes: (prevWriting.task1 as { notes?: string } | undefined)?.notes,
+            },
+            task2: {
+              tr: String(t2.taskResponse ?? ''),
+              cc: String(t2.coherenceCohesion ?? ''),
+              lr: String(t2.lexicalResource ?? ''),
+              gra: String(t2.grammaticalRange ?? ''),
+              notes: (prevWriting.task2 as { notes?: string } | undefined)?.notes,
+            },
+          },
+        };
+      }
+
+      update.bcbData = nextBcb;
+    }
+
     const doc = await this.entranceBookingModel
-      .findByIdAndUpdate(id, { $set: update }, { new: true })
+      .findByIdAndUpdate(id, { $set: update }, { returnDocument: 'after' })
       .lean()
       .exec();
     if (!doc) throw new Error('Không tìm thấy lịch thi');
@@ -1158,7 +2571,7 @@ export class AcaManagementService implements OnModuleInit {
     await this.kvModel.findOneAndUpdate(
       { namespace },
       { $set: { data } },
-      { upsert: true, new: true },
+      { returnDocument: 'after', upsert: true },
     ).exec();
     return { ok: true };
   }
@@ -1173,7 +2586,9 @@ export class AcaManagementService implements OnModuleInit {
   // --- Final Tests ---
   private toFinalTestPublic(doc: any, opts?: { redactUnreleased?: boolean }) {
     const isChecked = Boolean(doc.isChecked);
-    const hideScores = Boolean(opts?.redactUnreleased) && !isChecked;
+    const isDone = Boolean(doc.isDone);
+    const isGraded = doc.status === 'graded';
+    const hideScores = Boolean(opts?.redactUnreleased) && !isChecked && !isDone && !isGraded;
     return {
       id: doc._id.toString(),
       candidateName: doc.candidateName ?? '',
@@ -1189,6 +2604,9 @@ export class AcaManagementService implements OnModuleInit {
       examinerName: doc.examinerName ?? '',
       date: doc.date ?? '',
       time: doc.time ?? '',
+      examDate: doc.examDate || doc.date || '',
+      speakingDate: doc.speakingDate ?? '',
+      speakingTime: doc.speakingTime ?? '',
       day: doc.day ?? 0,
       month: doc.month ?? 0,
       year: doc.year ?? 0,
@@ -1254,6 +2672,7 @@ export class AcaManagementService implements OnModuleInit {
     if (!name) return [];
     const rows = await this.finalTestModel
       .find({
+        status: { $ne: 'cancelled' },
         examinerName: new RegExp(`^${this.escapeRegex(name)}$`, 'i'),
       })
       .sort({ date: -1, time: -1, createdAt: -1 })
@@ -1366,16 +2785,29 @@ export class AcaManagementService implements OnModuleInit {
     const classCode = cls?.classCode || cls?.name || '';
     const requiredSessions = requiredFullCourseSessions(classCode);
 
-    const storeKey = classId && classId !== 'cls_placeholder' ? `rlp_store_${classId}` : '';
+    const studentCohort = String((student as { rlpCohortKey?: string }).rlpCohortKey || '').trim();
+    const cohort =
+      studentCohort ||
+      (cls ? resolveClassCohortKey(cls) : '') ||
+      'default';
+    const storeKey =
+      classId && classId !== 'cls_placeholder'
+        ? buildRlpStoreKey(classId, cohort)
+        : '';
     let sessions: any[] = [];
     if (storeKey) {
       const classStore = await this.rlpCourseStoreModel.findOne({ key: storeKey }).lean().exec();
       sessions = (classStore?.sessions as any[]) || [];
+      // Fallback legacy key nếu chưa migrate.
+      if (!sessions.length) {
+        const legacy = await this.rlpCourseStoreModel
+          .findOne({ key: `rlp_store_${classId}` })
+          .lean()
+          .exec();
+        sessions = (legacy?.sessions as any[]) || [];
+      }
     }
-    if (sessions.length === 0) {
-      const mainStore = await this.rlpCourseStoreModel.findOne({ key: 'main' }).lean().exec();
-      sessions = (mainStore?.sessions as any[]) || [];
-    }
+    // Không fallback sang RLP `main` dùng chung — mỗi lớp/đợt chỉ tính store của mình.
 
     const progress = computeStudentRlpProgress(sessions, {
       id: String(student._id),
@@ -1384,23 +2816,58 @@ export class AcaManagementService implements OnModuleInit {
       phone: student.phone,
     });
 
-    const eligibilityInput = {
-      totalSessionsElapsed: progress.totalSessionsElapsed,
-      classOpenDate: cls?.openDate || '',
-      phaseStartDate: cls?.phaseStartDate || '',
-      nextPhaseStartDate: cls?.nextPhaseStartDate || '',
-      endDate: cls?.endDate || '',
-      phaseDurationDays: cls?.phaseDurationDays,
-      requiredSessions,
-    };
+    // Final Test: theo tiến độ buổi LỚP đã hoàn thành (điểm danh / ngày buổi đã qua),
+    // không trừ khi HV vắng — lớp xong buổi 36 thì được đăng ký.
+    const classSessionsCompleted = countClassSessionsCompleted(sessions);
+    const totalSessionsElapsed =
+      sessions.length > 0 ? classSessionsCompleted : progress.totalSessionsElapsed;
 
-    const firstStageCompleted = hasCompletedFirstStage(eligibilityInput);
-    const fullCourseCompleted = hasCompletedFullCourse(eligibilityInput);
+    // Check if student already has completed/graded Final Test results
+    const finalTestQuery: Record<string, unknown>[] = [];
+    if (studentId) finalTestQuery.push({ studentId });
+    if (email) finalTestQuery.push({ candidateEmail: new RegExp(`^${this.escapeRegex(email)}$`, 'i') });
+    if (student?.name) finalTestQuery.push({ candidateName: new RegExp(`^${this.escapeRegex(student.name)}$`, 'i') });
 
-    if (fullCourseCompleted) {
+    if (finalTestQuery.length > 0) {
+      const existingGraded = await this.finalTestModel
+        .findOne({
+          $and: [
+            { $or: finalTestQuery },
+            { status: { $ne: 'cancelled' } },
+            {
+              $or: [
+                { status: 'graded' },
+                { isDone: true },
+                { isChecked: true },
+                { scoreOverall: { $nin: ['', null] } },
+                { scoreSpeaking: { $nin: ['', null] } },
+                { scoreWriting: { $nin: ['', null] } },
+              ],
+            },
+          ],
+        })
+        .lean()
+        .exec();
+
+      if (existingGraded) {
+        return {
+          eligible: false,
+          reason: 'Học viên đã có kết quả thi Final Test, không thể đăng ký thi lại.',
+          totalSessionsElapsed,
+          requiredSessions,
+          firstStageCompleted: true,
+          fullCourseCompleted: true,
+          classCode,
+          className: cls?.name || '',
+        };
+      }
+    }
+
+    const firstStageRequired = FIRST_STAGE_SESSIONS;
+    if (totalSessionsElapsed >= requiredSessions) {
       return {
         eligible: true,
-        totalSessionsElapsed: progress.totalSessionsElapsed,
+        totalSessionsElapsed,
         requiredSessions,
         firstStageCompleted: true,
         fullCourseCompleted: true,
@@ -1409,16 +2876,25 @@ export class AcaManagementService implements OnModuleInit {
       };
     }
 
-    const remaining = Math.max(0, requiredSessions - progress.totalSessionsElapsed);
-    const isFoundation = requiredSessions <= 12;
+    if (totalSessionsElapsed >= firstStageRequired) {
+      return {
+        eligible: false,
+        reason: `Lớp đã hoàn thành Chặng 1 (${totalSessionsElapsed}/${requiredSessions} buổi). Cần hoàn thành đủ 2 chặng (${requiredSessions} buổi) để thi Final.`,
+        totalSessionsElapsed,
+        requiredSessions,
+        firstStageCompleted: true,
+        fullCourseCompleted: false,
+        classCode,
+        className: cls?.name || '',
+      };
+    }
+
     return {
       eligible: false,
-      reason: isFoundation
-        ? 'Chưa hoàn thành chương trình Foundation. Bạn cần học đủ 1 chặng trước khi đăng ký Final Test.'
-        : `Chưa hoàn thành đủ 2 chặng (1 khóa học). Bạn cần học xong cả Chặng 1 và Chặng 2 trước khi đăng ký Final Test.${remaining > 0 ? ` (Còn ~${remaining} buổi)` : ''}`,
-      totalSessionsElapsed: progress.totalSessionsElapsed,
+      reason: `Lớp chưa hoàn thành đủ 2 chặng (${totalSessionsElapsed}/${requiredSessions} buổi). Cần hoàn thành đủ ${requiredSessions} buổi để thi Final.`,
+      totalSessionsElapsed,
       requiredSessions,
-      firstStageCompleted,
+      firstStageCompleted: false,
       fullCourseCompleted: false,
       classCode,
       className: cls?.name || '',
@@ -1433,30 +2909,194 @@ export class AcaManagementService implements OnModuleInit {
     if (!result.eligible) {
       throw new ForbiddenException(
         result.reason ||
-          'Chưa hoàn thành đủ 2 chặng (1 khóa học) để đăng ký Final Test.',
+          'Chưa hoàn thành đủ 2 chặng (36 buổi lớp đã hoàn thành) để đăng ký Final Test.',
       );
     }
   }
 
-  async createFinalTest(input: Record<string, unknown>) {
+  async createFinalTest(input: Record<string, unknown>): Promise<any> {
     const dateStr = ((input.date as string) ?? '').trim();
+    const speakingDateStr = (((input.speakingDate as string) ?? dateStr) ?? '').trim();
+    const speakingTimeStr = (((input.speakingTime as string) ?? (input.time as string)) ?? '').trim();
     const parsed = this.parseFinalTestDate(dateStr);
     const format = ((input.format as string) || 'online') as FinalTestFormat;
     const testType = ((input.testType as string) || 'full_4_skills') as FinalTestType;
+    const studentId = ((input.studentId as string) ?? '').trim();
+    const candidateEmail = ((input.candidateEmail as string) ?? '').trim().toLowerCase();
+    const candidateName = ((input.candidateName as string) ?? '').trim();
+    const candidatePhone = ((input.candidatePhone as string) ?? '').trim();
+    const graderSpeaking = ((input.graderSpeaking as string) ?? ((input.examinerName as string) ?? '')).trim();
+
+    // Find any existing active or graded Final Test record for this student
+    let existingActive: any = null;
+    if (studentId || candidateEmail || candidateName) {
+      const orClauses: Record<string, unknown>[] = [];
+      if (studentId) orClauses.push({ studentId });
+      if (candidateEmail) orClauses.push({ candidateEmail: new RegExp(`^${this.escapeRegex(candidateEmail)}$`, 'i') });
+      if (candidateName && candidatePhone) {
+        orClauses.push({
+          candidateName: new RegExp(`^${this.escapeRegex(candidateName)}$`, 'i'),
+          candidatePhone: new RegExp(`${this.escapeRegex(this.normalizePhone(candidatePhone).slice(-9))}`),
+        });
+      } else if (candidateName) {
+        orClauses.push({ candidateName: new RegExp(`^${this.escapeRegex(candidateName)}$`, 'i') });
+      }
+
+      if (orClauses.length > 0) {
+        // 1. Block if student already has a completed/graded Final Test
+        const existingGraded = await this.finalTestModel
+          .findOne({
+            $and: [
+              { $or: orClauses },
+              { status: { $ne: 'cancelled' } },
+              {
+                $or: [
+                  { status: 'graded' },
+                  { isDone: true },
+                  { isChecked: true },
+                  { scoreOverall: { $nin: ['', null] } },
+                  { scoreSpeaking: { $nin: ['', null] } },
+                  { scoreWriting: { $nin: ['', null] } },
+                ],
+              },
+            ],
+          })
+          .exec();
+
+        if (existingGraded) {
+          throw new BadRequestException(
+            'Học viên đã có kết quả thi Final Test, không thể đăng ký thi lại.',
+          );
+        }
+
+        // 2. Find any active (scheduled / in_progress) Final Test record
+        const activeFilter: Record<string, unknown> = {
+          $and: [
+            { $or: orClauses },
+            { status: { $nin: ['graded', 'cancelled'] } },
+          ],
+        };
+        existingActive = await this.finalTestModel.findOne(activeFilter).exec();
+      }
+    }
+
+    // Branch A: Student books Speaking
+    if (testType === 'speaking') {
+      if (existingActive) {
+        // If the student already has an active Speaking registration
+        const hasActiveSpeaking =
+          Boolean(existingActive.speakingDate && existingActive.speakingTime) ||
+          existingActive.testType === 'speaking';
+        if (hasActiveSpeaking && existingActive.speakingDate) {
+          throw new BadRequestException(
+            `Bạn đang có 1 ca Final Test Speaking chưa hoàn thành hoặc chưa hủy (Ngày ${existingActive.speakingDate || existingActive.date} • ${existingActive.speakingTime || existingActive.time}). Vui lòng hủy ca hiện tại trước khi đăng ký ca mới.`,
+          );
+        }
+
+        // Merge speaking into the existing LR / Final Test record
+        existingActive.speakingDate = speakingDateStr || dateStr;
+        existingActive.speakingTime = speakingTimeStr;
+        existingActive.graderSpeaking = graderSpeaking || existingActive.graderSpeaking;
+        if (graderSpeaking) existingActive.examinerName = graderSpeaking;
+        if (input.meetLink) existingActive.meetLink = ((input.meetLink as string) ?? '').trim();
+        if (input.format) existingActive.format = format;
+        existingActive.testType = 'full_4_skills';
+        if (candidateEmail && !existingActive.candidateEmail) existingActive.candidateEmail = candidateEmail;
+        if (candidatePhone && !existingActive.candidatePhone) existingActive.candidatePhone = candidatePhone;
+        if (studentId && !existingActive.studentId) existingActive.studentId = studentId;
+
+        await existingActive.save();
+        await this.attachFinalTestGraderTasks(existingActive);
+        return this.toFinalTestPublic(existingActive);
+      }
+
+      // No existing record -> create a new speaking record
+      const doc = await this.finalTestModel.create({
+        candidateName,
+        candidatePhone,
+        candidateEmail,
+        studentId,
+        classCode: ((input.classCode as string) ?? '').trim(),
+        className: ((input.className as string) ?? '').trim(),
+        targetBand: ((input.targetBand as string) ?? '').trim(),
+        testType: 'speaking',
+        format,
+        examinerName: graderSpeaking,
+        date: dateStr,
+        time: ((input.time as string) ?? '').trim(),
+        examDate: '',
+        speakingDate: speakingDateStr || dateStr,
+        speakingTime: speakingTimeStr,
+        day: parsed.day,
+        month: parsed.month,
+        year: parsed.year,
+        status: ((input.status as string) || 'scheduled') as FinalTestStatus,
+        meetLink: ((input.meetLink as string) ?? '').trim(),
+        examLink: ((input.examLink as string) ?? '').trim(),
+        submissionLink: ((input.submissionLink as string) ?? '').trim(),
+        graderSpeaking,
+        graderWTask1: ((input.graderWTask1 as string) ?? '').trim(),
+        graderWTask2: ((input.graderWTask2 as string) ?? '').trim(),
+        hasTakenTest: Boolean(input.hasTakenTest),
+        isChecked: Boolean(input.isChecked),
+        isDone: Boolean(input.isDone),
+      });
+
+      await this.attachFinalTestGraderTasks(doc);
+      return this.toFinalTestPublic(doc);
+    }
+
+    // Branch B: Student books LR / Writing
+    if (testType === 'lr' || testType === 'writing') {
+      if (existingActive) {
+        // If student already has an active LR date
+        if (existingActive.date && (existingActive.testType === 'lr' || existingActive.testType === 'full_4_skills')) {
+          throw new BadRequestException(
+            `Bạn đang có 1 ca Final Test Listening/Reading/Writing chưa hoàn thành hoặc chưa hủy (Ngày ${existingActive.date}). Vui lòng hủy ca hiện tại trước khi đăng ký ca mới.`,
+          );
+        }
+
+        // Merge LR date into existing Speaking record
+        existingActive.date = dateStr;
+        existingActive.time = ((input.time as string) ?? '').trim();
+        existingActive.examDate = dateStr;
+        existingActive.day = parsed.day;
+        existingActive.month = parsed.month;
+        existingActive.year = parsed.year;
+        existingActive.testType = 'full_4_skills';
+        if (candidateEmail && !existingActive.candidateEmail) existingActive.candidateEmail = candidateEmail;
+        if (candidatePhone && !existingActive.candidatePhone) existingActive.candidatePhone = candidatePhone;
+        if (studentId && !existingActive.studentId) existingActive.studentId = studentId;
+
+        await existingActive.save();
+        await this.attachFinalTestGraderTasks(existingActive);
+        return this.toFinalTestPublic(existingActive);
+      }
+    }
+
+    // Branch C: Standard creation (full_4_skills or new standalone)
+    if (existingActive) {
+      throw new BadRequestException(
+        `Bạn đang có 1 ca Final Test chưa hoàn thành hoặc chưa hủy (Ngày ${existingActive.date || existingActive.speakingDate}). Vui lòng hủy ca hiện tại trước khi đăng ký ca mới.`,
+      );
+    }
 
     const doc = await this.finalTestModel.create({
-      candidateName: ((input.candidateName as string) ?? '').trim(),
-      candidatePhone: ((input.candidatePhone as string) ?? '').trim(),
-      candidateEmail: ((input.candidateEmail as string) ?? '').trim(),
-      studentId: ((input.studentId as string) ?? '').trim(),
+      candidateName,
+      candidatePhone,
+      candidateEmail,
+      studentId,
       classCode: ((input.classCode as string) ?? '').trim(),
       className: ((input.className as string) ?? '').trim(),
-      targetBand: ((input.targetBand as string) ?? '6.5').trim(),
+      targetBand: ((input.targetBand as string) ?? '').trim(),
       testType,
       format,
       examinerName: ((input.examinerName as string) ?? '').trim(),
       date: dateStr,
       time: ((input.time as string) ?? '').trim(),
+      examDate: dateStr,
+      speakingDate: speakingDateStr,
+      speakingTime: speakingTimeStr,
       day: parsed.day,
       month: parsed.month,
       year: parsed.year,
@@ -1479,15 +3119,179 @@ export class AcaManagementService implements OnModuleInit {
       bcbSpreadsheetLink: ((input.bcbSpreadsheetLink as string) ?? '').trim(),
       graderWTask1: ((input.graderWTask1 as string) ?? '').trim(),
       graderWTask2: ((input.graderWTask2 as string) ?? '').trim(),
-      graderSpeaking: ((input.graderSpeaking as string) ?? ((input.examinerName as string) ?? '')).trim(),
+      graderSpeaking,
       isChecked: Boolean(input.isChecked),
-      resultStatus: ((input.resultStatus as string) ?? 'Không đạt').trim(),
+      resultStatus: ((input.resultStatus as string) ?? '').trim(),
       isDone: Boolean(input.isDone),
     });
 
     await this.attachFinalTestGraderTasks(doc);
+
+    try {
+      await this.syncReleasedFinalToStudent(doc);
+    } catch (err) {
+      console.warn('Could not sync created Final Test to student profile:', err);
+    }
+
     const fresh = await this.finalTestModel.findById(doc._id).exec();
     return this.toFinalTestPublic(fresh ?? doc);
+  }
+
+  private pickRosterBand(next: unknown, fallback: unknown) {
+    const raw = String(next ?? '').trim();
+    if (raw && raw !== '-' && raw !== '') return raw;
+    const prev = String(fallback ?? '').trim();
+    return prev || '-';
+  }
+
+  private async resolveAcaStudentForFinal(doc: {
+    studentId?: string;
+    candidateEmail?: string;
+    candidateName?: string;
+    candidatePhone?: string;
+  }) {
+    const studentId = String(doc.studentId || '').trim();
+    if (studentId && Types.ObjectId.isValid(studentId)) {
+      const byId = await this.studentModel.findById(studentId).exec();
+      if (byId) return byId;
+      try {
+        const user = await this.usersService.findPublicById(studentId);
+        const email = String(user?.email || '').trim();
+        if (email) {
+          const byUserEmail = await this.studentModel
+            .findOne({
+              email: new RegExp(`^${this.escapeRegex(email)}$`, 'i'),
+            })
+            .exec();
+          if (byUserEmail) return byUserEmail;
+        }
+      } catch {
+        // ignore
+      }
+    }
+    const email = String(doc.candidateEmail || '').trim();
+    if (email) {
+      const byEmail = await this.studentModel
+        .findOne({
+          email: new RegExp(`^${this.escapeRegex(email)}$`, 'i'),
+        })
+        .exec();
+      if (byEmail) return byEmail;
+    }
+    const name = String(doc.candidateName || '').trim();
+    const phone = this.normalizePhone(String(doc.candidatePhone || ''));
+    if (name && phone) {
+      const byNamePhone = await this.studentModel
+        .findOne({
+          name: new RegExp(`^${this.escapeRegex(name)}$`, 'i'),
+          phone: new RegExp(this.escapeRegex(phone)),
+        })
+        .exec();
+      if (byNamePhone) return byNamePhone;
+    }
+    if (name) {
+      return this.studentModel
+        .findOne({ name: new RegExp(`^${this.escapeRegex(name)}$`, 'i') })
+        .exec();
+    }
+    return null;
+  }
+
+  private async syncReleasedFinalToStudent(doc: {
+    studentId?: string;
+    candidateEmail?: string;
+    candidateName?: string;
+    candidatePhone?: string;
+    scoreListening?: string;
+    scoreReading?: string;
+    scoreWriting?: string;
+    scoreSpeaking?: string;
+    scoreOverall?: string;
+    bcbData?: Record<string, unknown> | null;
+    releasedAt?: string;
+  }) {
+    const student = await this.resolveAcaStudentForFinal(doc);
+
+    const existingFinal = ((student?.finalScores || {}) as {
+      l?: string | number;
+      r?: string | number;
+      w?: string | number;
+      s?: string | number;
+      o?: string | number;
+    });
+    const finalScores = {
+      l: this.pickRosterBand(doc.scoreListening, existingFinal.l),
+      r: this.pickRosterBand(doc.scoreReading, existingFinal.r),
+      w: this.pickRosterBand(doc.scoreWriting, existingFinal.w),
+      s: this.pickRosterBand(doc.scoreSpeaking, existingFinal.s),
+      o: this.pickRosterBand(doc.scoreOverall, existingFinal.o),
+    };
+
+    if (student) {
+      const cycles = Array.isArray(student.cycles) ? [...student.cycles] : [];
+      if (cycles.length > 0) {
+        const last = { ...(cycles[cycles.length - 1] as object), finalScores };
+        cycles[cycles.length - 1] = last as (typeof cycles)[number];
+      }
+
+      await this.studentModel
+        .updateOne(
+          { _id: student._id },
+          {
+            $set: {
+              finalScores,
+              ...(cycles.length > 0 ? { cycles } : {}),
+            },
+          },
+        )
+        .exec();
+    }
+
+    const email = String(student?.email || doc.candidateEmail || '').trim();
+    const studentIdStr = String(doc.studentId || '').trim();
+    const persistIds: Types.ObjectId[] = [];
+    if (student?._id) persistIds.push(student._id as Types.ObjectId);
+    if (studentIdStr && Types.ObjectId.isValid(studentIdStr)) {
+      if (!persistIds.some((id) => id.toString() === studentIdStr)) {
+        persistIds.push(new Types.ObjectId(studentIdStr));
+      }
+    }
+    if (email) {
+      const user = await this.usersService.findByEmail(email);
+      if (user?._id && !persistIds.some((id) => id.toString() === user._id.toString())) {
+        persistIds.push(user._id as Types.ObjectId);
+      }
+    }
+
+    const finalScoresNamed = {
+      listening: finalScores.l,
+      reading: finalScores.r,
+      writing: finalScores.w,
+      speaking: finalScores.s,
+      overall: finalScores.o,
+    };
+
+    for (const userId of persistIds) {
+      const existing = await this.profileStore.findOne({ userId }).lean().exec();
+      const diagnosis =
+        (existing as { diagnosisData?: Record<string, unknown> } | null)
+          ?.diagnosisData || {};
+      await this.profileStore.findOneAndUpdate(
+        { userId },
+        {
+          $set: {
+            diagnosisData: {
+              ...diagnosis,
+              finalScores: finalScoresNamed,
+              finalBcb: doc.bcbData || (diagnosis as { finalBcb?: unknown }).finalBcb || null,
+              finalReleasedAt: doc.releasedAt || new Date().toISOString(),
+            },
+          },
+          $setOnInsert: { userId },
+        },
+        { returnDocument: 'after', upsert: true },
+      );
+    }
   }
 
   async updateFinalTest(id: string, patch: Record<string, unknown>) {
@@ -1541,10 +3345,17 @@ export class AcaManagementService implements OnModuleInit {
       update.year = parsed.year;
     }
     const doc = await this.finalTestModel
-      .findByIdAndUpdate(id, { $set: update }, { new: true })
+      .findByIdAndUpdate(id, { $set: update }, { returnDocument: 'after' })
       .lean()
       .exec();
     if (!doc) throw new Error('Không tìm thấy ca Final Test');
+    if (doc.isChecked) {
+      try {
+        await this.syncReleasedFinalToStudent(doc);
+      } catch (err) {
+        console.warn('Could not sync released Final Test to student profile:', err);
+      }
+    }
     return this.toFinalTestPublic(doc);
   }
 
@@ -1570,13 +3381,118 @@ export class AcaManagementService implements OnModuleInit {
     if (existing?.writingSubmissionId) {
       await this.cancelLinkedWritingSubmission(existing.writingSubmissionId);
     }
+    if (
+      existing?.day !== undefined &&
+      existing?.month !== undefined &&
+      existing?.year !== undefined &&
+      existing?.time &&
+      existing?.examinerName
+    ) {
+      try {
+        await this.freeSlotModel.updateMany(
+          {
+            day: existing.day,
+            month: existing.month,
+            year: existing.year,
+            time: existing.time,
+            teacherName: new RegExp(`^${this.escapeRegex(existing.examinerName)}$`, 'i'),
+            status: 'booked',
+          },
+          { $set: { status: 'available' } },
+        ).exec();
+      } catch (err) {
+        console.warn('Could not release free slot on cancel:', err);
+      }
+    }
+
+    if (existing?.speakingDate && existing?.speakingTime) {
+      const spkParsed = this.parseFinalTestDate(existing.speakingDate);
+      const spkTeacher = existing.graderSpeaking || existing.examinerName;
+      if (spkTeacher) {
+        try {
+          await this.freeSlotModel.updateMany(
+            {
+              day: spkParsed.day,
+              month: spkParsed.month,
+              year: spkParsed.year,
+              time: existing.speakingTime,
+              teacherName: new RegExp(`^${this.escapeRegex(spkTeacher)}$`, 'i'),
+              status: 'booked',
+            },
+            { $set: { status: 'available' } },
+          ).exec();
+        } catch (err) {
+          console.warn('Could not release speaking free slot on cancel:', err);
+        }
+      }
+    }
     return updated;
+  }
+
+  async submitStudentFinalWriting(id: string, submissionLink: string) {
+    const doc = await this.finalTestModel.findById(id).exec();
+    if (!doc) throw new NotFoundException('Không tìm thấy ca Final Test');
+
+    const cleanLink = submissionLink.trim();
+    doc.submissionLink = cleanLink;
+    if (!doc.examLink || doc.examLink.startsWith('pending://')) {
+      doc.examLink = cleanLink;
+    }
+    if (doc.status === 'scheduled') {
+      doc.status = 'in_progress';
+    }
+    await doc.save();
+
+    if (doc.writingSubmissionId) {
+      await this.writingSubmissionModel
+        .findByIdAndUpdate(doc.writingSubmissionId, {
+          $set: {
+            examLink: cleanLink,
+            status: 'in_progress',
+          },
+        })
+        .exec();
+    } else {
+      await this.attachFinalTestGraderTasks(doc);
+    }
+
+    return this.toFinalTestPublic(doc);
   }
 
   async deleteFinalTest(id: string) {
     const existing = await this.finalTestModel.findById(id).lean().exec();
-    if (!existing) throw new Error('Không tìm thấy ca Final Test');
+    if (!existing) return { ok: true };
     await this.finalTestModel.findByIdAndDelete(id).exec();
+    if (existing?.mockTestId) {
+      try {
+        await this.mockTests.cancelByStaff(existing.mockTestId);
+      } catch (err) {
+        console.warn('Could not cancel linked mock test on delete:', err);
+      }
+    }
+    if (
+      existing?.day !== undefined &&
+      existing?.month !== undefined &&
+      existing?.year !== undefined &&
+      existing?.time &&
+      existing?.examinerName
+    ) {
+      try {
+        await this.freeSlotModel.updateMany(
+          {
+            day: existing.day,
+            month: existing.month,
+            year: existing.year,
+            time: existing.time,
+            teacherName: new RegExp(`^${this.escapeRegex(existing.examinerName)}$`, 'i'),
+            status: 'booked',
+          },
+          { $set: { status: 'available' } },
+        ).exec();
+      } catch (err) {
+        console.warn('Could not release free slot on delete:', err);
+      }
+    }
     return { ok: true };
   }
 
@@ -1633,6 +3549,8 @@ export class AcaManagementService implements OnModuleInit {
 
     if (doc.testType === 'writing' || doc.testType === 'full_4_skills') {
       try {
+        const autoGrader =
+          (doc.examinerName || '').trim() || (await this.selectNextWritingGrader());
         const writingId = await this.createLinkedWritingSubmission({
           studentId: doc.studentId || `final:${id}`,
           studentName: doc.candidateName,
@@ -1640,7 +3558,7 @@ export class AcaManagementService implements OnModuleInit {
           testDateTime: `${doc.date || ''}T${doc.time || '00:00'}`,
           type: 'Final',
           source: 'final',
-          assignedGrader: doc.examinerName || '',
+          assignedGrader: autoGrader,
           note: doc.note || `Final Writing — ${doc.candidateName}`,
           finalTestId: id,
         });
@@ -1667,6 +3585,12 @@ export class AcaManagementService implements OnModuleInit {
     entranceBookingId?: string;
     finalTestId?: string;
   }): Promise<string> {
+    const submittedByRole =
+      input.source === 'entrance'
+        ? 'sale'
+        : input.source === 'final'
+          ? 'student'
+          : 'staff';
     const created = await this.writingSubmissionModel.create({
       studentId: input.studentId,
       studentName: input.studentName,
@@ -1675,12 +3599,27 @@ export class AcaManagementService implements OnModuleInit {
       status: 'pending',
       type: input.type,
       source: input.source,
+      submittedByRole,
       assignedGrader: input.assignedGrader,
       note: input.note || '',
       entranceBookingId: input.entranceBookingId || '',
       finalTestId: input.finalTestId || '',
+      dueDate: computeWritingDueDateFromSubmitted(new Date()),
     });
     return created._id.toString();
+  }
+
+  /** Phân chia đều Grader 1/2/3 giống luồng nộp Writing của học viên. */
+  private async selectNextWritingGrader(): Promise<string> {
+    const graders = ['Grader 1', 'Grader 2', 'Grader 3'] as const;
+    const counts = await Promise.all(
+      graders.map(async (g) => ({
+        g,
+        n: await this.writingSubmissionModel.countDocuments({ assignedGrader: g }).exec(),
+      })),
+    );
+    counts.sort((a, b) => a.n - b.n);
+    return counts[0]?.g || graders[0];
   }
 
   private async cancelLinkedWritingSubmission(id: string) {
@@ -1697,31 +3636,64 @@ export class AcaManagementService implements OnModuleInit {
   // --- ACA Dashboard KPI ---
   async getDashboardKpi() {
     const [
-      totalUsers,
       totalStudents,
+      activeClasses,
+      active11Classes,
       totalWriting,
       pendingWriting,
+      gradedWriting,
       pendingMockTest,
+      approvedMockTest,
+      testedMockTest,
       totalLeads,
       newLeads,
+      practiceStudents,
+      weeklyDocsPending,
+      finalTestsOpen,
     ] = await Promise.all([
-      Promise.resolve(0),
       this.studentModel.countDocuments().exec(),
+      this.classModel
+        .countDocuments({
+          type: { $nin: ['Lớp đã kết thúc'] },
+        })
+        .exec(),
+      this.aca11Model.countDocuments({ status: 'Đang diễn ra' }).exec(),
       this.writingSubmissionModel.countDocuments().exec(),
       this.writingSubmissionModel.countDocuments({ status: 'pending' }).exec(),
+      this.writingSubmissionModel.countDocuments({ status: 'graded' }).exec(),
       this.mockTestRequestModel.countDocuments({ status: 'pending' }).exec(),
+      this.mockTestRequestModel.countDocuments({ status: 'approved' }).exec(),
+      this.mockTestRequestModel
+        .countDocuments({ status: { $in: ['tested', 'done', 'completed'] } })
+        .exec(),
       this.guestLeadModel.countDocuments().exec(),
       this.guestLeadModel.countDocuments({ status: 'new' }).exec(),
+      this.practiceStudentModel.countDocuments().exec(),
+      this.weeklyDocModel.countDocuments({ status: 'Chưa nộp' }).exec(),
+      this.finalTestModel
+        .countDocuments({
+          $or: [{ isChecked: { $ne: true } }, { isDone: { $ne: true } }],
+        })
+        .exec()
+        .catch(() => 0),
     ]);
 
     return {
-      totalUsers,
+      totalUsers: 0,
       totalStudents,
+      activeClasses,
+      active11Classes,
       totalWriting,
       pendingWriting,
+      gradedWriting,
       pendingMockTest,
+      approvedMockTest,
+      testedMockTest,
       totalLeads,
       newLeads,
+      practiceStudents,
+      weeklyDocsPending,
+      finalTestsOpen,
     };
   }
 }

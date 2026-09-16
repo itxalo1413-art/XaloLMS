@@ -81,6 +81,42 @@ function isSessionElapsed(session: RlpSessionRecord, now: Date): boolean {
   return date.getTime() <= now.getTime();
 }
 
+/** Buổi đã được điểm danh (ít nhất 1 HV present/absent) — lớp đã dạy buổi đó. */
+export function hasClassAttendanceTaken(session: RlpSessionRecord): boolean {
+  const map = session.studentAttendance || {};
+  return Object.values(map).some((v) => v === 'present' || v === 'absent');
+}
+
+/**
+ * Buổi lớp đã hoàn thành:
+ * - đã điểm danh (kể cả HV vắng), hoặc
+ * - ngày buổi học đã qua (lịch lớp đã đi qua buổi đó).
+ * Không dùng `session.attendance` mặc định vì seed thường gắn present sẵn.
+ */
+export function isClassSessionCompleted(
+  session: RlpSessionRecord,
+  nowInput?: Date,
+): boolean {
+  if (hasClassAttendanceTaken(session)) return true;
+  const now = nowInput ?? new Date();
+  now.setHours(0, 0, 0, 0);
+  return isSessionElapsed(session, now);
+}
+
+/** Số buổi lớp đã hoàn thành (tiến độ khóa / Final Test) — không phụ thuộc HV có đi học. */
+export function countClassSessionsCompleted(
+  sessions: RlpSessionRecord[],
+  nowInput?: Date,
+): number {
+  const now = nowInput ?? new Date();
+  now.setHours(0, 0, 0, 0);
+  let count = 0;
+  for (const session of sessions || []) {
+    if (isClassSessionCompleted(session, now)) count += 1;
+  }
+  return count;
+}
+
 /** Deadline đã tới (≤ hôm nay). Không có deadline thì fallback theo ngày buổi học. */
 export function isHomeworkDeadlineDue(
   session: RlpSessionRecord,

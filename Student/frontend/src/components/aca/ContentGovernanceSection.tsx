@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { confirmDialog } from "@/components/shared/ConfirmDialog";
 import {
   contentStatusVi,
   CONTENT_CATALOG_UPDATE_EVENT,
@@ -48,13 +49,27 @@ export function ContentGovernanceSection() {
     });
   }, [rows, q, st, cat]);
 
-  const approve = (id: string) => {
-    if (!confirm("Duyệt và hiển thị tài liệu này cho người dùng?")) return;
+  const approve = async (id: string) => {
+    const ok = await confirmDialog({
+      title: "Duyệt tài liệu",
+      message: "Bạn có chắc chắn muốn duyệt và hiển thị tài liệu này cho người dùng không?",
+      confirmText: "Duyệt hiển thị",
+      cancelText: "Hủy",
+      variant: "primary",
+    });
+    if (!ok) return;
     setRows(updateCatalogDocument(id, { status: "published" }));
   };
 
-  const hideDoc = (id: string) => {
-    if (!confirm("Ẩn tài liệu khỏi người dùng cuối?")) return;
+  const hideDoc = async (id: string) => {
+    const ok = await confirmDialog({
+      title: "Ẩn tài liệu",
+      message: "Bạn có chắc chắn muốn ẩn tài liệu này khỏi người dùng cuối không?",
+      confirmText: "Ẩn tài liệu",
+      cancelText: "Hủy",
+      variant: "warning",
+    });
+    if (!ok) return;
     setRows(updateCatalogDocument(id, { status: "hidden" }));
   };
 

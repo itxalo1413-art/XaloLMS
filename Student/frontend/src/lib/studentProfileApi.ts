@@ -13,7 +13,19 @@ async function parseResponse(response: Response): Promise<StudentProfile> {
     throw new Error("FORBIDDEN");
   }
   if (!response.ok) {
-    throw new Error(`Profile API failed with status ${response.status}`);
+    let detail = "";
+    try {
+      const body = (await response.json()) as { message?: string | string[] };
+      if (typeof body.message === "string") detail = body.message;
+      else if (Array.isArray(body.message)) detail = body.message.join(", ");
+    } catch {
+      // ignore
+    }
+    throw new Error(
+      detail
+        ? `Profile API failed with status ${response.status}: ${detail}`
+        : `Profile API failed with status ${response.status}`,
+    );
   }
   const data = (await response.json()) as StudentProfile;
   const focusSkills = normalizeFocusSkills(data.focusSkills);
@@ -29,7 +41,7 @@ export async function fetchStudentProfile(): Promise<StudentProfile> {
 }
 
 export async function updateStudentProfile(
-  payload: StudentProfile,
+  payload: Partial<StudentProfile>,
 ): Promise<StudentProfile> {
   const response = await apiFetch("/api/student/profile", {
     method: "PATCH",

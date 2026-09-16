@@ -6,12 +6,14 @@ export function getStudentIdentity() {
   const id = resolveActiveStudentId();
   const user = getCachedAuthUser();
   if (user) {
-    return { id, name: user.name };
+    return { id, name: user.name, email: user.email, phone: "" };
   }
   const roster = getRosterStudent(id);
   return {
     id,
     name: roster?.name ?? "Học viên",
+    email: roster?.email ?? "",
+    phone: roster?.phone ?? "",
   };
 }
 

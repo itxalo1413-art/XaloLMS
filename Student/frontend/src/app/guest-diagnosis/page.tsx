@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { BcbGrammarTable } from "@/components/diagnosis/BcbGrammarTable";
+import { useRouter, useSearchParams } from "next/navigation";
 import { BcbQuestionTypeTable } from "@/components/diagnosis/BcbQuestionTypeTable";
 import { SkillDiagIntro } from "@/components/diagnosis/SkillDiagIntro";
 import { SpeakingCriteriaPanel } from "@/components/diagnosis/SpeakingCriteriaPanel";
@@ -14,17 +14,34 @@ import { formatBandScore } from "@/lib/formatBandScore";
 import { submitGuestDiagnosisLead } from "@/lib/guestDiagnosisLeads";
 import { useGuestDiagnosis } from "@/hooks/useGuestDiagnosis";
 
-export default function GuestDiagnosisPage() {
-  const { diagnosis: guest, writingBands } = useGuestDiagnosis();
+function GuestDiagnosisContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const leadId = searchParams.get("leadId");
+  const { diagnosis: guest, writingBands, loading, loadError } = useGuestDiagnosis(leadId);
   const [activeDiagTab, setActiveDiagTab] = useState<"listening" | "reading" | "writing" | "speaking">("listening");
-  const [grammarFilter, setGrammarFilter] = useState<"all" | "red" | "yellow">("all");
   const [writingTaskMode, setWritingTaskMode] = useState<"task1" | "task2">("task1");
 
-  // Booking Form State
-  const [bookingName, setBookingName] = useState(guest.name);
-  const [bookingPhone, setBookingPhone] = useState(guest.phone);
+  const [bookingName, setBookingName] = useState("");
+  const [bookingPhone, setBookingPhone] = useState("");
   const [bookingAim, setBookingAim] = useState("7.5 IELTS");
   const [bookingSubmitted, setBookingSubmitted] = useState(false);
+  const [bookingError, setBookingError] = useState("");
+  const [bookingSaving, setBookingSaving] = useState(false);
+
+  useEffect(() => {
+    if (guest.name) setBookingName(guest.name);
+    if (guest.phone) setBookingPhone(guest.phone);
+    if (guest.aim) setBookingAim(guest.aim);
+  }, [guest.name, guest.phone, guest.aim]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-sm font-bold text-zinc-500">
+        Đang tải báo cáo chẩn đoán...
+      </div>
+    );
+  }
 
   return (
     <div className="guest-card-scope relative min-h-screen bg-transparent font-sans text-[#2f2b46] antialiased">
@@ -59,6 +76,16 @@ export default function GuestDiagnosisPage() {
 
       {/* Hero Welcome & Identity Block */}
       <main className="relative z-10 mx-auto max-w-7xl space-y-10 px-4 py-8 md:px-8">
+        {loadError && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-800">
+            {loadError}
+          </div>
+        )}
+        {leadId && !loadError && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-bold text-emerald-800">
+            Đang xem báo cáo đã sync từ Sale (lead {leadId.slice(-6)}).
+          </div>
+        )}
         
         {/* Banner Khách */}
         <div className="p-6 md:p-8 rounded-[32px] bg-gradient-to-br from-primary to-primary-soft text-white relative overflow-hidden shadow-premium">
@@ -75,7 +102,8 @@ export default function GuestDiagnosisPage() {
                 Kết Quả Đánh Giá Năng Lực IELTS
               </h1>
               <p className="text-sm font-semibold opacity-90 max-w-xl">
-                Hồ sơ thí sinh: <span className="underline font-black">{guest.name}</span> · Ngày kiểm tra: {guest.testDate}
+                Hồ sơ thí sinh: <span className="underline font-black">{guest.name || "Khách"}</span>
+                {guest.testDate ? ` · Ngày kiểm tra: ${guest.testDate}` : ""}
               </p>
             </div>
 
@@ -192,8 +220,6 @@ export default function GuestDiagnosisPage() {
                 <SkillDiagIntro
                   bandLabel={`Đặc trưng Band ${formatBandScore(guest.scores.listening)}`}
                   summary={guest.skillSummaries.listening}
-                  submissionLink={guest.listeningLink}
-                  linkLabel="Xem bài Listening"
                 />
 
                 <BcbQuestionTypeTable rows={guest.bcbListening} showWeakCta />
@@ -206,8 +232,6 @@ export default function GuestDiagnosisPage() {
                 <SkillDiagIntro
                   bandLabel={`Đặc trưng Band ${formatBandScore(guest.scores.reading)}`}
                   summary={guest.skillSummaries.reading}
-                  submissionLink={guest.readingLink}
-                  linkLabel="Xem bài Reading"
                 />
 
                 <BcbQuestionTypeTable rows={guest.bcbReading} showWeakCta />
@@ -293,14 +317,16 @@ export default function GuestDiagnosisPage() {
                   </div>
                   <h3 className="text-lg font-black text-foreground">Đăng Ký Thành Công!</h3>
                   <p className="text-sm font-semibold text-zinc-500 max-w-md mx-auto leading-relaxed">
-                    Cảm ơn Khôi Nguyên, đội ngũ chuyên môn của Xa Lộ English sẽ liên hệ lại với bạn qua số điện thoại <span className="text-foreground font-bold">{bookingPhone}</span> trong vòng 24 giờ tới để gửi lộ trình học chi tiết từ 6.0 lên 7.5.
+                    Cảm ơn {bookingName || "bạn"}, đội ngũ Xa Lộ English sẽ liên hệ qua số{" "}
+                    <span className="text-foreground font-bold">{bookingPhone}</span> trong vòng 24 giờ
+                    để gửi lộ trình học chi tiết.
                   </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
                   <div className="lg:col-span-7 space-y-4">
                     <h3 className="text-xl md:text-2xl font-black text-foreground tracking-tight leading-tight">
-                      Bạn Muốn Bứt Phá Từ {formatBandScore(guest.scores.overall)} Lên {guest.aim} Trong 4 Tháng?
+                      Bạn Muốn Bứt Phá Từ {formatBandScore(guest.scores.overall)} Lên {guest.aim || bookingAim} Trong 4 Tháng?
                     </h3>
                     <p className="text-xs md:text-sm font-medium text-zinc-500 leading-relaxed">
                       Lớp học tại Xa Lộ English được thiết kế may đo riêng cho từng học viên dựa trên chính kết quả chẩn đoán này. Chúng tôi sẽ giúp bạn:
@@ -322,12 +348,28 @@ export default function GuestDiagnosisPage() {
                   <form 
                     onSubmit={(e) => {
                       e.preventDefault();
-                      submitGuestDiagnosisLead({
+                      setBookingError("");
+                      setBookingSaving(true);
+                      void submitGuestDiagnosisLead({
                         name: bookingName,
                         phone: bookingPhone,
                         aim: bookingAim,
-                      });
-                      setBookingSubmitted(true);
+                      })
+                        .then((lead) => {
+                          setBookingSubmitted(true);
+                          router.replace(
+                            `/guest-diagnosis?leadId=${encodeURIComponent(lead.id)}`,
+                            { scroll: false },
+                          );
+                        })
+                        .catch((err: unknown) => {
+                          setBookingError(
+                            err instanceof Error
+                              ? err.message
+                              : "Không gửi được đăng ký. Thử lại.",
+                          );
+                        })
+                        .finally(() => setBookingSaving(false));
                     }}
                     className="lg:col-span-5 p-6 rounded-2xl bg-zinc-50 border border-zinc-100 space-y-4"
                   >
@@ -374,11 +416,15 @@ export default function GuestDiagnosisPage() {
                         </div>
                       </div>
                     </div>
+                    {bookingError && (
+                      <p className="text-xs font-bold text-red-600">{bookingError}</p>
+                    )}
                     <button 
-                      type="submit" 
-                      className="w-full py-3 bg-primary text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-soft transition-all hover:bg-primary/95 hover:shadow-hover hover:-translate-y-0.5 mt-2"
+                      type="submit"
+                      disabled={bookingSaving}
+                      className="w-full py-3 bg-primary text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-soft transition-all hover:bg-primary/95 hover:shadow-hover hover:-translate-y-0.5 mt-2 disabled:opacity-60"
                     >
-                      Nhận Lộ Trình & Tư Vấn Miễn Phí
+                      {bookingSaving ? "Đang gửi..." : "Nhận Lộ Trình & Tư Vấn Miễn Phí"}
                     </button>
                   </form>
                 </div>
@@ -398,5 +444,19 @@ export default function GuestDiagnosisPage() {
       </footer>
 
     </div>
+  );
+}
+
+export default function GuestDiagnosisPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center text-sm font-bold text-zinc-500">
+          Đang tải...
+        </div>
+      }
+    >
+      <GuestDiagnosisContent />
+    </Suspense>
   );
 }

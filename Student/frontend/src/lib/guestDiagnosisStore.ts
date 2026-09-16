@@ -1,7 +1,6 @@
 import { canUseAcaApi, getAcaKv, setAcaKv } from "@/lib/acaManagementApi";
-import type { BcbGrammarRow, BcbQuestionTypeRow } from "@/lib/guestBcbDiagnosis";
+import type { BcbQuestionTypeRow } from "@/lib/guestBcbDiagnosis";
 import {
-  GUEST_BCB_GRAMMAR,
   GUEST_BCB_LISTENING,
   GUEST_BCB_READING,
 } from "@/lib/guestBcbDiagnosis";
@@ -19,15 +18,12 @@ export type GuestDiagnosisRecord = {
   writingCriteria: WritingCriterionInput;
   writingSummary: { task1: string; task2: string };
   writingLinks: { task1: string; task2: string };
-  listeningLink: string;
-  readingLink: string;
   speakingCriteria: SpeakingCriterionScores;
   bcbOverviewTitle: string;
   bcbOverviewSummary: string;
   skillSummaries: { listening: string; reading: string; speaking: string };
   bcbListening: BcbQuestionTypeRow[];
   bcbReading: BcbQuestionTypeRow[];
-  bcbGrammar: BcbGrammarRow[];
   updatedAt: string;
 };
 
@@ -49,11 +45,11 @@ const DEFAULT_WRITING_CRITERIA: WritingCriterionInput = {
 const guestWritingBands = resolveWritingBands(DEFAULT_WRITING_CRITERIA);
 
 export const DEFAULT_GUEST_DIAGNOSIS: GuestDiagnosisRecord = {
-  name: "Dương Ngọc Khôi Nguyên",
-  email: "nguyenduong939705@gmail.com",
-  phone: "0947 188 794",
-  testDate: "26/05/2026",
-  aim: "7.5",
+  name: "",
+  email: "",
+  phone: "",
+  testDate: "",
+  aim: "",
   scores: {
     listening: 7.0,
     reading: 5.5,
@@ -72,8 +68,6 @@ export const DEFAULT_GUEST_DIAGNOSIS: GuestDiagnosisRecord = {
     task1: "https://docs.google.com/document/d/example-guest-writing-task1",
     task2: "https://docs.google.com/document/d/example-guest-writing-task2",
   },
-  listeningLink: "https://docs.google.com/document/d/example-guest-listening-test",
-  readingLink: "https://docs.google.com/document/d/example-guest-reading-test",
   speakingCriteria: {
     fluencyCoherence: 5.5,
     lexicalResource: 4.0,
@@ -92,7 +86,6 @@ export const DEFAULT_GUEST_DIAGNOSIS: GuestDiagnosisRecord = {
   },
   bcbListening: GUEST_BCB_LISTENING.map((r) => ({ ...r })),
   bcbReading: GUEST_BCB_READING.map((r) => ({ ...r })),
-  bcbGrammar: GUEST_BCB_GRAMMAR.map((r) => ({ ...r })),
   updatedAt: new Date().toISOString(),
 };
 
@@ -135,7 +128,6 @@ function mergeDiagnosis(data: Partial<GuestDiagnosisRecord>): GuestDiagnosisReco
       ? data.bcbListening
       : DEFAULT_GUEST_DIAGNOSIS.bcbListening,
     bcbReading: data.bcbReading?.length ? data.bcbReading : DEFAULT_GUEST_DIAGNOSIS.bcbReading,
-    bcbGrammar: data.bcbGrammar?.length ? data.bcbGrammar : DEFAULT_GUEST_DIAGNOSIS.bcbGrammar,
     updatedAt: data.updatedAt ?? DEFAULT_GUEST_DIAGNOSIS.updatedAt,
   };
 }

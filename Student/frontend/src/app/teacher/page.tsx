@@ -16,7 +16,7 @@ import {
   classCodesMatch,
 } from "@/lib/acaManagementApi";
 import { calculateGradingDeadline, type RlpSession, type Attendance, type HomeworkStatus } from "@/lib/courseSchedule";
-import { getCourseRlpSessions, refreshRlpSessions, updateRlpSession } from "@/lib/rlpSessionStore";
+import { addRlpSession, deleteRlpSession, getCourseRlpSessions, refreshRlpSessions, updateRlpSession } from "@/lib/rlpSessionStore";
 import { getLoggedInTeacherName, teacherNameMatches } from "@/lib/teacherIdentity";
 import {
   listTeacherAcademicWarnings,
@@ -383,6 +383,9 @@ export default function TeacherClassesPage() {
   const [rlpLessonFileDraft, setRlpLessonFileDraft] = useState<string>("");
   const [rlpRecordDraft, setRlpRecordDraft] = useState<string>("");
   const [rlpSaving, setRlpSaving] = useState<boolean>(false);
+  const [rlpAdding, setRlpAdding] = useState(false);
+  const [rlpDeletingNo, setRlpDeletingNo] = useState<number | null>(null);
+  const [rlpDeleteBusy, setRlpDeleteBusy] = useState(false);
 
   // Homework tab modal draft states
   const dateInputRef = useRef<HTMLInputElement>(null);
@@ -563,6 +566,7 @@ export default function TeacherClassesPage() {
   }, [warnings, selectedClass, activeTeacherDisplay]);
 
   // Overlay per-student attendance onto class-level RLP sessions
+  // Chỉ lấy studentAttendance — không fallback class attendance (tránh “Đi học” giả).
   const classStudentsRlp = useMemo(() => {
     const map: Record<string, RlpSession[]> = {};
     for (const st of classStudents) {
@@ -576,13 +580,17 @@ export default function TeacherClassesPage() {
     return map;
   }, [classStudents, studentRlp]);
 
+  const getStudentAttendanceMark = (session: RlpSession, studentId: string): Attendance | undefined =>
+    session.studentAttendance?.[studentId];
+
   const toggleStudentAttendance = async (studentId: string, sessionNo: number) => {
     const targetSession = studentRlp.find((s) => s.no === sessionNo);
-    const current = targetSession?.studentAttendance?.[studentId] ?? targetSession?.attendance;
+    if (!targetSession) return;
+    const current = getStudentAttendanceMark(targetSession, studentId);
     const nextAttendance = (current === "present" ? "absent" : "present") as Attendance;
-    const nextMap = { ...(targetSession?.studentAttendance ?? {}), [studentId]: nextAttendance };
+    const nextMap = { ...(targetSession.studentAttendance ?? {}), [studentId]: nextAttendance };
     const updated = studentRlp.map((s) =>
-      s.no === sessionNo ? { ...s, studentAttendance: nextMap, attendance: nextAttendance } : s,
+      s.no === sessionNo ? { ...s, studentAttendance: nextMap } : s,
     );
     setStudentRlp(updated);
     try {
@@ -598,11 +606,11 @@ export default function TeacherClassesPage() {
       patch[st.id] = status;
     }
     const updated = studentRlp.map((s) =>
-      s.no === sessionNo ? { ...s, studentAttendance: { ...(s.studentAttendance ?? {}), ...patch }, attendance: status } : s,
+      s.no === sessionNo ? { ...s, studentAttendance: { ...(s.studentAttendance ?? {}), ...patch } } : s,
     );
     setStudentRlp(updated);
     try {
-      await updateRlpSession(sessionNo, { attendance: status, studentAttendance: patch }, selectedClass?.id);
+      await updateRlpSession(sessionNo, { studentAttendance: patch }, selectedClass?.id);
     } catch {
       setRlpVersion((v) => v + 1);
     }
@@ -713,7 +721,7 @@ export default function TeacherClassesPage() {
     );
     setEditAttendance(
       selectedStudent
-        ? (session.studentAttendance?.[selectedStudent.id] ?? session.attendance)
+        ? (session.studentAttendance?.[selectedStudent.id] ?? "present")
         : session.attendance,
     );
     setEditLessonFile(session.lessonFileUrl || "");
@@ -835,6 +843,35 @@ export default function TeacherClassesPage() {
       alert("Lỗi khi lưu RLP: " + err.message);
     } finally {
       setRlpSaving(false);
+    }
+  };
+
+  const handleAddClassRlpSession = async () => {
+    if (!selectedClass) return;
+    setRlpAdding(true);
+    try {
+      const created = await addRlpSession(selectedClass.id, {});
+      setRlpVersion((v) => v + 1);
+      handleOpenRlpContentEdit(created);
+    } catch (err: any) {
+      alert("Không thêm được buổi: " + (err?.message || "lỗi"));
+    } finally {
+      setRlpAdding(false);
+    }
+  };
+
+  const handleConfirmDeleteClassRlpSession = async () => {
+    if (!selectedClass || rlpDeletingNo == null) return;
+    setRlpDeleteBusy(true);
+    try {
+      await deleteRlpSession(rlpDeletingNo, selectedClass.id);
+      if (rlpEditSession?.no === rlpDeletingNo) setRlpEditSession(null);
+      setRlpDeletingNo(null);
+      setRlpVersion((v) => v + 1);
+    } catch (err: any) {
+      alert("Không xóa được buổi: " + (err?.message || "lỗi"));
+    } finally {
+      setRlpDeleteBusy(false);
     }
   };
 
@@ -1120,10 +1157,13 @@ export default function TeacherClassesPage() {
                           </thead>
                           <tbody className="divide-y divide-zinc-100 font-semibold text-zinc-700">
                             {classStudents.map((st) => {
-                              const rlpList = resolveClassRlpSessions(studentRlp, classStudentsRlp, st.id);
-                              const presentCount = rlpList.filter((s) => s.no <= 16 && s.attendance === "present").length;
-                              const session = rlpList.find((s) => s.no === attendanceSessionNo);
-                              const isPresent = session ? session.attendance === "present" : true;
+                              const presentCount = studentRlp.filter(
+                                (s) => getStudentAttendanceMark(s, st.id) === "present",
+                              ).length;
+                              const session = studentRlp.find((s) => s.no === attendanceSessionNo);
+                              const mark = session ? getStudentAttendanceMark(session, st.id) : undefined;
+                              const isPresent = mark === "present";
+                              const isAbsent = mark === "absent";
 
                               return (
                                 <tr key={st.id} className="hover:bg-zinc-50/50 transition-colors">
@@ -1147,12 +1187,18 @@ export default function TeacherClassesPage() {
                                       className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all active:scale-95 shadow-2xs ${
                                         isPresent
                                           ? "bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100"
-                                          : "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100"
+                                          : isAbsent
+                                            ? "bg-rose-50 border-rose-200 text-rose-700 hover:bg-rose-100"
+                                            : "bg-zinc-50 border-zinc-200 text-zinc-500 hover:bg-zinc-100"
                                       }`}
                                       title={`Click để chuyển trạng thái điểm danh buổi ${attendanceSessionNo}`}
                                     >
-                                      <span className={`h-2 w-2 rounded-full ${isPresent ? "bg-emerald-500" : "bg-rose-600"}`} />
-                                      {isPresent ? "✓ Đi học" : "✕ Vắng học"}
+                                      <span
+                                        className={`h-2 w-2 rounded-full ${
+                                          isPresent ? "bg-emerald-500" : isAbsent ? "bg-rose-600" : "bg-zinc-300"
+                                        }`}
+                                      />
+                                      {isPresent ? "✓ Đi học" : isAbsent ? "✕ Vắng học" : "○ Chưa ĐD"}
                                     </button>
                                   </td>
                                 </tr>
@@ -1173,11 +1219,21 @@ export default function TeacherClassesPage() {
                 <div className="p-5 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
                     <h4 className="text-sm font-black uppercase tracking-wide text-zinc-950">Quản Lý & Cập Nhật Bảng RLP Lớp</h4>
-                    <p className="text-[11px] text-zinc-500 mt-0.5">Khớp 100% với bảng RLP học viên: Kỹ năng, Nội dung bài học, Tiến độ (ghi chú GV), File bài học và Trạng thái.</p>
+                    <p className="text-[11px] text-zinc-500 mt-0.5">Khớp 100% với bảng RLP học viên: Kỹ năng, Nội dung bài học, Tiến độ (ghi chú GV), File bài học và Trạng thái. Có thể thêm/xoá buổi — ngưỡng BTVN = 20% số buổi lớp.</p>
                   </div>
-                  <span className="text-[10px] font-extrabold px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
-                    {classStudents.length} học viên trong lớp
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] font-extrabold px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
+                      {classStudents.length} học viên trong lớp
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => void handleAddClassRlpSession()}
+                      disabled={!selectedClass || rlpAdding}
+                      className="rounded-lg bg-primary px-3 py-1.5 text-[11px] font-bold text-white hover:bg-primary/90 disabled:opacity-50"
+                    >
+                      {rlpAdding ? "Đang thêm…" : "Thêm buổi"}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -1201,7 +1257,7 @@ export default function TeacherClassesPage() {
                           ? resolveClassRlpSessions(studentRlp, classStudentsRlp, firstStudent.id)
                           : studentRlp;
 
-                        return rlpSessions.slice(0, 16).map((row) => (
+                        return rlpSessions.map((row) => (
                           <tr key={row.no} className="hover:bg-zinc-50/50 transition-colors">
                             <td className="px-6 py-4 tabular-nums text-zinc-950 font-bold">Buổi {row.no}</td>
                             <td className="px-6 py-4">
@@ -1264,13 +1320,22 @@ export default function TeacherClassesPage() {
                               )}
                             </td>
                             <td className="px-6 py-4 text-right">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenRlpContentEdit(row)}
-                                className="rounded-lg border border-primary/20 bg-primary/5 hover:bg-primary/10 px-3 py-1.5 text-[11px] font-bold text-primary transition-colors"
-                              >
-                                Cập nhật RLP
-                              </button>
+                              <div className="inline-flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenRlpContentEdit(row)}
+                                  className="rounded-lg border border-primary/20 bg-primary/5 hover:bg-primary/10 px-3 py-1.5 text-[11px] font-bold text-primary transition-colors"
+                                >
+                                  Cập nhật RLP
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setRlpDeletingNo(row.no)}
+                                  className="rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 text-[11px] font-bold text-rose-700 transition-colors"
+                                >
+                                  Xóa
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ));
@@ -1322,7 +1387,7 @@ export default function TeacherClassesPage() {
                           ? resolveClassRlpSessions(studentRlp, classStudentsRlp, firstStudent.id)
                           : studentRlp;
 
-                        return rlpSessions.slice(0, 16).map((row) => (
+                        return rlpSessions.map((row) => (
                           <tr key={row.no} className="hover:bg-zinc-50/50 transition-colors">
                             <td className="px-6 py-4 tabular-nums text-zinc-950 font-bold">Buổi {row.no}</td>
                             <td className="px-6 py-4">
@@ -1426,7 +1491,7 @@ export default function TeacherClassesPage() {
                     <div className="text-zinc-800 mt-0.5">
                       {(() => {
                         const studentId = selectedStudent.id;
-                        const activeSessions = studentRlp.filter(s => s.no <= 16 && s.homeworkStatus !== "not_assigned");
+                        const activeSessions = studentRlp.filter(s => s.homeworkStatus !== "not_assigned");
                         const assigned = activeSessions.length;
                         const submitted = activeSessions.filter((s) => {
                           const hw = s.studentHomework?.[studentId];
@@ -1440,12 +1505,10 @@ export default function TeacherClassesPage() {
                   <div>
                     <div className="text-[9px] text-zinc-400 font-bold uppercase">Bảng chẩn bệnh chi tiết (BCB)</div>
                     <a
-                      href={selectedStudent.bcbLink || "/student#bcb-archive"}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      href={`/teacher/bcb?studentId=${selectedStudent.id}`}
                       className="text-primary font-bold underline hover:text-primary-hover mt-1 block w-fit"
                     >
-                      Mở Bảng Chẩn Bệnh Chi Tiết (BCB) ↗
+                      Mở chỉnh sửa BCB →
                     </a>
                   </div>
 
@@ -1606,19 +1669,23 @@ export default function TeacherClassesPage() {
               </div>
               
               <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-12 gap-2">
-                {studentRlp.slice(0, 16).map((s) => {
+                {studentRlp.map((s) => {
                   const att = selectedStudent
-                    ? (s.studentAttendance?.[selectedStudent.id] ?? s.attendance)
-                    : s.attendance;
+                    ? s.studentAttendance?.[selectedStudent.id]
+                    : undefined;
+                  const label =
+                    att === "present" ? "Đi học" : att === "absent" ? "Vắng học" : "Chưa ĐD";
                   return (
                   <div
                     key={s.no}
                     className={`rounded-lg p-2 text-center border text-xs font-bold transition-all ${
                       att === "present"
                         ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        : "bg-rose-50 text-rose-700 border-rose-200"
+                        : att === "absent"
+                          ? "bg-rose-50 text-rose-700 border-rose-200"
+                          : "bg-zinc-50 text-zinc-400 border-zinc-200"
                     }`}
-                    title={`Buổi ${s.no}: ${att === "present" ? "Đi học" : "Vắng học"}`}
+                    title={`Buổi ${s.no}: ${label}`}
                   >
                     <div>B{s.no}</div>
                     <div className="text-[8px] opacity-75 mt-0.5">{s.date.slice(0, 5)}</div>
@@ -1947,6 +2014,40 @@ export default function TeacherClassesPage() {
                   className="rounded-xl bg-primary px-5 py-2 text-xs font-black text-white hover:bg-primary/90 disabled:opacity-50 shadow-sm"
                 >
                   {rlpSaving ? "Đang lưu..." : "Lưu Cập Nhật RLP"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {rlpDeletingNo != null && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-xs"
+              onClick={() => !rlpDeleteBusy && setRlpDeletingNo(null)}
+            />
+            <div className="relative z-10 w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl space-y-4">
+              <h4 className="text-sm font-black text-zinc-900">Xóa buổi {rlpDeletingNo}?</h4>
+              <p className="text-xs text-zinc-500 font-medium leading-relaxed">
+                Buổi này sẽ bị gỡ khỏi bảng RLP của lớp. Điểm danh / BTVN gắn buổi cũng mất. Ngưỡng
+                cảnh báo BTVN tính lại theo số buổi còn lại.
+              </p>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  disabled={rlpDeleteBusy}
+                  onClick={() => setRlpDeletingNo(null)}
+                  className="rounded-xl border border-zinc-200 px-4 py-2 text-xs font-bold text-zinc-600 hover:bg-zinc-50"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  disabled={rlpDeleteBusy}
+                  onClick={() => void handleConfirmDeleteClassRlpSession()}
+                  className="rounded-xl bg-rose-600 px-5 py-2 text-xs font-black text-white hover:bg-rose-700 disabled:opacity-50"
+                >
+                  {rlpDeleteBusy ? "Đang xóa…" : "Xóa buổi"}
                 </button>
               </div>
             </div>

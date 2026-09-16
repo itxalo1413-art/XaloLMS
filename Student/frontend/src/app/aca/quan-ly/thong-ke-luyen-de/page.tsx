@@ -41,30 +41,8 @@ export default function ThongKeLuyenDePage() {
     loadData();
   }, []);
 
-  // Helper to get students for a week range.
-  // If the week range doesn't have students, we clone and slightly adapt the mock data for demonstration.
   const getStudentsForWeek = (range: string): AcaPracticeStudent[] => {
-    const directMatches = studentsList.filter(s => s.weekRange === range);
-    if (directMatches.length > 0) return directMatches;
-
-    // Otherwise adapt Week 3 data to populate Week 1 & 2
-    return studentsList.map((s, idx) => {
-      // Shift statuses randomly based on index to create variation
-      let testScheduleSunday = "Có tham gia";
-      if (idx % 4 === 1) testScheduleSunday = "Gửi đề vào CN";
-      else if (idx % 4 === 2) testScheduleSunday = "Đăng ký lịch khác";
-      else if (idx % 5 === 0) testScheduleSunday = "";
-
-      let participateLd28 = idx % 7 === 0 || idx % 9 === 0;
-
-      return {
-        ...s,
-        id: `clone_${range}_${s.id}`,
-        testScheduleSunday,
-        participateLd28,
-        weekRange: range,
-      };
-    });
+    return studentsList.filter((s) => s.weekRange === range);
   };
 
   const currentStudents = getStudentsForWeek(selectedWeekRange);

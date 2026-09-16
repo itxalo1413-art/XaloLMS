@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Put, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
@@ -29,14 +29,21 @@ export class AcaPracticeClassController {
   }
 
   @Get('registrations')
-  listRegistrations() {
-    return this.practiceClass.listAllRegistrationsForAca();
+  listRegistrations(@Query('weekRange') weekRange?: string) {
+    return this.practiceClass.listAllRegistrationsForAca(weekRange);
   }
 
   @Put('registration/:id')
   updateRegistrationDetails(
     @Param('id') id: string,
-    @Body() body: { linkFolder?: string; scoreR?: string; scoreL?: string; scoreW?: string },
+    @Body()
+    body: {
+      linkFolder?: string;
+      scoreR?: string;
+      scoreL?: string;
+      scoreW?: string;
+      weekRange?: string;
+    },
   ) {
     return this.practiceClass.updateRegistrationDetails(id, body ?? {});
   }
@@ -45,10 +52,12 @@ export class AcaPracticeClassController {
   updateStudentLinkFolder(
     @Param('studentId') studentId: string,
     @Body() body: UpdatePracticeLinkFolderDto,
+    @Query('weekRange') weekRange?: string,
   ) {
     return this.practiceClass.updateStudentLinkFolder(
       studentId,
       body?.linkFolder ?? '',
+      weekRange,
     );
   }
 }

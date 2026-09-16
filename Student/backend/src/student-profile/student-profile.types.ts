@@ -20,14 +20,23 @@ export type StudentProfile = {
   ieltsMeaning: (typeof STUDY_IELTS_MEANING_OPTIONS)[number];
   previousBand: (typeof STUDY_PREVIOUS_BAND_OPTIONS)[number];
   focusSkills: (typeof STUDY_FOCUS_SKILL_OPTIONS)[number][];
+  scores: {
+    listening: number;
+    reading: number;
+    writing: number;
+    speaking: number;
+    overall: number;
+  };
+  aim: string;
+  examDate: string;
 };
 
 export const DEFAULT_STUDENT_PROFILE: StudentProfile = {
-  name: 'Dương Nguyên',
-  email: 'nguyenduong939705@gmail.com',
-  phone: '0947 188 794',
-  dob: '20/08/2006',
-  zodiac: 'Sư Tử',
+  name: '',
+  email: '',
+  phone: '',
+  dob: '',
+  zodiac: '',
   avatarUrl: '',
   method: STUDY_METHOD_OPTIONS[0],
   weeklyHours: STUDY_WEEKLY_HOURS_OPTIONS[2],
@@ -35,4 +44,13 @@ export const DEFAULT_STUDENT_PROFILE: StudentProfile = {
   ieltsMeaning: STUDY_IELTS_MEANING_OPTIONS[0],
   previousBand: STUDY_PREVIOUS_BAND_OPTIONS[0],
   focusSkills: [STUDY_FOCUS_SKILL_OPTIONS[0]],
+  scores: {
+    listening: 0,
+    reading: 0,
+    writing: 0,
+    speaking: 0,
+    overall: 0,
+  },
+  aim: '',
+  examDate: '',
 };

@@ -4,41 +4,61 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getCachedAuthUser, clearAuthToken, isAuthDisabled } from "@/lib/auth";
+import { GRADER_PATHS, isAcaAcademicHead, isGraderUser } from "@/lib/acaIdentity";
 
-const requiredLists = [
-  { href: "/aca/quan-ly/lop-theo-thang", label: "Lớp theo tháng", desc: "DS & số lượng lớp" },
-  { href: "/aca/quan-ly/hoc-vien-lop", label: "Danh sách học viên", desc: "Thông tin & điểm số đầy đủ" },
-  { href: "/aca/quan-ly/diem-dau-vao-cuoi-khoa", label: "Điểm Entrance/Final", desc: "Bảng điểm & tiến độ" },
-  { href: "/aca/quan-ly/bcb-final", label: "BCB Final", desc: "Quản lý & duyệt trả BCB Final" },
-  { href: "/aca/quan-ly/luu-tru-test", label: "Lưu trữ bài test", desc: "Quản lý ca thi & hồ sơ BCB" },
-  { href: "/aca/quan-ly/test-speaking", label: "Đăng ký Speaking", desc: "DS đăng ký & Grader phụ trách" },
-  { href: "/aca/quan-ly/phan-tich-final-test", label: "Phân tích Final Test", desc: "Tỷ lệ đạt theo phân loại lớp" },
-  { href: "/aca/quan-ly/lop-1-1", label: "Lớp 1:1", desc: "Lịch kèm cá nhân" },
-  { href: "/aca/quan-ly/lop-luyen-de-tuan", label: "Lớp luyện đề tuần", desc: "Lịch đề theo tuần" },
-  { href: "/aca/quan-ly/thong-ke-luyen-de", label: "Thống kê luyện đề", desc: "Báo cáo & số liệu đề thường" },
-  { href: "/aca/quan-ly/giao-vien", label: "Hiệu suất Giáo viên", desc: "Thống kê chấm bài trễ hạn" },
-  { href: "/aca/quan-ly/khoa-hoc", label: "Thông tin khóa học", desc: "Tài nguyên & metadata lớp" },
-  { href: "/aca/quan-ly/note", label: "Quotes & Note học viên", desc: "Quản lý quote random & note" },
+interface NavItem {
+  href: string;
+  label: string;
+  desc: string;
+}
+
+interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
+
+const acaNavGroups: NavGroup[] = [
+  {
+    title: "Lớp học & Học viên",
+    items: [
+      { href: "/aca/quan-ly/lop-theo-thang", label: "Lớp theo tháng", desc: "DS & số lượng lớp" },
+      { href: "/aca/quan-ly/hoc-vien-lop", label: "Danh sách học viên", desc: "Thông tin & điểm số đầy đủ" },
+      { href: "/aca/quan-ly/lop-1-1", label: "Lớp 1:1", desc: "Lịch kèm cá nhân & RLP" },
+      { href: "/aca/quan-ly/rlp-mau", label: "RLP Mẫu", desc: "RLP từ lớp thật — áp dụng sang lớp mới" },
+    ],
+  },
+  {
+    title: "Khảo thí & Bảng Chẩn Bệnh",
+    items: [
+      { href: "/aca/quan-ly/bcb-final", label: "BCB Final", desc: "Quản lý & duyệt trả BCB Final" },
+      { href: "/aca/quan-ly/diem-dau-vao-cuoi-khoa", label: "Điểm Entrance/Final", desc: "Bảng điểm & tiến độ" },
+      { href: "/aca/quan-ly/phan-tich-final-test", label: "Phân tích Final Test", desc: "Tỷ lệ đạt theo phân loại lớp" },
+    ],
+  },
+  {
+    title: "Lớp Luyện Đề",
+    items: [
+      { href: "/aca/quan-ly/lop-luyen-de-tuan", label: "Lớp luyện đề tuần", desc: "Lịch đề & link folder theo tuần" },
+      { href: "/aca/quan-ly/thong-ke-luyen-de", label: "Thống kê luyện đề", desc: "Báo cáo & số liệu đề thường" },
+    ],
+  },
+  {
+    title: "Chấm bài & Hiệu suất",
+    items: [
+      { href: "/aca/quan-ly/cham-writing", label: "Chấm Writing", desc: "Chấm bài + tiêu chí BCB Writing" },
+      { href: "/aca/quan-ly/test-speaking", label: "Đăng ký Speaking", desc: "DS đăng ký & tiêu chí BCB Speaking" },
+      { href: "/aca/quan-ly/giao-vien", label: "Hiệu suất Giáo viên", desc: "Thống kê chấm bài trễ hạn" },
+      { href: "/aca/quan-ly/note", label: "Quotes & Note học viên", desc: "Quản lý quote random & note" },
+    ],
+  },
 ];
-
-const systemModules = [
-  { href: "/aca/quan-ly/cham-writing", label: "Chấm Writing", desc: "Quản lý & chấm bài Writing" },
-];
-
-const graderModules = [
-  { href: "/aca/quan-ly/cham-writing", label: "Chấm Writing", desc: "Quản lý & chấm bài Writing" },
-  { href: "/aca/quan-ly/test-speaking", label: "Test Speaking", desc: "Chấm ca Mock Test Speaking" },
-  { href: "/aca/quan-ly/lich-ranh", label: "Đăng ký lịch rảnh", desc: "Daily schedule & lịch rảnh Grader" },
-];
-
 
 export function AcaSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  // Keep SSR + first client paint identical; resolve role only after mount.
   const [ready, setReady] = useState(false);
-  const [user, setUser] = useState<any>(null);
-  const [isKhanhThi, setIsKhanhThi] = useState(false);
+  const [user, setUser] = useState<ReturnType<typeof getCachedAuthUser>>(null);
+  const [isHead, setIsHead] = useState(false);
 
   const handleLogout = () => {
     if (isAuthDisabled()) {
@@ -52,21 +72,19 @@ export function AcaSidebar() {
   useEffect(() => {
     const loggedInUser = getCachedAuthUser();
     setUser(loggedInUser);
-    
-    const name = (loggedInUser?.name || "").trim().toLowerCase();
-    const email = (loggedInUser?.email || "").trim().toLowerCase();
-    
-    setIsKhanhThi(
-      name === "lê nguyễn khánh thi" ||
-        name.includes("khánh thi") ||
-        email === "aca@xaloenglish.vn",
-    );
+    setIsHead(isAcaAcademicHead(loggedInUser));
     setReady(true);
   }, [pathname]);
 
-  const showRequiredLists = ready && isKhanhThi;
+  // Grader không dùng sidebar ACA
+  useEffect(() => {
+    if (!ready || !user) return;
+    if (isGraderUser(user) || !isHead) {
+      router.replace(GRADER_PATHS.home);
+    }
+  }, [ready, user, isHead, router]);
 
-  const renderLink = (item: { href: string; label: string; desc: string }) => {
+  const renderLink = (item: NavItem) => {
     const active =
       item.href === "/aca"
         ? pathname === "/aca"
@@ -131,29 +149,19 @@ export function AcaSidebar() {
 
         <nav className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-3">
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-1 space-y-4">
-            {showRequiredLists ? (
-              <div className="space-y-0.5">
-                <div className="sticky top-0 z-10 mb-1 bg-white px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-muted opacity-60">
-                  Danh sách quản lý Grader
+            {acaNavGroups.map((group) => (
+              <div key={group.title} className="space-y-0.5">
+                <div className="sticky top-0 z-10 mb-1.5 bg-white/95 backdrop-blur-xs px-3 py-1 text-[9px] font-black uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-primary/40" />
+                  {group.title}
                 </div>
-                {requiredLists.map(renderLink)}
-                <div className="sticky top-0 z-10 mb-1 mt-3 bg-white px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-muted opacity-60">
-                  Hỗ trợ Chấm W-S
-                </div>
-                {systemModules.map(renderLink)}
+                {group.items.map(renderLink)}
               </div>
-            ) : (
-              <div className="space-y-0.5">
-                <div className="sticky top-0 z-10 mb-1 bg-white px-3 py-1 text-[9px] font-bold uppercase tracking-widest text-muted opacity-60">
-                  Công cụ Grader
-                </div>
-                {graderModules.map(renderLink)}
-              </div>
-            )}
+            ))}
           </div>
 
           <div className="mt-2 shrink-0 space-y-0.5 border-t border-zinc-100 bg-white pt-3">
-            {ready && user && (
+            {ready && user ? (
               <div className="mb-3 mx-1 px-3 py-2.5 bg-purple-50/60 border border-purple-100 rounded-xl flex items-center gap-2.5">
                 <div className="flex h-7.5 w-7.5 shrink-0 items-center justify-center rounded-full bg-purple-600 text-[11px] font-black text-white uppercase shadow-sm">
                   {user.name.charAt(0)}
@@ -161,11 +169,11 @@ export function AcaSidebar() {
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-xs font-black text-foreground">{user.name}</div>
                   <div className="text-[9px] font-bold text-purple-700 uppercase tracking-wider">
-                    {isKhanhThi ? "HỌC VỤ TRƯỞNG" : "GRADER"}
+                    HỌC VỤ TRƯỞNG
                   </div>
                 </div>
               </div>
-            )}
+            ) : null}
 
             <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted opacity-60">
               Tài khoản
@@ -224,9 +232,7 @@ export function AcaSidebar() {
                 </svg>
               </div>
               <div className="min-w-0 flex-1 text-left">
-                <div className="truncate text-xs font-bold leading-tight">
-                  Đăng xuất
-                </div>
+                <div className="truncate text-xs font-bold leading-tight">Đăng xuất</div>
               </div>
             </button>
           </div>

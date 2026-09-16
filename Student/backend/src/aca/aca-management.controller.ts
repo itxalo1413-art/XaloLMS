@@ -6,21 +6,25 @@ import {
   Param,
   Post,
   Put,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
+import { Public } from '../auth/public.decorator';
+import { ACA_GRADER, ACA_GV, ACA_SALE, ANY_AUTH, STAFF } from '../domain/role';
 import { AcaManagementService } from './aca-management.service';
 
 @Controller('aca')
-// @UseGuards(JwtAuthGuard, RolesGuard)
-// @Roles('ACA')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('ACA')
 export class AcaManagementController {
   constructor(private readonly service: AcaManagementService) {}
 
   // --- Classes ---
   @Get('classes')
+  @Roles(...STAFF)
   async getAllClasses() {
     return this.service.findAllClasses();
   }
@@ -42,8 +46,15 @@ export class AcaManagementController {
 
   // --- Students ---
   @Get('students')
+  @Roles(...STAFF)
   async getAllStudents() {
     return this.service.findAllStudents();
+  }
+
+  @Get('students/:id')
+  @Roles(...STAFF)
+  async getStudent(@Param('id') id: string) {
+    return this.service.findStudentById(id);
   }
 
   @Post('students')
@@ -52,8 +63,15 @@ export class AcaManagementController {
   }
 
   @Put('students/:id')
+  @Roles(...ACA_SALE)
   async updateStudent(@Param('id') id: string, @Body() data: any) {
     return this.service.updateStudent(id, data);
+  }
+
+  @Put('student-identity')
+  @Roles(...STAFF)
+  async saveStudentIdentity(@Body() data: any) {
+    return this.service.saveStudentPortalIdentity(data);
   }
 
   @Delete('students/:id')
@@ -63,6 +81,7 @@ export class AcaManagementController {
 
   // --- Practice Weeks ---
   @Get('practice-weeks')
+  @Roles(...STAFF)
   async getAllWeeks() {
     return this.service.findAllWeeks();
   }
@@ -84,6 +103,7 @@ export class AcaManagementController {
 
   // --- Practice Students ---
   @Get('practice-students')
+  @Roles(...STAFF)
   async getAllPracticeStudents() {
     return this.service.findAllPracticeStudents();
   }
@@ -105,6 +125,7 @@ export class AcaManagementController {
 
   // --- 1:1 Classes ---
   @Get('11-classes')
+  @Roles(...STAFF)
   async getAll11Classes() {
     return this.service.findAll11Classes();
   }
@@ -126,8 +147,14 @@ export class AcaManagementController {
 
   // --- Weekly Docs ---
   @Get('weekly-docs')
-  async getAllWeeklyDocs() {
-    return this.service.findAllWeeklyDocs();
+  @Roles(...STAFF)
+  async getAllWeeklyDocs(
+    @Query('student') student?: string,
+    @Query('studentEmail') studentEmail?: string,
+    @Query('className') className?: string,
+    @Query('week') week?: string,
+  ) {
+    return this.service.findAllWeeklyDocs({ student, studentEmail, className, week });
   }
 
   @Post('weekly-docs')
@@ -147,6 +174,7 @@ export class AcaManagementController {
 
   // --- Teacher Assignments ---
   @Get('teacher-assignments')
+  @Roles(...STAFF)
   async getAllTeacherAssignments() {
     return this.service.findAllTeacherAssignments();
   }
@@ -166,29 +194,34 @@ export class AcaManagementController {
     return this.service.deleteTeacherAssignment(id);
   }
 
-  // --- Free Slots ---
+  // --- Free Slots (Sale xem lịch, Grader đăng ký, Học viên đặt lịch) ---
   @Get('free-slots')
+  @Roles(...ANY_AUTH)
   async getAllFreeSlots() {
     return this.service.findAllFreeSlots();
   }
 
   @Post('free-slots')
+  @Roles(...ACA_GRADER)
   async createFreeSlot(@Body() data: any) {
     return this.service.createFreeSlot(data);
   }
 
   @Put('free-slots/:id')
+  @Roles(...ANY_AUTH)
   async updateFreeSlot(@Param('id') id: string, @Body() data: any) {
     return this.service.updateFreeSlot(id, data);
   }
 
   @Delete('free-slots/:id')
+  @Roles(...ACA_GRADER)
   async deleteFreeSlot(@Param('id') id: string) {
     return this.service.deleteFreeSlot(id);
   }
 
   // --- Teacher Profiles ---
   @Get('teacher-profiles')
+  @Roles(...STAFF)
   async getAllTeacherProfiles() {
     return this.service.findAllTeacherProfiles();
   }
@@ -208,8 +241,9 @@ export class AcaManagementController {
     return this.service.deleteTeacherProfile(id);
   }
 
-  // --- Daily Notes & Quotes ---
+  // --- Daily Notes (HS đọc quote) ---
   @Get('daily-notes')
+  @Roles(...ANY_AUTH)
   async getDailyNote() {
     return this.service.getDailyNote();
   }
@@ -219,65 +253,84 @@ export class AcaManagementController {
     return this.service.updateDailyNote(data);
   }
 
-  // --- Mock Test Requests ---
+  // --- Mock Test Requests (legacy collection) ---
   @Get('mock-test-requests')
+  @Roles(...STAFF)
   async getAllMockTestRequests() {
     return this.service.findAllMockTestRequests();
   }
 
   @Post('mock-test-requests')
+  @Roles(...STAFF)
   async createMockTestRequest(@Body() data: any) {
     return this.service.createMockTestRequest(data);
   }
 
   @Put('mock-test-requests/:id')
+  @Roles(...STAFF)
   async updateMockTestRequest(@Param('id') id: string, @Body() data: any) {
     return this.service.updateMockTestRequest(id, data);
   }
 
   @Delete('mock-test-requests/:id')
+  @Roles(...ACA_GRADER)
   async deleteMockTestRequest(@Param('id') id: string) {
     return this.service.deleteMockTestRequest(id);
   }
 
   // --- Course Settings ---
   @Get('course-settings')
-  async getCourseSettings() {
-    return this.service.getCourseSettings();
+  @Roles(...ANY_AUTH)
+  async getCourseSettings(@Query('classId') classId?: string) {
+    return this.service.getCourseSettings(classId);
   }
 
   @Put('course-settings')
+  @Roles(...ACA_GV)
   async updateCourseSettings(@Body() data: any) {
     return this.service.updateCourseSettings(data);
   }
 
   // --- Guest Diagnosis Leads ---
   @Get('guest-diagnosis-leads')
+  @Roles(...ACA_SALE)
   async listGuestLeads() {
     return this.service.listGuestLeads();
   }
 
+  @Public()
   @Post('guest-diagnosis-leads')
   async createGuestLead(@Body() body: any) {
     return this.service.createGuestLead(body ?? {});
   }
 
+  /** Guest portal: xem BCB đã điền theo leadId (không lộ note/status nội bộ). */
+  @Public()
+  @Get('guest-diagnosis-leads/:id/public')
+  async getGuestLeadPublic(@Param('id') id: string) {
+    return this.service.getGuestLeadPublic(id);
+  }
+
   @Get('guest-diagnosis-leads/:id')
+  @Roles(...ACA_SALE)
   async getGuestLead(@Param('id') id: string) {
     return this.service.getGuestLead(id);
   }
 
   @Put('guest-diagnosis-leads/:id/diagnosis')
+  @Roles(...ACA_SALE)
   async saveGuestLeadDiagnosis(@Param('id') id: string, @Body() body: any) {
     return this.service.saveGuestLeadDiagnosis(id, body ?? {});
   }
 
   @Put('guest-diagnosis-leads/:id')
+  @Roles(...ACA_SALE)
   async updateGuestLead(@Param('id') id: string, @Body() body: any) {
     return this.service.updateGuestLead(id, body ?? {});
   }
 
   @Delete('guest-diagnosis-leads/:id')
+  @Roles(...ACA_SALE)
   async deleteGuestLead(@Param('id') id: string) {
     return this.service.deleteGuestLead(id);
   }
@@ -290,42 +343,50 @@ export class AcaManagementController {
 
   // --- Entrance Test Bookings ---
   @Get('entrance-bookings')
+  @Roles(...STAFF)
   async listEntranceBookings() {
     return this.service.listEntranceBookings();
   }
 
   @Post('entrance-bookings')
+  @Roles(...ACA_SALE)
   async createEntranceBooking(@Body() body: any) {
     return this.service.createEntranceBooking(body ?? {});
   }
 
   @Put('entrance-bookings/:id')
+  @Roles(...STAFF)
   async updateEntranceBooking(@Param('id') id: string, @Body() body: any) {
     return this.service.updateEntranceBooking(id, body ?? {});
   }
 
   @Delete('entrance-bookings/:id')
+  @Roles(...ACA_SALE)
   async deleteEntranceBooking(@Param('id') id: string) {
     return this.service.deleteEntranceBooking(id);
   }
 
   // --- Final Tests ---
   @Get('final-tests')
+  @Roles(...ANY_AUTH)
   async listFinalTests() {
     return this.service.listFinalTests();
   }
 
   @Post('final-tests')
+  @Roles(...ANY_AUTH)
   async createFinalTest(@Body() body: any) {
     return this.service.createFinalTest(body ?? {});
   }
 
   @Put('final-tests/:id')
+  @Roles(...STAFF)
   async updateFinalTest(@Param('id') id: string, @Body() body: any) {
     return this.service.updateFinalTest(id, body ?? {});
   }
 
   @Put('final-tests/:id/bcb')
+  @Roles(...ACA_SALE)
   async saveFinalTestBcb(@Param('id') id: string, @Body() body: any) {
     return this.service.updateFinalTest(id, {
       bcbData: body?.bcbData ?? body ?? {},
@@ -341,6 +402,7 @@ export class AcaManagementController {
   }
 
   @Put('final-tests/:id/cancel')
+  @Roles(...ACA_SALE)
   async cancelFinalTest(@Param('id') id: string) {
     return this.service.cancelFinalTest(id);
   }
@@ -350,18 +412,21 @@ export class AcaManagementController {
     return this.service.deleteFinalTest(id);
   }
 
-  // --- KV Store ---
+  // --- KV Store (Meet links, guest diagnosis cache, …) ---
   @Get('kv/:namespace')
+  @Roles(...ANY_AUTH)
   async getKv(@Param('namespace') namespace: string) {
     return this.service.getKv(namespace);
   }
 
   @Put('kv/:namespace')
+  @Roles(...STAFF)
   async setKv(@Param('namespace') namespace: string, @Body() body: any) {
     return this.service.setKv(namespace, body ?? {});
   }
 
   @Post('kv/:namespace/merge')
+  @Roles(...STAFF)
   async mergeKv(@Param('namespace') namespace: string, @Body() body: any) {
     return this.service.mergeKv(namespace, body ?? {});
   }

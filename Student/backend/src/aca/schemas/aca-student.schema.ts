@@ -60,6 +60,13 @@ export class AcaStudent {
   @Prop({ trim: true, default: '' })
   classId: string;
 
+  /**
+   * Đợt RLP học viên được pin lúc gán lớp.
+   * Khi lớp qua khai giảng mới, HV cũ giữ cohort này → vẫn xem RLP đợt cũ.
+   */
+  @Prop({ trim: true, default: '' })
+  rlpCohortKey: string;
+
   @Prop({ type: Number, default: 0 })
   stt: number;
 
@@ -151,6 +158,9 @@ export class AcaStudent {
   bcbLink: string;
 
   @Prop({ trim: true, default: '' })
+  aim: string;
+
+  @Prop({ trim: true, default: '' })
   note: string;
 
   @Prop({ trim: true, default: '' })
@@ -185,6 +195,9 @@ export class AcaStudent {
 
   @Prop({ type: [String], default: [] })
   focusSkills: string[];
+
+  @Prop({ trim: true, default: '' })
+  examDate: string;
 
   @Prop({ type: Boolean, default: false })
   practiceJoined: boolean;

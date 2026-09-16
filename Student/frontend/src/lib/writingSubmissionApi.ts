@@ -11,12 +11,23 @@ async function parseJson<T>(response: Response): Promise<T> {
   }
   if (!response.ok) {
     let message = `Writing API failed (${response.status})`;
+    const raw = await response.text().catch(() => "");
     try {
-      const body = (await response.json()) as { message?: string | string[] };
-      if (typeof body.message === "string") message = body.message;
+      const body = JSON.parse(raw) as { message?: string | string[]; error?: string };
+      if (typeof body.message === "string" && body.message.trim()) message = body.message;
       else if (Array.isArray(body.message)) message = body.message.join(", ");
+      else if (typeof body.error === "string" && body.error.trim()) message = body.error;
     } catch {
-      // ignore
+      if (raw.trim()) message = raw.trim().slice(0, 200);
+    }
+    if (
+      response.status >= 500 &&
+      (/internal server error/i.test(message) ||
+        /ECONNREFUSED|ENOTFOUND|querySrv|MongoNetwork|buffering timed out/i.test(message) ||
+        message.startsWith("Writing API failed"))
+    ) {
+      message =
+        "Không kết nối được cơ sở dữ liệu Writing (MongoDB Atlas). Kiểm tra mạng/DNS rồi thử lại.";
     }
     throw new Error(message);
   }
@@ -72,6 +83,7 @@ export async function gradeWritingSubmissionApi(
     task2?: string;
     note?: string;
     assignedGrader?: string;
+    criteriaScores?: WritingSubmission["criteriaScores"];
   },
 ): Promise<WritingSubmission> {
   const response = await apiFetch(`/api/teacher/writing-submissions/${id}/grade`, {

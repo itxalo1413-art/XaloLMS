@@ -1,6 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  OnModuleInit,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { CreateRlpSessionDto } from './dto/create-rlp-session.dto';
 import { UpdateRlpSessionDto } from './dto/update-rlp-session.dto';
 import { DEFAULT_RLP_SESSIONS } from './rlp-defaults';
 import type { HomeworkStatus, RlpSessionRecord } from './rlp.types';
@@ -9,6 +15,17 @@ import {
   RlpCourseStore,
   type RlpCourseStoreDocument,
 } from './schemas/rlp-course-store.schema';
+import {
+  RlpTemplate,
+  type RlpTemplateDocument,
+} from './schemas/rlp-template.schema';
+import { DEFAULT_RLP_TEMPLATES } from './rlp-templates.seed';
+import {
+  ApplyClassRlpDto,
+  ApplyRlpTemplateDto,
+  CreateRlpTemplateDto,
+  UpdateRlpTemplateDto,
+} from './dto/rlp-template.dto';
 import { AcaStudent, AcaStudentDocument } from '../aca/schemas/aca-student.schema';
 import { AcaClass, AcaClassDocument } from '../aca/schemas/aca-class.schema';
 import { AcademicWarningService } from '../academic-warning/academic-warning.service';
@@ -16,19 +33,47 @@ import {
   lookupStudentAttendance,
   resolveStudentHomework,
 } from './rlp-progress.util';
-import { FIRST_STAGE_SESSIONS } from '../academic-warning/academic-warning.rules';
+import {
+  buildRlpSchedulePlan,
+  formatViDate,
+  parseViDate,
+  resolveRlpTargetDays,
+  walkMeetingDates,
+  type RlpSchedulePlan,
+} from './rlp-schedule.util';
+import {
+  buildRlpStoreKey,
+  legacyRlpStoreKey,
+  resolveClassCohortKey,
+} from './rlp-cohort.util';
 
 @Injectable()
-export class RlpService {
+export class RlpService implements OnModuleInit {
   constructor(
     @InjectModel(RlpCourseStore.name)
     private readonly storeModel: Model<RlpCourseStoreDocument>,
+    @InjectModel(RlpTemplate.name)
+    private readonly templateModel: Model<RlpTemplateDocument>,
     @InjectModel(AcaStudent.name)
     private readonly studentModel: Model<AcaStudentDocument>,
     @InjectModel(AcaClass.name)
     private readonly classModel: Model<AcaClassDocument>,
     private readonly academicWarnings: AcademicWarningService,
   ) {}
+
+  async onModuleInit() {
+    try {
+      for (const t of DEFAULT_RLP_TEMPLATES) {
+        await this.templateModel.updateOne(
+          { key: t.key },
+          { $setOnInsert: t },
+          { upsert: true },
+        );
+      }
+    } catch (err) {
+      console.warn('Không thể khởi tạo seed RLP Templates:', err);
+    }
+  }
 
   private cloneDefaults(): RlpSessionRecord[] {
     return DEFAULT_RLP_SESSIONS.map((s) => ({
@@ -39,131 +84,196 @@ export class RlpService {
     }));
   }
 
-  private generateClassScheduleDates(
-    startDateStr: string,
-    nextPhaseStartDateStr: string | undefined,
-    className: string,
-    totalSessions = 16,
-  ): string[] {
-    const is357 = className.includes('357');
-    const targetDays = is357 ? [2, 4, 6] : [1, 3, 5]; // 246 = Mon(1), Wed(3), Fri(5); 357 = Tue(2), Thu(4), Sat(6)
-
-    const parseDate = (dStr: string) => {
-      const parts = dStr.split('/');
-      if (parts.length !== 3) return new Date();
-      return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
-    };
-
-    const startDate = parseDate(startDateStr);
-
-    const walkDates = (start: Date, count: number) => {
-      const dates: Date[] = [];
-      const curr = new Date(start);
-      let guard = 0;
-      while (dates.length < count && guard < 1000) {
-        if (targetDays.includes(curr.getDay())) {
-          dates.push(new Date(curr));
-        }
-        curr.setDate(curr.getDate() + 1);
-        guard++;
-      }
-      return dates;
-    };
-
-    const phase1Dates = walkDates(startDate, FIRST_STAGE_SESSIONS);
-    const result: string[] = [];
-    phase1Dates.forEach((d) => {
-      const dd = String(d.getDate()).padStart(2, '0');
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      result.push(`${dd}/${mm}/${d.getFullYear()}`);
-    });
-
-    let phase2Start: Date;
-    if (nextPhaseStartDateStr) {
-      phase2Start = parseDate(nextPhaseStartDateStr);
-    } else {
-      phase2Start = new Date(phase1Dates[phase1Dates.length - 1] || startDate);
-      phase2Start.setDate(phase2Start.getDate() + 2);
+  private blankSession(no: number, date = ''): RlpSessionRecord {
+    const template = DEFAULT_RLP_SESSIONS[(no - 1) % DEFAULT_RLP_SESSIONS.length];
+    let deadline = '';
+    const parsed = parseViDate(date);
+    if (parsed) {
+      const due = new Date(parsed);
+      due.setDate(due.getDate() + 7);
+      deadline = formatViDate(due);
     }
-
-    const phase2Dates = walkDates(phase2Start, totalSessions - FIRST_STAGE_SESSIONS);
-    phase2Dates.forEach((d) => {
-      const dd = String(d.getDate()).padStart(2, '0');
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      result.push(`${dd}/${mm}/${d.getFullYear()}`);
-    });
-
-    return result;
+    return {
+      no,
+      date,
+      skill: template?.skill || 'Speaking',
+      contents: template?.contents || '—',
+      teacherNote: '—',
+      deadline,
+      homeworkStatus: 'not_assigned',
+      attendance: 'present',
+      lessonFileUrl: '',
+      homeworkFileUrl: '',
+      recordingUrl: '',
+    };
   }
 
-  private async ensureStoreForClass(classId: string): Promise<RlpSessionRecord[]> {
+  private buildSessionsForPlan(
+    plan: RlpSchedulePlan,
+    existing?: RlpSessionRecord[],
+  ): RlpSessionRecord[] {
+    const byNo = new Map((existing ?? []).map((s) => [s.no, s]));
+    const total = plan.dates.length;
+    const sessions: RlpSessionRecord[] = [];
+    for (let i = 0; i < total; i++) {
+      const no = i + 1;
+      const date = plan.dates[i] || '';
+      const prev = byNo.get(no);
+      if (prev) {
+        sessions.push({
+          ...prev,
+          no,
+          date: prev.date?.trim() ? prev.date : date,
+        });
+      } else {
+        sessions.push(this.blankSession(no, date));
+      }
+    }
+    return sessions;
+  }
+
+  private schedulePlanForClass(cls: {
+    name?: string;
+    classCode?: string;
+    phaseStartDate?: string;
+    openDate?: string;
+    nextPhaseStartDate?: string;
+    endDate?: string;
+    phaseDurationDays?: number;
+  } | null): RlpSchedulePlan | null {
+    if (!cls) return null;
+    const startDateStr = cls.phaseStartDate || cls.openDate;
+    if (!startDateStr?.trim()) return null;
+    return buildRlpSchedulePlan({
+      className: cls.name || cls.classCode || '',
+      classCode: cls.classCode || '',
+      phaseStartDate: cls.phaseStartDate,
+      openDate: cls.openDate,
+      nextPhaseStartDate: cls.nextPhaseStartDate,
+      endDate: cls.endDate,
+      phaseDurationDays: cls.phaseDurationDays,
+    });
+  }
+
+  /**
+   * Resolve store key theo đợt (cohort).
+   * - Active class: class.rlpCohortKey (từ openDate)
+   * - Student: student.rlpCohortKey nếu đã pin (đợt họ học)
+   * - Legacy `rlp_store_${classId}` được migrate sang key có cohort 1 lần.
+   */
+  private async resolveClassStoreContext(
+    classId: string,
+    cohortOverride?: string,
+  ): Promise<{
+    classId: string;
+    cohortKey: string;
+    storeKey: string;
+    cls: AcaClass | null;
+  }> {
+    const cls = (await this.classModel.findById(classId).lean().exec()) as AcaClass | null;
+    let cohortKey = String(cohortOverride || '').trim();
+    if (!cohortKey) {
+      cohortKey = resolveClassCohortKey(cls || {});
+    }
+
+    if (cls && !String(cls.rlpCohortKey || '').trim()) {
+      await this.classModel
+        .updateOne({ _id: classId }, { $set: { rlpCohortKey: cohortKey } })
+        .exec();
+    }
+
+    const storeKey = buildRlpStoreKey(classId, cohortKey);
+    const legacyKey = legacyRlpStoreKey(classId);
+
+    const existing = await this.storeModel.findOne({ key: storeKey }).lean().exec();
+    if (!existing?.sessions?.length) {
+      const legacy = await this.storeModel.findOne({ key: legacyKey }).lean().exec();
+      if (legacy?.sessions?.length) {
+        // Migrate store cũ → key có cohort (giữ nguyên dữ liệu đợt hiện tại).
+        await this.storeModel.collection.updateOne(
+          { key: storeKey },
+          {
+            $set: {
+              sessions: legacy.sessions,
+              classId,
+              cohortKey,
+            },
+          },
+          { upsert: true },
+        );
+        await this.storeModel.collection.updateOne(
+          { key: legacyKey },
+          { $set: { migratedTo: storeKey, migratedAt: new Date() } },
+        );
+      }
+    }
+
+    return { classId, cohortKey, storeKey, cls };
+  }
+
+  private async ensureStoreForClass(
+    classId: string,
+    cohortOverride?: string,
+  ): Promise<RlpSessionRecord[]> {
     if (!classId) {
       return this.ensureStore();
     }
-    const storeKey = `rlp_store_${classId}`;
-    let doc = await this.storeModel.findOne({ key: storeKey }).lean().exec();
-    const mainSessions = await this.ensureStore();
-    const mainMap = new Map(mainSessions.map((s) => [s.no, s]));
-    const cls = await this.classModel.findById(classId).lean().exec();
 
-    const className = cls?.name || cls?.classCode || '';
-    const startDateStr = cls?.phaseStartDate || cls?.openDate;
-    const computedDates = startDateStr
-      ? this.generateClassScheduleDates(startDateStr, cls?.nextPhaseStartDate, className, mainSessions.length)
-      : [];
+    const { storeKey, cls, cohortKey } = await this.resolveClassStoreContext(
+      classId,
+      cohortOverride,
+    );
+    let doc = await this.storeModel.findOne({ key: storeKey }).lean().exec();
+    const plan = this.schedulePlanForClass(cls);
 
     if (doc?.sessions?.length) {
-      let modified = false;
-      const updatedSessions = (doc.sessions as RlpSessionRecord[]).map((s, idx) => {
-        const main = mainMap.get(s.no);
-        let sUpdated = false;
-        const next = { ...s };
-
-        if (computedDates[idx] && next.date !== computedDates[idx]) {
-          next.date = computedDates[idx];
-          sUpdated = true;
+      const sessions = doc.sessions as RlpSessionRecord[];
+      // Không ép lại số buổi theo lịch seed — GV/ACA có thể thêm/xoá buổi.
+      // Chỉ điền ngày trống từ plan khi buổi chưa có date.
+      if (plan?.dates.length) {
+        let modified = false;
+        const byNo = new Map(sessions.map((s) => [s.no, s]));
+        const updatedSessions = sessions.map((s) => {
+          if (s.date?.trim()) return s;
+          const planDate = plan.dates[s.no - 1] || plan.dates[byNo.size - 1];
+          if (!planDate) return s;
+          modified = true;
+          return { ...s, date: planDate };
+        });
+        if (modified) {
+          await this.storeModel.collection.updateOne(
+            { key: storeKey },
+            { $set: { sessions: updatedSessions } },
+          );
+          return updatedSessions;
         }
-
-        if (main) {
-          if (!next.recordingUrl && main.recordingUrl) {
-            next.recordingUrl = main.recordingUrl;
-            sUpdated = true;
-          }
-          if ((!next.teacherNote || next.teacherNote === '—') && main.teacherNote && main.teacherNote !== '—') {
-            next.teacherNote = main.teacherNote;
-            sUpdated = true;
-          }
-          if ((!next.homeworkStatus || next.homeworkStatus === 'not_assigned') && main.homeworkStatus && main.homeworkStatus !== 'not_assigned') {
-            next.homeworkStatus = main.homeworkStatus;
-            sUpdated = true;
-          }
-        }
-        if (sUpdated) modified = true;
-        return next;
-      });
-
-      if (modified) {
-        await this.storeModel.collection.updateOne(
-          { key: storeKey },
-          { $set: { sessions: updatedSessions } },
-        );
-        return updatedSessions;
       }
-      return doc.sessions as RlpSessionRecord[];
+      return sessions;
     }
 
-    // Find class to align session dates
-    const baseSessions = mainSessions.map((s, idx) => {
-      const copy = { ...s };
-      if (computedDates[idx]) {
-        copy.date = computedDates[idx];
-      }
-      return copy;
-    });
+    // Store đợt mới / lần đầu — lịch sạch, không clone từ đợt cũ hay `main`.
+    const baseSessions = plan?.dates.length
+      ? this.buildSessionsForPlan(plan)
+      : this.cloneDefaults().map((s) => ({
+          ...s,
+          teacherNote: '—',
+          homeworkStatus: 'not_assigned' as const,
+          recordingUrl: '',
+          lessonFileUrl: '',
+          homeworkFileUrl: '',
+          studentAttendance: {},
+          studentHomework: {},
+        }));
 
     await this.storeModel.collection.updateOne(
       { key: storeKey },
-      { $set: { sessions: baseSessions } },
+      {
+        $set: {
+          sessions: baseSessions,
+          classId,
+          cohortKey,
+        },
+      },
       { upsert: true },
     );
     return baseSessions;
@@ -216,13 +326,33 @@ export class RlpService {
 
   async listSessionsForStudent(email: string): Promise<RlpSessionRecord[]> {
     if (!email) return this.listSessions();
-    const student = await this.studentModel.findOne({ email }).lean().exec();
+    const escaped = email.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const student = await this.studentModel
+      .findOne({ email: new RegExp(`^${escaped}$`, 'i') })
+      .lean()
+      .exec();
     if (!student || !student.classId || student.classId === 'cls_placeholder') {
       return this.listSessions();
     }
-    const classSessions = await this.ensureStoreForClass(student.classId);
-    const mainSessions = await this.ensureStore();
-    const mainMap = new Map(mainSessions.map((s) => [s.no, s]));
+    // HV xem RLP đúng đợt họ được pin; thiếu pin → đợt đang active của lớp.
+    const studentCohort = String((student as { rlpCohortKey?: string }).rlpCohortKey || '').trim();
+    const classSessions = await this.ensureStoreForClass(
+      student.classId,
+      studentCohort || undefined,
+    );
+    const cls = await this.classModel.findById(student.classId).lean().exec();
+    const classTeacher = String(cls?.teacher || '').trim();
+
+    // Auto-pin cohort lần đầu HV mở RLP (đợt hiện tại của lớp).
+    if (!studentCohort && cls) {
+      const activeCohort = resolveClassCohortKey(cls);
+      await this.studentModel
+        .updateOne(
+          { _id: student._id },
+          { $set: { rlpCohortKey: activeCohort } },
+        )
+        .exec();
+    }
 
     const identity = {
       id: String(student._id),
@@ -231,23 +361,19 @@ export class RlpService {
       phone: student.phone,
     };
 
+    // Chỉ đọc store của lớp HV — không merge với RLP `main` dùng chung.
     const merged = classSessions.map((s) => {
-      const main = mainMap.get(s.no);
-      const base = main
-        ? {
-            ...s,
-            recordingUrl: (s.recordingUrl && s.recordingUrl.trim() !== '') ? s.recordingUrl : (main.recordingUrl || ''),
-            teacherNote: (s.teacherNote && s.teacherNote !== '—') ? s.teacherNote : (main.teacherNote || s.teacherNote),
-            homeworkStatus: (s.homeworkStatus && s.homeworkStatus !== 'not_assigned') ? s.homeworkStatus : (main.homeworkStatus || s.homeworkStatus),
-            studentHomework: { ...(main.studentHomework ?? {}), ...(s.studentHomework ?? {}) },
-            studentAttendance: { ...(main.studentAttendance ?? {}), ...(s.studentAttendance ?? {}) },
-            attendance: s.attendance || main.attendance || 'present',
-          }
-        : s;
+      const personalAtt = lookupStudentAttendance(s, identity);
       return {
-        ...base,
-        homeworkStatus: resolveStudentHomework(base, identity),
-        attendance: lookupStudentAttendance(base, identity) ?? base.attendance,
+        ...s,
+        responsibleTeacher:
+          String(s.responsibleTeacher || '').trim() || classTeacher || '',
+        homeworkStatus: resolveStudentHomework(s, identity),
+        // Điểm danh cá nhân; nếu chưa ĐD thì không bịa từ class-level.
+        attendance: personalAtt ?? s.attendance,
+        studentAttendance: personalAtt
+          ? { [identity.id]: personalAtt }
+          : {},
       };
     });
 
@@ -296,25 +422,12 @@ export class RlpService {
     const updatedMain = { ...mainSessions[mainIdx], ...patchObj };
     mainSessions[mainIdx] = updatedMain;
 
+    // Chỉ cập nhật template `main` — không lan sang store từng lớp.
     await this.storeModel.collection.updateOne(
       { key: RLP_COURSE_KEY },
       { $set: { sessions: mainSessions } },
       { upsert: true },
     );
-
-    const allStores = await this.storeModel.find({}).lean().exec();
-    for (const store of allStores) {
-      if (store.key === RLP_COURSE_KEY) continue;
-      const cSessions = (store.sessions as RlpSessionRecord[]) || [];
-      const cIdx = cSessions.findIndex((s) => s.no === no);
-      if (cIdx >= 0) {
-        cSessions[cIdx] = { ...cSessions[cIdx], ...patchObj };
-        await this.storeModel.collection.updateOne(
-          { key: store.key },
-          { $set: { sessions: cSessions } },
-        );
-      }
-    }
 
     this.refreshAcademicWarnings();
     return updatedMain;
@@ -334,7 +447,7 @@ export class RlpService {
     if (!classId) {
       return this.updateSession(no, payload);
     }
-    const storeKey = `rlp_store_${classId}`;
+    const { storeKey } = await this.resolveClassStoreContext(classId);
     const sessions = await this.ensureStoreForClass(classId);
     const index = sessions.findIndex((s) => s.no === no);
     if (index < 0) {
@@ -372,25 +485,81 @@ export class RlpService {
       { $set: { sessions } },
     );
 
-    const mainSessions = await this.ensureStore();
-    const mainIdx = mainSessions.findIndex((s) => s.no === no);
-    if (mainIdx >= 0) {
-      mainSessions[mainIdx] = { ...mainSessions[mainIdx], ...patchObj };
-      await this.storeModel.collection.updateOne(
-        { key: RLP_COURSE_KEY },
-        { $set: { sessions: mainSessions } },
-        { upsert: true },
-      );
-    }
-
+    // Chỉ ghi store đợt active của lớp này — không đẩy sang `main` / lớp khác / đợt cũ.
     this.refreshAcademicWarnings();
     return updated;
+  }
+
+  async addSessionForClass(
+    classId: string,
+    dto: CreateRlpSessionDto = {},
+  ): Promise<RlpSessionRecord> {
+    if (!classId) {
+      throw new BadRequestException('Thiếu classId');
+    }
+    const { storeKey } = await this.resolveClassStoreContext(classId);
+    const sessions = await this.ensureStoreForClass(classId);
+    const existingNos = new Set(sessions.map((s) => s.no));
+    const no =
+      dto.no ??
+      (sessions.length > 0 ? Math.max(...sessions.map((s) => s.no)) + 1 : 1);
+    if (existingNos.has(no)) {
+      throw new BadRequestException(`Buổi số ${no} đã tồn tại`);
+    }
+
+    const base = this.blankSession(no, dto.date?.trim() || '');
+    const newSession: RlpSessionRecord = {
+      ...base,
+      skill: dto.skill?.trim() || base.skill,
+      contents: dto.contents?.trim() || base.contents,
+      teacherNote: dto.teacherNote?.trim() || '—',
+      deadline: dto.deadline?.trim() || base.deadline,
+      homeworkStatus: dto.homeworkStatus ?? 'not_assigned',
+      attendance: dto.attendance ?? 'present',
+      lessonFileUrl: dto.lessonFileUrl?.trim() ?? '',
+      homeworkFileUrl: dto.homeworkFileUrl?.trim() ?? '',
+      recordingUrl: dto.recordingUrl?.trim() ?? '',
+      studentAttendance: {},
+      studentHomework: {},
+    };
+
+    const updated = [...sessions, newSession].sort((a, b) => a.no - b.no);
+    await this.storeModel.collection.updateOne(
+      { key: storeKey },
+      { $set: { sessions: updated } },
+      { upsert: true },
+    );
+    this.refreshAcademicWarnings();
+    return newSession;
+  }
+
+  async deleteSessionForClass(
+    classId: string,
+    no: number,
+  ): Promise<{ deleted: boolean }> {
+    if (!classId) {
+      throw new BadRequestException('Thiếu classId');
+    }
+    const { storeKey } = await this.resolveClassStoreContext(classId);
+    const sessions = await this.ensureStoreForClass(classId);
+    const idx = sessions.findIndex((s) => s.no === no);
+    if (idx < 0) {
+      throw new NotFoundException(`Không tìm thấy buổi RLP số ${no}`);
+    }
+    sessions.splice(idx, 1);
+    await this.storeModel.collection.updateOne(
+      { key: storeKey },
+      { $set: { sessions } },
+    );
+    this.refreshAcademicWarnings();
+    return { deleted: true };
   }
 
   async updateHomeworkForStudent(
     email: string,
     no: number,
     status: HomeworkStatus,
+    homeworkFileUrl?: string,
   ): Promise<RlpSessionRecord> {
     const student = await this.studentModel.findOne({ email }).lean().exec();
     if (!student || !student.classId || student.classId === 'cls_placeholder') {
@@ -399,9 +568,13 @@ export class RlpService {
     const studentId = String(student._id);
     const patch: Record<string, HomeworkStatus> = { [studentId]: status };
     if (student.email) patch[student.email.trim()] = status;
-    const session = await this.updateSessionForClass(student.classId, no, {
+    const payload: UpdateRlpSessionDto = {
       studentHomework: patch,
-    });
+    };
+    if (typeof homeworkFileUrl === 'string') {
+      payload.homeworkFileUrl = homeworkFileUrl.trim();
+    }
+    const session = await this.updateSessionForClass(student.classId, no, payload);
     const identity = {
       id: studentId,
       email: student.email,
@@ -412,5 +585,330 @@ export class RlpService {
       ...session,
       homeworkStatus: resolveStudentHomework(session, identity),
     };
+  }
+
+  /* =========================================================
+   * RLP TEMPLATES (RLP MẪU)
+   * ========================================================= */
+
+  /** Catalog RLP từ các lớp ACA thật đang tồn tại (không dùng seed cấp độ). */
+  async listClassRlpCatalog(): Promise<
+    Array<{
+      classId: string;
+      className: string;
+      classCode: string;
+      teacher: string;
+      openDate: string;
+      phaseStartDate: string;
+      totalSessions: number;
+      filledSessions: number;
+      sessions: Array<{
+        no: number;
+        skill: string;
+        contents: string;
+        teacherNote?: string;
+        lessonFileUrl?: string;
+        homeworkFileUrl?: string;
+        recordingUrl?: string;
+      }>;
+    }>
+  > {
+    const classes = await this.classModel.find().sort({ name: 1 }).lean().exec();
+    const rows: Array<{
+      classId: string;
+      className: string;
+      classCode: string;
+      teacher: string;
+      openDate: string;
+      phaseStartDate: string;
+      totalSessions: number;
+      filledSessions: number;
+      sessions: Array<{
+        no: number;
+        skill: string;
+        contents: string;
+        teacherNote?: string;
+        lessonFileUrl?: string;
+        homeworkFileUrl?: string;
+        recordingUrl?: string;
+      }>;
+    }> = [];
+
+    for (const cls of classes) {
+      const classId = String((cls as { _id?: { toString(): string } })._id || '');
+      if (!classId) continue;
+      const classSessions = await this.ensureStoreForClass(classId);
+      const sessions = (classSessions || []).map((s) => ({
+        no: s.no,
+        skill: s.skill || '',
+        contents: s.contents || '',
+        teacherNote: s.teacherNote || '',
+        lessonFileUrl: s.lessonFileUrl || '',
+        homeworkFileUrl: s.homeworkFileUrl || '',
+        recordingUrl: s.recordingUrl || '',
+      }));
+      const filledSessions = sessions.filter((s) => {
+        const c = (s.contents || '').trim();
+        return c.length > 0 && c !== '—';
+      }).length;
+
+      rows.push({
+        classId,
+        className: String((cls as { name?: string }).name || ''),
+        classCode: String((cls as { classCode?: string }).classCode || ''),
+        teacher: String((cls as { teacher?: string }).teacher || ''),
+        openDate: String((cls as { openDate?: string }).openDate || ''),
+        phaseStartDate: String((cls as { phaseStartDate?: string }).phaseStartDate || ''),
+        totalSessions: sessions.length,
+        filledSessions,
+        sessions,
+      });
+    }
+
+    return rows;
+  }
+
+  async getClassRlpSource(sourceClassId: string) {
+    const catalog = await this.listClassRlpCatalog();
+    const hit = catalog.find((c) => c.classId === sourceClassId);
+    if (!hit) {
+      throw new NotFoundException('Không tìm thấy lớp nguồn RLP.');
+    }
+    return hit;
+  }
+
+  private async applySessionItemsToClass(
+    sourceTitle: string,
+    templateSessions: Array<{
+      no: number;
+      skill: string;
+      contents: string;
+      teacherNote?: string;
+      lessonFileUrl?: string;
+      homeworkFileUrl?: string;
+      recordingUrl?: string;
+    }>,
+    dto: ApplyRlpTemplateDto | ApplyClassRlpDto,
+  ): Promise<{
+    applied: boolean;
+    templateTitle: string;
+    totalSessions: number;
+    sessions: RlpSessionRecord[];
+  }> {
+    const { classId, scheduleMode = 'auto', startDate } = dto;
+    if (!classId) {
+      throw new BadRequestException('Thiếu classId khi áp dụng RLP.');
+    }
+    if (!templateSessions.length) {
+      throw new BadRequestException(
+        'Lớp nguồn chưa có buổi RLP để áp dụng. Hãy điền nội dung trên lớp mẫu trước.',
+      );
+    }
+
+    const { storeKey, cls, cohortKey } = await this.resolveClassStoreContext(classId);
+    const existingDoc = await this.storeModel.findOne({ key: storeKey }).lean().exec();
+    const existingSessions: RlpSessionRecord[] =
+      (existingDoc?.sessions as RlpSessionRecord[]) || [];
+
+    const className = cls?.name || '';
+    const classCode = cls?.classCode || '';
+    const targetDays = resolveRlpTargetDays(className, classCode);
+
+    const baseStart =
+      parseViDate(startDate) ||
+      parseViDate(cls?.phaseStartDate) ||
+      parseViDate(cls?.openDate) ||
+      new Date();
+
+    const total = templateSessions.length;
+
+    let computedDates: string[] = [];
+    if (scheduleMode === 'keep_dates' && existingSessions.length > 0) {
+      computedDates = existingSessions.map((s) => s.date || '');
+      while (computedDates.length < total) {
+        computedDates.push('');
+      }
+    } else {
+      const dates = walkMeetingDates(baseStart, total, targetDays);
+      computedDates = dates.map(formatViDate);
+    }
+
+    const newSessions: RlpSessionRecord[] = templateSessions.map((item, idx) => {
+      const sessionDate = computedDates[idx] || '';
+      let deadline = '';
+      const parsed = parseViDate(sessionDate);
+      if (parsed) {
+        const due = new Date(parsed);
+        due.setDate(due.getDate() + 7);
+        deadline = formatViDate(due);
+      }
+
+      const existing = existingSessions.find((s) => s.no === item.no);
+
+      return {
+        no: item.no,
+        date: sessionDate,
+        skill: item.skill || 'Speaking',
+        contents: item.contents || '',
+        teacherNote:
+          existing?.teacherNote && existing.teacherNote !== '—'
+            ? existing.teacherNote
+            : item.teacherNote || '—',
+        lessonFileUrl: item.lessonFileUrl || existing?.lessonFileUrl || '',
+        homeworkFileUrl: item.homeworkFileUrl || existing?.homeworkFileUrl || '',
+        recordingUrl: existing?.recordingUrl || item.recordingUrl || '',
+        deadline,
+        homeworkStatus: 'not_assigned' as const,
+        attendance: 'present' as const,
+        studentAttendance: existing?.studentAttendance || {},
+        studentHomework: existing?.studentHomework || {},
+      };
+    });
+
+    await this.storeModel.collection.updateOne(
+      { key: storeKey },
+      {
+        $set: {
+          sessions: newSessions,
+          classId,
+          cohortKey,
+        },
+      },
+      { upsert: true },
+    );
+
+    this.refreshAcademicWarnings();
+
+    return {
+      applied: true,
+      templateTitle: sourceTitle,
+      totalSessions: newSessions.length,
+      sessions: newSessions,
+    };
+  }
+
+  async applyClassRlpToClass(sourceClassId: string, dto: ApplyClassRlpDto) {
+    if (String(sourceClassId).trim() === String(dto.classId || '').trim()) {
+      throw new BadRequestException('Lớp nguồn và lớp đích phải khác nhau.');
+    }
+    const source = await this.getClassRlpSource(sourceClassId);
+    const title = source.classCode
+      ? `[${source.classCode}] ${source.className}`
+      : source.className || 'RLP lớp nguồn';
+    return this.applySessionItemsToClass(title, source.sessions, dto);
+  }
+
+  async listTemplates(): Promise<RlpTemplate[]> {
+    const list = await this.templateModel.find().sort({ createdAt: 1 }).lean().exec();
+    if (list.length === 0) {
+      return DEFAULT_RLP_TEMPLATES as unknown as RlpTemplate[];
+    }
+    return list;
+  }
+
+  async getTemplate(idOrKey: string): Promise<RlpTemplate> {
+    const query = idOrKey.match(/^[0-9a-fA-F]{24}$/)
+      ? { $or: [{ _id: idOrKey }, { key: idOrKey }] }
+      : { key: idOrKey };
+
+    const template = await this.templateModel.findOne(query).lean().exec();
+    if (!template) {
+      const fallback = DEFAULT_RLP_TEMPLATES.find((t) => t.key === idOrKey);
+      if (fallback) return fallback as unknown as RlpTemplate;
+      throw new NotFoundException(`Không tìm thấy RLP Mẫu "${idOrKey}"`);
+    }
+    return template;
+  }
+
+  async createTemplate(
+    dto: CreateRlpTemplateDto,
+    createdBy = 'Học vụ (ACA)',
+  ): Promise<RlpTemplate> {
+    const existing = await this.templateModel.findOne({ key: dto.key }).lean().exec();
+    if (existing) {
+      throw new BadRequestException(`Mã mẫu "${dto.key}" đã tồn tại.`);
+    }
+    const created = await this.templateModel.create({
+      ...dto,
+      createdBy,
+      totalSessions: dto.sessions?.length || dto.totalSessions || 18,
+      isDefault: dto.isDefault ?? false,
+    });
+    return created.toObject();
+  }
+
+  async updateTemplate(
+    idOrKey: string,
+    dto: UpdateRlpTemplateDto,
+  ): Promise<RlpTemplate> {
+    const query = idOrKey.match(/^[0-9a-fA-F]{24}$/)
+      ? { $or: [{ _id: idOrKey }, { key: idOrKey }] }
+      : { key: idOrKey };
+
+    let doc = await this.templateModel.findOne(query).exec();
+    if (!doc) {
+      const fallback = DEFAULT_RLP_TEMPLATES.find((t) => t.key === idOrKey);
+      if (fallback) {
+        const created = await this.templateModel.create({
+          ...fallback,
+          ...dto,
+          key: fallback.key,
+          totalSessions: dto.sessions?.length || fallback.sessions?.length || 18,
+        });
+        return created.toObject();
+      }
+      throw new NotFoundException(`Không tìm thấy RLP Mẫu "${idOrKey}" để cập nhật.`);
+    }
+
+    if (dto.title !== undefined) doc.title = dto.title;
+    if (dto.level !== undefined) doc.level = dto.level;
+    if (dto.description !== undefined) doc.description = dto.description;
+    if (dto.totalSessions !== undefined) doc.totalSessions = dto.totalSessions;
+    if (dto.sessions !== undefined) {
+      doc.sessions = dto.sessions as any;
+      doc.totalSessions = dto.sessions.length;
+    }
+    if (dto.isDefault !== undefined) doc.isDefault = dto.isDefault;
+
+    await doc.save();
+    return doc.toObject();
+  }
+
+  async deleteTemplate(idOrKey: string): Promise<{ deleted: boolean }> {
+    const query = idOrKey.match(/^[0-9a-fA-F]{24}$/)
+      ? { $or: [{ _id: idOrKey }, { key: idOrKey }] }
+      : { key: idOrKey };
+
+    const doc = await this.templateModel.findOne(query).lean().exec();
+    if (!doc) {
+      throw new NotFoundException(`Không tìm thấy RLP Mẫu "${idOrKey}" để xóa.`);
+    }
+    await this.templateModel.deleteOne(query).exec();
+    return { deleted: true };
+  }
+
+  async applyTemplateToClass(
+    idOrKey: string,
+    dto: ApplyRlpTemplateDto,
+  ): Promise<{
+    applied: boolean;
+    templateTitle: string;
+    totalSessions: number;
+    sessions: RlpSessionRecord[];
+  }> {
+    const template = await this.getTemplate(idOrKey);
+    return this.applySessionItemsToClass(
+      template.title,
+      (template.sessions || []).map((item) => ({
+        no: item.no,
+        skill: item.skill,
+        contents: item.contents,
+        teacherNote: item.teacherNote,
+        lessonFileUrl: item.lessonFileUrl,
+        homeworkFileUrl: item.homeworkFileUrl,
+        recordingUrl: item.recordingUrl,
+      })),
+      dto,
+    );
   }
 }

@@ -4,13 +4,23 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import type { JwtPayload } from './auth.types';
 import { getJwtSecret, verifyAccessToken } from './jwt.util';
+import { IS_PUBLIC_KEY } from './public.decorator';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector) {}
+
   canActivate(context: ExecutionContext): boolean {
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) return true;
+
     const req = context.switchToHttp().getRequest<Request>();
     const header = req.headers.authorization;
     if (!header?.startsWith('Bearer ')) {
@@ -31,7 +41,10 @@ export class JwtAuthGuard implements CanActivate {
     }
     if (token.startsWith('demo-bypass-token:')) {
       try {
-        const rawJson = Buffer.from(token.slice('demo-bypass-token:'.length), 'base64').toString('utf8');
+        const rawJson = Buffer.from(
+          token.slice('demo-bypass-token:'.length),
+          'base64',
+        ).toString('utf8');
         const user = JSON.parse(rawJson);
         (req as any).user = {
           sub: user.id || user.sub,

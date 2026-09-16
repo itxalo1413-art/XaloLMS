@@ -27,6 +27,13 @@ export class CourseImportantLinkSchemaClass {
 
 @Schema({ timestamps: true })
 export class CourseSettings {
+  /**
+   * Nếu có: settings theo lớp (aca_classes._id).
+   * Nếu trống: template mặc định toàn hệ (legacy / fallback).
+   */
+  @Prop({ trim: true, default: '', index: true })
+  classId: string;
+
   @Prop({ required: true, default: 'Momentum - 357 - C2' })
   course: string;
 

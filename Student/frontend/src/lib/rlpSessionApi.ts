@@ -70,10 +70,14 @@ export type UpdateRlpSessionPayload = {
 export async function updateStudentHomeworkApi(
   no: number,
   homeworkStatus: RlpSession["homeworkStatus"],
+  homeworkFileUrl?: string,
 ): Promise<RlpSession> {
   const response = await apiFetch(`/api/student/rlp-sessions/${no}`, {
     method: "PATCH",
-    body: JSON.stringify({ homeworkStatus }),
+    body: JSON.stringify({
+      homeworkStatus,
+      ...(homeworkFileUrl !== undefined ? { homeworkFileUrl } : {}),
+    }),
   });
   const data = await parseJson<{ session: RlpSession }>(response);
   return data.session;
@@ -93,4 +97,46 @@ export async function updateRlpSessionApi(
   });
   const data = await parseJson<{ session: RlpSession }>(response);
   return data.session;
+}
+
+export type CreateRlpSessionPayload = {
+  no?: number;
+  date?: string;
+  skill?: string;
+  contents?: string;
+  teacherNote?: string;
+  deadline?: string;
+  homeworkStatus?: RlpSession["homeworkStatus"];
+  attendance?: RlpSession["attendance"];
+  lessonFileUrl?: string;
+  homeworkFileUrl?: string;
+  recordingUrl?: string;
+};
+
+export async function addRlpSessionApi(
+  classId: string,
+  payload: CreateRlpSessionPayload = {},
+): Promise<RlpSession> {
+  if (!classId) throw new Error("Thiếu classId");
+  const response = await apiFetch(
+    `/api/teacher/rlp-sessions?classId=${encodeURIComponent(classId)}`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+  const data = await parseJson<{ session: RlpSession }>(response);
+  return data.session;
+}
+
+export async function deleteRlpSessionApi(
+  no: number,
+  classId: string,
+): Promise<void> {
+  if (!classId) throw new Error("Thiếu classId");
+  const response = await apiFetch(
+    `/api/teacher/rlp-sessions/${no}?classId=${encodeURIComponent(classId)}`,
+    { method: "DELETE" },
+  );
+  await parseJson<{ deleted: boolean }>(response);
 }

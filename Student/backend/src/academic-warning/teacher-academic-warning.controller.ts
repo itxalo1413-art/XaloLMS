@@ -10,7 +10,7 @@ type AuthedRequest = Request & { user: JwtPayload };
 
 @Controller('teacher/academic-warnings')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('GV', 'ACA')
+@Roles('GV', 'ACA', 'GRADER')
 export class TeacherAcademicWarningController {
   constructor(private readonly service: AcademicWarningService) {}
 
