@@ -26,6 +26,9 @@ export class FinalTest {
   @Prop({ trim: true, default: '' })
   className: string;
 
+  @Prop({ trim: true, default: '', index: true })
+  classId: string;
+
   @Prop({ trim: true, default: '' })
   targetBand: string;
 

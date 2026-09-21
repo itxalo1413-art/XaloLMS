@@ -65,8 +65,8 @@ export const DEFAULT_GUEST_DIAGNOSIS: GuestDiagnosisRecord = {
       "Bạn đưa ra được quan điểm cá nhân rõ ràng. Dùng được tương đối đa dạng từ nối.",
   },
   writingLinks: {
-    task1: "https://docs.google.com/document/d/example-guest-writing-task1",
-    task2: "https://docs.google.com/document/d/example-guest-writing-task2",
+    task1: "",
+    task2: "",
   },
   speakingCriteria: {
     fluencyCoherence: 5.5,

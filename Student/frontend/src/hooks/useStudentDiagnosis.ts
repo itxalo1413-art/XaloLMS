@@ -136,6 +136,7 @@ export function useStudentDiagnosis(studentId?: string) {
               current.bcbOverviewSummary,
             scores,
             finalScores,
+            scoreHistory: live.scoreHistory || (fromData as any).scoreHistory || current.scoreHistory || [],
             writingCriteria: hasWritingBcb(fromData)
               ? fromData.writingCriteria!
               : hasWritingBcb(current)

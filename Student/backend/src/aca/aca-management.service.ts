@@ -1215,6 +1215,42 @@ export class AcaManagementService implements OnModuleInit {
     if (data.classification) {
       data.classification = normalizeClassification(data.classification);
     }
+    // Auto-resolve classId from latest enrollment if not explicitly provided
+    if (!data.classId) {
+      const candidates: string[] = [];
+      const cycs = data.cycles;
+      if (Array.isArray(cycs) && cycs.length > 0) {
+        for (let i = cycs.length - 1; i >= 0; i--) {
+          const code = String(cycs[i]?.classCode || '').trim();
+          if (code && code !== '-' && !code.includes('chưa')) candidates.push(code);
+        }
+      }
+      for (const field of [data.l3, data.l2, data.l1]) {
+        const code = String(field || '').trim();
+        if (code && code !== '-' && !code.includes('chưa') && !candidates.includes(code)) {
+          candidates.push(code);
+        }
+      }
+      for (const code of candidates) {
+        const codeBase = code.replace(/-\d+$/i, '').trim();
+        if (!codeBase) continue;
+        const escaped = codeBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const found = await this.classModel
+          .findOne({
+            $or: [
+              { classCode: new RegExp(`^${escaped}$`, 'i') },
+              { name: new RegExp(escaped, 'i') },
+            ],
+          })
+          .sort({ month: -1, updatedAt: -1, createdAt: -1 })
+          .lean()
+          .exec();
+        if (found?._id) {
+          data.classId = String(found._id);
+          break;
+        }
+      }
+    }
     if (data.classId === undefined) {
       data.classId = '';
     }
@@ -1247,10 +1283,111 @@ export class AcaManagementService implements OnModuleInit {
       data.classification = normalizeClassification(data.classification);
     }
     const prev = await this.studentModel.findById(id).lean().exec();
+
+    // Auto-resolve classId from latest enrollment if not explicitly provided or changed
+    if (data.classId === undefined && (data.cycles !== undefined || data.l1 !== undefined || data.l2 !== undefined || data.l3 !== undefined)) {
+      const candidates: string[] = [];
+      const cycs = data.cycles ?? prev?.cycles;
+      if (Array.isArray(cycs) && cycs.length > 0) {
+        for (let i = cycs.length - 1; i >= 0; i--) {
+          const code = String(cycs[i]?.classCode || '').trim();
+          if (code && code !== '-' && !code.includes('chưa')) candidates.push(code);
+        }
+      }
+      for (const field of [data.l3 ?? prev?.l3, data.l2 ?? prev?.l2, data.l1 ?? prev?.l1]) {
+        const code = String(field || '').trim();
+        if (code && code !== '-' && !code.includes('chưa') && !candidates.includes(code)) {
+          candidates.push(code);
+        }
+      }
+      for (const code of candidates) {
+        const codeBase = code.replace(/-\d+$/i, '').trim();
+        if (!codeBase) continue;
+        const escaped = codeBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const found = await this.classModel
+          .findOne({
+            $or: [
+              { classCode: new RegExp(`^${escaped}$`, 'i') },
+              { name: new RegExp(escaped, 'i') },
+            ],
+          })
+          .sort({ month: -1, updatedAt: -1, createdAt: -1 })
+          .lean()
+          .exec();
+        if (found?._id) {
+          data.classId = String(found._id);
+          break;
+        }
+      }
+    }
+
     const nextClassId =
       data.classId !== undefined ? String(data.classId || '').trim() : String(prev?.classId || '').trim();
     const prevClassId = String(prev?.classId || '').trim();
     const classChanged = data.classId !== undefined && nextClassId !== prevClassId;
+
+    // Propagate previous cycle's finalScores to current/next cycle's entrance scores
+    const rawCycles = data.cycles ?? prev?.cycles;
+    if (Array.isArray(rawCycles) && rawCycles.length > 0) {
+      const updatedCycles = rawCycles.map((c: any) => ({ ...c }));
+      let cyclesModified = false;
+      for (let i = 1; i < updatedCycles.length; i++) {
+        const prevC = updatedCycles[i - 1];
+        const curC = updatedCycles[i];
+        const prevFin = prevC?.finalScores;
+        const curEnt = curC?.scores;
+
+        const hasPrevFin = prevFin && (
+          (prevFin.o !== undefined && prevFin.o !== '-' && prevFin.o !== '') ||
+          (prevFin.l !== undefined && prevFin.l !== '-' && prevFin.l !== '') ||
+          (prevFin.r !== undefined && prevFin.r !== '-' && prevFin.r !== '')
+        );
+
+        const isCurEntEmpty = !curEnt || (
+          (curEnt.o === undefined || curEnt.o === '-' || curEnt.o === '') &&
+          (curEnt.l === undefined || curEnt.l === '-' || curEnt.l === '') &&
+          (curEnt.r === undefined || curEnt.r === '-' || curEnt.r === '')
+        );
+
+        if (hasPrevFin && isCurEntEmpty) {
+          curC.scores = {
+            l: prevFin.l ?? '-',
+            r: prevFin.r ?? '-',
+            w: prevFin.w ?? '-',
+            s: prevFin.s ?? '-',
+            o: prevFin.o ?? '-',
+          };
+          updatedCycles[i] = curC;
+          cyclesModified = true;
+        }
+      }
+      if (cyclesModified) {
+        data.cycles = updatedCycles;
+      }
+
+      // If top-level scores are empty/unset, sync from active (last) cycle
+      const lastCycle = updatedCycles[updatedCycles.length - 1];
+      if (lastCycle?.scores) {
+        const hasLastScores = (
+          (lastCycle.scores.o !== undefined && lastCycle.scores.o !== '-' && lastCycle.scores.o !== '') ||
+          (lastCycle.scores.l !== undefined && lastCycle.scores.l !== '-' && lastCycle.scores.l !== '')
+        );
+        const isDataScoresEmpty = !data.scores || (
+          (data.scores.o === undefined || data.scores.o === '-' || data.scores.o === '') &&
+          (data.scores.l === undefined || data.scores.l === '-' || data.scores.l === '')
+        );
+        if (hasLastScores && (isDataScoresEmpty || classChanged)) {
+          data.scores = { ...lastCycle.scores };
+          if (lastCycle.scores.o && lastCycle.scores.o !== '-') {
+            data.entrance = String(lastCycle.scores.o);
+          }
+        }
+      }
+
+      if (classChanged && lastCycle) {
+        data.finalScores = lastCycle.finalScores || { l: '-', r: '-', w: '-', s: '-', o: '-' };
+      }
+    }
 
     if (classChanged && nextClassId) {
       // Gán lớp mới → pin đợt RLP đang active của lớp đó.
@@ -2822,44 +2959,59 @@ export class AcaManagementService implements OnModuleInit {
     const totalSessionsElapsed =
       sessions.length > 0 ? classSessionsCompleted : progress.totalSessionsElapsed;
 
-    // Check if student already has completed/graded Final Test results
+    // Check if student already has completed/graded Final Test results for current class
     const finalTestQuery: Record<string, unknown>[] = [];
     if (studentId) finalTestQuery.push({ studentId });
     if (email) finalTestQuery.push({ candidateEmail: new RegExp(`^${this.escapeRegex(email)}$`, 'i') });
     if (student?.name) finalTestQuery.push({ candidateName: new RegExp(`^${this.escapeRegex(student.name)}$`, 'i') });
 
     if (finalTestQuery.length > 0) {
-      const existingGraded = await this.finalTestModel
-        .findOne({
-          $and: [
-            { $or: finalTestQuery },
-            { status: { $ne: 'cancelled' } },
-            {
-              $or: [
-                { status: 'graded' },
-                { isDone: true },
-                { isChecked: true },
-                { scoreOverall: { $nin: ['', null] } },
-                { scoreSpeaking: { $nin: ['', null] } },
-                { scoreWriting: { $nin: ['', null] } },
-              ],
-            },
-          ],
-        })
-        .lean()
-        .exec();
+      const classScope: Record<string, unknown>[] = [];
+      if (classCode) {
+        classScope.push({ classCode: new RegExp(`^${this.escapeRegex(classCode)}$`, 'i') });
+        classScope.push({ className: new RegExp(this.escapeRegex(classCode), 'i') });
+      }
+      if (cls?.name) {
+        classScope.push({ className: new RegExp(this.escapeRegex(cls.name), 'i') });
+      }
+      if (classId && Types.ObjectId.isValid(classId)) {
+        classScope.push({ classId });
+      }
 
-      if (existingGraded) {
-        return {
-          eligible: false,
-          reason: 'Học viên đã có kết quả thi Final Test, không thể đăng ký thi lại.',
-          totalSessionsElapsed,
-          requiredSessions,
-          firstStageCompleted: true,
-          fullCourseCompleted: true,
-          classCode,
-          className: cls?.name || '',
-        };
+      if (classScope.length > 0) {
+        const existingGraded = await this.finalTestModel
+          .findOne({
+            $and: [
+              { $or: finalTestQuery },
+              { $or: classScope },
+              { status: { $ne: 'cancelled' } },
+              {
+                $or: [
+                  { status: 'graded' },
+                  { isDone: true },
+                  { isChecked: true },
+                  { scoreOverall: { $nin: ['', null] } },
+                  { scoreSpeaking: { $nin: ['', null] } },
+                  { scoreWriting: { $nin: ['', null] } },
+                ],
+              },
+            ],
+          })
+          .lean()
+          .exec();
+
+        if (existingGraded) {
+          return {
+            eligible: false,
+            reason: `Học viên đã có kết quả thi Final Test cho lớp ${classCode || 'này'}, không thể đăng ký thi lại lớp này.`,
+            totalSessionsElapsed,
+            requiredSessions,
+            firstStageCompleted: true,
+            fullCourseCompleted: true,
+            classCode,
+            className: cls?.name || '',
+          };
+        }
       }
     }
 
@@ -2927,7 +3079,32 @@ export class AcaManagementService implements OnModuleInit {
     const candidatePhone = ((input.candidatePhone as string) ?? '').trim();
     const graderSpeaking = ((input.graderSpeaking as string) ?? ((input.examinerName as string) ?? '')).trim();
 
-    // Find any existing active or graded Final Test record for this student
+    // Resolve target class for this final test
+    let targetClassCode = String(input.classCode || '').trim();
+    let targetClassName = String(input.className || '').trim();
+    let targetClassId = String(input.classId || '').trim();
+
+    if ((!targetClassCode || !targetClassName) && (studentId || candidateEmail)) {
+      const st = await this.studentModel
+        .findOne({
+          $or: [
+            ...(studentId && Types.ObjectId.isValid(studentId) ? [{ _id: new Types.ObjectId(studentId) }] : []),
+            ...(candidateEmail ? [{ email: new RegExp(`^${this.escapeRegex(candidateEmail)}$`, 'i') }] : []),
+          ],
+        })
+        .lean()
+        .exec();
+      if (st?.classId && Types.ObjectId.isValid(st.classId)) {
+        const c = await this.classModel.findById(st.classId).lean().exec();
+        if (c) {
+          targetClassCode = targetClassCode || c.classCode || '';
+          targetClassName = targetClassName || c.name || '';
+          targetClassId = targetClassId || String(c._id || '');
+        }
+      }
+    }
+
+    // Find any existing active or graded Final Test record for this student in this class
     let existingActive: any = null;
     if (studentId || candidateEmail || candidateName) {
       const orClauses: Record<string, unknown>[] = [];
@@ -2942,37 +3119,49 @@ export class AcaManagementService implements OnModuleInit {
         orClauses.push({ candidateName: new RegExp(`^${this.escapeRegex(candidateName)}$`, 'i') });
       }
 
-      if (orClauses.length > 0) {
-        // 1. Block if student already has a completed/graded Final Test
-        const existingGraded = await this.finalTestModel
-          .findOne({
-            $and: [
-              { $or: orClauses },
-              { status: { $ne: 'cancelled' } },
-              {
-                $or: [
-                  { status: 'graded' },
-                  { isDone: true },
-                  { isChecked: true },
-                  { scoreOverall: { $nin: ['', null] } },
-                  { scoreSpeaking: { $nin: ['', null] } },
-                  { scoreWriting: { $nin: ['', null] } },
-                ],
-              },
-            ],
-          })
-          .exec();
+      const classScope: Record<string, unknown>[] = [];
+      if (targetClassCode) {
+        classScope.push({ classCode: new RegExp(`^${this.escapeRegex(targetClassCode)}$`, 'i') });
+        classScope.push({ className: new RegExp(this.escapeRegex(targetClassCode), 'i') });
+      }
+      if (targetClassName) classScope.push({ className: new RegExp(this.escapeRegex(targetClassName), 'i') });
+      if (targetClassId) classScope.push({ classId: targetClassId });
 
-        if (existingGraded) {
-          throw new BadRequestException(
-            'Học viên đã có kết quả thi Final Test, không thể đăng ký thi lại.',
-          );
+      if (orClauses.length > 0) {
+        // 1. Block only if student already has a completed/graded Final Test for this class
+        if (classScope.length > 0) {
+          const existingGraded = await this.finalTestModel
+            .findOne({
+              $and: [
+                { $or: orClauses },
+                { $or: classScope },
+                { status: { $ne: 'cancelled' } },
+                {
+                  $or: [
+                    { status: 'graded' },
+                    { isDone: true },
+                    { isChecked: true },
+                    { scoreOverall: { $nin: ['', null] } },
+                    { scoreSpeaking: { $nin: ['', null] } },
+                    { scoreWriting: { $nin: ['', null] } },
+                  ],
+                },
+              ],
+            })
+            .exec();
+
+          if (existingGraded) {
+            throw new BadRequestException(
+              `Học viên đã có kết quả thi Final Test cho lớp ${targetClassCode || 'này'}, không thể đăng ký thi lại lớp này.`,
+            );
+          }
         }
 
         // 2. Find any active (scheduled / in_progress) Final Test record
         const activeFilter: Record<string, unknown> = {
           $and: [
             { $or: orClauses },
+            ...(classScope.length > 0 ? [{ $or: classScope }] : []),
             { status: { $nin: ['graded', 'cancelled'] } },
           ],
         };
@@ -3086,8 +3275,9 @@ export class AcaManagementService implements OnModuleInit {
       candidatePhone,
       candidateEmail,
       studentId,
-      classCode: ((input.classCode as string) ?? '').trim(),
-      className: ((input.className as string) ?? '').trim(),
+      classCode: targetClassCode || ((input.classCode as string) ?? '').trim(),
+      className: targetClassName || ((input.className as string) ?? '').trim(),
+      classId: targetClassId || ((input.classId as string) ?? '').trim(),
       targetBand: ((input.targetBand as string) ?? '').trim(),
       testType,
       format,
@@ -3202,6 +3392,7 @@ export class AcaManagementService implements OnModuleInit {
     candidateEmail?: string;
     candidateName?: string;
     candidatePhone?: string;
+    classCode?: string;
     scoreListening?: string;
     scoreReading?: string;
     scoreWriting?: string;
@@ -3230,8 +3421,38 @@ export class AcaManagementService implements OnModuleInit {
     if (student) {
       const cycles = Array.isArray(student.cycles) ? [...student.cycles] : [];
       if (cycles.length > 0) {
-        const last = { ...(cycles[cycles.length - 1] as object), finalScores };
-        cycles[cycles.length - 1] = last as (typeof cycles)[number];
+        let targetIndex = -1;
+        if (doc.classCode) {
+          const docCode = String(doc.classCode).trim().toLowerCase();
+          targetIndex = cycles.findIndex(
+            (c: any) => c.classCode && String(c.classCode).trim().toLowerCase() === docCode,
+          );
+        }
+        if (targetIndex === -1) {
+          targetIndex = cycles.length - 1;
+        }
+        const updated = { ...(cycles[targetIndex] as object), finalScores };
+        cycles[targetIndex] = updated as (typeof cycles)[number];
+
+        // If next cycle exists and its entrance scores are empty, propagate finalScores
+        if (targetIndex + 1 < cycles.length) {
+          const nextCycle = { ...(cycles[targetIndex + 1] as object) } as any;
+          const nextScores = nextCycle.scores;
+          const isNextEmpty =
+            !nextScores ||
+            ((nextScores.o === undefined || nextScores.o === '-' || nextScores.o === '') &&
+              (nextScores.l === undefined || nextScores.l === '-' || nextScores.l === ''));
+          if (isNextEmpty) {
+            nextCycle.scores = {
+              l: finalScores.l ?? '-',
+              r: finalScores.r ?? '-',
+              w: finalScores.w ?? '-',
+              s: finalScores.s ?? '-',
+              o: finalScores.o ?? '-',
+            };
+            cycles[targetIndex + 1] = nextCycle;
+          }
+        }
       }
 
       await this.studentModel

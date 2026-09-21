@@ -529,12 +529,24 @@ export default function TeacherClassesPage() {
       }
     }
 
-    const filtered = students.filter(
-      (s) =>
+    const filtered = students.filter((s) => {
+      if (
         matchingClassIds.has(s.classId) ||
         s.classId === selectedClass.id ||
         s.classId === selectedClass.name
-    );
+      ) {
+        return true;
+      }
+      const targetCode = selectedClass.classCode || selectedClass.name;
+      if (!targetCode) return false;
+      if (Array.isArray(s.cycles) && s.cycles.some((cyc) => classCodesMatch(cyc.classCode, targetCode))) {
+        return true;
+      }
+      if (classCodesMatch(s.l1, targetCode) || classCodesMatch(s.l2, targetCode) || classCodesMatch(s.l3, targetCode)) {
+        return true;
+      }
+      return false;
+    });
 
     // De-duplicate students to clean up duplicates from MongoDB parallel seeding
     const seen = new Set<string>();

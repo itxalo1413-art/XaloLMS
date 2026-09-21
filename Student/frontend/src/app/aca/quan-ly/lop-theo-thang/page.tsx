@@ -600,7 +600,7 @@ const getProjectedEventsForMonth = (
 
   const anchorDate = adjustToClassDay(anchorDateRaw, classDays);
 
-  for (let k = -12; k <= 24; k++) {
+  for (let k = -24; k <= 60; k++) {
     const date = new Date(anchorDate.getTime());
     if (k !== 0) {
       date.setDate(date.getDate() + k * offsetDays);
@@ -722,7 +722,7 @@ const getProjectedPhasesForYear = (
   const anchorDate = adjustToClassDay(anchorDateRaw, classDays);
   const targetEnd = new Date(selectedYear, 11, 31, 23, 59, 59);
 
-  for (let k = -10; k <= 20; k++) {
+  for (let k = -24; k <= 60; k++) {
     const date = new Date(anchorDate.getTime());
     if (k !== 0) {
       date.setDate(date.getDate() + k * offsetDays);
@@ -740,11 +740,62 @@ const getProjectedPhasesForYear = (
       phaseName,
       startDateStr,
       phaseIndex: k,
-      isCurrent: k === 0,
+      isCurrent: false,
+    });
+  }
+
+  if (phases.length > 0) {
+    const today = new Date();
+    const todayTime = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+
+    const mapped = phases.map((p) => {
+      const d = parseDate(p.startDateStr) || new Date(2000, 0, 1);
+      return {
+        phase: p,
+        time: new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+      };
+    }).sort((a, b) => a.time - b.time);
+
+    let activeIndex = -1;
+    for (let i = 0; i < mapped.length; i++) {
+      const start = mapped[i].time;
+      const end = i < mapped.length - 1 ? mapped[i + 1].time : Infinity;
+      if (todayTime >= start && todayTime < end) {
+        activeIndex = i;
+        break;
+      }
+    }
+    if (activeIndex === -1) {
+      if (todayTime < mapped[0].time) activeIndex = 0;
+      else activeIndex = mapped.length - 1;
+    }
+    phases.forEach((p) => {
+      p.isCurrent = p === mapped[activeIndex]?.phase;
     });
   }
 
   return phases;
+};
+
+const isStudentEnrolledInClass = (
+  st: AcaStudent,
+  c?: { id?: string; classCode?: string; name?: string } | null
+): boolean => {
+  if (!st || !c) return false;
+  if (c.id && st.classId === c.id) return true;
+  const targetCode = c.classCode || c.name || "";
+  if (!targetCode) return false;
+
+  if (Array.isArray(st.cycles) && st.cycles.some((cyc) => classCodesMatch(cyc.classCode, targetCode))) {
+    return true;
+  }
+  if (classCodesMatch(st.l1, targetCode) || classCodesMatch(st.l2, targetCode) || classCodesMatch(st.l3, targetCode)) {
+    return true;
+  }
+  if (classCodesMatch(st.classId, targetCode)) {
+    return true;
+  }
+  return false;
 };
 
 const isStudentInPhase = (
@@ -754,24 +805,13 @@ const isStudentInPhase = (
   classCode: string
 ): boolean => {
   if (!classCode) return false;
-  
-  const classCycles = st.cycles || [];
-  const matchesCycle = (classCycles.length > 0 && classCodesMatch(classCycles[pIndex]?.classCode, classCode)) ||
-                       (pIndex === 0 && classCodesMatch(st.l1, classCode)) ||
-                       (pIndex === 1 && classCodesMatch(st.l2, classCode)) ||
-                       (pIndex === 2 && classCodesMatch(st.l3, classCode));
-                       
-  if (matchesCycle) return true;
-  
-  if (isCurrent && !isStudentFinishedClass(st, classCode)) {
-    return true;
-  }
-  
-  return false;
+  if (!isStudentEnrolledInClass(st, { classCode })) return false;
+  if (isStudentFinishedClass(st, classCode)) return false;
+  return true;
 };
 
 const isRecruitedForNextPhase = (st: AcaStudent, c: AcaClass, selectedYear: number): boolean => {
-  if (st.classId !== c.id) return false;
+  if (!isStudentEnrolledInClass(st, c)) return false;
   if (isStudentFinishedClass(st, c.classCode)) return false;
   
   const cls = (st.classification || "").trim();
@@ -783,34 +823,18 @@ const isRecruitedForNextPhase = (st: AcaStudent, c: AcaClass, selectedYear: numb
   const currentPhase = projected.find(p => p.isCurrent);
   if (!currentPhase) return false;
   
-  const nextPhaseIndex = currentPhase.phaseIndex + 1;
-  const classCycles = st.cycles || [];
-  const matchesNextCycle = (classCycles.length > 0 && classCodesMatch(classCycles[nextPhaseIndex]?.classCode, c.classCode)) ||
-                           (nextPhaseIndex === 0 && classCodesMatch(st.l1, c.classCode)) ||
-                           (nextPhaseIndex === 1 && classCodesMatch(st.l2, c.classCode)) ||
-                           (nextPhaseIndex === 2 && classCodesMatch(st.l3, c.classCode));
-  return matchesNextCycle;
+  return true;
 };
 
 const getDefaultSlotsToEnroll = (className: string): number => {
   const name = className.toLowerCase();
-  if (
-    name.includes("upstream") ||
-    name.includes("soar") ||
-    name.includes("precore") ||
-    name.includes("pre core") ||
-    (name.includes("core") && !name.includes("precore") && !name.includes("pre core"))
-  ) {
+  if (name.includes("soar") || name.includes("momentum") || name.includes("upstream") || name.includes("advance")) {
     return 12;
   }
-  if (
-    name.includes("momentum") ||
-    name.includes("advanced") ||
-    name.includes("foundation")
-  ) {
+  if (name.includes("foundation")) {
     return 10;
   }
-  return 0;
+  return 12;
 };
 
 const getDefaultSlotsToEnrollFromCode = (classCode: string): number => {
@@ -852,6 +876,7 @@ export default function LopTheoThangPage() {
   useEffect(() => {
     if (ready && isKhanhThi) {
       setCurrentPage(1);
+      setSelectedPhaseIndex(null);
     }
   }, [selectedMonth, selectedYear, ready, isKhanhThi]);
 
@@ -891,9 +916,9 @@ export default function LopTheoThangPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Derive available years from loaded class data + current + next year
+  // Derive available years from loaded class data + 2024 through 2028
   const availableYears = useMemo(() => {
-    const yearSet = new Set<number>([NOW_Y, NOW_Y + 1]);
+    const yearSet = new Set<number>([2024, 2025, 2026, 2027, 2028, NOW_Y]);
     classes.forEach((c) => {
       if (c.openDate) {
         const parts = c.openDate.split("/");
@@ -911,7 +936,7 @@ export default function LopTheoThangPage() {
         if (parts.length === 3) yearSet.add(parseInt(parts[2], 10));
       });
     });
-    return Array.from(yearSet).filter(y => !isNaN(y) && y >= 2024).sort((a, b) => a - b);
+    return Array.from(yearSet).filter(y => !isNaN(y) && y >= 2024 && y <= 2028).sort((a, b) => a - b);
   }, [classes, classes11]);
 
   // CRUD modal state
@@ -1255,8 +1280,17 @@ export default function LopTheoThangPage() {
     return map;
   }, [classes]);
 
+  const isClass11 = (c: { name?: string; classCode?: string }) => {
+    const name = (c.name || "").toUpperCase();
+    const code = (c.classCode || "").toUpperCase();
+    return name.includes("1:1") || name.includes("1-1") || code.includes("1:1") || code.includes("11-") || code.startsWith("ONL11") || code.startsWith("OFF11");
+  };
+
   const filteredClasses = useMemo(() => {
     const matched = classes.filter((c) => {
+      // Never show 1:1 classes in group class list (học phần)
+      if (isClass11(c)) return false;
+
       // 1. Strict month match
       if (c.month === selectedMonth) return true;
       
@@ -1298,7 +1332,7 @@ export default function LopTheoThangPage() {
 
   /** Bản lớp đã gộp trùng mã — dùng cho lịch / timeline để không hiện 2 lần cùng lớp. */
   const classesForCalendar = useMemo(
-    () => dedupeClassesByCode(classes, selectedMonth),
+    () => dedupeClassesByCode(classes.filter(c => !isClass11(c)), selectedMonth),
     [classes, selectedMonth],
   );
 
@@ -1430,7 +1464,7 @@ export default function LopTheoThangPage() {
 
   const classStudents = useMemo(() => {
     if (!selectedClass || "className" in selectedClass) return [];
-    const allClassStudents = students.filter(st => st.classId === selectedClass.id);
+    const allClassStudents = students.filter(st => isStudentEnrolledInClass(st, selectedClass));
     
     if (selectedPhaseIndex !== null) {
       const projected = getProjectedPhasesForYear(selectedClass as AcaClass, selectedYear);
@@ -2199,7 +2233,7 @@ export default function LopTheoThangPage() {
                             {visiblePhases.map((p) => {
                               const isSelected = selectedPhaseIndex === p.phaseIndex;
                           const studentsCount = students.filter(st => {
-                            if (st.classId !== selectedClass.id) return false;
+                            if (!isStudentEnrolledInClass(st, selectedClass)) return false;
                             return isStudentInPhase(st, p.phaseIndex, p.isCurrent, selectedClass.classCode);
                           }).length;
 

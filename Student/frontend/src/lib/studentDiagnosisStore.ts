@@ -43,6 +43,7 @@ export type StudentDiagnosisRecord = {
   speakingCriteria: SpeakingCriterionScores;
   bcbListening: BcbQuestionTypeRow[];
   bcbReading: BcbQuestionTypeRow[];
+  scoreHistory?: import("@/lib/studentDiagnosisApi").ScoreHistoryItem[];
   updatedAt: string;
 };
 
@@ -161,6 +162,7 @@ export const EMPTY_STUDENT_DIAGNOSIS: StudentDiagnosisRecord = {
   },
   bcbListening: [],
   bcbReading: [],
+  scoreHistory: [],
   updatedAt: new Date().toISOString(),
 };
 

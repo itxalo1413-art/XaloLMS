@@ -40,6 +40,165 @@ const STUDY_FIELDS: StudySelectionField[] = [
   'focusSkills',
 ];
 
+function parseDDMMYYYY(dStr: string): Date | null {
+  if (!dStr || dStr === '-' || dStr === 'Chưa xếp') return null;
+  const parts = dStr.trim().split('/');
+  if (parts.length !== 3) return null;
+  const d = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10) - 1;
+  const y = parseInt(parts[2], 10);
+  const date = new Date(y, m, d);
+  return isNaN(date.getTime()) ? null : date;
+}
+
+function formatDDMMYYYY(date: Date): string {
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  return `${dd}/${mm}/${date.getFullYear()}`;
+}
+
+function resolveActivePhasesForClass(cls: any, referenceDate: Date = new Date()): { name: string; date: string }[] {
+  if (!cls) return [];
+  const nameUpper = String(cls.name || '').toUpperCase();
+  const codeUpper = String(cls.classCode || '').toUpperCase();
+  const isFoundation =
+    nameUpper.includes('FOU') ||
+    nameUpper.includes('FOUND') ||
+    codeUpper.includes('FOU') ||
+    codeUpper.includes('FOUND');
+  const isPreCore =
+    nameUpper.includes('PRE CORE') ||
+    nameUpper.includes('PCORE') ||
+    nameUpper.includes('PRECORE') ||
+    nameUpper.includes('PRE IELTS') ||
+    nameUpper.includes('PREIELTS') ||
+    nameUpper.includes('CORE') ||
+    codeUpper.includes('PRE CORE') ||
+    codeUpper.includes('PCORE') ||
+    codeUpper.includes('PRECORE') ||
+    codeUpper.includes('PRE IELTS') ||
+    codeUpper.includes('PREIELTS') ||
+    codeUpper.includes('CORE');
+
+  if (isFoundation) {
+    return [{ name: 'Foundation', date: cls.openDate || cls.phaseStartDate || '' }];
+  }
+
+  if (isPreCore) {
+    const res: { name: string; date: string }[] = [];
+    if (cls.currentPhase || cls.phaseStartDate || cls.openDate) {
+      res.push({
+        name: cls.currentPhase || 'Chặng 1',
+        date: cls.phaseStartDate || cls.openDate || '',
+      });
+    }
+    if (cls.nextPhase || cls.nextPhaseStartDate) {
+      res.push({
+        name: cls.nextPhase || 'Chặng 2',
+        date: cls.nextPhaseStartDate || '',
+      });
+    }
+    return res;
+  }
+
+  // Regular rolling class
+  const dOpen = parseDDMMYYYY(cls.openDate);
+  const dCurr = parseDDMMYYYY(cls.phaseStartDate);
+  const anchorDateRaw = dCurr || dOpen;
+  if (!anchorDateRaw) {
+    const res: { name: string; date: string }[] = [];
+    if (cls.currentPhase || cls.phaseStartDate || cls.openDate) {
+      res.push({
+        name: cls.currentPhase || 'Chặng 1',
+        date: cls.phaseStartDate || cls.openDate || '',
+      });
+    }
+    if (cls.nextPhase || cls.nextPhaseStartDate) {
+      res.push({
+        name: cls.nextPhase || 'Chặng 2',
+        date: cls.nextPhaseStartDate || '',
+      });
+    }
+    return res;
+  }
+
+  let classDays = [1, 3, 5]; // default 2-4-6
+  if (codeUpper.includes('357') || nameUpper.includes('357')) classDays = [2, 4, 6];
+  else if (codeUpper.includes('246') || nameUpper.includes('246')) classDays = [1, 3, 5];
+
+  const adjustToClassDay = (d: Date): Date => {
+    const res = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    for (let i = 0; i < 7; i++) {
+      if (classDays.includes(res.getDay())) return res;
+      res.setDate(res.getDate() + 1);
+    }
+    return res;
+  };
+
+  const offsetDays = Number(cls.phaseDurationDays) || 42;
+  let anchorIsWL = true;
+  if (cls.currentPhase) {
+    const cp = String(cls.currentPhase).toUpperCase();
+    anchorIsWL = cp.includes('W') || cp.includes('L');
+  }
+
+  const anchorDate = adjustToClassDay(anchorDateRaw);
+  const todayTime = new Date(
+    referenceDate.getFullYear(),
+    referenceDate.getMonth(),
+    referenceDate.getDate(),
+  ).getTime();
+
+  const phases: { name: string; date: string; time: number }[] = [];
+  for (let k = -10; k <= 20; k++) {
+    const d = new Date(anchorDate.getTime());
+    if (k !== 0) d.setDate(d.getDate() + k * offsetDays);
+    const adjusted = adjustToClassDay(d);
+    const isWL = Math.abs(k) % 2 === 0 ? anchorIsWL : !anchorIsWL;
+    phases.push({
+      name: isWL ? 'W-L' : 'S-R',
+      date: formatDDMMYYYY(adjusted),
+      time: adjusted.getTime(),
+    });
+  }
+
+  phases.sort((a, b) => a.time - b.time);
+
+  let activeIdx = -1;
+  for (let i = 0; i < phases.length; i++) {
+    const start = phases[i].time;
+    const end = i < phases.length - 1 ? phases[i + 1].time : Infinity;
+    if (todayTime >= start && todayTime < end) {
+      activeIdx = i;
+      break;
+    }
+  }
+
+  if (activeIdx === -1) {
+    if (todayTime < phases[0].time) activeIdx = 0;
+    else activeIdx = phases.length - 1;
+  }
+
+  const current = phases[activeIdx];
+  const next = phases[activeIdx + 1];
+
+  const result: { name: string; date: string }[] = [];
+  if (current) result.push({ name: current.name, date: current.date });
+  if (next) result.push({ name: next.name, date: next.date });
+  return result.length > 0
+    ? result
+    : [
+        {
+          name: cls.currentPhase || 'Chặng 1',
+          date: cls.phaseStartDate || cls.openDate || '',
+        },
+        {
+          name: cls.nextPhase || 'Chặng 2',
+          date: cls.nextPhaseStartDate || '',
+        },
+      ];
+}
+
 @Injectable()
 export class StudentProfileService implements OnModuleInit {
   private readonly logger = new Logger(StudentProfileService.name);
@@ -682,37 +841,85 @@ export class StudentProfileService implements OnModuleInit {
 
   private rosterSkillScores(student: {
     scores?: unknown;
-    cycles?: { scores?: unknown }[];
+    finalScores?: unknown;
+    cycles?: Array<{ scores?: unknown; finalScores?: unknown; classCode?: string }>;
+    classId?: unknown;
   }) {
+    const cycles = Array.isArray(student?.cycles) ? student.cycles : [];
+    if (cycles.length > 0) {
+      const activeIdx = cycles.length - 1;
+      const curCycle = cycles[activeIdx];
+      const curScores = this.skillScoresFrom(curCycle?.scores as Record<string, unknown>);
+      if (this.hasAnyScore(curScores)) {
+        return curScores;
+      }
+      // If current cycle entrance is empty and activeIdx > 0, inherit previous cycle's finalScores!
+      if (activeIdx > 0) {
+        const prevCycle = cycles[activeIdx - 1];
+        const prevFinal = this.skillScoresFrom(prevCycle?.finalScores as Record<string, unknown>);
+        if (this.hasAnyScore(prevFinal)) {
+          return prevFinal;
+        }
+        if ((prevCycle as any)?.finalScore) {
+          const parsed = this.parseBand((prevCycle as any).finalScore);
+          if (parsed > 0) {
+            return { listening: 0, reading: 0, writing: 0, speaking: 0, overall: parsed };
+          }
+        }
+      }
+      if (activeIdx === 0) {
+        const top = this.skillScoresFrom(student.scores as Record<string, unknown> | null);
+        if (this.hasAnyScore(top)) return top;
+      }
+    }
+
     const top = this.skillScoresFrom(
-      student.scores as Record<string, unknown> | null,
+      student?.scores as Record<string, unknown> | null,
     );
     if (this.hasAnyScore(top)) return top;
-    const cycles = student.cycles || [];
     for (let i = cycles.length - 1; i >= 0; i--) {
       const fromCycle = this.skillScoresFrom(
         cycles[i]?.scores as Record<string, unknown> | undefined,
       );
       if (this.hasAnyScore(fromCycle)) return fromCycle;
+      if (i > 0) {
+        const fromPrevFin = this.skillScoresFrom(cycles[i - 1]?.finalScores as Record<string, unknown>);
+        if (this.hasAnyScore(fromPrevFin)) return fromPrevFin;
+      }
     }
     return top;
   }
 
   private rosterFinalSkillScores(student: {
     finalScores?: unknown;
-    cycles?: { finalScores?: unknown }[];
+    cycles?: Array<{ finalScores?: unknown; finalScore?: string }>;
   }) {
-    const top = this.skillScoresFrom(
-      student.finalScores as Record<string, unknown> | null,
-    );
-    if (this.hasAnyScore(top)) return top;
-    const cycles = student.cycles || [];
-    for (let i = cycles.length - 1; i >= 0; i--) {
-      const fromCycle = this.skillScoresFrom(
-        cycles[i]?.finalScores as Record<string, unknown> | undefined,
-      );
-      if (this.hasAnyScore(fromCycle)) return fromCycle;
+    const cycles = Array.isArray(student?.cycles) ? student.cycles : [];
+    if (cycles.length > 0) {
+      const activeIdx = cycles.length - 1;
+      const curCycle = cycles[activeIdx];
+      const curFinal = this.skillScoresFrom(curCycle?.finalScores as Record<string, unknown>);
+      if (this.hasAnyScore(curFinal)) {
+        return curFinal;
+      }
+      if ((curCycle as any)?.finalScore) {
+        const parsed = this.parseBand((curCycle as any).finalScore);
+        if (parsed > 0) {
+          return { listening: 0, reading: 0, writing: 0, speaking: 0, overall: parsed };
+        }
+      }
+      // If student is in a subsequent cycle (e.g. L2, L3), final test condition has RESET!
+      // Do NOT leak the previous cycle's final test as current class final!
+      if (activeIdx > 0) {
+        return { listening: 0, reading: 0, writing: 0, speaking: 0, overall: 0 };
+      }
+      const top = this.skillScoresFrom(student.finalScores as Record<string, unknown> | null);
+      if (this.hasAnyScore(top)) return top;
     }
+
+    const top = this.skillScoresFrom(
+      student?.finalScores as Record<string, unknown> | null,
+    );
     return top;
   }
 
@@ -885,10 +1092,16 @@ export class StudentProfileService implements OnModuleInit {
     const storedFinal = this.skillScoresFrom(
       (stored as { finalScores?: Record<string, unknown> }).finalScores,
     );
-    const finalScores = this.mergeSkillScores(
-      this.rosterFinalSkillScores(student),
-      storedFinal,
-    );
+    const isSubsequentCycle =
+      Array.isArray(student?.cycles) && student.cycles.length > 1;
+    const finalScores = isSubsequentCycle
+      ? this.rosterFinalSkillScores(student)
+      : this.mergeSkillScores(
+          this.rosterFinalSkillScores(student),
+          storedFinal,
+        );
+
+    const scoreHistory = this.buildScoreHistory(student);
 
     return {
       name: student.name,
@@ -902,6 +1115,8 @@ export class StudentProfileService implements OnModuleInit {
       ),
       scores,
       finalScores,
+      scoreHistory,
+      cycles: student.cycles || [],
       writingCriteria: stored.writingCriteria ?? null,
       writingSummary: stored.writingSummary ?? null,
       speakingCriteria: stored.speakingCriteria ?? null,
@@ -929,8 +1144,209 @@ export class StudentProfileService implements OnModuleInit {
           speaking: finalScores.speaking,
           overall: finalScores.overall,
         },
+        scoreHistory,
       },
     };
+  }
+
+  buildScoreHistory(student: any): Array<{
+    cycleIndex: number;
+    label: string;
+    classCode: string;
+    entranceScores: {
+      listening: number;
+      reading: number;
+      writing: number;
+      speaking: number;
+      overall: number;
+    };
+    finalScores: {
+      listening: number;
+      reading: number;
+      writing: number;
+      speaking: number;
+      overall: number;
+    };
+    hasFinal: boolean;
+    deltaOverall: number | null;
+    isCurrent: boolean;
+    status: 'completed' | 'in_progress' | 'upcoming';
+  }> {
+    if (!student) return [];
+    let cycles: any[] = [];
+    if (Array.isArray(student.cycles) && student.cycles.length > 0) {
+      cycles = student.cycles;
+    } else {
+      const l1 = String(student.l1 || '').trim();
+      const l2 = String(student.l2 || '').trim();
+      const l3 = String(student.l3 || '').trim();
+      if (l1) {
+        cycles.push({
+          classCode: l1,
+          scores: student.scores,
+          finalScores: student.finalScores,
+          finalScore: student.f1,
+        });
+      }
+      if (l2) {
+        cycles.push({
+          classCode: l2,
+          scores: null,
+          finalScores: null,
+          finalScore: student.f2,
+        });
+      }
+      if (l3) {
+        cycles.push({
+          classCode: l3,
+          scores: null,
+          finalScores: null,
+          finalScore: student.f3,
+        });
+      }
+    }
+
+    if (cycles.length === 0) {
+      const ent = this.skillScoresFrom(student.scores as Record<string, unknown> | null);
+      const fin = this.skillScoresFrom(student.finalScores as Record<string, unknown> | null);
+      const hasFin = this.hasAnyScore(fin);
+      return [
+        {
+          cycleIndex: 0,
+          label: 'L1',
+          classCode: String(student.l1 || student.classCode || '').trim(),
+          entranceScores: ent,
+          finalScores: fin,
+          hasFinal: hasFin,
+          deltaOverall:
+            hasFin && ent.overall > 0 && fin.overall > 0
+              ? Math.round((fin.overall - ent.overall) * 10) / 10
+              : null,
+          isCurrent: true,
+          status: hasFin ? 'completed' : 'in_progress',
+        },
+      ];
+    }
+
+    const activeIdx = cycles.length - 1;
+    const history: Array<any> = [];
+
+    for (let i = 0; i < cycles.length; i++) {
+      const cyc = cycles[i];
+      const isL1 = i === 0;
+      let ent = this.skillScoresFrom(cyc.scores as Record<string, unknown>);
+
+      if (!this.hasAnyScore(ent)) {
+        if (isL1) {
+          ent = this.skillScoresFrom(student.scores as Record<string, unknown> | null);
+        } else if (i > 0) {
+          // Inherit from previous cycle's finalScores!
+          const prevCyc = cycles[i - 1];
+          const prevFin = this.skillScoresFrom(prevCyc.finalScores as Record<string, unknown>);
+          if (this.hasAnyScore(prevFin)) {
+            ent = prevFin;
+          } else if (prevCyc.finalScore) {
+            const parsed = this.parseBand(prevCyc.finalScore);
+            if (parsed > 0) {
+              ent = { listening: 0, reading: 0, writing: 0, speaking: 0, overall: parsed };
+            }
+          }
+        }
+      }
+
+      let fin = this.skillScoresFrom(cyc.finalScores as Record<string, unknown>);
+      if (!this.hasAnyScore(fin)) {
+        if (cyc.finalScore) {
+          const parsed = this.parseBand(cyc.finalScore);
+          if (parsed > 0) {
+            fin = { listening: 0, reading: 0, writing: 0, speaking: 0, overall: parsed };
+          }
+        } else if (isL1 && cycles.length === 1) {
+          fin = this.skillScoresFrom(student.finalScores as Record<string, unknown> | null);
+        }
+      }
+
+      const hasFinal = this.hasAnyScore(fin);
+      const isCurrent = i === activeIdx;
+      const status: 'completed' | 'in_progress' | 'upcoming' = hasFinal
+        ? 'completed'
+        : isCurrent
+        ? 'in_progress'
+        : 'upcoming';
+      const deltaOverall =
+        hasFinal && ent.overall > 0 && fin.overall > 0
+          ? Math.round((fin.overall - ent.overall) * 10) / 10
+          : null;
+
+      history.push({
+        cycleIndex: i,
+        label: `L${i + 1}`,
+        classCode: String(cyc.classCode || '').trim(),
+        entranceScores: ent,
+        finalScores: fin,
+        hasFinal,
+        deltaOverall,
+        isCurrent,
+        status,
+      });
+    }
+
+    return history;
+  }
+
+  private async resolveLatestClassForStudent(student: any): Promise<AcaClass | null> {
+    if (!student) return null;
+
+    // 1. Gather all candidate class codes from LATEST (L3 / latest cycle) to EARLIEST (L1 / first cycle)
+    const candidates: string[] = [];
+
+    // Check cycles array (most recent first)
+    if (Array.isArray(student.cycles) && student.cycles.length > 0) {
+      for (let i = student.cycles.length - 1; i >= 0; i--) {
+        const code = String(student.cycles[i]?.classCode || '').trim();
+        if (code && code !== '-' && !code.includes('chưa')) {
+          candidates.push(code);
+        }
+      }
+    }
+
+    // Check legacy L3, L2, L1 (in reverse order: L3 -> L2 -> L1)
+    for (const field of [student.l3, student.l2, student.l1]) {
+      const code = String(field || '').trim();
+      if (code && code !== '-' && !code.includes('chưa') && !candidates.includes(code)) {
+        candidates.push(code);
+      }
+    }
+
+    // 2. Look up the class in MongoDB by candidates (latest first)
+    for (const code of candidates) {
+      const codeBase = code.replace(/-\d+$/i, '').trim();
+      if (!codeBase) continue;
+      const escaped = codeBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const found = await this.acaClassModel
+        .findOne({
+          $or: [
+            { classCode: new RegExp(`^${escaped}$`, 'i') },
+            { name: new RegExp(escaped, 'i') },
+          ],
+        })
+        .sort({ month: -1, updatedAt: -1, createdAt: -1 })
+        .lean()
+        .exec();
+      if (found) {
+        return found as AcaClass;
+      }
+    }
+
+    // 3. Fallback to student.classId if valid ObjectId
+    if (student.classId && Types.ObjectId.isValid(student.classId)) {
+      const found = await this.acaClassModel.findById(student.classId).lean().exec();
+      if (found) {
+        return found as AcaClass;
+      }
+    }
+
+    return null;
   }
 
   async getClassInfoForStudent(email: string, name?: string) {
@@ -971,27 +1387,10 @@ export class StudentProfileService implements OnModuleInit {
       ? (globalSettings as any).links
       : [];
 
-    // Resolve group class
+    // Resolve group class: always prioritize the latest enrollment (cycles[-1], L3, L2, L1)
     let cls: AcaClass | null = null;
     if (student) {
-      if (student.classId && Types.ObjectId.isValid(student.classId)) {
-        cls = await this.acaClassModel.findById(student.classId).lean().exec();
-      }
-      if (!cls && (student.l1 || student.l2 || student.l3)) {
-        const code = (student.l1 || student.l2 || student.l3 || '').trim();
-        const codeBase = code.replace(/-\d+$/i, '');
-        if (codeBase) {
-          cls = await this.acaClassModel
-            .findOne({
-              $or: [
-                { classCode: new RegExp(`^${codeBase}$`, 'i') },
-                { name: new RegExp(codeBase, 'i') },
-              ],
-            })
-            .lean()
-            .exec();
-        }
-      }
+      cls = await this.resolveLatestClassForStudent(student);
     }
 
     // Resolve 1:1
@@ -1038,19 +1437,7 @@ export class StudentProfileService implements OnModuleInit {
     }
 
     if (cls) {
-      const phases: { name: string; date: string }[] = [];
-      if (cls.currentPhase || cls.phaseStartDate || cls.openDate) {
-        phases.push({
-          name: cls.currentPhase || 'Chặng 1',
-          date: cls.phaseStartDate || cls.openDate || '',
-        });
-      }
-      if (cls.nextPhase || cls.nextPhaseStartDate) {
-        phases.push({
-          name: cls.nextPhase || 'Chặng 2',
-          date: cls.nextPhaseStartDate || '',
-        });
-      }
+      const phases = resolveActivePhasesForClass(cls);
 
       const rawSchedule = String((cls as { schedule?: string }).schedule || '').trim();
       const schedule = rawSchedule

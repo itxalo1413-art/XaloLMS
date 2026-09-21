@@ -830,12 +830,7 @@ export default function StudentLuuTruTestPage() {
                         {eligibility.reason ||
                           "Bạn cần hoàn thành đủ 2 chặng (1 khóa học) trước khi đăng ký Final Test."}
                       </p>
-                      <p className="mt-1 text-[11px] text-amber-700">
-                        Tiến độ lớp: {eligibility.totalSessionsElapsed}/{eligibility.requiredSessions} buổi đã hoàn thành
-                        <span className="block text-xs font-medium text-amber-700/80 mt-0.5">
-                          Tính theo buổi lớp (điểm danh/lịch), kể cả khi bạn vắng.
-                        </span>
-                      </p>
+
                     </div>
                   )}
 

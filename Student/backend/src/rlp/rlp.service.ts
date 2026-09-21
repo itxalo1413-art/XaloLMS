@@ -5,7 +5,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { CreateRlpSessionDto } from './dto/create-rlp-session.dto';
 import { UpdateRlpSessionDto } from './dto/update-rlp-session.dto';
 import { DEFAULT_RLP_SESSIONS } from './rlp-defaults';
@@ -324,6 +324,59 @@ export class RlpService implements OnModuleInit {
     return this.normalizeSessions(await this.ensureStore());
   }
 
+  private async resolveLatestClassForStudent(student: any): Promise<AcaClass | null> {
+    if (!student) return null;
+
+    const candidates: string[] = [];
+
+    // Check cycles array (most recent first)
+    if (Array.isArray(student.cycles) && student.cycles.length > 0) {
+      for (let i = student.cycles.length - 1; i >= 0; i--) {
+        const code = String(student.cycles[i]?.classCode || '').trim();
+        if (code && code !== '-' && !code.includes('chưa')) {
+          candidates.push(code);
+        }
+      }
+    }
+
+    // Check legacy L3, L2, L1 (in reverse order: L3 -> L2 -> L1)
+    for (const field of [student.l3, student.l2, student.l1]) {
+      const code = String(field || '').trim();
+      if (code && code !== '-' && !code.includes('chưa') && !candidates.includes(code)) {
+        candidates.push(code);
+      }
+    }
+
+    // Look up class in MongoDB by candidates (latest first)
+    for (const code of candidates) {
+      const codeBase = code.replace(/-\d+$/i, '').trim();
+      if (!codeBase) continue;
+      const escaped = codeBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const found = await this.classModel
+        .findOne({
+          $or: [
+            { classCode: new RegExp(`^${escaped}$`, 'i') },
+            { name: new RegExp(escaped, 'i') },
+          ],
+        })
+        .sort({ month: -1, updatedAt: -1, createdAt: -1 })
+        .lean()
+        .exec();
+      if (found) {
+        return found as AcaClass;
+      }
+    }
+
+    if (student.classId && Types.ObjectId.isValid(student.classId)) {
+      const found = await this.classModel.findById(student.classId).lean().exec();
+      if (found) {
+        return found as AcaClass;
+      }
+    }
+
+    return null;
+  }
+
   async listSessionsForStudent(email: string): Promise<RlpSessionRecord[]> {
     if (!email) return this.listSessions();
     const escaped = email.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -331,16 +384,22 @@ export class RlpService implements OnModuleInit {
       .findOne({ email: new RegExp(`^${escaped}$`, 'i') })
       .lean()
       .exec();
-    if (!student || !student.classId || student.classId === 'cls_placeholder') {
+    if (!student) {
       return this.listSessions();
     }
+
+    const cls = await this.resolveLatestClassForStudent(student);
+    const activeClassId = cls ? String((cls as any)._id) : (student.classId && student.classId !== 'cls_placeholder' ? String(student.classId) : null);
+    if (!activeClassId) {
+      return this.listSessions();
+    }
+
     // HV xem RLP đúng đợt họ được pin; thiếu pin → đợt đang active của lớp.
     const studentCohort = String((student as { rlpCohortKey?: string }).rlpCohortKey || '').trim();
     const classSessions = await this.ensureStoreForClass(
-      student.classId,
+      activeClassId,
       studentCohort || undefined,
     );
-    const cls = await this.classModel.findById(student.classId).lean().exec();
     const classTeacher = String(cls?.teacher || '').trim();
 
     // Auto-pin cohort lần đầu HV mở RLP (đợt hiện tại của lớp).

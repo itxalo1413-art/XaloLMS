@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BcbQuestionTypeTable } from "@/components/diagnosis/BcbQuestionTypeTable";
@@ -28,6 +28,52 @@ function GuestDiagnosisContent() {
   const [bookingSubmitted, setBookingSubmitted] = useState(false);
   const [bookingError, setBookingError] = useState("");
   const [bookingSaving, setBookingSaving] = useState(false);
+
+  const displayAim = guest.aim || bookingAim || "7.5 IELTS";
+  const displayAimLabel = displayAim.toLowerCase().startsWith("aim") ? displayAim : `Aim ${displayAim}`;
+  const overallScore = guest.scores.overall || 0;
+  const strokeDashoffset = Math.max(0, 201 - (Math.min(9, overallScore) / 9) * 201);
+
+  const personalizedInsights = useMemo(() => {
+    const insights: string[] = [];
+
+    // 1. Weak question types from Listening & Reading
+    const allRows = [...(guest.bcbListening || []), ...(guest.bcbReading || [])];
+    const weakRows = allRows.filter(
+      (r) =>
+        Boolean((r.errorRate && r.errorRate > 0) ||
+        ((r.total ?? 0) > 0 && (r.correct ?? 0) < (r.total ?? 0))),
+    );
+    if (weakRows.length > 0) {
+      const sorted = [...weakRows].sort((a, b) => (b.errorRate || 0) - (a.errorRate || 0));
+      const topWeak = sorted.slice(0, 3).map((r) => r.title).filter(Boolean).join(", ");
+      if (topWeak) {
+        insights.push(`Luyện tập chuyên sâu và khắc phục các dạng bài có tỷ lệ lỗi cao (${topWeak}) với kho đề thi thực tế.`);
+      }
+    }
+    if (insights.length === 0) {
+      insights.push("Luyện tập riêng các dạng bài trọng tâm và bẫy đề thi thực chiến theo tiêu chuẩn IELTS mới nhất.");
+    }
+
+    // 2. Writing & Speaking insights
+    const spkScores = guest.speakingCriteria;
+    const lowestSpk = Math.min(
+      spkScores?.fluencyCoherence || 9,
+      spkScores?.lexicalResource || 9,
+      spkScores?.grammaticalRangeAccuracy || 9,
+      spkScores?.pronunciation || 9,
+    );
+    if (lowestSpk < 6.0 && lowestSpk > 0) {
+      insights.push("Tăng cường độ trôi chảy (Fluency) và phát âm chuẩn quốc tế qua mô hình luyện phản xạ 1 kèm 1.");
+    } else {
+      insights.push("Nâng cao cấu trúc câu phức, từ vựng học thuật nâng cao cho Writing & Speaking theo tiêu chuẩn chấm 8.0+.");
+    }
+
+    // 3. Aim & timeline
+    insights.push(`Thiết kế phác đồ cá nhân hóa may đo riêng để bứt phá đạt ${displayAimLabel} trong thời gian tối ưu.`);
+
+    return insights;
+  }, [guest.bcbListening, guest.bcbReading, guest.speakingCriteria, displayAimLabel]);
 
   useEffect(() => {
     if (guest.name) setBookingName(guest.name);
@@ -164,11 +210,25 @@ function GuestDiagnosisContent() {
                   </svg>
                   <svg className="absolute h-20 w-20 -rotate-90 transform">
                     <circle cx="40" cy="40" r="32" stroke="#eeebff" strokeWidth="6" fill="transparent" />
-                    <circle cx="40" cy="40" r="32" stroke="#6a5acd" strokeWidth="6" fill="transparent" strokeDasharray="201" strokeDashoffset="67" strokeLinecap="round" />
+                    <circle
+                      cx="40"
+                      cy="40"
+                      r="32"
+                      stroke="#6a5acd"
+                      strokeWidth="6"
+                      fill="transparent"
+                      strokeDasharray="201"
+                      strokeDashoffset={strokeDashoffset}
+                      strokeLinecap="round"
+                    />
                   </svg>
                   <div className="absolute text-center">
-                    <span className="block text-xl font-black leading-none text-primary">6.0</span>
-                    <span className="mt-0.5 block text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Aim 7.5</span>
+                    <span className="block text-xl font-black leading-none text-primary">
+                      {overallScore ? formatBandScore(overallScore) : "0.0"}
+                    </span>
+                    <span className="mt-0.5 block text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
+                      {displayAimLabel}
+                    </span>
                   </div>
                 </div>
                 <div className="min-w-0 flex-1">
@@ -326,17 +386,13 @@ function GuestDiagnosisContent() {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
                   <div className="lg:col-span-7 space-y-4">
                     <h3 className="text-xl md:text-2xl font-black text-foreground tracking-tight leading-tight">
-                      Bạn Muốn Bứt Phá Từ {formatBandScore(guest.scores.overall)} Lên {guest.aim || bookingAim} Trong 4 Tháng?
+                      Bạn Muốn Bứt Phá Từ {overallScore ? formatBandScore(overallScore) : "Band hiện tại"} Lên {displayAimLabel}?
                     </h3>
                     <p className="text-xs md:text-sm font-medium text-zinc-500 leading-relaxed">
                       Lớp học tại Xa Lộ English được thiết kế may đo riêng cho từng học viên dựa trên chính kết quả chẩn đoán này. Chúng tôi sẽ giúp bạn:
                     </p>
                     <ul className="space-y-2.5">
-                      {[
-                        "Khắc phục triệt để lỗi S-V Agreement (11 lỗi) và lỗi Noun Phrase (5 lỗi) bằng chuyên đề bổ trợ.",
-                        "Luyện tập riêng các dạng bài yếu (Map, Diagram Labelling, Matching Headings) với kho đề thi thực tế.",
-                        "Tăng độ trôi chảy (Fluency) và từ vựng nâng cao qua mô hình học 1 kèm 1 với giáo viên 8.0+.",
-                      ].map((item, idx) => (
+                      {personalizedInsights.map((item, idx) => (
                         <li key={idx} className="flex items-start gap-2 text-xs font-semibold text-zinc-700">
                           <span className="w-4 h-4 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-black shrink-0 mt-0.5">✓</span>
                           <span>{item}</span>

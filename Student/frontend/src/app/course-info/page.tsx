@@ -30,7 +30,6 @@ import {
 } from "@/lib/courseInstructorProfile";
 import { PORTAL_PROFILE_UPDATE_EVENT } from "@/lib/portalProfile";
 import { useCourseImportantLinks } from "@/hooks/useCourseImportantLinks";
-import { fetchPracticeCurrentWeek, type PracticeCurrentWeekResponse } from "@/lib/practiceClassApi";
 
 type PhaseConfig = {
   id: string;
@@ -245,19 +244,12 @@ export default function CourseInfoPage() {
   const [homeworkLinkDraft, setHomeworkLinkDraft] = useState("");
   const [homeworkSubmitting, setHomeworkSubmitting] = useState(false);
   const [homeworkError, setHomeworkError] = useState<string | null>(null);
-  const [practiceWeek, setPracticeWeek] = useState<PracticeCurrentWeekResponse | null>(null);
 
   useEffect(() => {
     setMeta(refreshCourseMetadata());
     const onMetaUpdate = () => setMeta(getCourseMetadata());
     window.addEventListener(COURSE_METADATA_UPDATE_EVENT, onMetaUpdate);
     return () => window.removeEventListener(COURSE_METADATA_UPDATE_EVENT, onMetaUpdate);
-  }, []);
-
-  useEffect(() => {
-    void fetchPracticeCurrentWeek()
-      .then((week) => setPracticeWeek(week))
-      .catch(() => setPracticeWeek(null));
   }, []);
 
   const oneToOne = meta.oneToOne;
@@ -515,34 +507,6 @@ export default function CourseInfoPage() {
                   Tài liệu
                 </a>
               ) : null}
-            </div>
-          </Panel>
-        ) : null}
-
-        {practiceWeek?.linkFolder?.trim() ? (
-          <Panel title="Link folder lớp luyện đề (theo tuần)">
-            <div className="rounded-2xl border border-amber-100 bg-amber-50/50 p-4 space-y-2">
-              <div className="text-sm font-bold text-foreground">
-                Tuần {practiceWeek.weekRange}
-                {practiceWeek.examWeekNumber
-                  ? ` · Đề tuần ${practiceWeek.examWeekNumber}`
-                  : ""}
-              </div>
-              <p className="text-[11px] text-zinc-500 font-medium">
-                Folder bài tập / điểm tuần do học vụ gắn trên Lớp luyện đề tuần.
-              </p>
-              <a
-                href={
-                  practiceWeek.linkFolder.startsWith("http")
-                    ? practiceWeek.linkFolder
-                    : `https://${practiceWeek.linkFolder}`
-                }
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center rounded-xl bg-amber-600 px-4 py-2 text-[10px] font-black uppercase tracking-wider text-white hover:bg-amber-700"
-              >
-                Mở link folder
-              </a>
             </div>
           </Panel>
         ) : null}

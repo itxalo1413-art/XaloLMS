@@ -9,6 +9,19 @@ export type LiveSkillScores = {
   overall: number;
 };
 
+export type ScoreHistoryItem = {
+  cycleIndex: number;
+  label: string;
+  classCode: string;
+  className?: string;
+  entranceScores: LiveSkillScores;
+  finalScores: LiveSkillScores;
+  hasFinal: boolean;
+  deltaOverall: number | null;
+  isCurrent: boolean;
+  status: 'completed' | 'in_progress' | 'upcoming';
+};
+
 export type LiveStudentDiagnosis = {
   name: string;
   email: string;
@@ -19,6 +32,8 @@ export type LiveStudentDiagnosis = {
   examCountdownAnchor?: string;
   scores: LiveSkillScores;
   finalScores: LiveSkillScores;
+  scoreHistory?: ScoreHistoryItem[];
+  cycles?: any[];
   diagnosisData?: Partial<StudentDiagnosisRecord> | null;
 };
 

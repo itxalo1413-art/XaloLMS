@@ -10,6 +10,7 @@ import {
   studyHabitOptionLists,
 } from "@/lib/studentProfileStudyOptions";
 import { BcbQuestionTypeTable } from "@/components/diagnosis/BcbQuestionTypeTable";
+import { BcbScoreHistoryTable } from "@/components/diagnosis/BcbScoreHistoryTable";
 import { SkillDiagIntro } from "@/components/diagnosis/SkillDiagIntro";
 import { WritingDiagIntro } from "@/components/diagnosis/WritingDiagIntro";
 import { WritingScoreFormulaNote } from "@/components/diagnosis/WritingScoreFormulaNote";
@@ -711,6 +712,13 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
+
+                {/* Score History Table across Cycles / Classes */}
+                {diagnosis.scoreHistory && diagnosis.scoreHistory.length > 0 && (
+                  <div className="mb-8">
+                    <BcbScoreHistoryTable items={diagnosis.scoreHistory} />
+                  </div>
+                )}
 
                 {/* Tab Navigation */}
                 <div className="flex flex-wrap gap-2 mb-6 border-b border-zinc-100 pb-4">

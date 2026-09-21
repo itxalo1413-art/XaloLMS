@@ -25,6 +25,7 @@ import {
 } from "@/lib/academicWarningStore";
 import { AcademicWarningEmbeddedTable } from "@/components/academic/AcademicWarningEmbeddedTable";
 import { AcaXlsxImportModal, type ImportField } from "@/components/aca/AcaXlsxImportModal";
+import { BcbScoreHistoryTable } from "@/components/diagnosis/BcbScoreHistoryTable";
 
 const STUDENT_IMPORT_FIELDS: ImportField[] = [
   { key: "name", label: "Tên học viên", required: true },
@@ -1761,6 +1762,67 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
                   </div>
                 </div>
 
+                {/* Score History Table across Cycles */}
+                {formCycles.length > 0 && (
+                  <div className="mb-2">
+                    <BcbScoreHistoryTable
+                      items={formCycles.map((cyc, idx) => {
+                        const isL1 = idx === 0;
+                        const prevCyc = idx > 0 ? formCycles[idx - 1] : null;
+                        const prevFin = prevCyc?.finalScores;
+                        const parseBand = (v: any) => {
+                          if (!v || v === "-") return 0;
+                          const n = Number.parseFloat(String(v).replace(",", "."));
+                          return Number.isFinite(n) ? n : 0;
+                        };
+                        const hasCycleScores = cyc.scores && cyc.scores.o && cyc.scores.o !== "-";
+                        let entOverall = hasCycleScores ? parseBand(cyc.scores?.o) : 0;
+                        if (!entOverall) {
+                          if (isL1) {
+                            entOverall = parseBand(formEntrance);
+                          } else if (prevFin?.o && prevFin.o !== "-") {
+                            entOverall = parseBand(prevFin.o);
+                          } else if (prevCyc?.finalScore) {
+                            entOverall = parseBand(prevCyc.finalScore);
+                          }
+                        }
+                        const finOverall = cyc.finalScores?.o && cyc.finalScores.o !== "-" 
+                          ? parseBand(cyc.finalScores.o) 
+                          : (cyc.finalScore ? parseBand(cyc.finalScore) : 0);
+                        const hasFinal = finOverall > 0;
+                        const activeClass = classesList.find(c => c.id === formClassId);
+                        const activeClassCode = activeClass?.classCode || "";
+                        const activeIdx = formCycles.findIndex(c => c.classCode === activeClassCode);
+                        const isCurrent = idx === (activeIdx !== -1 ? activeIdx : formCycles.length - 1);
+
+                        return {
+                          cycleIndex: idx,
+                          label: `L${idx + 1}`,
+                          classCode: cyc.classCode || "",
+                          entranceScores: {
+                            listening: parseBand(cyc.scores?.l || (prevFin?.l !== "-" ? prevFin?.l : 0)),
+                            reading: parseBand(cyc.scores?.r || (prevFin?.r !== "-" ? prevFin?.r : 0)),
+                            writing: parseBand(cyc.scores?.w || (prevFin?.w !== "-" ? prevFin?.w : 0)),
+                            speaking: parseBand(cyc.scores?.s || (prevFin?.s !== "-" ? prevFin?.s : 0)),
+                            overall: entOverall,
+                          },
+                          finalScores: {
+                            listening: parseBand(cyc.finalScores?.l),
+                            reading: parseBand(cyc.finalScores?.r),
+                            writing: parseBand(cyc.finalScores?.w),
+                            speaking: parseBand(cyc.finalScores?.s),
+                            overall: finOverall,
+                          },
+                          hasFinal,
+                          deltaOverall: hasFinal && entOverall > 0 && finOverall > 0 ? Math.round((finOverall - entOverall) * 10) / 10 : null,
+                          isCurrent,
+                          status: hasFinal ? 'completed' : (isCurrent ? 'in_progress' : 'upcoming'),
+                        };
+                      })}
+                    />
+                  </div>
+                )}
+
                 {/* DYNAMIC CYCLE CARDS */}
                 <div className="space-y-4">
                   {formCycles.map((cycle, index) => {
@@ -1770,9 +1832,12 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
                     const activeClassCode = activeClass?.classCode || "";
                     const activeIdx = formCycles.findIndex(cyc => cyc.classCode === activeClassCode);
                     const isTodayActive = index === (activeIdx !== -1 ? activeIdx : 0);
+                    const prevFinalO = prevCycle?.finalScores?.o && prevCycle.finalScores.o !== "-" 
+                      ? String(prevCycle.finalScores.o) 
+                      : (prevCycle?.finalScore || "");
                     const entranceVal = isL1 
                       ? formEntrance 
-                      : (prevCycle?.finalScore ? `${prevCycle.finalScore} (Tự động từ F${index})` : "—");
+                      : (prevFinalO ? `${prevFinalO} (Kế thừa từ Final L${index})` : (cycle.scores?.o && cycle.scores.o !== "-" ? String(cycle.scores.o) : "—"));
 
                     return (
                       <div 
@@ -1847,12 +1912,61 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
                                   className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-foreground outline-none focus:border-primary/45 focus:ring-2 focus:ring-primary/10 bg-white"
                                 />
                               ) : (
-                                <input
-                                  type="text"
-                                  disabled
-                                  value={entranceVal}
-                                  className="h-10 w-full rounded-xl border border-zinc-200 px-4 font-bold text-zinc-450 bg-zinc-100 outline-none cursor-not-allowed border-zinc-200/70"
-                                />
+                                <div className="space-y-2">
+                                  <div className="relative">
+                                    <input
+                                      type="text"
+                                      disabled
+                                      value={entranceVal}
+                                      className="h-10 w-full rounded-xl border border-indigo-200/60 px-4 font-bold text-indigo-700 bg-indigo-50/50 outline-none cursor-not-allowed"
+                                    />
+                                    <span className="absolute right-3 top-2.5 text-[9px] font-bold text-indigo-500 bg-indigo-100/80 px-2 py-0.5 rounded">
+                                      Tự động từ Final L{index}
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-4 gap-2">
+                                    <div>
+                                      <label className="block text-[9px] font-black uppercase text-zinc-400 mb-0.5 text-center">L</label>
+                                      <input
+                                        type="text"
+                                        value={cycle.scores?.l && cycle.scores.l !== "-" ? String(cycle.scores.l) : ""}
+                                        onChange={(e) => updateCycleComponentScore(index, "scores", "l", e.target.value)}
+                                        placeholder="-"
+                                        className="h-8 w-full text-center rounded-lg border border-zinc-200 font-bold text-xs outline-none focus:border-primary/45 bg-white"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-[9px] font-black uppercase text-zinc-400 mb-0.5 text-center">R</label>
+                                      <input
+                                        type="text"
+                                        value={cycle.scores?.r && cycle.scores.r !== "-" ? String(cycle.scores.r) : ""}
+                                        onChange={(e) => updateCycleComponentScore(index, "scores", "r", e.target.value)}
+                                        placeholder="-"
+                                        className="h-8 w-full text-center rounded-lg border border-zinc-200 font-bold text-xs outline-none focus:border-primary/45 bg-white"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-[9px] font-black uppercase text-zinc-400 mb-0.5 text-center">W</label>
+                                      <input
+                                        type="text"
+                                        value={cycle.scores?.w && cycle.scores.w !== "-" ? String(cycle.scores.w) : ""}
+                                        onChange={(e) => updateCycleComponentScore(index, "scores", "w", e.target.value)}
+                                        placeholder="-"
+                                        className="h-8 w-full text-center rounded-lg border border-zinc-200 font-bold text-xs outline-none focus:border-primary/45 bg-white"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="block text-[9px] font-black uppercase text-zinc-400 mb-0.5 text-center">S</label>
+                                      <input
+                                        type="text"
+                                        value={cycle.scores?.s && cycle.scores.s !== "-" ? String(cycle.scores.s) : ""}
+                                        onChange={(e) => updateCycleComponentScore(index, "scores", "s", e.target.value)}
+                                        placeholder="-"
+                                        className="h-8 w-full text-center rounded-lg border border-zinc-200 font-bold text-xs outline-none focus:border-primary/45 bg-white"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
                               )}
                               {isL1 && (
                                 <div className="grid grid-cols-4 gap-2">
@@ -2029,6 +2143,11 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
                         const suggestedClass = formClassification === "Combo" && lastCycle
                           ? getNextLevelClassCode(lastCycle.classCode)
                           : "";
+                        const inheritedScores = lastCycle?.finalScores
+                          ? { ...lastCycle.finalScores }
+                          : (lastCycle?.finalScore 
+                              ? { l: "-", r: "-", w: "-", s: "-", o: lastCycle.finalScore } 
+                              : { l: "-", r: "-", w: "-", s: "-", o: "-" });
                         return [
                           ...prev,
                           {
@@ -2039,6 +2158,8 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
                             registeredLuyenDe: false,
                             homeworkPercent: "",
                             attendanceCount: "",
+                            scores: inheritedScores,
+                            finalScores: { l: "-", r: "-", w: "-", s: "-", o: "-" },
                           },
                         ];
                       });
