@@ -35,6 +35,7 @@ import {
 } from "@/lib/entranceTestBookings";
 import { getCachedAuthUser } from "@/lib/auth";
 import { BcbQuestionTypeTable } from "@/components/diagnosis/BcbQuestionTypeTable";
+import { BcbScoreHistoryTable } from "@/components/diagnosis/BcbScoreHistoryTable";
 import { SkillDiagIntro } from "@/components/diagnosis/SkillDiagIntro";
 import { WritingDiagIntro } from "@/components/diagnosis/WritingDiagIntro";
 import { WritingTask1CriteriaPanel } from "@/components/diagnosis/WritingTask1CriteriaPanel";
@@ -67,6 +68,9 @@ export default function StudentLuuTruTestPage() {
   const [panelEntranceOpen, setPanelEntranceOpen] = useState(false);
   const [panelFinalOpen, setPanelFinalOpen] = useState(false);
 
+  // Selected cycle for multi-class students
+  const [selectedCycleIndex, setSelectedCycleIndex] = useState<number | null>(null);
+
   // Modals
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [isLrwBookingOpen, setIsLrwBookingOpen] = useState(false);
@@ -78,6 +82,19 @@ export default function StudentLuuTruTestPage() {
   const [finalWritingLink, setFinalWritingLink] = useState("");
   const [submittingFinalWriting, setSubmittingFinalWriting] = useState(false);
   const [selectedWritingTestId, setSelectedWritingTestId] = useState<string | null>(null);
+
+  const scoreHistory = diagnosis.scoreHistory || [];
+  const hasMultipleCycles = scoreHistory.length >= 2;
+
+  // Active cycle item based on user selection or default to current
+  const activeCycleItem = useMemo(() => {
+    if (scoreHistory.length === 0) return null;
+    if (selectedCycleIndex !== null) {
+      const found = scoreHistory.find((item) => item.cycleIndex === selectedCycleIndex);
+      if (found) return found;
+    }
+    return scoreHistory.find((item) => item.isCurrent) || scoreHistory[scoreHistory.length - 1];
+  }, [scoreHistory, selectedCycleIndex]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -112,7 +129,27 @@ export default function StudentLuuTruTestPage() {
     }
   }, [student.id, student.name, student.email, student.phone, authUser?.email]);
 
+  // Filter records per active cycle if student has multiple classes
+  const cycleFilteredRecords = useMemo(() => {
+    if (!activeCycleItem || !hasMultipleCycles) return records;
+    const code = (activeCycleItem.classCode || "").trim().toLowerCase();
+    if (!code) return records;
+    const matched = records.filter(
+      (r) =>
+        (r.classCode && r.classCode.toLowerCase().includes(code)) ||
+        (r.className && r.className.toLowerCase().includes(code))
+    );
+    if (matched.length > 0) return matched;
+    if (activeCycleItem.cycleIndex === 0 && !records.some((r) => r.classCode || r.className)) {
+      return records;
+    }
+    return [];
+  }, [records, activeCycleItem, hasMultipleCycles]);
+
   const hasGradedFinalResult = useMemo(() => {
+    if (activeCycleItem && hasMultipleCycles) {
+      return activeCycleItem.hasFinal;
+    }
     return records.some(
       (r) =>
         r.status !== "cancelled" &&
@@ -120,7 +157,7 @@ export default function StudentLuuTruTestPage() {
           r.isChecked === true ||
           Boolean(r.scoreOverall || r.scoreSpeaking || r.scoreWriting || r.scoreListening || r.scoreReading))
     );
-  }, [records]);
+  }, [records, activeCycleItem, hasMultipleCycles]);
 
   const canRegisterFinalTest =
     eligibility?.eligible !== false && !hasGradedFinalResult;
@@ -130,7 +167,7 @@ export default function StudentLuuTruTestPage() {
       setDialog({
         tone: "warning",
         title: "Đã có kết quả Final Test",
-        message: "Bạn đã có kết quả thi Final Test, không thể đăng ký thi lại.",
+        message: "Bạn đã có kết quả thi Final Test cho lớp này, không thể đăng ký thi lại.",
       });
       return;
     }
@@ -152,7 +189,7 @@ export default function StudentLuuTruTestPage() {
       setDialog({
         tone: "warning",
         title: "Đã có kết quả Final Test",
-        message: "Bạn đã có kết quả thi Final Test, không thể đăng ký thi lại.",
+        message: "Bạn đã có kết quả thi Final Test cho lớp này, không thể đăng ký thi lại.",
       });
       return;
     }
@@ -179,36 +216,36 @@ export default function StudentLuuTruTestPage() {
     };
   }, [loadData]);
 
-  // Speaking tests — ẩn ca đã hủy (test/cancelled không hiện như đang duyệt)
+  // Speaking tests — ẩn ca đã hủy
   const speakingRecords = useMemo(() => {
-    return records.filter(
+    return cycleFilteredRecords.filter(
       (r) =>
         r.status !== "cancelled" &&
         (r.testType === "speaking" || r.testType === "full_4_skills"),
     );
-  }, [records]);
+  }, [cycleFilteredRecords]);
 
   // L-R-W (3 kỹ năng còn lại)
   const lrwRecords = useMemo(() => {
-    return records.filter(
+    return cycleFilteredRecords.filter(
       (r) =>
         r.status !== "cancelled" &&
         (r.testType === "lr" ||
           r.testType === "writing" ||
           r.testType === "full_4_skills"),
     );
-  }, [records]);
+  }, [cycleFilteredRecords]);
 
   // Writing tests
   const writingRecords = useMemo(() => {
-    return records.filter(
+    return cycleFilteredRecords.filter(
       (r) =>
         r.status !== "cancelled" &&
         (r.testType === "writing" ||
           r.testType === "lr" ||
           r.testType === "full_4_skills"),
     );
-  }, [records]);
+  }, [cycleFilteredRecords]);
 
   const activeWritingTest = useMemo(() => {
     if (selectedWritingTestId) {
@@ -272,17 +309,17 @@ export default function StudentLuuTruTestPage() {
 
   // Graded & Checked tests
   const completedRecords = useMemo(() => {
-    return records.filter(
+    return cycleFilteredRecords.filter(
       (r) =>
         r.isChecked === true &&
         (r.status === "graded" || r.scoreOverall || r.scoreSpeaking || r.scoreWriting)
     );
-  }, [records]);
+  }, [cycleFilteredRecords]);
 
   const latestCompleted = completedRecords[0] || null;
 
-  // Entrance scores + BCB: cùng nguồn với trang Thông tin học viên
-  const entranceScores = diagnosis.scores;
+  // Entrance scores + BCB: cùng nguồn với trang Thông tin học viên (hoặc theo activeCycleItem)
+  const entranceScores = activeCycleItem?.entranceScores || diagnosis.scores;
   const entranceAim = (diagnosis.aim || "").trim();
   const studentPhone = livePhone || diagnosis.studentPhone?.trim() || student.phone?.trim() || "";
   const entranceBand = (value?: number | null) =>
@@ -297,16 +334,60 @@ export default function StudentLuuTruTestPage() {
       diagnosis.skillSummaries?.speaking,
   );
 
-  // Final Scores for 5-box grid
-  const finalSpeakingScore = speakingRecords.find((r) => r.isChecked && r.scoreSpeaking)?.scoreSpeaking;
-  const finalWritingScore = writingRecords.find((r) => r.isChecked && r.scoreWriting)?.scoreWriting;
-  const finalListeningScore = latestCompleted?.scoreListening || null;
-  const finalReadingScore = latestCompleted?.scoreReading || null;
-  const finalOverallScore =
-    latestCompleted?.scoreOverall ||
-    (finalSpeakingScore && finalWritingScore
-      ? Math.round(((Number(finalSpeakingScore) + Number(finalWritingScore)) / 2) * 2) / 2
-      : null);
+  // Final Scores for 5-box grid and overview
+  const finalSpeakingScore = useMemo(() => {
+    if (activeCycleItem) {
+      if (activeCycleItem.hasFinal && activeCycleItem.finalScores?.speaking > 0) {
+        return activeCycleItem.finalScores.speaking;
+      }
+      if (!activeCycleItem.hasFinal) return null;
+    }
+    return speakingRecords.find((r) => r.isChecked && r.scoreSpeaking)?.scoreSpeaking || null;
+  }, [activeCycleItem, speakingRecords]);
+
+  const finalWritingScore = useMemo(() => {
+    if (activeCycleItem) {
+      if (activeCycleItem.hasFinal && activeCycleItem.finalScores?.writing > 0) {
+        return activeCycleItem.finalScores.writing;
+      }
+      if (!activeCycleItem.hasFinal) return null;
+    }
+    return writingRecords.find((r) => r.isChecked && r.scoreWriting)?.scoreWriting || null;
+  }, [activeCycleItem, writingRecords]);
+
+  const finalListeningScore = useMemo(() => {
+    if (activeCycleItem) {
+      if (activeCycleItem.hasFinal && activeCycleItem.finalScores?.listening > 0) {
+        return activeCycleItem.finalScores.listening;
+      }
+      if (!activeCycleItem.hasFinal) return null;
+    }
+    return latestCompleted?.scoreListening ? Number(latestCompleted.scoreListening) : null;
+  }, [activeCycleItem, latestCompleted]);
+
+  const finalReadingScore = useMemo(() => {
+    if (activeCycleItem) {
+      if (activeCycleItem.hasFinal && activeCycleItem.finalScores?.reading > 0) {
+        return activeCycleItem.finalScores.reading;
+      }
+      if (!activeCycleItem.hasFinal) return null;
+    }
+    return latestCompleted?.scoreReading ? Number(latestCompleted.scoreReading) : null;
+  }, [activeCycleItem, latestCompleted]);
+
+  const finalOverallScore = useMemo(() => {
+    if (activeCycleItem) {
+      if (activeCycleItem.hasFinal && activeCycleItem.finalScores?.overall > 0) {
+        return activeCycleItem.finalScores.overall;
+      }
+      if (!activeCycleItem.hasFinal) return null;
+    }
+    if (latestCompleted?.scoreOverall) return Number(latestCompleted.scoreOverall);
+    if (finalSpeakingScore && finalWritingScore) {
+      return Math.round(((Number(finalSpeakingScore) + Number(finalWritingScore)) / 2) * 2) / 2;
+    }
+    return null;
+  }, [activeCycleItem, latestCompleted, finalSpeakingScore, finalWritingScore]);
 
   // Final Writing Task 1 & 2 bands — không fallback band giả khi chưa có Final
   const finalTask1Band = useMemo(() => {
@@ -459,13 +540,19 @@ export default function StudentLuuTruTestPage() {
                           Entrance Test
                         </div>
                         <div className="text-xs text-[#f8c662]/90 font-medium mt-0.5">
-                          Bài đầu vào
+                          {activeCycleItem
+                            ? `Bài đầu vào • Lớp ${activeCycleItem.classCode} (${activeCycleItem.label})`
+                            : "Bài đầu vào"}
                         </div>
-                        {entranceAim && (
+                        {activeCycleItem && activeCycleItem.cycleIndex > 0 ? (
+                          <div className="text-[10px] text-[#f8c662] font-bold mt-0.5">
+                            (Điểm BCB đầu vào kế thừa từ Final L{activeCycleItem.cycleIndex})
+                          </div>
+                        ) : entranceAim ? (
                           <div className="text-[10px] text-[#f8c662]/80 font-medium mt-0.5">
                             Mục tiêu: IELTS {entranceAim}
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -488,7 +575,13 @@ export default function StudentLuuTruTestPage() {
                         <div className="text-2xl sm:text-3xl font-black text-secondary mt-1 tabular-nums">
                           {s.val}
                         </div>
-                        <div className="text-[10px] font-bold text-muted/80 mt-0.5">Band Đầu Vào</div>
+                        <div className="text-[10px] font-bold text-muted/80 mt-0.5">
+                          {activeCycleItem && activeCycleItem.cycleIndex > 0
+                            ? `Đầu Vào (${activeCycleItem.label}) • Final L${activeCycleItem.cycleIndex}`
+                            : activeCycleItem
+                            ? `Band Đầu Vào (${activeCycleItem.label})`
+                            : "Band Đầu Vào"}
+                        </div>
                       </div>
                     ))}
 
@@ -500,7 +593,7 @@ export default function StudentLuuTruTestPage() {
                         {entranceBand(entranceScores?.overall)}
                       </div>
                       <div className="text-[10px] font-black text-primary/80 mt-0.5">
-                        {entranceAim ? `Aim: ${entranceAim}` : "Band Đầu Vào"}
+                        {entranceAim ? `Aim: ${entranceAim}` : activeCycleItem ? `Band Đầu Vào (${activeCycleItem.label})` : "Band Đầu Vào"}
                       </div>
                     </div>
                   </div>
@@ -617,10 +710,10 @@ export default function StudentLuuTruTestPage() {
 
                       <div className="flex flex-wrap gap-2 border-b border-zinc-100 pb-4">
                         {[
-                          { id: "listening", label: "Listening", score: formatBandScore(diagnosis.scores.listening) },
-                          { id: "reading", label: "Reading", score: formatBandScore(diagnosis.scores.reading) },
-                          { id: "writing", label: "Writing", score: formatBandScore(diagnosis.scores.writing) },
-                          { id: "speaking", label: "Speaking", score: formatBandScore(diagnosis.scores.speaking) },
+                          { id: "listening", label: "Listening", score: formatBandScore(entranceScores.listening) },
+                          { id: "reading", label: "Reading", score: formatBandScore(entranceScores.reading) },
+                          { id: "writing", label: "Writing", score: formatBandScore(entranceScores.writing) },
+                          { id: "speaking", label: "Speaking", score: formatBandScore(entranceScores.speaking) },
                         ].map((tab) => {
                           const active = activeEntranceDiagTab === tab.id;
                           return (
@@ -656,7 +749,7 @@ export default function StudentLuuTruTestPage() {
                       {activeEntranceDiagTab === "listening" && (
                         <div className="space-y-6 animate-in fade-in duration-200">
                           <SkillDiagIntro
-                            bandLabel={`Đặc trưng Band ${formatBandScore(diagnosis.scores.listening)}`}
+                            bandLabel={`Đặc trưng Band ${formatBandScore(entranceScores.listening)}`}
                             summary={diagnosis.skillSummaries.listening}
                           />
                           <BcbQuestionTypeTable rows={diagnosis.bcbListening} showWeakCta />
@@ -666,7 +759,7 @@ export default function StudentLuuTruTestPage() {
                       {activeEntranceDiagTab === "reading" && (
                         <div className="space-y-6 animate-in fade-in duration-200">
                           <SkillDiagIntro
-                            bandLabel={`Đặc trưng Band ${formatBandScore(diagnosis.scores.reading)}`}
+                            bandLabel={`Đặc trưng Band ${formatBandScore(entranceScores.reading)}`}
                             summary={diagnosis.skillSummaries.reading}
                           />
                           <BcbQuestionTypeTable rows={diagnosis.bcbReading} showWeakCta />
@@ -706,10 +799,10 @@ export default function StudentLuuTruTestPage() {
                         <div className="space-y-6 animate-in fade-in duration-200">
                           <div className="p-5 rounded-2xl border border-zinc-100 bg-zinc-50/50">
                             <div className="text-[10px] font-black text-muted uppercase tracking-widest">
-                              Đặc trưng Speaking Band {formatBandScore(diagnosis.scores.speaking)}
+                              Đặc trưng Speaking Band {formatBandScore(entranceScores.speaking)}
                             </div>
-                            <p className="text-xs font-medium text-foreground leading-relaxed mt-2">
-                              {diagnosis.skillSummaries.speaking}
+                            <p className="text-xs font-medium text-foreground leading-relaxed mt-2 whitespace-pre-line">
+                              {diagnosis.skillSummaries.speaking || "Chưa có nhận xét đặc trưng Speaking."}
                             </p>
                           </div>
                           <div>
@@ -772,7 +865,7 @@ export default function StudentLuuTruTestPage() {
                       <div>
                         <div className="text-sm font-black text-[#f8c662]">Final Test</div>
                         <div className="text-xs text-[#f8c662]/90 font-medium mt-0.5">
-                          Bài đầu ra
+                          {activeCycleItem ? `Bài đầu ra • Lớp ${activeCycleItem.classCode} (${activeCycleItem.label})` : "Bài đầu ra"}
                         </div>
                         <div className="text-[11px] text-[#f8c662] font-extrabold mt-0.5">
                           Aim: {entranceAim || "—"}
@@ -834,6 +927,18 @@ export default function StudentLuuTruTestPage() {
                     </div>
                   )}
 
+                  {/* Lịch sử điểm qua các chặng lớp (BCB & Final Test) - Tự động ẩn nếu chỉ có 1 lớp */}
+                  {diagnosis.scoreHistory && diagnosis.scoreHistory.length > 0 && (
+                    <div className="pt-1">
+                      <BcbScoreHistoryTable
+                        items={diagnosis.scoreHistory}
+                        selectedCycleIndex={activeCycleItem?.cycleIndex}
+                        onSelectCycle={setSelectedCycleIndex}
+                        hideIfSingle={true}
+                      />
+                    </div>
+                  )}
+
                   {/* 5 Skills Score Grid for Final Test */}
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                     {[
@@ -852,7 +957,9 @@ export default function StudentLuuTruTestPage() {
                         <div className="text-2xl sm:text-3xl font-black text-secondary mt-1 tabular-nums">
                           {s.val}
                         </div>
-                        <div className="text-[10px] font-bold text-muted/80 mt-0.5">Band Đầu Ra</div>
+                        <div className="text-[10px] font-bold text-muted/80 mt-0.5">
+                          {activeCycleItem ? `Band Đầu Ra (${activeCycleItem.label})` : "Band Đầu Ra"}
+                        </div>
                       </div>
                     ))}
 
@@ -864,7 +971,7 @@ export default function StudentLuuTruTestPage() {
                         {finalOverallScore ? formatBandScore(finalOverallScore) : "—"}
                       </div>
                       <div className="text-[10px] font-black text-primary/80 mt-0.5">
-                        {entranceAim ? `Aim: ${entranceAim}` : "Band Đầu Ra"}
+                        {entranceAim ? `Aim: ${entranceAim}` : activeCycleItem ? `Band Đầu Ra (${activeCycleItem.label})` : "Band Đầu Ra"}
                       </div>
                     </div>
                   </div>

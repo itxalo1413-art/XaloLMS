@@ -28,7 +28,7 @@ export class RlpTemplate {
   @Prop({ trim: true, default: '' })
   description: string;
 
-  @Prop({ default: 18 })
+  @Prop({ default: 36 })
   totalSessions: number;
 
   @Prop({ type: [Object], default: [] })

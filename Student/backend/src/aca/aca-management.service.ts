@@ -2734,6 +2734,7 @@ export class AcaManagementService implements OnModuleInit {
       studentId: doc.studentId ?? '',
       classCode: doc.classCode ?? '',
       className: doc.className ?? '',
+      classId: doc.classId ?? '',
       classification: doc.classification ?? '',
       targetBand: doc.targetBand ?? '',
       testType: (doc.testType ?? 'full_4_skills') as FinalTestType,
@@ -3317,10 +3318,13 @@ export class AcaManagementService implements OnModuleInit {
 
     await this.attachFinalTestGraderTasks(doc);
 
-    try {
-      await this.syncReleasedFinalToStudent(doc);
-    } catch (err) {
-      console.warn('Could not sync created Final Test to student profile:', err);
+    // Chỉ sync roster khi đã confirm/release (có điểm thật), tránh ghi đè bằng band trống lúc tạo ca.
+    if (doc.isChecked) {
+      try {
+        await this.syncReleasedFinalToStudent(doc);
+      } catch (err) {
+        console.warn('Could not sync created Final Test to student profile:', err);
+      }
     }
 
     const fresh = await this.finalTestModel.findById(doc._id).exec();
@@ -3393,6 +3397,7 @@ export class AcaManagementService implements OnModuleInit {
     candidateName?: string;
     candidatePhone?: string;
     classCode?: string;
+    classId?: string;
     scoreListening?: string;
     scoreReading?: string;
     scoreWriting?: string;
@@ -3403,38 +3408,78 @@ export class AcaManagementService implements OnModuleInit {
   }) {
     const student = await this.resolveAcaStudentForFinal(doc);
 
-    const existingFinal = ((student?.finalScores || {}) as {
+    const topExistingFinal = ((student?.finalScores || {}) as {
       l?: string | number;
       r?: string | number;
       w?: string | number;
       s?: string | number;
       o?: string | number;
     });
+
+    const cycles = student && Array.isArray(student.cycles) ? [...student.cycles] : [];
+    let targetIndex = -1;
+    /** Chỉ ghi top-level / diagnosis final khi Final thuộc lớp hiện tại. */
+    let isCurrentCycleFinal = true;
+
+    if (cycles.length > 0) {
+      if (doc.classCode) {
+        const docCode = String(doc.classCode).trim().toLowerCase();
+        targetIndex = cycles.findIndex((c: any) => {
+          const code = String(c?.classCode || '')
+            .trim()
+            .toLowerCase();
+          if (!code) return false;
+          return code === docCode || code.includes(docCode) || docCode.includes(code);
+        });
+      }
+      if (targetIndex === -1 && doc.classId) {
+        const docClassId = String(doc.classId).trim();
+        const studentClassId = String(student?.classId || '').trim();
+        if (docClassId && studentClassId && docClassId === studentClassId) {
+          targetIndex = cycles.length - 1;
+        }
+      }
+      if (targetIndex === -1) {
+        if (doc.classCode) {
+          // Có classCode nhưng không khớp cycle → không ghi đè lớp hiện tại
+          isCurrentCycleFinal = false;
+        } else {
+          targetIndex = cycles.length - 1;
+          isCurrentCycleFinal = true;
+        }
+      } else {
+        isCurrentCycleFinal = targetIndex === cycles.length - 1;
+      }
+    } else if (doc.classId && student?.classId) {
+      // Không có cycles: so khớp classId hiện tại
+      isCurrentCycleFinal =
+        String(doc.classId).trim() === String(student.classId).trim();
+    }
+
+    const cycleExisting = (
+      targetIndex >= 0
+        ? ((cycles[targetIndex] as { finalScores?: typeof topExistingFinal })?.finalScores || {})
+        : {}
+    ) as typeof topExistingFinal;
+    // Ưu tiên điểm đã có trên cycle đích; chỉ fallback top-level khi đúng lớp hiện tại
+    const bandFallback = isCurrentCycleFinal
+      ? { ...topExistingFinal, ...cycleExisting }
+      : cycleExisting;
+
     const finalScores = {
-      l: this.pickRosterBand(doc.scoreListening, existingFinal.l),
-      r: this.pickRosterBand(doc.scoreReading, existingFinal.r),
-      w: this.pickRosterBand(doc.scoreWriting, existingFinal.w),
-      s: this.pickRosterBand(doc.scoreSpeaking, existingFinal.s),
-      o: this.pickRosterBand(doc.scoreOverall, existingFinal.o),
+      l: this.pickRosterBand(doc.scoreListening, bandFallback.l),
+      r: this.pickRosterBand(doc.scoreReading, bandFallback.r),
+      w: this.pickRosterBand(doc.scoreWriting, bandFallback.w),
+      s: this.pickRosterBand(doc.scoreSpeaking, bandFallback.s),
+      o: this.pickRosterBand(doc.scoreOverall, bandFallback.o),
     };
 
     if (student) {
-      const cycles = Array.isArray(student.cycles) ? [...student.cycles] : [];
-      if (cycles.length > 0) {
-        let targetIndex = -1;
-        if (doc.classCode) {
-          const docCode = String(doc.classCode).trim().toLowerCase();
-          targetIndex = cycles.findIndex(
-            (c: any) => c.classCode && String(c.classCode).trim().toLowerCase() === docCode,
-          );
-        }
-        if (targetIndex === -1) {
-          targetIndex = cycles.length - 1;
-        }
+      if (cycles.length > 0 && targetIndex >= 0) {
         const updated = { ...(cycles[targetIndex] as object), finalScores };
         cycles[targetIndex] = updated as (typeof cycles)[number];
 
-        // If next cycle exists and its entrance scores are empty, propagate finalScores
+        // Cycle sau: entrance kế thừa Final lớp trước nếu còn trống
         if (targetIndex + 1 < cycles.length) {
           const nextCycle = { ...(cycles[targetIndex + 1] as object) } as any;
           const nextScores = nextCycle.scores;
@@ -3455,17 +3500,22 @@ export class AcaManagementService implements OnModuleInit {
         }
       }
 
-      await this.studentModel
-        .updateOne(
-          { _id: student._id },
-          {
-            $set: {
-              finalScores,
-              ...(cycles.length > 0 ? { cycles } : {}),
-            },
-          },
-        )
-        .exec();
+      const rosterPatch: Record<string, unknown> = {};
+      if (cycles.length > 0 && targetIndex >= 0) rosterPatch.cycles = cycles;
+      // Không ghi đè finalScores top-level bằng điểm lớp cũ sau khi đã chuyển lớp
+      if (isCurrentCycleFinal) {
+        rosterPatch.finalScores = finalScores;
+      } else if (cycles.length > 0 && targetIndex < 0 && doc.classCode) {
+        console.warn(
+          `syncReleasedFinalToStudent: classCode "${doc.classCode}" không khớp cycle nào — bỏ qua top-level finalScores`,
+        );
+      }
+
+      if (Object.keys(rosterPatch).length > 0) {
+        await this.studentModel
+          .updateOne({ _id: student._id }, { $set: rosterPatch })
+          .exec();
+      }
     }
 
     const email = String(student?.email || doc.candidateEmail || '').trim();
@@ -3491,6 +3541,10 @@ export class AcaManagementService implements OnModuleInit {
       speaking: finalScores.s,
       overall: finalScores.o,
     };
+
+    // Diagnosis portal: chỉ cập nhật final “hiện tại” khi Final thuộc lớp đang học.
+    // Final lớp cũ vẫn nằm trong cycles / scoreHistory.
+    if (!isCurrentCycleFinal) return;
 
     for (const userId of persistIds) {
       const existing = await this.profileStore.findOne({ userId }).lean().exec();
@@ -3523,6 +3577,7 @@ export class AcaManagementService implements OnModuleInit {
       'studentId',
       'classCode',
       'className',
+      'classId',
       'targetBand',
       'testType',
       'format',

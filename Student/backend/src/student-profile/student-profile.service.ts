@@ -30,6 +30,7 @@ import {
   GuestDiagnosisLead,
   GuestDiagnosisLeadDocument,
 } from '../aca/schemas/guest-diagnosis-lead.schema';
+import { FinalTest, FinalTestDocument } from '../aca/schemas/final-test.schema';
 
 const STUDY_FIELDS: StudySelectionField[] = [
   'method',
@@ -216,6 +217,8 @@ export class StudentProfileService implements OnModuleInit {
     private readonly courseSettingsModel: Model<CourseSettingsDocument>,
     @InjectModel(GuestDiagnosisLead.name)
     private readonly guestLeadModel: Model<GuestDiagnosisLeadDocument>,
+    @InjectModel(FinalTest.name)
+    private readonly finalTestModel: Model<FinalTestDocument>,
     private readonly users: UsersService,
     private readonly cloudinary: CloudinaryService,
   ) {}
@@ -1101,6 +1104,177 @@ export class StudentProfileService implements OnModuleInit {
           storedFinal,
         );
 
+    let bcbListening = stored.bcbListening ?? null;
+    let bcbReading = stored.bcbReading ?? null;
+    let writingCriteria = stored.writingCriteria ?? null;
+    let writingSummary = stored.writingSummary ?? null;
+    let speakingCriteria = stored.speakingCriteria ?? null;
+    let skillSummaries = stored.skillSummaries ?? null;
+    let bcbOverviewTitle = stored.bcbOverviewTitle ?? '';
+    let bcbOverviewSummary = stored.bcbOverviewSummary ?? '';
+
+    // Nếu học viên học từ lớp thứ 2 trở lên (chuyển lớp), BCB đầu vào chính là BCB Final của lớp trước
+    if (isSubsequentCycle) {
+      let previousFinalBcb: any = null;
+      try {
+        const queryOr = [
+          student.email ? { candidateEmail: student.email.trim() } : null,
+          email ? { candidateEmail: email.trim() } : null,
+          student.phone ? { candidatePhone: student.phone.trim() } : null,
+          student.name ? { candidateName: student.name.trim() } : null,
+        ].filter(Boolean) as any[];
+
+        if (queryOr.length > 0) {
+          const finalDoc = await this.finalTestModel
+            .findOne({
+              $or: queryOr,
+              status: 'graded',
+            })
+            .sort({ updatedAt: -1, date: -1 })
+            .lean()
+            .exec();
+
+          if (finalDoc?.bcbData) {
+            previousFinalBcb = finalDoc.bcbData;
+          }
+        }
+      } catch (err) {
+        this.logger.warn(
+          `Could not query previous final BCB: ${(err as Error).message}`,
+        );
+      }
+
+      if (!previousFinalBcb && (stored as any)?.finalBcb) {
+        previousFinalBcb = (stored as any).finalBcb;
+      }
+
+      if (previousFinalBcb) {
+        if (
+          Array.isArray(previousFinalBcb.bcbListening) &&
+          previousFinalBcb.bcbListening.length > 0
+        ) {
+          bcbListening = previousFinalBcb.bcbListening;
+        }
+        if (
+          Array.isArray(previousFinalBcb.bcbReading) &&
+          previousFinalBcb.bcbReading.length > 0
+        ) {
+          bcbReading = previousFinalBcb.bcbReading;
+        }
+        if (previousFinalBcb.writing) {
+          writingCriteria = {
+            task1: {
+              ta:
+                Number(previousFinalBcb.writing?.task1?.ta) ||
+                Number(previousFinalBcb.writing?.ta) ||
+                0,
+              cc:
+                Number(previousFinalBcb.writing?.task1?.cc) ||
+                Number(previousFinalBcb.writing?.cc) ||
+                0,
+              lr:
+                Number(previousFinalBcb.writing?.task1?.lr) ||
+                Number(previousFinalBcb.writing?.lr) ||
+                0,
+              gra:
+                Number(previousFinalBcb.writing?.task1?.gra) ||
+                Number(previousFinalBcb.writing?.gra) ||
+                0,
+            },
+            task2: {
+              tr:
+                Number(previousFinalBcb.writing?.task2?.tr) ||
+                Number(previousFinalBcb.writing?.ta) ||
+                0,
+              cc:
+                Number(previousFinalBcb.writing?.task2?.cc) ||
+                Number(previousFinalBcb.writing?.cc) ||
+                0,
+              lr:
+                Number(previousFinalBcb.writing?.task2?.lr) ||
+                Number(previousFinalBcb.writing?.lr) ||
+                0,
+              gra:
+                Number(previousFinalBcb.writing?.task2?.gra) ||
+                Number(previousFinalBcb.writing?.gra) ||
+                0,
+            },
+          };
+          writingSummary = {
+            task1:
+              previousFinalBcb.writing?.task1Notes ||
+              previousFinalBcb.writing?.task1?.notes ||
+              previousFinalBcb.writing?.summary ||
+              '',
+            task2:
+              previousFinalBcb.writing?.task2Notes ||
+              previousFinalBcb.writing?.task2?.notes ||
+              previousFinalBcb.writing?.prescription ||
+              '',
+          };
+        }
+        if (previousFinalBcb.speaking) {
+          speakingCriteria = {
+            fluencyCoherence: Number(previousFinalBcb.speaking?.fc) || 0,
+            lexicalResource: Number(previousFinalBcb.speaking?.lr) || 0,
+            grammaticalRangeAccuracy:
+              Number(previousFinalBcb.speaking?.gra) || 0,
+            pronunciation: Number(previousFinalBcb.speaking?.pr) || 0,
+          };
+        }
+        const spkRemarks = [
+          previousFinalBcb.speaking?.summary,
+          previousFinalBcb.speaking?.strengths
+            ? `✓ Điểm mạnh: ${previousFinalBcb.speaking.strengths}`
+            : '',
+          previousFinalBcb.speaking?.weaknesses
+            ? `! Cần cải thiện: ${previousFinalBcb.speaking.weaknesses}`
+            : '',
+          previousFinalBcb.speaking?.prescription
+            ? `🎯 Phác đồ: ${previousFinalBcb.speaking.prescription}`
+            : '',
+        ]
+          .filter(Boolean)
+          .join('\n\n');
+
+        skillSummaries = {
+          listening:
+            previousFinalBcb.lr?.listeningSummary ||
+            previousFinalBcb.lr?.listeningWeaknesses ||
+            (skillSummaries as any)?.listening ||
+            '',
+          reading:
+            previousFinalBcb.lr?.readingSummary ||
+            previousFinalBcb.lr?.readingWeaknesses ||
+            (skillSummaries as any)?.reading ||
+            '',
+          writing:
+            previousFinalBcb.writing?.prescription ||
+            previousFinalBcb.writing?.summary ||
+            (skillSummaries as any)?.writing ||
+            '',
+          speaking:
+            spkRemarks ||
+            previousFinalBcb.speaking?.prescription ||
+            previousFinalBcb.speaking?.summary ||
+            previousFinalBcb.speaking?.weaknesses ||
+            (skillSummaries as any)?.speaking ||
+            '',
+        };
+        if (previousFinalBcb.overviewTitle) {
+          bcbOverviewTitle = previousFinalBcb.overviewTitle;
+        }
+        if (
+          previousFinalBcb.overviewSummary ||
+          previousFinalBcb.generalPrescription
+        ) {
+          bcbOverviewSummary =
+            previousFinalBcb.overviewSummary ||
+            previousFinalBcb.generalPrescription;
+        }
+      }
+    }
+
     const scoreHistory = this.buildScoreHistory(student);
 
     return {
@@ -1117,15 +1291,15 @@ export class StudentProfileService implements OnModuleInit {
       finalScores,
       scoreHistory,
       cycles: student.cycles || [],
-      writingCriteria: stored.writingCriteria ?? null,
-      writingSummary: stored.writingSummary ?? null,
-      speakingCriteria: stored.speakingCriteria ?? null,
-      skillSummaries: stored.skillSummaries ?? null,
+      writingCriteria,
+      writingSummary,
+      speakingCriteria,
+      skillSummaries,
       writingLinks: stored.writingLinks ?? null,
-      bcbListening: stored.bcbListening ?? null,
-      bcbReading: stored.bcbReading ?? null,
-      bcbOverviewTitle: stored.bcbOverviewTitle ?? '',
-      bcbOverviewSummary: stored.bcbOverviewSummary ?? '',
+      bcbListening,
+      bcbReading,
+      bcbOverviewTitle,
+      bcbOverviewSummary,
       diagnosisData: {
         ...stored,
         scores: {
@@ -1145,6 +1319,14 @@ export class StudentProfileService implements OnModuleInit {
           overall: finalScores.overall,
         },
         scoreHistory,
+        writingCriteria,
+        writingSummary,
+        speakingCriteria,
+        skillSummaries,
+        bcbListening,
+        bcbReading,
+        bcbOverviewTitle,
+        bcbOverviewSummary,
       },
     };
   }

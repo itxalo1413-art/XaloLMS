@@ -17,6 +17,7 @@ import {
   GuestDiagnosisLead,
   GuestDiagnosisLeadSchema,
 } from '../aca/schemas/guest-diagnosis-lead.schema';
+import { FinalTest, FinalTestSchema } from '../aca/schemas/final-test.schema';
 import { StudentProfileController } from './student-profile.controller';
 import { AcaStudentDiagnosisController } from './aca-student-diagnosis.controller';
 import { AcaStudentIdentityController } from './aca-student-identity.controller';
@@ -31,6 +32,7 @@ import { StudentProfileService } from './student-profile.service';
       { name: Aca11Class.name, schema: Aca11ClassSchema },
       { name: CourseSettings.name, schema: CourseSettingsSchema },
       { name: GuestDiagnosisLead.name, schema: GuestDiagnosisLeadSchema },
+      { name: FinalTest.name, schema: FinalTestSchema },
     ]),
     AuthGuardsModule,
     UsersModule,

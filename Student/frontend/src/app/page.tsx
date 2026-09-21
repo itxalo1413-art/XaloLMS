@@ -10,7 +10,6 @@ import {
   studyHabitOptionLists,
 } from "@/lib/studentProfileStudyOptions";
 import { BcbQuestionTypeTable } from "@/components/diagnosis/BcbQuestionTypeTable";
-import { BcbScoreHistoryTable } from "@/components/diagnosis/BcbScoreHistoryTable";
 import { SkillDiagIntro } from "@/components/diagnosis/SkillDiagIntro";
 import { WritingDiagIntro } from "@/components/diagnosis/WritingDiagIntro";
 import { WritingScoreFormulaNote } from "@/components/diagnosis/WritingScoreFormulaNote";
@@ -197,6 +196,12 @@ export default function Home() {
   const [habitForm, setHabitForm] = useState<StudyHabitForm>({ ...defaultStudyHabitForm });
 
   const entranceScores = useMemo(() => {
+    const curCycle =
+      diagnosis.scoreHistory?.find((c) => c.isCurrent) ||
+      diagnosis.scoreHistory?.[(diagnosis.scoreHistory?.length || 1) - 1];
+    if (curCycle && (diagnosis.scoreHistory?.length || 0) > 1 && curCycle.entranceScores) {
+      return curCycle.entranceScores;
+    }
     const fromDiag = diagnosis.scores;
     const fromProfile = profile.scores;
     const pick = (a?: number, b?: number) => (a && a > 0 ? a : b && b > 0 ? b : 0);
@@ -207,7 +212,7 @@ export default function Home() {
       speaking: pick(fromDiag?.speaking, fromProfile?.speaking),
       overall: pick(fromDiag?.overall, fromProfile?.overall),
     };
-  }, [diagnosis.scores, profile.scores]);
+  }, [diagnosis.scores, diagnosis.scoreHistory, profile.scores]);
   const entranceAim = (diagnosis.aim || profile.aim || "").trim();
 
   // Diagnosis interactive states
@@ -696,7 +701,7 @@ export default function Home() {
                       </svg>
                       <div className="absolute text-center">
                         <span className="block text-xl font-black leading-none text-primary">
-                          {formatBandScore(diagnosis.scores.overall)}
+                          {formatBandScore(entranceScores.overall)}
                         </span>
                         <span className="mt-0.5 block text-[9px] font-bold uppercase tracking-wider text-muted-foreground">
                           Aim {formatBandScore(diagnosis.aim)}
@@ -713,20 +718,13 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Score History Table across Cycles / Classes */}
-                {diagnosis.scoreHistory && diagnosis.scoreHistory.length > 0 && (
-                  <div className="mb-8">
-                    <BcbScoreHistoryTable items={diagnosis.scoreHistory} />
-                  </div>
-                )}
-
                 {/* Tab Navigation */}
                 <div className="flex flex-wrap gap-2 mb-6 border-b border-zinc-100 pb-4">
                   {[
-                    { id: "listening", label: "Listening", score: formatBandScore(diagnosis.scores.listening) },
-                    { id: "reading", label: "Reading", score: formatBandScore(diagnosis.scores.reading) },
-                    { id: "writing", label: "Writing", score: formatBandScore(diagnosis.scores.writing) },
-                    { id: "speaking", label: "Speaking", score: formatBandScore(diagnosis.scores.speaking) },
+                    { id: "listening", label: "Listening", score: formatBandScore(entranceScores.listening) },
+                    { id: "reading", label: "Reading", score: formatBandScore(entranceScores.reading) },
+                    { id: "writing", label: "Writing", score: formatBandScore(entranceScores.writing) },
+                    { id: "speaking", label: "Speaking", score: formatBandScore(entranceScores.speaking) },
                   ].map((tab) => {
                     const active = activeDiagTab === tab.id;
                     return (
@@ -756,7 +754,7 @@ export default function Home() {
                 {activeDiagTab === "listening" && (
                   <div className="space-y-6 animate-in fade-in duration-200">
                     <SkillDiagIntro
-                      bandLabel={`Đặc trưng Band ${formatBandScore(diagnosis.scores.listening)}`}
+                      bandLabel={`Đặc trưng Band ${formatBandScore(entranceScores.listening)}`}
                       summary={diagnosis.skillSummaries.listening}
                     />
                     <BcbQuestionTypeTable rows={diagnosis.bcbListening} showWeakCta />
@@ -767,7 +765,7 @@ export default function Home() {
                 {activeDiagTab === "reading" && (
                   <div className="space-y-6 animate-in fade-in duration-200">
                     <SkillDiagIntro
-                      bandLabel={`Đặc trưng Band ${formatBandScore(diagnosis.scores.reading)}`}
+                      bandLabel={`Đặc trưng Band ${formatBandScore(entranceScores.reading)}`}
                       summary={diagnosis.skillSummaries.reading}
                     />
                     <BcbQuestionTypeTable rows={diagnosis.bcbReading} showWeakCta />
@@ -810,10 +808,10 @@ export default function Home() {
                   <div className="space-y-6 animate-in fade-in duration-200">
                     <div className="p-5 rounded-2xl border border-zinc-100 bg-zinc-50/50">
                       <div className="text-[10px] font-black text-muted uppercase tracking-widest">
-                        Đặc trưng Speaking Band {formatBandScore(diagnosis.scores.speaking)}
+                        Đặc trưng Speaking Band {formatBandScore(entranceScores.speaking)}
                       </div>
-                      <p className="text-xs font-medium text-foreground leading-relaxed mt-2">
-                        {diagnosis.skillSummaries.speaking}
+                      <p className="text-xs font-medium text-foreground leading-relaxed mt-2 whitespace-pre-line">
+                        {diagnosis.skillSummaries.speaking || "Chưa có nhận xét đặc trưng Speaking."}
                       </p>
                     </div>
                     <div>

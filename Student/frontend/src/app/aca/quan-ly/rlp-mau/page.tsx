@@ -4,15 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AcaLayout } from "@/components/aca/AcaLayout";
 import { AcaTopbar } from "@/components/aca/AcaTopbar";
 import {
-  applyRlpTemplate,
-  createRlpTemplate,
-  deleteRlpTemplate,
   fetchRlpTemplates,
+  createRlpTemplate,
   updateRlpTemplate,
+  deleteRlpTemplate,
   type RlpTemplate,
   type RlpTemplateSessionItem,
 } from "@/lib/rlpTemplateApi";
-import { fetchAcaClasses, type AcaClass } from "@/lib/acaManagementApi";
 import { confirmDialog } from "@/components/shared/ConfirmDialog";
 
 const LEVEL_OPTIONS = [
@@ -32,320 +30,312 @@ const SKILL_OPTIONS = [
   "Listening",
   "Reading",
   "Grammar & Vocab",
-  "Full Test",
+  "Mock Test",
   "Revision & Feedback",
 ];
 
 export default function RlpMauPage() {
+  // Data: Templates (Các lớp mẫu RLP)
   const [templates, setTemplates] = useState<RlpTemplate[]>([]);
-  const [classes, setClasses] = useState<AcaClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Filters
-  const [searchQuery, setSearchQuery] = useState("");
-  const [levelFilter, setLevelFilter] = useState("all");
+  // Filters for Templates Table
+  const [searchTerm, setSearchTerm] = useState("");
+  const [levelFilter, setLevelFilter] = useState<string>("all");
 
-  // Template Editor Modal State
-  const [editingTemplate, setEditingTemplate] = useState<RlpTemplate | null>(null);
-  const [templateFormTitle, setTemplateFormTitle] = useState("");
-  const [templateFormKey, setTemplateFormKey] = useState("");
-  const [templateFormLevel, setTemplateFormLevel] = useState("Foundation");
-  const [templateFormDesc, setTemplateFormDesc] = useState("");
-  const [templateSessions, setTemplateSessions] = useState<RlpTemplateSessionItem[]>([]);
-  const [sessionSkillFilter, setSessionSkillFilter] = useState("all");
-  const [savingTemplate, setSavingTemplate] = useState(false);
-  const [isCreatingNew, setIsCreatingNew] = useState(false);
+  // ── Selected Template Popup State ──
+  const [selectedTemplate, setSelectedTemplate] = useState<RlpTemplate | null>(null);
+  const [popupPhaseFilter, setPopupPhaseFilter] = useState<"all" | "phase1" | "phase2">("all");
+  const [popupSkillFilter, setPopupSkillFilter] = useState<string>("all");
 
-  // Single Session Edit inside Template
-  const [editingSessionNo, setEditingSessionNo] = useState<number | null>(null);
+  // ── Edit Single Session in Template State ("Chỗ Edit") ──
+  const [editingSession, setEditingSession] = useState<RlpTemplateSessionItem | null>(null);
   const [sessionDraft, setSessionDraft] = useState<RlpTemplateSessionItem | null>(null);
+  const [savingSession, setSavingSession] = useState(false);
 
-  // Apply Template to Class Modal State
-  const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
-  const [applyingTemplateKey, setApplyingTemplateKey] = useState<string>("");
-  const [applyTargetClassId, setApplyTargetClassId] = useState("");
-  const [applyStartDate, setApplyStartDate] = useState("");
-  const [applyScheduleMode, setApplyScheduleMode] = useState<"auto" | "keep_dates">("auto");
-  const [applying, setApplying] = useState(false);
+  // ── Create New Template Modal State ──
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [createTitle, setCreateTitle] = useState("");
+  const [createKey, setCreateKey] = useState("");
+  const [createLevel, setCreateLevel] = useState("Foundation");
+  const [createDesc, setCreateDesc] = useState("");
+  const [creatingTemplate, setCreatingTemplate] = useState(false);
 
   const showToast = (msg: string) => {
     setSuccessMsg(msg);
-    setTimeout(() => setSuccessMsg(null), 4000);
+    setTimeout(() => setSuccessMsg(null), 3500);
   };
 
-  const loadData = useCallback(async () => {
+  // Load Templates
+  const loadTemplates = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [tplList, classList] = await Promise.all([
-        fetchRlpTemplates(),
-        fetchAcaClasses().catch(() => [] as AcaClass[]),
-      ]);
-      setTemplates(tplList);
-      setClasses(classList);
+      const list = await fetchRlpTemplates();
+      setTemplates(list || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không tải được danh sách RLP Mẫu.");
+      setError(err instanceof Error ? err.message : "Không tải được danh sách mẫu RLP.");
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadData();
-  }, [loadData]);
+    void loadTemplates();
+  }, [loadTemplates]);
 
+  // Filtered Templates for Table
   const filteredTemplates = useMemo(() => {
-    return templates.filter((t) => {
-      const matchLevel = levelFilter === "all" || t.level === levelFilter;
-      if (!searchQuery.trim()) return matchLevel;
-      const q = searchQuery.trim().toLowerCase();
-      const matchSearch =
-        t.title.toLowerCase().includes(q) ||
-        t.key.toLowerCase().includes(q) ||
-        (t.description || "").toLowerCase().includes(q) ||
-        t.level.toLowerCase().includes(q);
-      return matchLevel && matchSearch;
-    });
-  }, [templates, searchQuery, levelFilter]);
-
-  // Open Template for Editing
-  const handleOpenEditTemplate = (tpl: RlpTemplate) => {
-    setIsCreatingNew(false);
-    setEditingTemplate(tpl);
-    setTemplateFormTitle(tpl.title);
-    setTemplateFormKey(tpl.key);
-    setTemplateFormLevel(tpl.level || "Foundation");
-    setTemplateFormDesc(tpl.description || "");
-    setTemplateSessions(
-      (tpl.sessions || []).map((s, idx) => ({
-        no: s.no || idx + 1,
-        skill: s.skill || "Speaking",
-        contents: s.contents || "",
-        teacherNote: s.teacherNote || "",
-        lessonFileUrl: s.lessonFileUrl || "",
-        homeworkFileUrl: s.homeworkFileUrl || "",
-        recordingUrl: s.recordingUrl || "",
-      }))
-    );
-    setSessionSkillFilter("all");
-    setEditingSessionNo(null);
-    setSessionDraft(null);
-  };
-
-  // Open New Template Creation
-  const handleOpenCreateNewTemplate = () => {
-    setIsCreatingNew(true);
-    setEditingTemplate({
-      key: `mau-${Date.now().toString(36)}`,
-      title: "RLP Mẫu Mới - Học vụ Khánh Thi",
-      level: "Foundation",
-      description: "Khuôn mẫu giáo án chuẩn cho lớp học.",
-      totalSessions: 18,
-      isDefault: false,
-      sessions: Array.from({ length: 18 }, (_, idx) => ({
-        no: idx + 1,
-        skill: idx % 4 === 0 ? "Speaking" : idx % 4 === 1 ? "Listening" : idx % 4 === 2 ? "Reading" : "Writing",
-        contents: `Nội dung giáo án buổi ${idx + 1}...`,
-        teacherNote: "Ghi chú hướng dẫn giảng dạy của Học vụ",
-        lessonFileUrl: "",
-        homeworkFileUrl: "",
-      })),
-    });
-    setTemplateFormTitle("RLP Mẫu Mới - Học vụ Khánh Thi");
-    setTemplateFormKey(`mau-${Date.now().toString(36)}`);
-    setTemplateFormLevel("Foundation");
-    setTemplateFormDesc("Khuôn mẫu giáo án chuẩn cho lớp học.");
-    setTemplateSessions(
-      Array.from({ length: 18 }, (_, idx) => ({
-        no: idx + 1,
-        skill: idx % 4 === 0 ? "Speaking" : idx % 4 === 1 ? "Listening" : idx % 4 === 2 ? "Reading" : "Writing",
-        contents: `Nội dung giáo án buổi ${idx + 1}...`,
-        teacherNote: "Ghi chú hướng dẫn giảng dạy của Học vụ",
-        lessonFileUrl: "",
-        homeworkFileUrl: "",
-      }))
-    );
-    setSessionSkillFilter("all");
-    setEditingSessionNo(null);
-    setSessionDraft(null);
-  };
-
-  // Save Template (Create or Update)
-  const handleSaveTemplate = async () => {
-    if (!templateFormTitle.trim()) {
-      setError("Vui lòng nhập tên khuôn mẫu RLP.");
-      return;
-    }
-    if (!templateFormKey.trim()) {
-      setError("Vui lòng nhập mã định danh cho khuôn mẫu.");
-      return;
-    }
-
-    setSavingTemplate(true);
-    setError(null);
-    try {
-      const cleanSessions = templateSessions.map((s, idx) => ({
-        no: idx + 1,
-        skill: s.skill || "Speaking",
-        contents: s.contents || "",
-        teacherNote: s.teacherNote || "—",
-        lessonFileUrl: s.lessonFileUrl || "",
-        homeworkFileUrl: s.homeworkFileUrl || "",
-        recordingUrl: s.recordingUrl || "",
-      }));
-
-      if (isCreatingNew) {
-        await createRlpTemplate({
-          key: templateFormKey.trim(),
-          title: templateFormTitle.trim(),
-          level: templateFormLevel,
-          description: templateFormDesc.trim(),
-          totalSessions: cleanSessions.length,
-          sessions: cleanSessions,
-          isDefault: false,
-        });
-        showToast(`Đã tạo thành công khuôn mẫu "${templateFormTitle}".`);
-      } else if (editingTemplate) {
-        await updateRlpTemplate(editingTemplate.key, {
-          title: templateFormTitle.trim(),
-          level: templateFormLevel,
-          description: templateFormDesc.trim(),
-          totalSessions: cleanSessions.length,
-          sessions: cleanSessions,
-        });
-        showToast(`Đã lưu thay đổi khuôn mẫu "${templateFormTitle}".`);
+    return templates.filter((tpl) => {
+      // Level filter
+      if (levelFilter !== "all" && tpl.level !== levelFilter) {
+        return false;
       }
+      // Search filter
+      if (searchTerm.trim()) {
+        const q = searchTerm.toLowerCase().trim();
+        const matchTitle = tpl.title?.toLowerCase().includes(q);
+        const matchKey = tpl.key?.toLowerCase().includes(q);
+        const matchLevel = tpl.level?.toLowerCase().includes(q);
+        const matchDesc = tpl.description?.toLowerCase().includes(q);
+        if (!matchTitle && !matchKey && !matchLevel && !matchDesc) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [templates, searchTerm, levelFilter]);
 
-      setEditingTemplate(null);
-      void loadData();
+  // Open Template RLP Popup
+  const handleOpenTemplatePopup = (tpl: RlpTemplate) => {
+    setSelectedTemplate(tpl);
+    setPopupPhaseFilter("all");
+    setPopupSkillFilter("all");
+    setEditingSession(null);
+    setSessionDraft(null);
+  };
+
+  // Close Template RLP Popup
+  const handleCloseTemplatePopup = () => {
+    setSelectedTemplate(null);
+    setEditingSession(null);
+    setSessionDraft(null);
+  };
+
+  // Filtered Sessions inside Template Popup
+  const filteredPopupSessions = useMemo(() => {
+    if (!selectedTemplate?.sessions) return [];
+    return [...selectedTemplate.sessions]
+      .filter((s) => {
+        if (popupPhaseFilter === "phase1" && s.no > 18) return false;
+        if (popupPhaseFilter === "phase2" && (s.no <= 18 || s.no > 36)) return false;
+        if (popupSkillFilter === "all") return true;
+        return s.skill?.toLowerCase().includes(popupSkillFilter.toLowerCase());
+      })
+      .sort((a, b) => a.no - b.no);
+  }, [selectedTemplate, popupPhaseFilter, popupSkillFilter]);
+
+  // Open Edit Session
+  const handleOpenEditSession = (session: RlpTemplateSessionItem) => {
+    setEditingSession(session);
+    setSessionDraft({ ...session });
+  };
+
+  // Save Edit Session ("Chỗ Edit")
+  const handleSaveSession = async () => {
+    if (!sessionDraft || !editingSession || !selectedTemplate) return;
+    setSavingSession(true);
+    try {
+      const nextSessions = selectedTemplate.sessions.map((s) =>
+        s.no === sessionDraft.no ? { ...sessionDraft } : s,
+      );
+
+      await updateRlpTemplate(selectedTemplate.key, {
+        sessions: nextSessions,
+        totalSessions: nextSessions.length,
+      });
+
+      const updatedTemplate: RlpTemplate = {
+        ...selectedTemplate,
+        sessions: nextSessions,
+        totalSessions: nextSessions.length,
+      };
+
+      // Update both current selected popup and main templates list
+      setSelectedTemplate(updatedTemplate);
+      setTemplates((prev) =>
+        prev.map((t) => (t.key === selectedTemplate.key ? updatedTemplate : t)),
+      );
+
+      setEditingSession(null);
+      setSessionDraft(null);
+      showToast(`Đã lưu nội dung Buổi ${sessionDraft.no} của lớp mẫu "${selectedTemplate.title}".`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Lưu khuôn mẫu RLP thất bại.");
+      setError(err instanceof Error ? err.message : "Lưu buổi học thất bại.");
     } finally {
-      setSavingTemplate(false);
+      setSavingSession(false);
+    }
+  };
+
+  // Add Session to Template
+  const handleAddSession = async () => {
+    if (!selectedTemplate) return;
+    const nextNo = (selectedTemplate.sessions?.length || 0) + 1;
+    const newSession: RlpTemplateSessionItem = {
+      no: nextNo,
+      skill: "Speaking",
+      contents: "",
+      teacherNote: "",
+      lessonFileUrl: "",
+      recordingUrl: "",
+      homeworkFileUrl: "",
+    };
+
+    const nextSessions = [...(selectedTemplate.sessions || []), newSession];
+    try {
+      await updateRlpTemplate(selectedTemplate.key, {
+        sessions: nextSessions,
+        totalSessions: nextSessions.length,
+      });
+
+      const updatedTemplate: RlpTemplate = {
+        ...selectedTemplate,
+        sessions: nextSessions,
+        totalSessions: nextSessions.length,
+      };
+
+      setSelectedTemplate(updatedTemplate);
+      setTemplates((prev) =>
+        prev.map((t) => (t.key === selectedTemplate.key ? updatedTemplate : t)),
+      );
+
+      showToast(`Đã thêm Buổi ${nextNo} vào lớp mẫu.`);
+      handleOpenEditSession(newSession);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Thêm buổi học thất bại.");
+    }
+  };
+
+  // Delete Session from Template
+  const handleDeleteSession = async (no: number) => {
+    if (!selectedTemplate) return;
+    const ok = await confirmDialog({
+      title: `Xóa Buổi ${no}`,
+      message: `Bạn có chắc chắn muốn xóa Buổi ${no} khỏi lớp mẫu "${selectedTemplate.title}" không?`,
+      confirmText: "Xóa",
+      cancelText: "Hủy",
+      variant: "danger",
+    });
+    if (!ok) return;
+
+    const nextSessions = selectedTemplate.sessions
+      .filter((s) => s.no !== no)
+      .map((s, idx) => ({ ...s, no: idx + 1 }));
+
+    try {
+      await updateRlpTemplate(selectedTemplate.key, {
+        sessions: nextSessions,
+        totalSessions: nextSessions.length,
+      });
+
+      const updatedTemplate: RlpTemplate = {
+        ...selectedTemplate,
+        sessions: nextSessions,
+        totalSessions: nextSessions.length,
+      };
+
+      setSelectedTemplate(updatedTemplate);
+      setTemplates((prev) =>
+        prev.map((t) => (t.key === selectedTemplate.key ? updatedTemplate : t)),
+      );
+
+      showToast(`Đã xóa Buổi ${no}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Xóa buổi học thất bại.");
+    }
+  };
+
+  // Create New Template
+  const handleCreateTemplate = async () => {
+    if (!createTitle.trim() || !createKey.trim()) return;
+    setCreatingTemplate(true);
+    try {
+      const standard36: RlpTemplateSessionItem[] = Array.from({ length: 36 }, (_, idx) => {
+        const no = idx + 1;
+        const skills = ["Speaking", "Reading", "Writing", "Listening"];
+        return {
+          no,
+          skill: no === 18 || no === 36 ? "Mock Test" : skills[idx % 4],
+          contents: "",
+          teacherNote: "",
+          lessonFileUrl: "",
+          homeworkFileUrl: "",
+          recordingUrl: "",
+        };
+      });
+
+      const newTpl = await createRlpTemplate({
+        key: createKey.trim().toLowerCase(),
+        title: createTitle.trim(),
+        level: createLevel,
+        description: createDesc.trim(),
+        totalSessions: 36,
+        sessions: standard36,
+        isDefault: false,
+      });
+
+      setTemplates((prev) => [...prev, newTpl]);
+      setIsCreateModalOpen(false);
+      showToast(`Đã tạo lớp mẫu mới: "${newTpl.title}" (36 buổi).`);
+      handleOpenTemplatePopup(newTpl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Tạo lớp mẫu thất bại.");
+    } finally {
+      setCreatingTemplate(false);
     }
   };
 
   // Delete Template
-  const handleDeleteTemplate = async (tpl: RlpTemplate, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
+  const handleDeleteTemplate = async (key: string, title: string) => {
     const ok = await confirmDialog({
-      title: "Xóa khuôn mẫu RLP",
-      message: `Bạn có chắc chắn muốn xóa khuôn mẫu "${tpl.title}" không? Giáo viên sẽ không thể lấy mẫu này nữa.`,
-      confirmText: "Đồng ý xóa",
-      cancelText: "Giữ lại",
+      title: "Xóa Lớp Mẫu RLP",
+      message: `Bạn có chắc chắn muốn xóa lớp mẫu "${title}" không? Hành động này không thể hoàn tác.`,
+      confirmText: "Xóa",
+      cancelText: "Hủy",
       variant: "danger",
     });
     if (!ok) return;
 
     try {
-      await deleteRlpTemplate(tpl.key);
-      showToast(`Đã xóa khuôn mẫu "${tpl.title}".`);
-      void loadData();
+      await deleteRlpTemplate(key);
+      setTemplates((prev) => prev.filter((t) => t.key !== key));
+      if (selectedTemplate?.key === key) {
+        setSelectedTemplate(null);
+      }
+      showToast(`Đã xóa lớp mẫu "${title}".`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Không xóa được khuôn mẫu.");
+      setError(err instanceof Error ? err.message : "Xóa lớp mẫu thất bại.");
     }
   };
-
-  // Add Session to Template
-  const handleAddSessionToTemplate = () => {
-    const nextNo = templateSessions.length + 1;
-    const newSession: RlpTemplateSessionItem = {
-      no: nextNo,
-      skill: "Speaking",
-      contents: `Nội dung giáo án buổi ${nextNo}...`,
-      teacherNote: "Ghi chú hướng dẫn giảng dạy của Học vụ",
-      lessonFileUrl: "",
-      homeworkFileUrl: "",
-    };
-    setTemplateSessions((prev) => [...prev, newSession]);
-    setEditingSessionNo(nextNo);
-    setSessionDraft(newSession);
-  };
-
-  // Remove Session from Template
-  const handleRemoveSessionFromTemplate = (no: number) => {
-    const next = templateSessions.filter((s) => s.no !== no).map((s, idx) => ({ ...s, no: idx + 1 }));
-    setTemplateSessions(next);
-    if (editingSessionNo === no) {
-      setEditingSessionNo(null);
-      setSessionDraft(null);
-    }
-  };
-
-  // Open Single Session Editor
-  const handleOpenEditSession = (session: RlpTemplateSessionItem) => {
-    setEditingSessionNo(session.no);
-    setSessionDraft({ ...session });
-  };
-
-  // Save Single Session Edit
-  const handleSaveSessionDraft = () => {
-    if (!sessionDraft || editingSessionNo == null) return;
-    setTemplateSessions((prev) =>
-      prev.map((s) => (s.no === editingSessionNo ? { ...sessionDraft, no: editingSessionNo } : s))
-    );
-    setEditingSessionNo(null);
-    setSessionDraft(null);
-  };
-
-  // Open Apply Modal for a Template
-  const handleOpenApplyModal = (tpl: RlpTemplate, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    setApplyingTemplateKey(tpl.key);
-    setIsApplyModalOpen(true);
-    if (classes.length > 0) {
-      setApplyTargetClassId(classes[0].id);
-      setApplyStartDate(classes[0].openDate || classes[0].phaseStartDate || "");
-    }
-  };
-
-  // Handle Apply Template to Class
-  const handleApplyTemplateToClass = async () => {
-    if (!applyingTemplateKey || !applyTargetClassId) return;
-    setApplying(true);
-    setError(null);
-    try {
-      const res = await applyRlpTemplate(applyingTemplateKey, {
-        classId: applyTargetClassId,
-        startDate: applyStartDate,
-        scheduleMode: applyScheduleMode,
-      });
-      setIsApplyModalOpen(false);
-      showToast(`Đã áp dụng thành công ${res.templateTitle} (${res.totalSessions} buổi) cho lớp học!`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Áp dụng khuôn mẫu RLP thất bại.");
-    } finally {
-      setApplying(false);
-    }
-  };
-
-  const filteredSessions = useMemo(() => {
-    return [...templateSessions]
-      .filter((s) => {
-        if (sessionSkillFilter === "all") return true;
-        return s.skill.toLowerCase().includes(sessionSkillFilter.toLowerCase());
-      })
-      .sort((a, b) => a.no - b.no);
-  }, [templateSessions, sessionSkillFilter]);
 
   return (
     <AcaLayout>
-      <div className="space-y-6 pb-20 max-w-7xl mx-auto">
+      <div className="space-y-5 pb-20 max-w-7xl mx-auto">
         <AcaTopbar
-          title="Khuôn Mẫu RLP Chuẩn (Học vụ Khánh Thi)"
-          subtitle="Biên soạn và quản lý các bộ khung giáo án RLP chuẩn để giáo viên các lớp tự động lấy mẫu khi giảng dạy."
+          title="Mẫu RLP (36 Buổi)"
+          subtitle="Danh sách các lớp mẫu RLP. Bấm vào một lớp để mở popup xem và chỉnh sửa chi tiết 36 buổi giáo án."
         />
 
-        {/* Alerts & Toasts */}
+        {/* Alerts / Toasts */}
         {error && (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 flex items-center justify-between shadow-xs">
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-800 flex items-center justify-between">
             <span>{error}</span>
             <button
               type="button"
               onClick={() => setError(null)}
-              className="text-xs font-bold text-rose-600 hover:underline cursor-pointer"
+              className="font-bold text-rose-600 hover:underline cursor-pointer ml-4"
             >
               Đóng
             </button>
@@ -353,186 +343,196 @@ export default function RlpMauPage() {
         )}
 
         {successMsg && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800 flex items-center justify-between shadow-xs">
-            <span className="font-bold flex items-center gap-2">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-xs text-emerald-800 flex items-center justify-between">
+            <span className="font-semibold flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
               {successMsg}
             </span>
             <button
               type="button"
               onClick={() => setSuccessMsg(null)}
-              className="text-xs font-bold text-emerald-600 hover:underline cursor-pointer"
+              className="font-bold text-emerald-600 hover:underline cursor-pointer ml-4"
             >
               Đóng
             </button>
           </div>
         )}
 
-        {/* Header Action Bar */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 rounded-3xl border border-zinc-200/80 bg-white p-5 shadow-soft">
-          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            {/* Search */}
-            <div className="relative flex-1 md:w-72">
+        {/* ════════════════════════════════════════════════════════════
+            BẢNG DANH SÁCH CÁC LỚP MẪU RLP (DẠNG BẢNG CHỨ KHÔNG ĐỂ 1 HÀNG NGANG)
+            ════════════════════════════════════════════════════════════ */}
+        <div className="space-y-4">
+          {/* Thanh tìm kiếm và bộ lọc */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-3.5 rounded-2xl border border-zinc-200">
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Search */}
               <input
                 type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm kiếm khuôn mẫu RLP..."
-                className="w-full rounded-2xl border border-zinc-200 bg-zinc-50/50 px-4 py-2.5 text-xs font-medium text-zinc-900 outline-none focus:border-primary focus:bg-white"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Tìm kiếm lớp mẫu (Foundation, Pre-IELTS, Core 1...)"
+                className="rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-1.5 text-xs font-medium text-zinc-800 outline-none focus:border-primary focus:bg-white w-64 sm:w-80"
               />
+
+              {/* Level Filter */}
+              <select
+                value={levelFilter}
+                onChange={(e) => setLevelFilter(e.target.value)}
+                className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 outline-none focus:border-primary cursor-pointer"
+              >
+                <option value="all">Tất cả lớp mẫu</option>
+                {LEVEL_OPTIONS.map((lvl) => (
+                  <option key={lvl} value={lvl}>
+                    {lvl}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {/* Level Filter */}
-            <select
-              value={levelFilter}
-              onChange={(e) => setLevelFilter(e.target.value)}
-              className="rounded-2xl border border-zinc-200 bg-zinc-50/50 px-3 py-2.5 text-xs font-bold text-zinc-700 outline-none focus:border-primary focus:bg-white cursor-pointer"
-            >
-              <option value="all">Tất cả cấp độ</option>
-              {LEVEL_OPTIONS.map((lvl) => (
-                <option key={lvl} value={lvl}>
-                  {lvl}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center gap-3 self-end sm:self-center">
+              <span className="text-xs text-zinc-500 font-medium">
+                Hiển thị <strong>{filteredTemplates.length}</strong> lớp mẫu
+              </span>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCreateTitle("");
+                  setCreateKey(`mau-${Date.now().toString(36)}`);
+                  setCreateLevel("Foundation");
+                  setCreateDesc("");
+                  setIsCreateModalOpen(true);
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
+              >
+                <span className="text-base leading-none font-bold">+</span>
+                <span>Thêm Lớp Mẫu Mới</span>
+              </button>
+            </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenCreateNewTemplate}
-            className="inline-flex items-center gap-2 rounded-2xl bg-primary hover:bg-primary/90 text-white px-5 py-3 text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-[0.98] cursor-pointer whitespace-nowrap"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            Tạo Khuôn Mẫu RLP Mới
-          </button>
+          {/* Bảng Các Lớp Mẫu */}
+          {loading ? (
+            <div className="text-center py-16 bg-white rounded-2xl border border-zinc-200 text-zinc-400 font-medium text-xs">
+              Đang tải danh sách lớp mẫu RLP...
+            </div>
+          ) : filteredTemplates.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-2xl border border-zinc-200 text-zinc-500 text-xs">
+              Không tìm thấy lớp mẫu nào phù hợp.
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-xs">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-zinc-50 border-b border-zinc-200 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                  <tr>
+                    <th className="px-5 py-3 w-14 text-center">STT</th>
+                    <th className="px-5 py-3 w-48 whitespace-nowrap">Mã mẫu</th>
+                    <th className="px-5 py-3 min-w-[220px]">Tên lớp mẫu</th>
+                    <th className="px-5 py-3 w-28 text-center">Thời lượng</th>
+                    <th className="px-5 py-3 min-w-[280px]">Mô tả giáo án</th>
+                    <th className="px-5 py-3 w-36 text-right">Hành động</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100 font-medium text-xs text-zinc-700">
+                  {filteredTemplates.map((tpl, index) => {
+                    const cleanTitle = tpl.title.replace("RLP Mẫu: ", "").replace(" (36 buổi)", "");
+                    return (
+                      <tr
+                        key={tpl.key}
+                        onClick={() => handleOpenTemplatePopup(tpl)}
+                        className="hover:bg-zinc-50/70 transition-colors cursor-pointer group"
+                      >
+                        {/* STT */}
+                        <td className="px-5 py-3.5 text-center font-bold text-zinc-400 tabular-nums">
+                          {index + 1}
+                        </td>
+
+                        {/* Mã mẫu */}
+                        <td className="px-5 py-3.5 whitespace-nowrap">
+                          <span className="inline-flex items-center px-3 py-1 rounded-lg bg-zinc-100 border border-zinc-200 font-mono text-xs font-semibold text-zinc-800 tracking-tight">
+                            {tpl.key}
+                          </span>
+                        </td>
+
+                        {/* Tên lớp mẫu */}
+                        <td className="px-5 py-3.5 text-zinc-950 font-bold group-hover:text-primary transition-colors text-[13px]">
+                          {cleanTitle}
+                        </td>
+
+                        {/* Thời lượng */}
+                        <td className="px-5 py-3.5 text-center">
+                          <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-zinc-100 text-zinc-800">
+                            {tpl.totalSessions || tpl.sessions?.length || 36} buổi
+                          </span>
+                        </td>
+
+                        {/* Mô tả giáo án */}
+                        <td className="px-5 py-3.5 text-zinc-500 leading-snug line-clamp-2 max-w-sm">
+                          {tpl.description || <span className="italic text-zinc-300">Chưa có mô tả giáo án.</span>}
+                        </td>
+
+                        {/* Hành động */}
+                        <td className="px-5 py-3.5 text-right">
+                          <div className="inline-flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenTemplatePopup(tpl)}
+                              className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-primary text-white font-bold text-xs transition-all cursor-pointer shadow-2xs"
+                            >
+                              Xem / Sửa RLP
+                            </button>
+                            {!tpl.isDefault && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteTemplate(tpl.key, tpl.title)}
+                                className="px-2 py-1.5 rounded-lg border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold text-xs transition-all cursor-pointer"
+                                title="Xóa lớp mẫu này"
+                              >
+                                Xóa
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
-        {/* Template Cards Grid */}
-        {loading ? (
-          <div className="text-center py-20 text-zinc-400 font-bold text-sm bg-white rounded-3xl border border-zinc-200 shadow-soft">
-            Đang tải danh sách khuôn mẫu RLP...
-          </div>
-        ) : filteredTemplates.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-3xl border border-zinc-200 shadow-soft space-y-3">
-            <div className="text-base font-bold text-zinc-700">Chưa có khuôn mẫu RLP nào phù hợp.</div>
-            <p className="text-xs text-zinc-400 max-w-md mx-auto">
-              Bấm nút &quot;Tạo Khuôn Mẫu RLP Mới&quot; để biên soạn giáo án chuẩn cho giáo viên các lớp lấy mẫu.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTemplates.map((tpl) => {
-              const sessionCount = tpl.sessions?.length || tpl.totalSessions || 18;
-              const hasContentCount = (tpl.sessions || []).filter((s) => s.contents && s.contents.trim().length > 5).length;
-              const isDefault = !!tpl.isDefault;
-
-              return (
-                <div
-                  key={tpl.key}
-                  className="rounded-3xl border border-zinc-200/90 bg-white p-6 shadow-soft hover:shadow-md transition-all flex flex-col justify-between group"
-                >
-                  <div className="space-y-4">
-                    {/* Level Badge & Badges */}
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="px-3 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
-                        {tpl.level || "Chung"}
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        {isDefault && (
-                          <span className="px-2 py-0.5 rounded-lg text-[9px] font-black uppercase bg-amber-50 text-amber-700 border border-amber-200">
-                            Chuẩn Hệ Thống
-                          </span>
-                        )}
-                        <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold bg-zinc-100 text-zinc-600">
-                          {sessionCount} buổi
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Title & Description */}
-                    <div>
-                      <h3 className="text-base font-black text-zinc-900 leading-snug group-hover:text-primary transition-colors">
-                        {tpl.title}
-                      </h3>
-                      <p className="text-xs font-medium text-zinc-500 mt-1.5 line-clamp-3 leading-relaxed">
-                        {tpl.description || "Khuôn mẫu giáo án do Học vụ Khánh Thi chuẩn hóa."}
-                      </p>
-                    </div>
-
-                    {/* Meta info */}
-                    <div className="pt-3 border-t border-zinc-100 flex items-center justify-between text-[11px] text-zinc-400">
-                      <span className="font-semibold text-zinc-600">
-                        Biên soạn: <span className="text-zinc-900 font-bold">{tpl.createdBy || "Học vụ Khánh Thi"}</span>
-                      </span>
-                      <span className="font-bold text-emerald-600">
-                        {hasContentCount}/{sessionCount} buổi đã soạn
-                      </span>
-                    </div>
+        {/* ════════════════════════════════════════════════════════════
+            POPUP BẢNG RLP CỦA LỚP MẪU ĐƯỢC CHỌN (36 BUỔI)
+            ════════════════════════════════════════════════════════════ */}
+        {selectedTemplate && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/50 backdrop-blur-2xs animate-in fade-in duration-150">
+            <div className="relative w-full max-w-6xl max-h-[92vh] flex flex-col rounded-3xl bg-white shadow-2xl overflow-hidden border border-zinc-200">
+              {/* Header Popup */}
+              <div className="p-5 border-b border-zinc-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-zinc-50/80">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-md bg-zinc-900 text-white font-mono text-[11px] font-bold">
+                      {selectedTemplate.key}
+                    </span>
+                    <h3 className="text-base font-bold text-zinc-950">
+                      {selectedTemplate.title.replace("RLP Mẫu: ", "").replace(" (36 buổi)", "")}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-zinc-100 text-zinc-700">
+                      {selectedTemplate.sessions?.length || 36} buổi chuẩn
+                    </span>
                   </div>
-
-                  {/* Actions */}
-                  <div className="pt-5 mt-4 border-t border-zinc-100 flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEditTemplate(tpl)}
-                      className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-2xl bg-primary text-white hover:bg-primary/90 px-4 py-2.5 text-xs font-black uppercase tracking-wider transition-all shadow-xs cursor-pointer active:scale-[0.98]"
-                    >
-                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                      Sửa Giáo Án Mẫu
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={(e) => handleOpenApplyModal(tpl, e)}
-                      title="Áp dụng vào lớp..."
-                      className="rounded-2xl border border-zinc-200 hover:bg-zinc-100 p-2.5 text-zinc-600 transition-all cursor-pointer shadow-2xs"
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
-                      </svg>
-                    </button>
-
-                    {!isDefault && (
-                      <button
-                        type="button"
-                        onClick={(e) => handleDeleteTemplate(tpl, e)}
-                        title="Xóa khuôn mẫu"
-                        className="rounded-2xl border border-rose-200 bg-rose-50/50 hover:bg-rose-100 p-2.5 text-rose-600 transition-all cursor-pointer shadow-2xs"
-                      >
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
+                  {selectedTemplate.description && (
+                    <p className="text-xs text-zinc-500 pt-0.5 max-w-3xl">
+                      {selectedTemplate.description}
+                    </p>
+                  )}
                 </div>
-              );
-            })}
-          </div>
-        )}
 
-        {/* ── Modal Soạn / Chỉnh Sửa Khuôn Mẫu RLP (Học vụ Khánh Thi) ── */}
-        {editingTemplate && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-            <div className="relative w-full max-w-5xl max-h-[92vh] flex flex-col rounded-3xl bg-white shadow-2xl overflow-hidden border border-zinc-200">
-              {/* Header */}
-              <div className="p-6 border-b border-zinc-200 flex items-center justify-between bg-zinc-50/60">
-                <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-primary">
-                    Học Vụ Khánh Thi · Biên Soạn Khuôn Mẫu RLP
-                  </span>
-                  <h3 className="text-lg font-black text-zinc-900 mt-0.5">
-                    {isCreatingNew ? "Tạo Khuôn Mẫu RLP Mới" : `Chỉnh Sửa: ${templateFormTitle}`}
-                  </h3>
-                </div>
                 <button
                   type="button"
-                  onClick={() => setEditingTemplate(null)}
-                  className="rounded-full p-2 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors cursor-pointer"
+                  onClick={handleCloseTemplatePopup}
+                  className="rounded-full p-2 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200/60 transition-colors cursor-pointer self-end sm:self-auto"
                 >
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -540,78 +540,45 @@ export default function RlpMauPage() {
                 </button>
               </div>
 
-              {/* Body */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                {/* Meta Inputs */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-zinc-50/60 p-4 rounded-2xl border border-zinc-200/60">
-                  <div>
-                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-wider block mb-1">
-                      Tên khuôn mẫu RLP *
-                    </label>
-                    <input
-                      type="text"
-                      value={templateFormTitle}
-                      onChange={(e) => setTemplateFormTitle(e.target.value)}
-                      placeholder="VD: RLP Mẫu: Pre-IELTS Cốt lõi"
-                      className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-bold text-zinc-900 outline-none focus:border-primary"
-                    />
-                  </div>
+              {/* Body: Toolbar & Sessions Table */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                {/* Thanh Chặng, Kỹ Năng & Thêm Buổi */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-1 rounded-xl bg-zinc-100 p-1">
+                      <button
+                        type="button"
+                        onClick={() => setPopupPhaseFilter("all")}
+                        className={`rounded-lg px-3 py-1 text-[11px] font-bold cursor-pointer transition-all ${
+                          popupPhaseFilter === "all" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-500 hover:text-zinc-900"
+                        }`}
+                      >
+                        Tất cả ({selectedTemplate.sessions?.length || 36} buổi)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPopupPhaseFilter("phase1")}
+                        className={`rounded-lg px-3 py-1 text-[11px] font-bold cursor-pointer transition-all ${
+                          popupPhaseFilter === "phase1" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-500 hover:text-zinc-900"
+                        }`}
+                      >
+                        Chặng 1 (1 - 18)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPopupPhaseFilter("phase2")}
+                        className={`rounded-lg px-3 py-1 text-[11px] font-bold cursor-pointer transition-all ${
+                          popupPhaseFilter === "phase2" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-500 hover:text-zinc-900"
+                        }`}
+                      >
+                        Chặng 2 (19 - 36)
+                      </button>
+                    </div>
 
-                  <div>
-                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-wider block mb-1">
-                      Cấp độ chương trình *
-                    </label>
                     <select
-                      value={templateFormLevel}
-                      onChange={(e) => setTemplateFormLevel(e.target.value)}
-                      className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-bold text-zinc-900 outline-none focus:border-primary cursor-pointer"
-                    >
-                      {LEVEL_OPTIONS.map((lvl) => (
-                        <option key={lvl} value={lvl}>
-                          {lvl}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-wider block mb-1">
-                      Mã định danh (Key) *
-                    </label>
-                    <input
-                      type="text"
-                      value={templateFormKey}
-                      disabled={!isCreatingNew}
-                      onChange={(e) => setTemplateFormKey(e.target.value)}
-                      placeholder="VD: pre-ielts-m357"
-                      className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-mono font-bold text-zinc-900 outline-none focus:border-primary disabled:bg-zinc-100 disabled:text-zinc-500"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-3">
-                    <label className="text-[10px] font-black text-zinc-500 uppercase tracking-wider block mb-1">
-                      Mô tả hướng dẫn giáo án
-                    </label>
-                    <input
-                      type="text"
-                      value={templateFormDesc}
-                      onChange={(e) => setTemplateFormDesc(e.target.value)}
-                      placeholder="Mô tả mục tiêu, trọng tâm kiến thức và lưu ý cho giáo viên khi sử dụng khuôn mẫu này..."
-                      className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-medium text-zinc-800 outline-none focus:border-primary"
-                    />
-                  </div>
-                </div>
-
-                {/* Session List Header */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2">
-                  <div className="flex items-center gap-3">
-                    <h4 className="text-xs font-black uppercase tracking-wider text-zinc-800">
-                      Danh Sách Buổi Học Giáo Án ({templateSessions.length} buổi)
-                    </h4>
-                    <select
-                      value={sessionSkillFilter}
-                      onChange={(e) => setSessionSkillFilter(e.target.value)}
-                      className="rounded-xl border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-bold text-zinc-700 outline-none focus:border-primary"
+                      value={popupSkillFilter}
+                      onChange={(e) => setPopupSkillFilter(e.target.value)}
+                      className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 outline-none focus:border-primary cursor-pointer"
                     >
                       <option value="all">Tất cả kỹ năng</option>
                       {SKILL_OPTIONS.map((sk) => (
@@ -624,136 +591,196 @@ export default function RlpMauPage() {
 
                   <button
                     type="button"
-                    onClick={handleAddSessionToTemplate}
-                    className="inline-flex items-center gap-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 text-xs font-black uppercase tracking-wider transition-all shadow-xs cursor-pointer active:scale-[0.98]"
+                    onClick={handleAddSession}
+                    className="px-3.5 py-1.5 rounded-xl border border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-100 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 self-start sm:self-auto shrink-0"
                   >
-                    + Thêm Buổi Mới
+                    <span className="text-primary font-bold text-sm leading-none">+</span> Thêm buổi
                   </button>
                 </div>
 
-                {/* Session Table */}
-                <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-soft">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-zinc-200 bg-zinc-50 text-[10px] font-black uppercase tracking-wider text-zinc-500">
-                        <th className="px-3 py-2.5 w-14 text-center">Buổi</th>
-                        <th className="px-3 py-2.5 w-28">Kỹ năng</th>
-                        <th className="px-4 py-2.5">Nội dung bài học chuẩn</th>
-                        <th className="px-3 py-2.5 w-28 text-center">Tài liệu & BTVN</th>
-                        <th className="px-3 py-2.5 w-24 text-right">Thao tác</th>
+                {/* Bảng RLP 36 Buổi của Lớp Mẫu */}
+                <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-xs">
+                  <table className="w-full min-w-[850px] text-left text-xs border-collapse">
+                    <thead className="bg-zinc-50 border-b border-zinc-200 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                      <tr>
+                        <th className="px-5 py-3 w-16 text-center">Buổi</th>
+                        <th className="px-5 py-3 w-28 text-center">Skill</th>
+                        <th className="px-5 py-3 min-w-[220px]">Nội dung bài học chuẩn</th>
+                        <th className="px-5 py-3 min-w-[180px]">Tiến độ (Ghi chú GV)</th>
+                        <th className="px-5 py-3 w-24 text-center">File bài học</th>
+                        <th className="px-5 py-3 w-24 text-center">Record</th>
+                        <th className="px-5 py-3 w-24 text-center">Homework</th>
+                        <th className="px-5 py-3 text-right w-24">Thao tác</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-100 font-medium">
-                      {filteredSessions.map((s) => {
-                        const hasLesson = Boolean(s.lessonFileUrl?.trim());
-                        const hasHw = Boolean(s.homeworkFileUrl?.trim());
+                    <tbody className="divide-y divide-zinc-100 font-medium text-xs text-zinc-700">
+                      {filteredPopupSessions.map((row) => (
+                        <tr key={row.no} className="hover:bg-zinc-50/50 transition-colors">
+                          {/* Buổi */}
+                          <td className="px-5 py-3.5 text-center font-bold text-zinc-950 tabular-nums">
+                            Buổi {row.no}
+                          </td>
 
-                        return (
-                          <tr key={s.no} className="hover:bg-zinc-50/60 transition-colors">
-                            <td className="px-3 py-3 text-center font-black text-primary text-sm tabular-nums">
-                              #{s.no}
-                            </td>
-                            <td className="px-3 py-3">
-                              <span className="inline-flex rounded-lg px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
-                                {s.skill}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="font-bold text-zinc-900 line-clamp-2">{s.contents || "—"}</div>
-                              {s.teacherNote && s.teacherNote !== "—" && (
-                                <div className="text-[10px] text-zinc-500 mt-1 italic font-medium">
-                                  💡 Ghi chú: {s.teacherNote}
-                                </div>
-                              )}
-                            </td>
-                            <td className="px-3 py-3 text-center">
-                              <div className="flex items-center justify-center gap-1.5">
-                                <span
-                                  title={hasLesson ? s.lessonFileUrl : "Chưa có slide bài giảng"}
-                                  className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${
-                                    hasLesson ? "bg-sky-100 text-sky-800" : "bg-zinc-100 text-zinc-400"
-                                  }`}
-                                >
-                                  Slide
-                                </span>
-                                <span
-                                  title={hasHw ? s.homeworkFileUrl : "Chưa có link BTVN"}
-                                  className={`inline-flex px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${
-                                    hasHw ? "bg-emerald-100 text-emerald-800" : "bg-zinc-100 text-zinc-400"
-                                  }`}
-                                >
-                                  BTVN
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-3 py-3 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
+                          {/* Skill */}
+                          <td className="px-5 py-3.5 text-center">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
+                                row.skill === "Speaking"
+                                  ? "bg-primary/10 text-primary"
+                                  : row.skill === "Reading"
+                                  ? "bg-info/10 text-info"
+                                  : row.skill === "Writing"
+                                  ? "bg-purple-100 text-purple-700"
+                                  : row.skill === "Listening"
+                                  ? "bg-amber-100 text-amber-800"
+                                  : row.skill === "Mock Test"
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : "bg-indigo-100 text-indigo-800"
+                              }`}
+                            >
+                              {row.skill}
+                            </span>
+                          </td>
+
+                          {/* Nội dung */}
+                          <td className="px-5 py-3.5 text-zinc-900 leading-snug font-medium max-w-xs break-words">
+                            {row.contents?.trim() ? (
+                              row.contents
+                            ) : (
+                              <span className="text-zinc-300 italic">Chưa có nội dung</span>
+                            )}
+                          </td>
+
+                          {/* Tiến độ (Ghi chú GV) */}
+                          <td className="px-5 py-3.5 text-zinc-500 text-[11px] break-words">
+                            {row.teacherNote && row.teacherNote.trim() !== "—" ? (
+                              <span className="italic text-zinc-700">&quot;{row.teacherNote}&quot;</span>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+
+                          {/* File bài học */}
+                          <td className="px-5 py-3.5 text-center">
+                            {row.lessonFileUrl?.trim() ? (
+                              <a
+                                href={row.lessonFileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-success/20 bg-success/10 text-success hover:bg-success/20 transition-all"
+                                title="Mở file bài học"
+                              >
+                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                </svg>
+                              </a>
+                            ) : (
+                              <span className="text-zinc-400">—</span>
+                            )}
+                          </td>
+
+                          {/* Record */}
+                          <td className="px-5 py-3.5 text-center">
+                            {row.recordingUrl?.trim() ? (
+                              <a
+                                href={row.recordingUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-purple-200 bg-purple-100 text-purple-700 hover:bg-purple-200 transition-all"
+                                title="Xem Record"
+                              >
+                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                  <polygon points="23 7 16 12 23 17 23 7" />
+                                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                                </svg>
+                              </a>
+                            ) : (
+                              <span className="text-zinc-400">—</span>
+                            )}
+                          </td>
+
+                          {/* Homework */}
+                          <td className="px-5 py-3.5 text-center">
+                            {row.homeworkFileUrl?.trim() ? (
+                              <a
+                                href={row.homeworkFileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary hover:bg-primary/20 transition-all"
+                                title="Mở bài tập Docs"
+                              >
+                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                  <path d="M14 2H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                                  <polyline points="14 2 14 8 20 8" />
+                                  <line x1="9" y1="13" x2="15" y2="13" />
+                                </svg>
+                              </a>
+                            ) : (
+                              <span className="text-zinc-400">—</span>
+                            )}
+                          </td>
+
+                          {/* Thao tác (Sửa / Xóa) */}
+                          <td className="px-5 py-3.5 text-right">
+                            <div className="inline-flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditSession(row)}
+                                className="px-2.5 py-1 rounded-md text-xs font-bold text-primary hover:bg-primary/10 cursor-pointer"
+                              >
+                                Sửa
+                              </button>
+                              {selectedTemplate.sessions.length > 36 && (
                                 <button
                                   type="button"
-                                  onClick={() => handleOpenEditSession(s)}
-                                  className="text-[11px] font-bold text-primary hover:underline cursor-pointer"
-                                >
-                                  Sửa
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveSessionFromTemplate(s.no)}
-                                  className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer ml-1"
+                                  onClick={() => void handleDeleteSession(row.no)}
+                                  className="px-2 py-1 rounded-md text-xs font-bold text-rose-600 hover:bg-rose-50 cursor-pointer"
                                 >
                                   Xóa
                                 </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
               </div>
 
-              {/* Footer Actions */}
-              <div className="p-5 border-t border-zinc-200 bg-zinc-50/80 flex items-center justify-between">
-                <div className="text-xs font-semibold text-zinc-500">
-                  Tổng cộng: <span className="font-bold text-zinc-900">{templateSessions.length} buổi</span> trong khuôn mẫu
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditingTemplate(null)}
-                    className="rounded-2xl border border-zinc-200 bg-white hover:bg-zinc-100 px-4 py-2 text-xs font-bold text-zinc-700 transition-all cursor-pointer"
-                  >
-                    Hủy bỏ
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveTemplate}
-                    disabled={savingTemplate}
-                    className="rounded-2xl bg-primary text-white hover:bg-primary/90 px-6 py-2 text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-[0.98] cursor-pointer disabled:opacity-50"
-                  >
-                    {savingTemplate ? "Đang lưu..." : "Lưu Khuôn Mẫu RLP"}
-                  </button>
-                </div>
+              {/* Footer Popup */}
+              <div className="p-4 border-t border-zinc-200 bg-zinc-50/80 flex items-center justify-between">
+                <span className="text-xs text-zinc-500 font-medium">
+                  Tổng cộng: <strong className="text-zinc-900">{selectedTemplate.sessions?.length || 36} buổi học</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCloseTemplatePopup}
+                  className="px-4 py-2 rounded-xl bg-zinc-900 text-white text-xs font-bold hover:bg-zinc-800 transition-all cursor-pointer shadow-xs"
+                >
+                  Đóng lại
+                </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* ── Modal Con Sửa 1 Buổi Của Khuôn Mẫu ── */}
-        {editingSessionNo != null && sessionDraft && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-2xs animate-in fade-in duration-150">
-            <div className="w-full max-w-xl rounded-3xl bg-white shadow-2xl p-6 border border-zinc-200 space-y-4">
+        {/* ── Modal Chỉnh Sửa 1 Buổi Của Lớp Mẫu ("Chỗ Edit") ── */}
+        {editingSession && sessionDraft && selectedTemplate && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-2xs">
+            <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl border border-zinc-200 p-5 space-y-4">
               <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
-                <h4 className="text-sm font-black text-zinc-900">
-                  Chỉnh Sửa Giáo Án Buổi #{editingSessionNo}
+                <h4 className="text-sm font-bold text-zinc-900">
+                  Chỉnh sửa Buổi {editingSession.no} - {selectedTemplate.title}
                 </h4>
                 <button
                   type="button"
                   onClick={() => {
-                    setEditingSessionNo(null);
+                    setEditingSession(null);
                     setSessionDraft(null);
                   }}
-                  className="text-zinc-400 hover:text-zinc-600 text-xs font-bold cursor-pointer"
+                  className="text-zinc-400 hover:text-zinc-700 text-xs font-bold cursor-pointer"
                 >
                   Đóng
                 </button>
@@ -761,11 +788,11 @@ export default function RlpMauPage() {
 
               <div className="space-y-3 text-xs">
                 <div>
-                  <label className="font-bold text-zinc-700 block mb-1">Kỹ năng *</label>
+                  <label className="font-semibold text-zinc-700 block mb-1">Kỹ năng</label>
                   <select
                     value={sessionDraft.skill}
                     onChange={(e) => setSessionDraft({ ...sessionDraft, skill: e.target.value })}
-                    className="w-full rounded-xl border border-zinc-200 bg-white p-2.5 font-bold outline-none focus:border-primary"
+                    className="w-full rounded-lg border border-zinc-200 bg-white p-2 text-xs font-medium outline-none focus:border-primary cursor-pointer"
                   >
                     {SKILL_OPTIONS.map((sk) => (
                       <option key={sk} value={sk}>
@@ -776,47 +803,58 @@ export default function RlpMauPage() {
                 </div>
 
                 <div>
-                  <label className="font-bold text-zinc-700 block mb-1">Nội dung bài học chuẩn *</label>
+                  <label className="font-semibold text-zinc-700 block mb-1">Nội dung bài học chuẩn</label>
                   <textarea
                     rows={3}
                     value={sessionDraft.contents}
                     onChange={(e) => setSessionDraft({ ...sessionDraft, contents: e.target.value })}
-                    placeholder="Mô tả chi tiết nội dung kiến thức, chủ đề, dạng bài giảng dạy trong buổi này..."
-                    className="w-full rounded-xl border border-zinc-200 bg-white p-2.5 font-medium outline-none focus:border-primary resize-y"
+                    placeholder="Mô tả nội dung bài học theo khung chương trình..."
+                    className="w-full rounded-lg border border-zinc-200 bg-white p-2 text-xs font-medium outline-none focus:border-primary resize-y"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-zinc-700 block mb-1">Ghi chú hướng dẫn cho Giáo viên</label>
+                  <label className="font-semibold text-zinc-700 block mb-1">Ghi chú hướng dẫn cho GV</label>
                   <input
                     type="text"
                     value={sessionDraft.teacherNote || ""}
                     onChange={(e) => setSessionDraft({ ...sessionDraft, teacherNote: e.target.value })}
-                    placeholder="Lưu ý giảng dạy, chỉnh sửa phát âm, nhấn mạnh bẫy, v.v."
-                    className="w-full rounded-xl border border-zinc-200 bg-white p-2.5 font-medium outline-none focus:border-primary"
+                    placeholder="Ghi chú hướng dẫn, dặn dò giáo viên..."
+                    className="w-full rounded-lg border border-zinc-200 bg-white p-2 text-xs font-medium outline-none focus:border-primary"
                   />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   <div>
-                    <label className="font-bold text-zinc-700 block mb-1">Link Slide / Bài giảng (URL)</label>
+                    <label className="font-semibold text-zinc-700 block mb-1">File bài học (URL)</label>
                     <input
                       type="url"
                       value={sessionDraft.lessonFileUrl || ""}
                       onChange={(e) => setSessionDraft({ ...sessionDraft, lessonFileUrl: e.target.value })}
-                      placeholder="https://drive.google.com/..."
-                      className="w-full rounded-xl border border-zinc-200 bg-white p-2.5 font-mono text-[11px] outline-none focus:border-primary"
+                      placeholder="https://drive..."
+                      className="w-full rounded-lg border border-zinc-200 bg-white p-2 text-[11px] outline-none focus:border-primary font-mono"
                     />
                   </div>
 
                   <div>
-                    <label className="font-bold text-zinc-700 block mb-1">Link Bài tập về nhà (Google Docs)</label>
+                    <label className="font-semibold text-zinc-700 block mb-1">Record (URL)</label>
+                    <input
+                      type="url"
+                      value={sessionDraft.recordingUrl || ""}
+                      onChange={(e) => setSessionDraft({ ...sessionDraft, recordingUrl: e.target.value })}
+                      placeholder="https://youtube..."
+                      className="w-full rounded-lg border border-zinc-200 bg-white p-2 text-[11px] outline-none focus:border-primary font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-zinc-700 block mb-1">BTVN Docs (URL)</label>
                     <input
                       type="url"
                       value={sessionDraft.homeworkFileUrl || ""}
                       onChange={(e) => setSessionDraft({ ...sessionDraft, homeworkFileUrl: e.target.value })}
-                      placeholder="https://docs.google.com/..."
-                      className="w-full rounded-xl border border-zinc-200 bg-white p-2.5 font-mono text-[11px] outline-none focus:border-primary"
+                      placeholder="https://docs..."
+                      className="w-full rounded-lg border border-zinc-200 bg-white p-2 text-[11px] outline-none focus:border-primary font-mono"
                     />
                   </div>
                 </div>
@@ -826,126 +864,106 @@ export default function RlpMauPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setEditingSessionNo(null);
+                    setEditingSession(null);
                     setSessionDraft(null);
                   }}
-                  className="rounded-xl border border-zinc-200 px-3 py-1.5 font-bold text-zinc-600 hover:bg-zinc-100 cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-600 hover:bg-zinc-50 text-xs font-bold cursor-pointer"
                 >
                   Hủy
                 </button>
                 <button
                   type="button"
-                  onClick={handleSaveSessionDraft}
-                  className="rounded-xl bg-primary text-white px-4 py-1.5 font-bold hover:bg-primary/90 cursor-pointer shadow-xs"
+                  onClick={handleSaveSession}
+                  disabled={savingSession}
+                  className="px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all cursor-pointer disabled:opacity-50"
                 >
-                  Cập nhật buổi
+                  {savingSession ? "Đang lưu..." : "Lưu thay đổi"}
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* ── Modal Áp Dụng Khuôn Mẫu RLP Sang Lớp Học ── */}
-        {isApplyModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-            <div className="w-full max-w-lg rounded-3xl bg-white shadow-2xl p-6 border border-zinc-200 space-y-5">
+        {/* ── Modal Tạo Lớp Mẫu Mới ── */}
+        {isCreateModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-2xs">
+            <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-zinc-200 p-5 space-y-4">
               <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
-                <h3 className="text-base font-black text-zinc-900">
-                  Áp Dụng Khuôn Mẫu RLP Sang Lớp Học
-                </h3>
+                <h4 className="text-sm font-bold text-zinc-900">Thêm lớp mẫu RLP mới</h4>
                 <button
                   type="button"
-                  onClick={() => setIsApplyModalOpen(false)}
-                  className="text-zinc-400 hover:text-zinc-600 font-bold text-xs cursor-pointer"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="text-zinc-400 hover:text-zinc-700 text-xs font-bold cursor-pointer"
                 >
                   Đóng
                 </button>
               </div>
 
-              <div className="space-y-4 text-xs">
+              <div className="space-y-3 text-xs">
                 <div>
-                  <label className="font-bold text-zinc-700 block mb-1">Khuôn mẫu nguồn:</label>
-                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-primary font-bold">
-                    {templates.find((t) => t.key === applyingTemplateKey)?.title || applyingTemplateKey}
-                  </div>
+                  <label className="font-semibold text-zinc-700 block mb-1">Tên lớp mẫu *</label>
+                  <input
+                    type="text"
+                    value={createTitle}
+                    onChange={(e) => setCreateTitle(e.target.value)}
+                    placeholder="VD: IELTS Core 1 Nâng Cao"
+                    className="w-full rounded-lg border border-zinc-200 bg-white p-2 text-xs font-medium outline-none focus:border-primary"
+                  />
                 </div>
 
                 <div>
-                  <label className="font-bold text-zinc-700 block mb-1">Chọn lớp học áp dụng *</label>
+                  <label className="font-semibold text-zinc-700 block mb-1">Cấp độ *</label>
                   <select
-                    value={applyTargetClassId}
-                    onChange={(e) => {
-                      setApplyTargetClassId(e.target.value);
-                      const found = classes.find((c) => c.id === e.target.value);
-                      if (found) {
-                        setApplyStartDate(found.openDate || found.phaseStartDate || "");
-                      }
-                    }}
-                    className="w-full rounded-xl border border-zinc-200 bg-white p-2.5 font-bold outline-none focus:border-primary cursor-pointer"
+                    value={createLevel}
+                    onChange={(e) => setCreateLevel(e.target.value)}
+                    className="w-full rounded-lg border border-zinc-200 bg-white p-2 text-xs font-medium outline-none focus:border-primary cursor-pointer"
                   >
-                    {classes.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.classCode ? `[${c.classCode}] ` : ""}{c.name} — GV: {c.teacher || "Chưa có"}
+                    {LEVEL_OPTIONS.map((lvl) => (
+                      <option key={lvl} value={lvl}>
+                        {lvl}
                       </option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="font-bold text-zinc-700 block mb-1">Ngày bắt đầu buổi 1 (DD/MM/YYYY hoặc YYYY-MM-DD)</label>
+                  <label className="font-semibold text-zinc-700 block mb-1">Mã định danh (Key) *</label>
                   <input
                     type="text"
-                    value={applyStartDate}
-                    onChange={(e) => setApplyStartDate(e.target.value)}
-                    placeholder="VD: 15/09/2026"
-                    className="w-full rounded-xl border border-zinc-200 bg-white p-2.5 font-bold outline-none focus:border-primary"
+                    value={createKey}
+                    onChange={(e) => setCreateKey(e.target.value)}
+                    placeholder="VD: ielts-core-1-nc"
+                    className="w-full rounded-lg border border-zinc-200 bg-white p-2 text-xs font-mono outline-none focus:border-primary"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-zinc-700 block mb-1">Chế độ tạo lịch:</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setApplyScheduleMode("auto")}
-                      className={`p-2.5 rounded-xl border text-center font-bold cursor-pointer transition-all ${
-                        applyScheduleMode === "auto"
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
-                      }`}
-                    >
-                      Tự động theo thứ học
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setApplyScheduleMode("keep_dates")}
-                      className={`p-2.5 rounded-xl border text-center font-bold cursor-pointer transition-all ${
-                        applyScheduleMode === "keep_dates"
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
-                      }`}
-                    >
-                      Giữ ngày hiện tại của lớp
-                    </button>
-                  </div>
+                  <label className="font-semibold text-zinc-700 block mb-1">Mô tả giáo án</label>
+                  <input
+                    type="text"
+                    value={createDesc}
+                    onChange={(e) => setCreateDesc(e.target.value)}
+                    placeholder="Mô tả mục tiêu đầu ra và đối tượng..."
+                    className="w-full rounded-lg border border-zinc-200 bg-white p-2 text-xs font-medium outline-none focus:border-primary"
+                  />
                 </div>
               </div>
 
               <div className="pt-3 border-t border-zinc-100 flex items-center justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsApplyModalOpen(false)}
-                  className="rounded-2xl border border-zinc-200 px-4 py-2 font-bold text-zinc-600 hover:bg-zinc-100 cursor-pointer"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-600 hover:bg-zinc-50 text-xs font-bold cursor-pointer"
                 >
-                  Hủy bỏ
+                  Hủy
                 </button>
                 <button
                   type="button"
-                  onClick={handleApplyTemplateToClass}
-                  disabled={applying || !applyTargetClassId}
-                  className="rounded-2xl bg-primary text-white hover:bg-primary/90 px-5 py-2 font-black uppercase tracking-wider cursor-pointer shadow-md active:scale-[0.98] disabled:opacity-50"
+                  onClick={handleCreateTemplate}
+                  disabled={creatingTemplate}
+                  className="px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all cursor-pointer disabled:opacity-50"
                 >
-                  {applying ? "Đang áp dụng..." : "Xác Nhận Áp Dụng"}
+                  {creatingTemplate ? "Đang tạo..." : "Tạo lớp mẫu (36 buổi)"}
                 </button>
               </div>
             </div>

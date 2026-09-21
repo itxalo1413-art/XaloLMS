@@ -13,12 +13,13 @@ export interface DefaultRlpTemplateSeed {
 export const DEFAULT_RLP_TEMPLATES: DefaultRlpTemplateSeed[] = [
   {
     key: 'foundation',
-    title: 'RLP Mẫu: Foundation - Nền tảng IELTS',
+    title: 'RLP Mẫu: Foundation - Nền tảng IELTS (36 buổi)',
     level: 'Foundation',
-    description: 'Chương trình xây dựng nền tảng ngữ âm IPA, ngữ pháp cốt lõi, từ vựng theo chủ đề quen thuộc và làm quen format bài thi IELTS cơ bản.',
-    totalSessions: 18,
+    description: 'Chương trình toàn khóa 36 buổi (2 chặng) xây dựng nền tảng ngữ âm IPA, ngữ pháp cốt lõi, từ vựng theo chủ đề quen thuộc và làm quen format bài thi IELTS cơ bản.',
+    totalSessions: 36,
     isDefault: true,
     sessions: [
+      // ── CHẶNG 1 (Buổi 1 - 18) ──
       {
         no: 1,
         skill: 'Speaking',
@@ -158,21 +159,167 @@ export const DEFAULT_RLP_TEMPLATES: DefaultRlpTemplateSeed[] = [
       {
         no: 18,
         skill: 'Mock Test',
-        contents: 'Tổng kết khóa Foundation: Mini Progress Test 4 kỹ năng & Nhận xét đánh giá lộ trình lên Core.',
-        teacherNote: 'Tổng hợp điểm, nhận xét BCB và tư vấn học viên lên lớp kế tiếp.',
+        contents: 'Đánh giá Chặng 1 Foundation: Mini Progress Test 4 kỹ năng & Nhận xét đánh giá tiến độ.',
+        teacherNote: 'Tổng hợp điểm, nhận xét BCB Chặng 1 cho học viên.',
         lessonFileUrl: 'https://drive.google.com/file/d/foundation-s18-slides',
         homeworkFileUrl: 'https://docs.google.com/document/d/foundation-s18-hw',
+      },
+      // ── CHẶNG 2 (Buổi 19 - 36) ──
+      {
+        no: 19,
+        skill: 'Speaking',
+        contents: 'Speaking Part 1: Food & Cooking, Sports & Health. Luyện phát âm phụ âm đuôi (ending sounds) và nối âm (linking sounds).',
+        teacherNote: 'Rèn luyện ngữ điệu lên xuống tự nhiên.',
+        lessonFileUrl: 'https://drive.google.com/file/d/foundation-s19-slides',
+        homeworkFileUrl: 'https://docs.google.com/document/d/foundation-s19-hw',
+      },
+      {
+        no: 20,
+        skill: 'Writing',
+        contents: 'Writing Task 1: Dạng biểu đồ cột (Bar Chart) - Kỹ thuật viết câu Overview và chọn lọc số liệu nổi bật.',
+        teacherNote: 'Hướng dẫn cách so sánh cao nhất, thấp nhất.',
+        lessonFileUrl: 'https://drive.google.com/file/d/foundation-s20-slides',
+        homeworkFileUrl: 'https://docs.google.com/document/d/foundation-s20-hw',
+      },
+      {
+        no: 21,
+        skill: 'Listening',
+        contents: 'Listening Section 2: Multiple Choice đơn (3 lựa chọn). Chiến thuật loại trừ phương án sai.',
+        teacherNote: 'Gạch chân từ khóa câu hỏi trong 30 giây chuẩn bị.',
+        lessonFileUrl: 'https://drive.google.com/file/d/foundation-s21-slides',
+        homeworkFileUrl: 'https://docs.google.com/document/d/foundation-s21-hw',
+      },
+      {
+        no: 22,
+        skill: 'Reading',
+        contents: 'Reading Passage 1 & 2: Matching Headings cơ bản - Kỹ thuật đọc câu chủ đề và phân biệt ý chính vs chi tiết.',
+        teacherNote: 'Chỉ ra các bẫy từ khóa lặp lại bề nổi.',
+        lessonFileUrl: 'https://drive.google.com/file/d/foundation-s22-slides',
+        homeworkFileUrl: 'https://docs.google.com/document/d/foundation-s22-hw',
+      },
+      {
+        no: 23,
+        skill: 'Speaking',
+        contents: 'Speaking Part 2: Chủ đề Describe a place you visited / a holiday trip. Sử dụng từ vựng miêu tả cảnh quan và cảm xúc.',
+        teacherNote: 'Luyện cấu trúc thì quá khứ đơn kết hợp quá khứ tiếp diễn.',
+        lessonFileUrl: 'https://drive.google.com/file/d/foundation-s23-slides',
+        homeworkFileUrl: 'https://docs.google.com/document/d/foundation-s23-hw',
+      },
+      {
+        no: 24,
+        skill: 'Writing',
+        contents: 'Writing Task 1: Line Graph (Biểu đồ đường) - Từ vựng miêu tả tốc độ biến thiên (rapidly, gradually, steadily).',
+        teacherNote: 'Rèn luyện đa dạng hóa cấu trúc câu mô tả biến động.',
+        lessonFileUrl: 'https://drive.google.com/file/d/foundation-s24-slides',
+        homeworkFileUrl: 'https://docs.google.com/document/d/foundation-s24-hw',
+      },
+      {
+        no: 25,
+        skill: 'Grammar & Vocab',
+        contents: 'Mệnh đề danh từ, Câu điều kiện loại 1 & 2 ứng dụng trong IELTS Speaking & Writing.',
+        teacherNote: 'Cho học viên thực hành đặt câu theo ngữ cảnh thực tế.',
+        lessonFileUrl: 'https://drive.google.com/file/d/foundation-s25-slides',
+        homeworkFileUrl: 'https://docs.google.com/document/d/foundation-s25-hw',
+      },
+      {
+        no: 26,
+        skill: 'Listening',
+        contents: 'Listening Section 2 & 3: Matching features & Classification câu hỏi.',
+        teacherNote: 'Luyện phản xạ nghe theo kịp tốc độ nói của người bản xứ.',
+        lessonFileUrl: 'https://drive.google.com/file/d/foundation-s26-slides',
+        homeworkFileUrl: 'https://docs.google.com/document/d/foundation-s26-hw',
+      },
+      {
+        no: 27,
+        skill: 'Reading',
+        contents: 'Reading Passage 2: Information Identification (True/False/Not Given & Summary completion).',
+        teacherNote: 'Phân tích kỹ thuật Paraphrasing giữa câu hỏi và bài đọc.',
+        lessonFileUrl: 'https://drive.google.com/file/d/foundation-s27-slides',
+        homeworkFileUrl: 'https://docs.google.com/document/d/foundation-s27-hw',
+      },
+      {
+        no: 28,
+        skill: 'Writing',
+        contents: 'Writing Task 2: Giới thiệu cấu trúc bài luận 4 đoạn dạng Opinion Essay (Agree / Disagree) - Mở bài & Dàn ý.',
+        teacherNote: 'Hướng dẫn paraphrase đề bài và viết Thesis Statement.',
+        lessonFileUrl: 'https://drive.google.com/file/d/foundation-s28-slides',
+        homeworkFileUrl: 'https://docs.google.com/document/d/foundation-s28-hw',
+      },
+      {
+        no: 29,
+        skill: 'Speaking',
+        contents: 'Speaking Part 2 & 3: Chủ đề Education & Technology. Giới thiệu câu hỏi thảo luận mở rộng Part 3.',
+        teacherNote: 'Luyện cách trả lời 4-5 câu mạch lạc có dẫn chứng.',
+        lessonFileUrl: 'https://drive.google.com/file/d/foundation-s29-slides',
+        homeworkFileUrl: 'https://docs.google.com/document/d/foundation-s29-hw',
+      },
+      {
+        no: 30,
+        skill: 'Writing',
+        contents: 'Writing Task 2: Phát triển Thân bài (Body 1 & Body 2) dạng Opinion Essay theo công thức PEEL.',
+        teacherNote: 'Sửa lỗi lập luận chung chung thiếu ví dụ cụ thể.',
+        lessonFileUrl: 'https://drive.google.com/file/d/foundation-s30-slides',
+        homeworkFileUrl: 'https://docs.google.com/document/d/foundation-s30-hw',
+      },
+      {
+        no: 31,
+        skill: 'Listening',
+        contents: 'Listening Section 3: Hội thoại học thuật giữa 2-3 sinh viên. Xác định thái độ và ý kiến đồng tình/phản đối.',
+        teacherNote: 'Lưu ý bẫy đổi ý kiến ở phút chót.',
+        lessonFileUrl: 'https://drive.google.com/file/d/foundation-s31-slides',
+        homeworkFileUrl: 'https://docs.google.com/document/d/foundation-s31-hw',
+      },
+      {
+        no: 32,
+        skill: 'Reading',
+        contents: 'Reading Passage 2: Multiple choice & Matching information to paragraphs.',
+        teacherNote: 'Rèn luyện kỹ năng định vị thông tin nhanh trong 15 phút.',
+        lessonFileUrl: 'https://drive.google.com/file/d/foundation-s32-slides',
+        homeworkFileUrl: 'https://docs.google.com/document/d/foundation-s32-hw',
+      },
+      {
+        no: 33,
+        skill: 'Writing',
+        contents: 'Writing Task 1: Pie Chart & Table (Biểu đồ tròn & Bảng số liệu). Viết hoàn chỉnh 1 bài Task 1 trong 20 phút.',
+        teacherNote: 'Bấm giờ thực tế và chấm nhận xét tại lớp.',
+        lessonFileUrl: 'https://drive.google.com/file/d/foundation-s33-slides',
+        homeworkFileUrl: 'https://docs.google.com/document/d/foundation-s33-hw',
+      },
+      {
+        no: 34,
+        skill: 'Speaking',
+        contents: 'Speaking Full Test Simulation: Thực hành liên tục Part 1, 2, 3 với giáo viên. Chấm theo 4 tiêu chí chuẩn IELTS.',
+        teacherNote: 'Chỉ ra các điểm cần khắc phục về ngữ pháp và từ vựng.',
+        lessonFileUrl: 'https://drive.google.com/file/d/foundation-s34-slides',
+        homeworkFileUrl: 'https://docs.google.com/document/d/foundation-s34-hw',
+      },
+      {
+        no: 35,
+        skill: 'Reading & Listening',
+        contents: 'Full Mock Test Reading & Listening (Passage 1-2 & Section 1-3). Chữa bài chi tiết.',
+        teacherNote: 'Tổng hợp các lỗi sai phổ biến và rút kinh nghiệm phòng thi.',
+        lessonFileUrl: 'https://drive.google.com/file/d/foundation-s35-slides',
+        homeworkFileUrl: 'https://docs.google.com/document/d/foundation-s35-hw',
+      },
+      {
+        no: 36,
+        skill: 'Mock Test',
+        contents: 'Final Test tốt nghiệp Foundation: Đánh giá toàn diện 4 kỹ năng & Lập Bảng Chẩn Bệnh (BCB) chuyển tiếp lên Pre-IELTS / Core.',
+        teacherNote: 'Tổng kết điểm số, cấp chứng nhận và tư vấn lộ trình chặng tiếp theo.',
+        lessonFileUrl: 'https://drive.google.com/file/d/foundation-s36-slides',
+        homeworkFileUrl: 'https://docs.google.com/document/d/foundation-s36-hw',
       },
     ],
   },
   {
     key: 'pre-ielts',
-    title: 'RLP Mẫu: Pre-IELTS / Pre-Core',
+    title: 'RLP Mẫu: Pre-IELTS / Pre-Core (36 buổi)',
     level: 'Pre-IELTS',
-    description: 'Chương trình tiền đề chuẩn hóa 4 kỹ năng IELTS band 4.0 - 5.0, làm quen toàn diện cấu trúc đề thi IELTS Academic.',
-    totalSessions: 18,
+    description: 'Chương trình tiền đề chuẩn hóa 4 kỹ năng IELTS band 4.0 - 5.5 toàn khóa 36 buổi (2 chặng), làm quen toàn diện cấu trúc đề thi IELTS Academic.',
+    totalSessions: 36,
     isDefault: true,
     sessions: [
+      // ── CHẶNG 1 (Buổi 1 - 18) ──
       {
         no: 1,
         skill: 'Speaking',
@@ -278,19 +425,129 @@ export const DEFAULT_RLP_TEMPLATES: DefaultRlpTemplateSeed[] = [
       {
         no: 18,
         skill: 'Mock Test',
-        contents: 'Final Check & Speaking 1-1 Assessment: Đánh giá hoàn thành Pre-IELTS chuẩn bị bước sang IELTS Core.',
+        contents: 'Đánh giá Chặng 1 Pre-IELTS: Mini Test 4 kỹ năng & Nhận xét đánh giá tiến độ.',
         teacherNote: 'Trả kết quả, phân tích điểm mạnh yếu theo 4 tiêu chí chấm.',
+      },
+      // ── CHẶNG 2 (Buổi 19 - 36) ──
+      {
+        no: 19,
+        skill: 'Writing',
+        contents: 'Writing Task 1: Dạng bài Process (Quy trình tự nhiên & nhân tạo). Sử dụng câu bị động (Passive Voice) và từ nối tuần tự.',
+        teacherNote: 'Hướng dẫn cách chia các bước trong Overview và 2 đoạn Detail.',
+      },
+      {
+        no: 20,
+        skill: 'Speaking',
+        contents: 'Speaking Part 1 & 2: Chủ đề Environment & Nature. Mở rộng từ vựng vĩ mô và cấu trúc câu phức.',
+        teacherNote: 'Luyện ngữ điệu nhấn trọng âm câu để tạo độ biểu cảm.',
+      },
+      {
+        no: 21,
+        skill: 'Reading',
+        contents: 'Reading Passage 2 & 3: Dạng Yes / No / Not Given (Nhận diện quan điểm của tác giả) vs True / False / Not Given.',
+        teacherNote: 'Chỉ rõ sự khác biệt giữa Facts (Sự thật) vs Claims/Views (Ý kiến).',
+      },
+      {
+        no: 22,
+        skill: 'Listening',
+        contents: 'Listening Section 3 & 4: Dạng Multiple Choice học thuật (3-4 lựa chọn) và Summary Completion.',
+        teacherNote: 'Luyện kỹ năng bắt từ đồng nghĩa trong bài nói.',
+      },
+      {
+        no: 23,
+        skill: 'Writing',
+        contents: 'Writing Task 2: Dạng Problem - Solution Essay (Vấn đề & Giải pháp). Lập dàn ý và đối chiếu 1-1 giữa Problem & Solution.',
+        teacherNote: 'Tránh đề xuất giải pháp chung chung không khả thi.',
+      },
+      {
+        no: 24,
+        skill: 'Speaking',
+        contents: 'Speaking Part 2: Describe an item you bought / an important invention. Kỹ thuật triển khai 2 phút trôi chảy.',
+        teacherNote: 'Khắc phục lỗi ngập ngừng khi chuyển ý giữa các bullet points.',
+      },
+      {
+        no: 25,
+        skill: 'Writing',
+        contents: 'Writing Task 1: Dạng Map (Bản đồ biến đổi qua thời gian). Từ vựng chỉ vị trí, phương hướng và sự mở rộng/thay thế.',
+        teacherNote: 'Phân biệt cách viết Map quá khứ - hiện tại vs hiện tại - tương lai.',
+      },
+      {
+        no: 26,
+        skill: 'Listening',
+        contents: 'Listening Section 4: Academic Lecture (Bài giảng độc thoại khoa học). Kỹ thuật note-taking và bắt signpost words.',
+        teacherNote: 'Rèn luyện sự tập trung cao độ 10 câu liên tục.',
+      },
+      {
+        no: 27,
+        skill: 'Reading',
+        contents: 'Reading Passage 3: Chiến thuật làm bài đọc dài, từ vựng khó. Kỹ thuật phân bổ thời gian hợp lý (20 phút).',
+        teacherNote: 'Hướng dẫn thứ tự làm câu hỏi dễ trước khó sau.',
+      },
+      {
+        no: 28,
+        skill: 'Writing',
+        contents: 'Writing Task 2: Dạng Advantages & Disadvantages (Do advantages outweigh disadvantages?).',
+        teacherNote: 'Luyện viết câu kết luận (Conclusion) súc tích, khẳng định lại quan điểm.',
+      },
+      {
+        no: 29,
+        skill: 'Speaking',
+        contents: 'Speaking Part 3: Kỹ thuật phản biện, so sánh các thế hệ và dự đoán tương lai 10-20 năm tới.',
+        teacherNote: 'Khuyến khích học viên sử dụng các trạng từ chỉ xác suất (likely, probably, inevitably).',
+      },
+      {
+        no: 30,
+        skill: 'Writing',
+        contents: 'Writing Task 2: Dạng Two-part Question / Direct Questions. Xử lý trọn vẹn cả 2 câu hỏi trong đề.',
+        teacherNote: 'Đảm bảo tỷ trọng phân tích giữa 2 câu hỏi cân bằng.',
+      },
+      {
+        no: 31,
+        skill: 'Listening',
+        contents: 'Listening Full Test (40 câu - 30 phút). Chiến thuật kiểm tra chính tả và chuyển đáp án trong 10 phút cuối.',
+        teacherNote: 'Lưu ý các lỗi số nhiều - số ít và mạo từ a/an.',
+      },
+      {
+        no: 32,
+        skill: 'Reading',
+        contents: 'Reading Full Test (40 câu - 60 phút). Bấm giờ nghiêm ngặt, rèn luyện áp lực phòng thi.',
+        teacherNote: 'Chữa bài phân tích bẫy chi tiết.',
+      },
+      {
+        no: 33,
+        skill: 'Writing',
+        contents: 'Writing Mock Round: Viết hoàn chỉnh Task 1 (20p) + Task 2 (40p) trong đúng 60 phút.',
+        teacherNote: 'Chấm điểm và nhận xét chi tiết theo 4 tiêu chí rubric.',
+      },
+      {
+        no: 34,
+        skill: 'Speaking',
+        contents: 'Speaking Mock Interview: Thi thử 1-1 trọn vẹn 3 phần (15 phút) có ghi âm và phân tích lỗi sai phát âm.',
+        teacherNote: 'Đánh giá band điểm chi tiết từng tiêu chí FC, LR, GRA, PR.',
+      },
+      {
+        no: 35,
+        skill: 'Revision & Feedback',
+        contents: 'Tổng kết khoá học Pre-IELTS: Tổng hợp lỗi sai phổ biến 4 kỹ năng & Chiến lược chuẩn bị thi Core.',
+        teacherNote: 'Cá nhân hóa phác đồ cải thiện cho từng học viên.',
+      },
+      {
+        no: 36,
+        skill: 'Mock Test',
+        contents: 'Final Test tốt nghiệp Pre-IELTS: Báo cáo Bảng Chẩn Bệnh (BCB) toàn diện, đánh giá band và chuyển cấp sang IELTS Core.',
+        teacherNote: 'Tổng hợp điểm, bàn giao hồ sơ học viên cho bộ phận Học vụ.',
       },
     ],
   },
   {
-    key: 'ielts-core-1',
-    title: 'RLP Mẫu: IELTS Core 1 (Chặng 1)',
-    level: 'Core 1',
-    description: 'Chương trình IELTS Core 1 tập trung chuyên sâu Speaking Part 1-2, Writing Task 1 toàn diện, Reading Passage 1-2 và Listening Section 1-3 (Mục tiêu 5.5 - 6.5).',
-    totalSessions: 18,
+    key: 'ielts-core',
+    title: 'RLP Mẫu: IELTS Core Chuẩn (36 buổi)',
+    level: 'Core',
+    description: 'Chương trình IELTS Core toàn diện 36 buổi (Chặng 1: Core 1 mục tiêu 5.5 - 6.5, Chặng 2: Core 2 mục tiêu 6.5 - 7.5+) chuẩn hóa đầy đủ 4 kỹ năng.',
+    totalSessions: 36,
     isDefault: true,
     sessions: [
+      // ── CHẶNG 1: CORE 1 (Buổi 1 - 18) ──
       {
         no: 1,
         skill: 'Speaking',
@@ -397,139 +654,178 @@ export const DEFAULT_RLP_TEMPLATES: DefaultRlpTemplateSeed[] = [
         no: 18,
         skill: 'Mock Test',
         contents: 'Đánh giá Chặng 1 Core 1: Mini Test Reading & Listening + Speaking Part 1-2 assessment.',
-        teacherNote: 'Báo cáo điểm số và kế hoạch học tiếp Chặng 2.',
+        teacherNote: 'Báo cáo điểm số và kế hoạch học tiếp Chặng 2 (Core 2).',
       },
-    ],
-  },
-  {
-    key: 'ielts-core-2',
-    title: 'RLP Mẫu: IELTS Core 2 (Chặng 2)',
-    level: 'Core 2',
-    description: 'Chương trình IELTS Core 2 tập trung chuyên sâu Writing Task 2, Speaking Part 3 học thuật, Reading Passage 3 và Listening Section 3-4 (Mục tiêu 6.5 - 7.5).',
-    totalSessions: 18,
-    isDefault: true,
-    sessions: [
+      // ── CHẶNG 2: CORE 2 (Buổi 19 - 36) ──
       {
-        no: 1,
+        no: 19,
         skill: 'Writing',
         contents: 'Writing Task 2: Cấu trúc phân tích đề bài, Brainstorming ý tưởng cho chủ đề Education & Society. Opinion Essay.',
         teacherNote: 'Học cách xây dựng lập luận chặt chẽ không bị lạc đề.',
       },
       {
-        no: 2,
+        no: 20,
         skill: 'Speaking',
         contents: 'Speaking Part 3: Kỹ thuật phản biện và đưa ra dẫn chứng thực tế. Chủ đề Education & Technology.',
         teacherNote: 'Tập trung phát triển câu trả lời từ 4-6 câu có chiều sâu.',
       },
       {
-        no: 3,
+        no: 21,
         skill: 'Reading',
         contents: 'Reading Passage 3: Chiến thuật xử lý bài đọc học thuật dài, từ vựng trừu tượng và câu văn phức tạp.',
         teacherNote: 'Cách định vị thông tin khi gặp nhiều thuật ngữ chuyên ngành.',
       },
       {
-        no: 4,
+        no: 22,
         skill: 'Listening',
         contents: 'Listening Section 4: Bài giảng học thuật độc thoại (Academic Monologue) - Kỹ thuật ghi chép nhanh và bắt keyword.',
         teacherNote: 'Luyện nghe các từ báo hiệu chuyển ý (signposting language).',
       },
       {
-        no: 5,
+        no: 23,
         skill: 'Writing',
         contents: 'Writing Task 2: Dạng bài Discussion Essay (Discuss both views and give your opinion). Viết thân bài đối chiếu.',
         teacherNote: 'Tránh rơi vào bẫy thiên lệch quan điểm khi chưa phân tích xong view kia.',
       },
       {
-        no: 6,
+        no: 24,
         skill: 'Speaking',
         contents: 'Speaking Part 3: Chủ đề Environment, Global warming & Government policies. Cụm từ vựng band 7.0+.',
         teacherNote: 'Rèn luyện khả năng nói bao quát ở tầm vĩ mô (society, government, international level).',
       },
       {
-        no: 7,
+        no: 25,
         skill: 'Writing',
         contents: 'Writing Task 2: Dạng Problem - Solution & Causes - Effects. Chủ đề Environment & Urbanization.',
         teacherNote: 'Khớp nối từng nguyên nhân với đúng giải pháp tương ứng.',
       },
       {
-        no: 8,
+        no: 26,
         skill: 'Reading',
         contents: 'Reading Passage 3: Dạng Multiple choice 4 lựa chọn và Summary completion không cho sẵn từ.',
         teacherNote: 'Sửa lỗi chọn đáp án theo cảm tính không có trích dẫn từ text.',
       },
       {
-        no: 9,
+        no: 27,
         skill: 'Listening',
         contents: 'Listening Section 3 & 4: Dạng Multiple Choice nâng cao (nghe hiểu ý người nói và hàm ý gián tiếp).',
         teacherNote: 'Chỉ ra các bẫy phủ định ngầm (hardly, rather than, instead of).',
       },
       {
-        no: 10,
+        no: 28,
         skill: 'Writing',
         contents: 'Writing Task 2: Dạng Two-part question / Direct questions. Chủ đề Media, Advertising & Consumerism.',
         teacherNote: 'Đảm bảo trả lời cân đối cả 2 câu hỏi trong đề bài.',
       },
       {
-        no: 11,
+        no: 29,
         skill: 'Speaking',
         contents: 'Speaking Part 2 & 3 chuyên sâu: Chủ đề Art, Culture & Traditions. Kỹ thuật dẫn dắt ví dụ sinh động.',
         teacherNote: 'Mô phỏng áp lực thi Speaking liên tục 15 phút.',
       },
       {
-        no: 12,
+        no: 30,
         skill: 'Writing',
         contents: 'Writing Task 2: Nâng cấp tiêu chí Lexical Resource & Cohesion: Sử dụng từ ngữ học thuật Academic Collocations & Complex Linkers.',
         teacherNote: 'Chấm bài sửa lỗi Word Choice và Collocation sai ngữ cảnh.',
       },
       {
-        no: 13,
+        no: 31,
         skill: 'Reading',
         contents: 'Reading Passage 3: Yes / No / Not Given & Author claims / attitudes.',
         teacherNote: 'Phân tích thái độ tác giả: skeptical, objective, supportive, neutral.',
       },
       {
-        no: 14,
+        no: 32,
         skill: 'Listening',
         contents: 'Listening Section 3-4: Luyện đề Cambridge IELTS mới nhất tốc độ 1.1x.',
         teacherNote: 'Rèn luyện khả năng tập trung cao độ 30 phút liên tục.',
       },
       {
-        no: 15,
+        no: 33,
         skill: 'Writing',
         contents: 'Writing Task 1 & Task 2 Mock Round: Viết hoàn chỉnh 1 bài Task 1 (20p) + 1 bài Task 2 (40p) đúng 60 phút.',
         teacherNote: 'Rèn luyện kỹ năng phân bổ thời gian thực tế trong phòng thi.',
       },
       {
-        no: 16,
+        no: 34,
         skill: 'Speaking',
         contents: 'Speaking Full Test Simulation: Kiểm tra hoàn chỉnh Part 1, Part 2, Part 3 với Examiner feedback.',
         teacherNote: 'Đánh giá chi tiết bảng điểm 4 tiêu chí cho từng học viên.',
       },
       {
-        no: 17,
+        no: 35,
         skill: 'Reading & Listening',
         contents: 'Full Reading & Listening Test (60 phút Reading + 30 phút Listening) chữa chi tiết các bẫy điểm cao.',
         teacherNote: 'Tổng kết lỗi sai và chiến thuật phòng thi.',
       },
       {
-        no: 18,
+        no: 36,
         skill: 'Mock Test',
-        contents: 'Tổng kết hoàn thành IELTS Core 2: Báo cáo Bảng Chẩn Bệnh (BCB), đánh giá band dự kiến và tư vấn thi thật / luyện đề.',
+        contents: 'Tổng kết hoàn thành IELTS Core: Báo cáo Bảng Chẩn Bệnh (BCB), đánh giá band dự kiến và tư vấn thi thật / luyện đề.',
         teacherNote: 'Bàn giao hồ sơ học viên cho bộ phận Khảo thí / Học vụ.',
       },
     ],
   },
   {
-    key: 'ielts-intensive',
-    title: 'RLP Mẫu: IELTS Intensive (Luyện đề & Bứt phá band)',
-    level: 'Intensive',
-    description: 'Chương trình luyện đề cấp tốc chuyên sâu giải đề thi thật, vá lỗ hổng kỹ năng, tối ưu chiến thuật phòng thi và bứt phá điểm số mục tiêu 7.0+.',
-    totalSessions: 24,
+    key: 'ielts-core-1',
+    title: 'RLP Mẫu: IELTS Core 1 (36 buổi)',
+    level: 'Core 1',
+    description: 'Chương trình IELTS Core 1 toàn khóa 36 buổi tập trung chuyên sâu Speaking Part 1-2, Writing Task 1 toàn diện, Reading Passage 1-2 và Listening Section 1-3 (Mục tiêu 5.5 - 6.5).',
+    totalSessions: 36,
     isDefault: true,
-    sessions: Array.from({ length: 24 }, (_, i) => {
+    sessions: Array.from({ length: 36 }, (_, i) => {
+      const sessionNo = i + 1;
+      const isCh1 = sessionNo <= 18;
+      const skills = ['Speaking', 'Reading', 'Writing', 'Listening'];
+      const sk = sessionNo === 18 || sessionNo === 36 ? 'Mock Test' : skills[(sessionNo - 1) % skills.length];
+      return {
+        no: sessionNo,
+        skill: sk,
+        contents: isCh1
+          ? `Core 1 (Chặng 1) - Buổi ${sessionNo}: Kiến thức cốt lõi kỹ năng ${sk} chuẩn Band 5.5 - 6.0.`
+          : `Core 1 (Chặng 2) - Buổi ${sessionNo}: Luyện tập nâng cao & Chiến thuật phòng thi kỹ năng ${sk} mục tiêu Band 6.5.`,
+        teacherNote: 'Theo dõi sát sao tiến độ và chỉnh sửa lỗi sai kịp thời.',
+        lessonFileUrl: `https://drive.google.com/file/d/core1-s${sessionNo}`,
+        homeworkFileUrl: `https://docs.google.com/document/d/core1-s${sessionNo}-hw`,
+      };
+    }),
+  },
+  {
+    key: 'ielts-core-2',
+    title: 'RLP Mẫu: IELTS Core 2 (36 buổi)',
+    level: 'Core 2',
+    description: 'Chương trình IELTS Core 2 toàn khóa 36 buổi tập trung chuyên sâu Writing Task 2, Speaking Part 3 học thuật, Reading Passage 3 và Listening Section 3-4 (Mục tiêu 6.5 - 7.5+).',
+    totalSessions: 36,
+    isDefault: true,
+    sessions: Array.from({ length: 36 }, (_, i) => {
+      const sessionNo = i + 1;
+      const isCh1 = sessionNo <= 18;
+      const skills = ['Writing', 'Speaking', 'Reading', 'Listening'];
+      const sk = sessionNo === 18 || sessionNo === 36 ? 'Mock Test' : skills[(sessionNo - 1) % skills.length];
+      return {
+        no: sessionNo,
+        skill: sk,
+        contents: isCh1
+          ? `Core 2 (Chặng 1) - Buổi ${sessionNo}: Chuyên sâu kỹ năng ${sk} học thuật Band 6.5 - 7.0.`
+          : `Core 2 (Chặng 2) - Buổi ${sessionNo}: Thực chiến giải đề thi thật kỹ năng ${sk} bứt phá Band 7.5+.`,
+        teacherNote: 'Chấm chữa kỹ lưỡng theo 4 tiêu chí rubric Cambridge.',
+        lessonFileUrl: `https://drive.google.com/file/d/core2-s${sessionNo}`,
+        homeworkFileUrl: `https://docs.google.com/document/d/core2-s${sessionNo}-hw`,
+      };
+    }),
+  },
+  {
+    key: 'ielts-intensive',
+    title: 'RLP Mẫu: IELTS Intensive (36 buổi)',
+    level: 'Intensive',
+    description: 'Chương trình luyện đề cấp tốc chuyên sâu 36 buổi giải đề thi thật, vá lỗ hổng kỹ năng, tối ưu chiến thuật phòng thi và bứt phá điểm số mục tiêu 7.0+.',
+    totalSessions: 36,
+    isDefault: true,
+    sessions: Array.from({ length: 36 }, (_, i) => {
       const sessionNo = i + 1;
       const skills = ['Writing', 'Speaking', 'Reading', 'Listening'];
-      const currentSkill = skills[(sessionNo - 1) % skills.length];
+      const currentSkill = sessionNo % 6 === 0 ? 'Mock Test' : skills[(sessionNo - 1) % skills.length];
       return {
         no: sessionNo,
         skill: currentSkill,
@@ -542,12 +838,12 @@ export const DEFAULT_RLP_TEMPLATES: DefaultRlpTemplateSeed[] = [
   },
   {
     key: 'luyen-de',
-    title: 'RLP Mẫu: Lớp Luyện Đề (Practice Class)',
+    title: 'RLP Mẫu: Lớp Luyện Đề (36 buổi)',
     level: 'Luyện đề',
-    description: 'Khung giáo trình lớp luyện đề tuần định kỳ, giải đề thi thử 4 kỹ năng có trợ giảng và giáo viên chấm chữa trực tiếp.',
-    totalSessions: 16,
+    description: 'Khung giáo trình lớp luyện đề tuần định kỳ 36 buổi, giải đề thi thử 4 kỹ năng có trợ giảng và giáo viên chấm chữa trực tiếp.',
+    totalSessions: 36,
     isDefault: true,
-    sessions: Array.from({ length: 16 }, (_, i) => {
+    sessions: Array.from({ length: 36 }, (_, i) => {
       const sessionNo = i + 1;
       const isMockRound = sessionNo % 4 === 0;
       return {
@@ -564,16 +860,16 @@ export const DEFAULT_RLP_TEMPLATES: DefaultRlpTemplateSeed[] = [
   },
   {
     key: 'lop-1-1',
-    title: 'RLP Mẫu: Lớp 1:1 (Kèm cá nhân)',
+    title: 'RLP Mẫu: Lớp 1:1 (36 buổi)',
     level: '1:1',
-    description: 'Khung giáo trình cá nhân hóa 1 kèm 1 theo bảng chẩn bệnh, tập trung giải quyết triệt để điểm yếu của từng học viên.',
-    totalSessions: 12,
+    description: 'Khung giáo trình cá nhân hóa 1 kèm 1 theo bảng chẩn bệnh 36 buổi, tập trung giải quyết triệt để điểm yếu của từng học viên.',
+    totalSessions: 36,
     isDefault: true,
-    sessions: Array.from({ length: 12 }, (_, i) => {
+    sessions: Array.from({ length: 36 }, (_, i) => {
       const sessionNo = i + 1;
       return {
         no: sessionNo,
-        skill: sessionNo % 2 === 1 ? 'Writing & Reading' : 'Speaking & Listening',
+        skill: sessionNo % 4 === 0 ? 'Mock Test' : sessionNo % 2 === 1 ? 'Writing & Reading' : 'Speaking & Listening',
         contents: `Buổi 1:1 số ${sessionNo}: Kèm cá nhân chuyên sâu theo mục tiêu chẩn bệnh. Sửa trực tiếp bài tập về nhà và huấn luyện phản xạ thực chiến.`,
         teacherNote: 'Theo dõi sát sao mức độ tiến bộ so với mục tiêu cam kết đầu vào.',
         lessonFileUrl: `https://drive.google.com/file/d/1-1-s${sessionNo}`,

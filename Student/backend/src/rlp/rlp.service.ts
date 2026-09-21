@@ -66,7 +66,16 @@ export class RlpService implements OnModuleInit {
       for (const t of DEFAULT_RLP_TEMPLATES) {
         await this.templateModel.updateOne(
           { key: t.key },
-          { $setOnInsert: t },
+          {
+            $set: {
+              title: t.title,
+              level: t.level,
+              description: t.description,
+              totalSessions: t.totalSessions,
+              sessions: t.sessions,
+              isDefault: true,
+            },
+          },
           { upsert: true },
         );
       }
