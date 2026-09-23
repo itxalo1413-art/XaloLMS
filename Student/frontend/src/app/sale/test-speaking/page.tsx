@@ -136,7 +136,6 @@ function SaleTestSpeakingPage() {
   }>({ isOpen: false, type: "speaking" });
 
   const [gradingBooking, setGradingBooking] = useState<EntranceTestBooking | null>(null);
-  const [scoreSpeakingDraft, setScoreSpeakingDraft] = useState("");
   const [feedbackDraft, setFeedbackDraft] = useState("");
   const [savingGrade, setSavingGrade] = useState(false);
 
@@ -310,25 +309,22 @@ function SaleTestSpeakingPage() {
     }
   };
 
-  const openGradingModal = (b: EntranceTestBooking) => {
+  const openNoteModal = (b: EntranceTestBooking) => {
     setGradingBooking(b);
-    setScoreSpeakingDraft(b.scoreSpeaking || "");
     setFeedbackDraft(b.feedback || "");
   };
 
-  const handleSaveGrade = async () => {
+  const handleSaveNote = async () => {
     if (!gradingBooking) return;
     setSavingGrade(true);
     try {
       await updateEntranceTestBooking(gradingBooking.id, {
-        scoreSpeaking: scoreSpeakingDraft.trim() || undefined,
         feedback: feedbackDraft.trim() || undefined,
-        status: scoreSpeakingDraft.trim() ? "graded" : gradingBooking.status,
       });
       setGradingBooking(null);
       void loadData();
     } catch (err: any) {
-      alert("Lưu điểm thất bại: " + err.message);
+      alert("Lưu ghi chú thất bại: " + err.message);
     } finally {
       setSavingGrade(false);
     }
@@ -798,7 +794,7 @@ function SaleTestSpeakingPage() {
                         )}
                       </td>
 
-                      {/* Scores */}
+                      {/* Scores (read-only — Grader nhập) */}
                       <td className="px-4 py-3.5 text-center">
                         {activeTab === "speaking" ? (
                           b.scoreSpeaking ? (
@@ -807,13 +803,7 @@ function SaleTestSpeakingPage() {
                               <span className="text-sm">{b.scoreSpeaking}</span>
                             </div>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => openGradingModal(b)}
-                              className="text-[10px] font-bold text-primary hover:underline cursor-pointer bg-primary/5 hover:bg-primary/10 border border-primary/20 px-2 py-1 rounded-lg transition-all"
-                            >
-                              + Nhập điểm
-                            </button>
+                            <span className="text-[10px] font-bold text-zinc-400">Chờ Grader</span>
                           )
                         ) : (
                           b.scoreWriting ? (
@@ -822,13 +812,7 @@ function SaleTestSpeakingPage() {
                               <span className="text-sm">{b.scoreWriting}</span>
                             </div>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => openGradingModal(b)}
-                              className="text-[10px] font-bold text-sky-700 hover:underline cursor-pointer bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2 py-1 rounded-lg transition-all"
-                            >
-                              + Nhập điểm
-                            </button>
+                            <span className="text-[10px] font-bold text-zinc-400">Chờ Grader</span>
                           )
                         )}
                       </td>
@@ -845,9 +829,9 @@ function SaleTestSpeakingPage() {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
-                            onClick={() => openGradingModal(b)}
+                            onClick={() => openNoteModal(b)}
                             className="rounded-lg p-1.5 text-zinc-400 hover:text-primary hover:bg-zinc-100 transition-colors cursor-pointer"
-                            title="Cập nhật điểm & nhận xét"
+                            title="Ghi chú Sale"
                           >
                             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -888,11 +872,10 @@ function SaleTestSpeakingPage() {
           <div className="relative w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
               <div>
-                <h3 className="text-sm font-black text-zinc-900">
-                  {activeTab === "speaking" ? "Nhập Điểm Speaking Entrance" : "Nhập Điểm Writing Entrance"}
-                </h3>
+                <h3 className="text-sm font-black text-zinc-900">Ghi chú Entrance</h3>
                 <p className="text-xs text-zinc-500 mt-0.5 font-medium">
                   Ứng viên: <span className="text-primary font-bold">{gradingBooking.candidateName}</span>
+                  {" · "}Điểm do Grader nhập
                 </p>
               </div>
               <button
@@ -906,23 +889,12 @@ function SaleTestSpeakingPage() {
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-bold text-zinc-700 mb-1">Điểm Speaking (Band)</label>
-                <input
-                  type="text"
-                  value={scoreSpeakingDraft}
-                  onChange={(e) => setScoreSpeakingDraft(e.target.value)}
-                  placeholder="VD: 6.5"
-                  className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-sm font-bold text-zinc-900 outline-none focus:border-primary focus:bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-zinc-700 mb-1">Nhận xét / Feedback</label>
+                <label className="block text-xs font-bold text-zinc-700 mb-1">Ghi chú Sale</label>
                 <textarea
                   rows={3}
                   value={feedbackDraft}
                   onChange={(e) => setFeedbackDraft(e.target.value)}
-                  placeholder="Ghi chú nhận xét từ Grader..."
+                  placeholder="Ghi chú nội bộ..."
                   className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-xs text-zinc-900 outline-none focus:border-primary focus:bg-white resize-none font-medium"
                 />
               </div>
@@ -939,12 +911,10 @@ function SaleTestSpeakingPage() {
               <button
                 type="button"
                 disabled={savingGrade}
-                onClick={handleSaveGrade}
-                className={`rounded-xl px-5 py-2 text-xs font-bold text-white transition-all disabled:opacity-50 shadow-sm cursor-pointer ${
-                  activeTab === "speaking" ? "bg-primary hover:bg-[#6a5acd]" : "bg-sky-600 hover:bg-sky-700"
-                }`}
+                onClick={handleSaveNote}
+                className="rounded-xl px-5 py-2 text-xs font-bold text-white transition-all disabled:opacity-50 shadow-sm cursor-pointer bg-primary hover:bg-[#6a5acd]"
               >
-                {savingGrade ? "Đang lưu..." : "Lưu Điểm"}
+                {savingGrade ? "Đang lưu..." : "Lưu ghi chú"}
               </button>
             </div>
           </div>

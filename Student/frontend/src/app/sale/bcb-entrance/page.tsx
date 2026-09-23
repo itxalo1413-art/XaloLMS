@@ -186,6 +186,7 @@ export default function SaleBcbEntrancePage() {
           key={active.id}
           record={entranceBookingAsBcbRecord(active)}
           title="Bảng Chẩn Bệnh (BCB) Entrance Test"
+          lockWsScores
           onClose={() => setActive(null)}
           onSaved={() => {
             setActive(null);
@@ -193,8 +194,6 @@ export default function SaleBcbEntrancePage() {
           }}
           persistOverride={async (id, patch) => {
             await updateEntranceTestBooking(id, {
-              scoreSpeaking: patch.scoreSpeaking,
-              scoreWriting: patch.scoreWriting,
               status: patch.status === "graded" ? "graded" : undefined,
               bcbData: patch.bcbData,
             });

@@ -60,6 +60,7 @@ export default function RlpMauPage() {
   const [createTitle, setCreateTitle] = useState("");
   const [createKey, setCreateKey] = useState("");
   const [createLevel, setCreateLevel] = useState("Foundation");
+  const [createDuration, setCreateDuration] = useState<number>(36);
   const [createDesc, setCreateDesc] = useState("");
   const [creatingTemplate, setCreatingTemplate] = useState(false);
 
@@ -262,13 +263,21 @@ export default function RlpMauPage() {
     if (!createTitle.trim() || !createKey.trim()) return;
     setCreatingTemplate(true);
     try {
-      const standard36: RlpTemplateSessionItem[] = Array.from({ length: 36 }, (_, idx) => {
+      const sessionCount = createDuration === 18 ? 18 : 36;
+      const standardSessions: RlpTemplateSessionItem[] = Array.from({ length: sessionCount }, (_, idx) => {
         const no = idx + 1;
         const skills = ["Speaking", "Reading", "Writing", "Listening"];
+        const isTest = sessionCount === 18 ? no === 18 : (no === 18 || no === 36);
         return {
           no,
-          skill: no === 18 || no === 36 ? "Mock Test" : skills[idx % 4],
-          contents: "",
+          skill: isTest ? "Mock Test" : skills[idx % 4],
+          contents: isTest
+            ? sessionCount === 18
+              ? "Final Test kết thúc khóa"
+              : no === 18
+              ? "Midterm Test kết thúc Chặng 1"
+              : "Final Test kết thúc Chặng 2"
+            : "",
           teacherNote: "",
           lessonFileUrl: "",
           homeworkFileUrl: "",
@@ -281,14 +290,14 @@ export default function RlpMauPage() {
         title: createTitle.trim(),
         level: createLevel,
         description: createDesc.trim(),
-        totalSessions: 36,
-        sessions: standard36,
+        totalSessions: sessionCount,
+        sessions: standardSessions,
         isDefault: false,
       });
 
       setTemplates((prev) => [...prev, newTpl]);
       setIsCreateModalOpen(false);
-      showToast(`Đã tạo lớp mẫu mới: "${newTpl.title}" (36 buổi).`);
+      showToast(`Đã tạo lớp mẫu mới: "${newTpl.title}" (${sessionCount} buổi).`);
       handleOpenTemplatePopup(newTpl);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Tạo lớp mẫu thất bại.");
@@ -324,8 +333,8 @@ export default function RlpMauPage() {
     <AcaLayout>
       <div className="space-y-5 pb-20 max-w-7xl mx-auto">
         <AcaTopbar
-          title="Mẫu RLP (36 Buổi)"
-          subtitle="Danh sách các lớp mẫu RLP. Bấm vào một lớp để mở popup xem và chỉnh sửa chi tiết 36 buổi giáo án."
+          title="Quản Lý RLP Mẫu"
+          subtitle="Danh sách các lớp mẫu RLP giáo trình. Bấm vào một lớp để mở popup xem và chỉnh sửa chi tiết các buổi học."
         />
 
         {/* Alerts / Toasts */}
@@ -400,6 +409,7 @@ export default function RlpMauPage() {
                   setCreateTitle("");
                   setCreateKey(`mau-${Date.now().toString(36)}`);
                   setCreateLevel("Foundation");
+                  setCreateDuration(36);
                   setCreateDesc("");
                   setIsCreateModalOpen(true);
                 }}
@@ -435,7 +445,11 @@ export default function RlpMauPage() {
                 </thead>
                 <tbody className="divide-y divide-zinc-100 font-medium text-xs text-zinc-700">
                   {filteredTemplates.map((tpl, index) => {
-                    const cleanTitle = tpl.title.replace("RLP Mẫu: ", "").replace(" (36 buổi)", "");
+                    const cleanTitle = tpl.title
+                      .replace("RLP Mẫu: ", "")
+                      .replace(" (36 buổi)", "")
+                      .replace(" (2 tháng)", "");
+                    const isTwoMonths = tpl.totalSessions <= 18 || tpl.key === "foundation" || tpl.key === "pre-ielts";
                     return (
                       <tr
                         key={tpl.key}
@@ -456,14 +470,20 @@ export default function RlpMauPage() {
 
                         {/* Tên lớp mẫu */}
                         <td className="px-5 py-3.5 text-zinc-950 font-bold group-hover:text-primary transition-colors text-[13px]">
-                          {cleanTitle}
+                          {tpl.key === "pre-ielts" ? "PreCore" : cleanTitle}
                         </td>
 
                         {/* Thời lượng */}
-                        <td className="px-5 py-3.5 text-center">
-                          <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-zinc-100 text-zinc-800">
-                            {tpl.totalSessions || tpl.sessions?.length || 36} buổi
-                          </span>
+                        <td className="px-5 py-3.5 text-center whitespace-nowrap">
+                          {isTwoMonths ? (
+                            <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 border border-amber-200 text-amber-800">
+                              2 tháng ({tpl.totalSessions || tpl.sessions?.length || 18} buổi)
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-zinc-100 border border-zinc-200 text-zinc-800">
+                              {tpl.totalSessions || tpl.sessions?.length || 36} buổi (2 chặng)
+                            </span>
+                          )}
                         </td>
 
                         {/* Mô tả giáo án */}
@@ -503,7 +523,7 @@ export default function RlpMauPage() {
         </div>
 
         {/* ════════════════════════════════════════════════════════════
-            POPUP BẢNG RLP CỦA LỚP MẪU ĐƯỢC CHỌN (36 BUỔI)
+            POPUP BẢNG RLP CỦA LỚP MẪU ĐƯỢC CHỌN
             ════════════════════════════════════════════════════════════ */}
         {selectedTemplate && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/50 backdrop-blur-2xs animate-in fade-in duration-150">
@@ -516,10 +536,17 @@ export default function RlpMauPage() {
                       {selectedTemplate.key}
                     </span>
                     <h3 className="text-base font-bold text-zinc-950">
-                      {selectedTemplate.title.replace("RLP Mẫu: ", "").replace(" (36 buổi)", "")}
+                      {selectedTemplate.key === "pre-ielts"
+                        ? "PreCore"
+                        : selectedTemplate.title
+                            .replace("RLP Mẫu: ", "")
+                            .replace(" (36 buổi)", "")
+                            .replace(" (2 tháng)", "")}
                     </h3>
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-zinc-100 text-zinc-700">
-                      {selectedTemplate.sessions?.length || 36} buổi chuẩn
+                    <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-zinc-100 text-zinc-700">
+                      {selectedTemplate.totalSessions <= 18
+                        ? `Khóa 2 tháng (${selectedTemplate.sessions?.length || 18} buổi)`
+                        : `${selectedTemplate.sessions?.length || 36} buổi (2 chặng)`}
                     </span>
                   </div>
                   {selectedTemplate.description && (
@@ -545,35 +572,41 @@ export default function RlpMauPage() {
                 {/* Thanh Chặng, Kỹ Năng & Thêm Buổi */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex items-center gap-1 rounded-xl bg-zinc-100 p-1">
-                      <button
-                        type="button"
-                        onClick={() => setPopupPhaseFilter("all")}
-                        className={`rounded-lg px-3 py-1 text-[11px] font-bold cursor-pointer transition-all ${
-                          popupPhaseFilter === "all" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-500 hover:text-zinc-900"
-                        }`}
-                      >
-                        Tất cả ({selectedTemplate.sessions?.length || 36} buổi)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPopupPhaseFilter("phase1")}
-                        className={`rounded-lg px-3 py-1 text-[11px] font-bold cursor-pointer transition-all ${
-                          popupPhaseFilter === "phase1" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-500 hover:text-zinc-900"
-                        }`}
-                      >
-                        Chặng 1 (1 - 18)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPopupPhaseFilter("phase2")}
-                        className={`rounded-lg px-3 py-1 text-[11px] font-bold cursor-pointer transition-all ${
-                          popupPhaseFilter === "phase2" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-500 hover:text-zinc-900"
-                        }`}
-                      >
-                        Chặng 2 (19 - 36)
-                      </button>
-                    </div>
+                    {(selectedTemplate.totalSessions > 18 || (selectedTemplate.sessions?.length || 0) > 18) ? (
+                      <div className="flex items-center gap-1 rounded-xl bg-zinc-100 p-1">
+                        <button
+                          type="button"
+                          onClick={() => setPopupPhaseFilter("all")}
+                          className={`rounded-lg px-3 py-1 text-[11px] font-bold cursor-pointer transition-all ${
+                            popupPhaseFilter === "all" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-500 hover:text-zinc-900"
+                          }`}
+                        >
+                          Tất cả ({selectedTemplate.sessions?.length || 36} buổi)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPopupPhaseFilter("phase1")}
+                          className={`rounded-lg px-3 py-1 text-[11px] font-bold cursor-pointer transition-all ${
+                            popupPhaseFilter === "phase1" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-500 hover:text-zinc-900"
+                          }`}
+                        >
+                          Chặng 1 (1 - 18)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPopupPhaseFilter("phase2")}
+                          className={`rounded-lg px-3 py-1 text-[11px] font-bold cursor-pointer transition-all ${
+                            popupPhaseFilter === "phase2" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-500 hover:text-zinc-900"
+                          }`}
+                        >
+                          Chặng 2 (19 - 36)
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-xs font-bold text-amber-800">
+                        Khóa 2 tháng ({selectedTemplate.sessions?.length || 18} buổi)
+                      </span>
+                    )}
 
                     <select
                       value={popupSkillFilter}
@@ -731,7 +764,7 @@ export default function RlpMauPage() {
                               >
                                 Sửa
                               </button>
-                              {selectedTemplate.sessions.length > 36 && (
+                              {selectedTemplate.sessions.length > (selectedTemplate.totalSessions || 18) && (
                                 <button
                                   type="button"
                                   onClick={() => void handleDeleteSession(row.no)}
@@ -752,7 +785,8 @@ export default function RlpMauPage() {
               {/* Footer Popup */}
               <div className="p-4 border-t border-zinc-200 bg-zinc-50/80 flex items-center justify-between">
                 <span className="text-xs text-zinc-500 font-medium">
-                  Tổng cộng: <strong className="text-zinc-900">{selectedTemplate.sessions?.length || 36} buổi học</strong>
+                  Tổng cộng: <strong className="text-zinc-900">{selectedTemplate.sessions?.length || selectedTemplate.totalSessions || 18} buổi học</strong>
+                  {selectedTemplate.totalSessions <= 18 ? " (Khóa 2 tháng)" : " (2 chặng)"}
                 </span>
                 <button
                   type="button"
@@ -927,6 +961,34 @@ export default function RlpMauPage() {
                 </div>
 
                 <div>
+                  <label className="font-semibold text-zinc-700 block mb-1">Thời lượng khóa học *</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCreateDuration(18)}
+                      className={`py-2 px-3 rounded-lg border text-xs font-semibold cursor-pointer text-center transition-all ${
+                        createDuration === 18
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
+                      }`}
+                    >
+                      2 tháng (18 buổi)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCreateDuration(36)}
+                      className={`py-2 px-3 rounded-lg border text-xs font-semibold cursor-pointer text-center transition-all ${
+                        createDuration === 36
+                          ? "border-primary bg-primary/5 text-primary"
+                          : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
+                      }`}
+                    >
+                      36 buổi (2 chặng)
+                    </button>
+                  </div>
+                </div>
+
+                <div>
                   <label className="font-semibold text-zinc-700 block mb-1">Mã định danh (Key) *</label>
                   <input
                     type="text"
@@ -963,7 +1025,9 @@ export default function RlpMauPage() {
                   disabled={creatingTemplate}
                   className="px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-bold hover:bg-primary/90 transition-all cursor-pointer disabled:opacity-50"
                 >
-                  {creatingTemplate ? "Đang tạo..." : "Tạo lớp mẫu (36 buổi)"}
+                  {creatingTemplate
+                    ? "Đang tạo..."
+                    : `Tạo lớp mẫu (${createDuration === 18 ? "2 tháng - 18 buổi" : "36 buổi"})`}
                 </button>
               </div>
             </div>

@@ -31,6 +31,7 @@ import { WRITING_TASK1_CRITERIA } from "@/lib/writingTask1BandDescriptors";
 import { WRITING_TASK2_CRITERIA } from "@/lib/writingTask2BandDescriptors";
 import { resolveWritingBands } from "@/lib/writingScore";
 import { getCachedAuthUser } from "@/lib/auth";
+import { isGraderUser } from "@/lib/acaIdentity";
 import {
   getWritingDeadlineStatus,
   resolveWritingDueDate,
@@ -118,12 +119,14 @@ export function WritingGradingSection() {
   useEffect(() => {
     const user = getCachedAuthUser();
     if (user) {
+      const isGrader = isGraderUser(user) || user.role === "GRADER";
       const name = (user.name || "").trim().toLowerCase();
       const email = (user.email || "").trim().toLowerCase();
       const isKT =
-        name === "lê nguyễn khánh thi" ||
-        name.includes("khánh thi") ||
-        email === "aca@xaloenglish.vn";
+        !isGrader &&
+        (name === "lê nguyễn khánh thi" ||
+          name.includes("khánh thi") ||
+          email === "aca@xaloenglish.vn");
       setIsKhanhThi(isKT);
     }
   }, []);
@@ -325,7 +328,7 @@ export function WritingGradingSection() {
         task1: task1Draft ?? row.task1,
         task2: task2Draft ?? row.task2,
         note: noteDraft ?? row.note,
-        assignedGrader: graderDraft || row.assignedGrader,
+        assignedGrader: isKhanhThi ? (graderDraft || row.assignedGrader) : row.assignedGrader,
         ...(needsCriteria ? { criteriaScores: criteriaDraft } : {}),
         ...overridePayload,
       });
@@ -914,22 +917,28 @@ export function WritingGradingSection() {
                   <span className="text-xs font-bold uppercase tracking-wider text-purple-900">Grader Chấm bài (Phân bổ)</span>
                   {!isKhanhThi && (
                     <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                      Chỉ Học vụ Khánh Thi mới được phép phân bổ lại bài chấm
+                      Grader không được phân bổ lại người chấm khác
                     </span>
                   )}
                 </div>
-                <select
-                  value={graderDraft}
-                  onChange={(e) => setGraderDraft(e.target.value)}
-                  disabled={!isKhanhThi}
-                  className="mt-1 h-10 w-full rounded-xl border border-purple-300 px-3 text-sm font-bold outline-none focus:border-purple-500 bg-purple-50/40 text-purple-900 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {ACA_GRADERS.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
+                {isKhanhThi ? (
+                  <select
+                    value={graderDraft}
+                    onChange={(e) => setGraderDraft(e.target.value)}
+                    className="mt-1 h-10 w-full rounded-xl border border-purple-300 px-3 text-sm font-bold outline-none focus:border-purple-500 bg-purple-50/40 text-purple-900"
+                  >
+                    {ACA_GRADERS.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="mt-1 flex h-10 w-full items-center justify-between rounded-xl border border-zinc-200 bg-zinc-100 px-3 text-xs font-bold text-zinc-700">
+                    <span>👤 {activeRow?.assignedGrader || "Chưa phân bổ"}</span>
+                    <span className="text-[10px] text-zinc-400 font-medium">Chỉ đọc</span>
+                  </div>
+                )}
               </label>
 
               <label className="block md:col-span-2">

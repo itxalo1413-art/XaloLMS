@@ -443,9 +443,14 @@ export function BcbSkillDiagnosticSection({
   return (
     <div className="space-y-4">
       <div className="overflow-hidden rounded-2xl border-2 border-[#796eb2] bg-white shadow-soft font-sans">
+        {/* BANNER TRÊN CÙNG: >>> 1. KẾT QUẢ LISTENING <<< */}
+        <div className="bg-[#796eb2] text-white text-center py-2.5 px-4 text-sm sm:text-base md:text-lg font-black tracking-wider uppercase shadow-2xs select-none">
+          &gt;&gt;&gt; {isListening ? "1. KẾT QUẢ LISTENING" : "2. KẾT QUẢ READING"} &lt;&lt;&lt;
+        </div>
+
         <div className="flex flex-col md:flex-row border-b-2 border-[#796eb2]">
           
-          <div className="w-full md:w-52 shrink-0 grid grid-rows-2 divide-y-2 divide-[#796eb2] border-b-2 md:border-b-0 md:border-r-2 border-[#796eb2] bg-zinc-50/40">
+          <div className="w-full md:w-56 shrink-0 grid grid-rows-2 divide-y-2 divide-[#796eb2] border-b-2 md:border-b-0 md:border-r-2 border-[#796eb2] bg-zinc-50/40">
             
             <div className="grid grid-cols-12 items-center divide-x-2 divide-dotted divide-[#796eb2]/50 p-2.5">
               <div className="col-span-7 pr-2 text-right text-xs font-black text-zinc-900">
@@ -503,8 +508,9 @@ export function BcbSkillDiagnosticSection({
           </div>
         </div>
 
-        <div className="bg-[#796eb2] text-white text-center py-2 text-xs font-black uppercase tracking-widest shadow-2xs">
-          &gt; ĐIỂM THÀNH PHẦN {skillLabel.toUpperCase()} &lt;
+        {/* SUB-BANNER: > ĐIỂM THÀNH PHẦN < */}
+        <div className="bg-[#796eb2] text-white text-center py-2 text-xs font-black uppercase tracking-widest shadow-2xs select-none">
+          &gt; ĐIỂM THÀNH PHẦN &lt;
         </div>
 
         <div className="overflow-x-auto">
@@ -532,7 +538,7 @@ export function BcbSkillDiagnosticSection({
                 return (
                   <tr
                     key={cfg.id}
-                    className={`${!isLastRow ? "border-b-2 border-[#796eb2]" : ""} hover:bg-zinc-50/40 transition-colors`}
+                    className={`${!isLastRow ? "border-b-2 border-[#796eb2]" : ""} hover:bg-zinc-50/30 transition-colors`}
                   >
                     {/* Cột 1: Tên Dạng bài */}
                     <td className="p-3 w-[170px] min-w-[150px] border-r-2 border-[#796eb2] text-center align-middle">
@@ -570,7 +576,7 @@ export function BcbSkillDiagnosticSection({
                       </div>
                     </td>
 
-                    {/* Cột 3: Checkboxes + Nội dung chẩn đoán & nhận xét (Không hiện mã tag DL/DR thừa) */}
+                    {/* Cột 3, 4, 5: Checkboxes + Mã lỗi + Nội dung chẩn đoán (Chuẩn theo ảnh mẫu) */}
                     <td className="p-0 align-middle">
                       <div className="divide-y-2 divide-dotted divide-[#796eb2]/40">
                         {cfg.options.map((opt) => {
@@ -584,11 +590,14 @@ export function BcbSkillDiagnosticSection({
                             <div
                               key={opt.tag || opt.text}
                               onClick={() => toggleOption(cfg.id, opt)}
-                              className={`flex items-start p-3 sm:p-3.5 transition-colors cursor-pointer gap-3.5 select-none ${
-                                isChecked ? "bg-purple-50/80 font-semibold text-purple-950" : "hover:bg-zinc-50/80 text-zinc-800"
+                              className={`flex items-stretch transition-colors cursor-pointer select-none ${
+                                isChecked
+                                  ? "bg-purple-50/80 font-semibold text-purple-950"
+                                  : "hover:bg-zinc-50/80 text-zinc-800"
                               }`}
                             >
-                              <div className="shrink-0 flex items-center justify-center pt-0.5 pointer-events-none">
+                              {/* Sub-col 1: Checkbox */}
+                              <div className="w-11 sm:w-12 shrink-0 flex items-center justify-center p-2.5 border-r-2 border-dotted border-[#796eb2]/40">
                                 <input
                                   type="checkbox"
                                   checked={isChecked}
@@ -597,7 +606,15 @@ export function BcbSkillDiagnosticSection({
                                 />
                               </div>
 
-                              <div className="flex-1 text-xs md:text-[13px] font-medium leading-relaxed">
+                              {/* Sub-col 2: Mã lỗi (DL_... / DR_...) */}
+                              <div className="w-28 sm:w-32 shrink-0 flex items-center px-2.5 py-2 border-r-2 border-dotted border-[#796eb2]/40">
+                                <span className="font-mono text-xs font-bold text-zinc-800 tracking-tight">
+                                  {opt.tag}
+                                </span>
+                              </div>
+
+                              {/* Sub-col 3: Nội dung chẩn đoán */}
+                              <div className="flex-1 p-2.5 sm:py-3 sm:px-3.5 text-xs md:text-[13px] font-medium leading-relaxed">
                                 {opt.text}
                               </div>
                             </div>
@@ -605,10 +622,10 @@ export function BcbSkillDiagnosticSection({
                         })}
                       </div>
 
-                      <div className="p-3 border-t-2 border-dotted border-[#796eb2]/30 bg-zinc-50/50">
+                      <div className="p-2.5 border-t-2 border-dotted border-[#796eb2]/30 bg-zinc-50/40">
                         <textarea
-                          rows={2}
-                          className="w-full text-xs sm:text-[13px] text-zinc-700 placeholder:text-zinc-400 bg-white border border-[#796eb2]/20 rounded-lg px-3 py-2 outline-none focus:border-[#796eb2] shadow-2xs"
+                          rows={1}
+                          className="w-full text-xs text-zinc-700 placeholder:text-zinc-400 bg-white border border-[#796eb2]/20 rounded-lg px-2.5 py-1.5 outline-none focus:border-[#796eb2] shadow-2xs"
                           placeholder={`Ghi chú chẩn đoán bổ sung cho dạng bài ${cfg.title}...`}
                           value={row.diagnosis || ""}
                           onChange={(e) => updateRow(cfg.id, { diagnosis: e.target.value })}

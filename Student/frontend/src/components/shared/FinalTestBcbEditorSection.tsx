@@ -699,38 +699,26 @@ export function FinalTestBcbEditorSection({
       {section === "lr" && (
         <div className="space-y-10 animate-in fade-in duration-150">
           {/* 1. Listening Diagnostic Section */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-black uppercase tracking-widest text-[#796eb2] flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-[#796eb2]" />
-              1. Bảng Chẩn Bệnh Kỹ Năng Listening Final
-            </h3>
-            <BcbSkillDiagnosticSection
-              skill="listening"
-              bandScore={Number(scoreListening) || 0}
-              onBandScoreChange={(score) => setScoreListening(score > 0 ? String(score) : "")}
-              summaryText={listeningSummary}
-              onSummaryTextChange={setListeningSummary}
-              rows={bcbListening}
-              onRowsChange={setBcbListening}
-            />
-          </div>
+          <BcbSkillDiagnosticSection
+            skill="listening"
+            bandScore={Number(scoreListening) || 0}
+            onBandScoreChange={(score) => setScoreListening(score > 0 ? String(score) : "")}
+            summaryText={listeningSummary}
+            onSummaryTextChange={setListeningSummary}
+            rows={bcbListening}
+            onRowsChange={setBcbListening}
+          />
 
           {/* 2. Reading Diagnostic Section */}
-          <div className="space-y-3 pt-6 border-t-2 border-[#796eb2]/20">
-            <h3 className="text-xs font-black uppercase tracking-widest text-[#796eb2] flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-[#796eb2]" />
-              2. Bảng Chẩn Bệnh Kỹ Năng Reading Final
-            </h3>
-            <BcbSkillDiagnosticSection
-              skill="reading"
-              bandScore={Number(scoreReading) || 0}
-              onBandScoreChange={(score) => setScoreReading(score > 0 ? String(score) : "")}
-              summaryText={readingSummary}
-              onSummaryTextChange={setReadingSummary}
-              rows={bcbReading}
-              onRowsChange={setBcbReading}
-            />
-          </div>
+          <BcbSkillDiagnosticSection
+            skill="reading"
+            bandScore={Number(scoreReading) || 0}
+            onBandScoreChange={(score) => setScoreReading(score > 0 ? String(score) : "")}
+            summaryText={readingSummary}
+            onSummaryTextChange={setReadingSummary}
+            rows={bcbReading}
+            onRowsChange={setBcbReading}
+          />
         </div>
       )}
 

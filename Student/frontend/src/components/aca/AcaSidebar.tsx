@@ -39,6 +39,7 @@ const acaNavGroups: NavGroup[] = [
     title: "Lớp Luyện Đề",
     items: [
       { href: "/aca/quan-ly/lop-luyen-de-tuan", label: "Lớp luyện đề tuần", desc: "Lịch đề & link folder theo tuần" },
+      { href: "/aca/quan-ly/practice-rlp", label: "RLP luyện đề", desc: "RLP lớp luyện đề theo học viên" },
       { href: "/aca/quan-ly/thong-ke-luyen-de", label: "Thống kê luyện đề", desc: "Báo cáo & số liệu đề thường" },
     ],
   },

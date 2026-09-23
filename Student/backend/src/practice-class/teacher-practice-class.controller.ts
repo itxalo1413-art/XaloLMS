@@ -15,7 +15,7 @@ import { PracticeClassService } from './practice-class.service';
 
 @Controller('teacher/practice-class')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('GV', 'ACA', 'GRADER')
+@Roles('GV', 'ACA')
 export class TeacherPracticeClassController {
   constructor(private readonly practiceClass: PracticeClassService) {}
 

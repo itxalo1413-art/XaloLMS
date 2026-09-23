@@ -27,6 +27,8 @@ import {
   ENTRANCE_BOOKINGS_UPDATE_EVENT,
 } from "@/lib/entranceTestBookings";
 import { resolveGraderTaskKind, resolveSubmittedByRole, SUBMITTED_BY_ROLE_LABEL, submittedByRoleTone } from "@/lib/selfStudyFormat";
+import { getCachedAuthUser } from "@/lib/auth";
+import { isGraderUser } from "@/lib/acaIdentity";
 import { formatBandScore } from "@/lib/formatBandScore";
 import {
   SPEAKING_CRITERIA,
@@ -80,6 +82,25 @@ export interface SpeakingRegistrationItem {
 }
 
 export default function AcaTestSpeakingPage() {
+  const currentUser = useMemo(() => getCachedAuthUser(), []);
+  const isGrader = useMemo(() => {
+    if (!currentUser) return false;
+    return isGraderUser(currentUser) || currentUser.role === "GRADER";
+  }, [currentUser]);
+
+  const currentGraderName = useMemo(() => {
+    if (!currentUser) return "Gia Phú";
+    const name = (currentUser.name || "").trim();
+    const email = (currentUser.email || "").trim().toLowerCase();
+    if (email === "aca_1@gmail.com" || name.toLowerCase().includes("grader 1") || name.toLowerCase().includes("aca 1")) return "Grader 1";
+    if (email === "aca_2@gmail.com" || name.toLowerCase().includes("grader 2") || name.toLowerCase().includes("aca 2")) return "Grader 2";
+    if (email === "aca@xalo.internal" || name.toLowerCase().includes("grader 3") || name.toLowerCase().includes("aca 3")) return "Grader 3";
+    for (const g of GRADER_OPTIONS) {
+      if (name.toLowerCase() === g.toLowerCase() || name.toLowerCase().includes(g.toLowerCase())) return g;
+    }
+    return name || "Gia Phú";
+  }, [currentUser]);
+
   const [items, setItems] = useState<SpeakingRegistrationItem[]>([]);
   const [students, setStudents] = useState<AcaStudent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,7 +129,7 @@ export default function AcaTestSpeakingPage() {
   const [formTestType, setFormTestType] = useState<"support_test" | "final_test">("support_test");
   const [formDate, setFormDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [formTime, setFormTime] = useState("19:30");
-  const [formGrader, setFormGrader] = useState<string>("Gia Phú");
+  const [formGrader, setFormGrader] = useState<string>(() => (isGrader ? currentGraderName : "Gia Phú"));
   const [formMeetLink, setFormMeetLink] = useState("");
 
   const loadData = useCallback(async () => {
@@ -315,6 +336,10 @@ export default function AcaTestSpeakingPage() {
       variant: "danger",
     });
     if (!ok) return;
+    if (isGrader && currentGraderName && item.graderName?.trim().toLowerCase() !== currentGraderName.toLowerCase() && !item.graderName?.trim().toLowerCase().includes(currentGraderName.toLowerCase())) {
+      alert("Bạn không thể hủy ca thi Speaking của Grader khác.");
+      return;
+    }
     try {
       if (item.source === "final_test") {
         await updateFinalTestRecord(item.originalId, { status: "cancelled" });
@@ -334,6 +359,10 @@ export default function AcaTestSpeakingPage() {
 
   // Quick Change Grader
   const handleAssignGrader = async (item: SpeakingRegistrationItem, nextGrader: string) => {
+    if (isGrader) {
+      alert("Grader không có quyền chỉnh hoặc phân công Grader khác.");
+      return;
+    }
     try {
       if (item.source === "final_test") {
         await updateFinalTestRecord(item.originalId, {
@@ -431,6 +460,8 @@ export default function AcaTestSpeakingPage() {
       const mo = parseInt(parts[1], 10) - 1;
       const dy = parseInt(parts[2], 10);
 
+      const finalGrader = isGrader ? (currentGraderName || formGrader) : formGrader;
+
       createMockTestRequest({
         studentId: `st-${Date.now()}`,
         studentName: formStudentName.trim(),
@@ -439,9 +470,9 @@ export default function AcaTestSpeakingPage() {
         month: mo,
         year: yr,
         examTime: formTime,
-        examTeacher: formGrader,
+        examTeacher: finalGrader,
         status: "approved",
-        note: `Đăng ký ca thi Speaking - Grader ${formGrader} phụ trách`,
+        note: `Đăng ký ca thi Speaking - Grader ${finalGrader} phụ trách`,
       });
 
       setIsAddModalOpen(false);
@@ -483,7 +514,7 @@ export default function AcaTestSpeakingPage() {
               setFormTestType("support_test");
               setFormDate(new Date().toISOString().split("T")[0]);
               setFormTime("19:30");
-              setFormGrader("Gia Phú");
+              setFormGrader(isGrader ? currentGraderName : "Gia Phú");
               setIsAddModalOpen(true);
             }}
             className="px-5 py-2.5 rounded-xl bg-primary hover:bg-[#6a5acd] text-white text-xs font-black transition-all shadow-md active:scale-95 cursor-pointer"
@@ -632,22 +663,31 @@ export default function AcaTestSpeakingPage() {
                           <div className="text-[10px] text-zinc-500">{it.time}</div>
                         </td>
 
-                        {/* 4. GRADER PHỤ TRÁCH (Dropdown nhanh) */}
+                        {/* 4. GRADER PHỤ TRÁCH */}
                         <td className="px-4 py-3.5 bg-primary/5 border-x border-primary/10">
-                          <div className="flex items-center gap-1.5">
-                            <select
-                              value={it.graderName}
-                              onChange={(e) => handleAssignGrader(it, e.target.value)}
-                              disabled={isCancelled}
-                              className="text-xs font-black text-primary bg-white rounded-lg border border-primary/30 px-2.5 py-1.5 outline-none hover:border-primary transition-all cursor-pointer shadow-2xs disabled:opacity-50"
+                          {isGrader ? (
+                            <span
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-primary/20 text-xs font-black text-primary shadow-2xs"
+                              title="Grader không có quyền phân công người phụ trách khác"
                             >
-                              {activeGraders.map((g) => (
-                                <option key={g} value={g}>
-                                  👤 {g}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                              👤 {it.graderName || "Chưa phân công"}
+                            </span>
+                          ) : (
+                            <div className="flex items-center gap-1.5">
+                              <select
+                                value={it.graderName}
+                                onChange={(e) => handleAssignGrader(it, e.target.value)}
+                                disabled={isCancelled}
+                                className="text-xs font-black text-primary bg-white rounded-lg border border-primary/30 px-2.5 py-1.5 outline-none hover:border-primary transition-all cursor-pointer shadow-2xs disabled:opacity-50"
+                              >
+                                {activeGraders.map((g) => (
+                                  <option key={g} value={g}>
+                                    👤 {g}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                         </td>
 
                         {/* 5. Google Meet */}
@@ -667,7 +707,7 @@ export default function AcaTestSpeakingPage() {
                         </td>
 
                         {/* 6. Trạng thái: Cancelled hoặc điểm Speaking */}
-                        <td className="px-3 py-3.5 text-center">
+                        <td className="px-3.5 py-3.5 text-center">
                           {isCancelled ? (
                             <span className="inline-flex rounded-md bg-rose-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-rose-700 border border-rose-200">
                               Cancelled
@@ -682,7 +722,7 @@ export default function AcaTestSpeakingPage() {
                         </td>
 
                         {/* 7. Điểm Speaking */}
-                        <td className="px-3 py-3.5 text-center">
+                        <td className="px-3.5 py-3.5 text-center">
                           <span className="text-sm font-black text-primary tabular-nums">
                             {it.scoreSpeaking && !isCancelled ? formatBandScore(it.scoreSpeaking) : "—"}
                           </span>
@@ -696,7 +736,7 @@ export default function AcaTestSpeakingPage() {
                         </td>
 
                         {/* 9. Thao tác */}
-                        <td className="px-3 py-3.5 text-right">
+                        <td className="px-3.5 py-3.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             {!isCancelled && (
                               <>
@@ -712,7 +752,7 @@ export default function AcaTestSpeakingPage() {
                                 >
                                   {isGraded ? "Sửa điểm" : "Nhập điểm"}
                                 </button>
-                                {!isGraded && (
+                                {!isGraded && (!isGrader || (Boolean(currentGraderName) && it.graderName?.toLowerCase().includes(currentGraderName.toLowerCase()))) && (
                                   <button
                                     type="button"
                                     onClick={() => void handleCancelSpeaking(it)}
@@ -943,17 +983,26 @@ export default function AcaTestSpeakingPage() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-zinc-700 mb-1">Grader / GV Phụ Trách *</label>
-                <select
-                  value={formGrader}
-                  onChange={(e) => setFormGrader(e.target.value)}
-                  className="w-full rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs font-black text-primary outline-none focus:ring-2 focus:ring-primary/20"
-                >
-                  {GRADER_OPTIONS.map((g) => (
-                    <option key={g} value={g}>
-                      👤 {g}
-                    </option>
-                  ))}
-                </select>
+                {isGrader ? (
+                  <div className="w-full rounded-xl border border-zinc-200 bg-zinc-100 px-3 py-2 text-xs font-bold text-zinc-800 flex items-center justify-between">
+                    <span>👤 {currentGraderName || "Chính bạn"}</span>
+                    <span className="text-[10px] text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                      Cố định
+                    </span>
+                  </div>
+                ) : (
+                  <select
+                    value={formGrader}
+                    onChange={(e) => setFormGrader(e.target.value)}
+                    className="w-full rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs font-black text-primary outline-none focus:ring-2 focus:ring-primary/20"
+                  >
+                    {GRADER_OPTIONS.map((g) => (
+                      <option key={g} value={g}>
+                        👤 {g}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
 

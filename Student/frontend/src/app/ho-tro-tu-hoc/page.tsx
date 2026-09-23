@@ -72,20 +72,11 @@ import {
   type AcaFreeSlot,
 } from "@/lib/acaManagementApi";
 import {
-  addPracticeRlpSession,
-  canEditPracticeClassRlp,
   canViewPracticeClassRlp,
   canUsePracticeRlpApi,
-  deletePracticeRlpSession,
   fetchPracticeRlpForStudent,
-  fetchPracticeRlpForTeacher,
-  fetchPracticeRlpStudentsForTeacher,
   updatePracticeRlpHomeworkForStudent,
-  updatePracticeRlpSession,
-  type CreatePracticeRlpPayload,
   type PracticeRlpSession,
-  type PracticeRlpStudentOption,
-  type UpdatePracticeRlpPayload,
 } from "@/lib/practiceRlpApi";
 import { getCachedAuthUser } from "@/lib/auth";
 
@@ -753,15 +744,11 @@ export default function HoTroTuHocPage() {
   const [rlpSessions, setRlpSessions] = useState<PracticeRlpSession[]>([]);
   const [practiceCurrentWeek, setPracticeCurrentWeek] = useState<PracticeCurrentWeekResponse | null>(null);
   const [practiceScores, setPracticeScores] = useState<PracticeWeeklyScoreRow[]>([]);
-  const [practiceRlpStudents, setPracticeRlpStudents] = useState<PracticeRlpStudentOption[]>([]);
-  const [practiceRlpStudentId, setPracticeRlpStudentId] = useState("");
 
-  // Minh Tâm / Học vụ chỉnh sửa; học viên xem + đánh dấu hoàn thành BTVN
-  const canEditRlp = canEditPracticeClassRlp(getCachedAuthUser());
+  // Học viên xem + đánh dấu BTVN; chỉnh RLP ở portal Teacher/ACA
   const canViewRlp = canViewPracticeClassRlp(getCachedAuthUser());
 
   const student = getStudentIdentity();
-  const rlpTargetStudentId = canEditRlp ? practiceRlpStudentId : student.id;
 
   useEffect(() => {
     const onMeetUpdate = () => setMeetLinksVersion((v) => v + 1);
@@ -794,48 +781,19 @@ export default function HoTroTuHocPage() {
     };
   }, []);
 
-  // Load Practice RLP students (Minh Tâm / Học vụ chọn HV)
-  useEffect(() => {
-    if (!canUsePracticeRlpApi() || !canEditRlp) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const list = await fetchPracticeRlpStudentsForTeacher();
-        if (cancelled) return;
-        setPracticeRlpStudents(list);
-        setPracticeRlpStudentId((prev) => {
-          if (prev && list.some((s) => s.id === prev)) return prev;
-          return list[0]?.id || "";
-        });
-      } catch (err) {
-        console.warn("Failed to load Practice RLP students:", err);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [canEditRlp]);
-
-  // Load Practice RLP sessions (học viên + Minh Tâm / Học vụ)
+  // Load Practice RLP sessions (học viên)
   useEffect(() => {
     if (!canUsePracticeRlpApi() || !canViewRlp) return;
-    if (canEditRlp && !rlpTargetStudentId) {
-      setRlpSessions([]);
-      return;
-    }
     const load = async () => {
       try {
-        const sessions = canEditRlp
-          ? await fetchPracticeRlpForTeacher(rlpTargetStudentId)
-          : await fetchPracticeRlpForStudent();
+        const sessions = await fetchPracticeRlpForStudent();
         setRlpSessions(sessions);
       } catch (err) {
         console.warn("Failed to load Practice RLP sessions:", err);
       }
     };
     void load();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [student.id, canViewRlp, canEditRlp, rlpTargetStudentId]);
+  }, [student.id, canViewRlp]);
 
   // ─── Weekly quota ──────────────────────────────────────────────────────────
   const thisWeekKey = useMemo(() => getISOWeekKey(new Date()), []);
@@ -941,38 +899,14 @@ export default function HoTroTuHocPage() {
     bumpPracticeSlots();
   };
 
-  // ─── Practice RLP handlers ──────────────────────────────────────────────────
+  // ─── Practice RLP handlers (học viên đánh dấu BTVN) ─────────────────────────
   const refreshPracticeRlp = async () => {
-    if (canEditRlp && !rlpTargetStudentId) {
-      setRlpSessions([]);
-      return;
-    }
     try {
-      const sessions = canEditRlp
-        ? await fetchPracticeRlpForTeacher(rlpTargetStudentId)
-        : await fetchPracticeRlpForStudent();
+      const sessions = await fetchPracticeRlpForStudent();
       setRlpSessions(sessions);
     } catch (err) {
       console.warn("Failed to refresh Practice RLP:", err);
     }
-  };
-
-  const handleRlpAdd = async (payload: CreatePracticeRlpPayload) => {
-    if (!rlpTargetStudentId) throw new Error("Chưa chọn học viên");
-    await addPracticeRlpSession(rlpTargetStudentId, payload);
-    await refreshPracticeRlp();
-  };
-
-  const handleRlpUpdate = async (no: number, payload: UpdatePracticeRlpPayload) => {
-    if (!rlpTargetStudentId) throw new Error("Chưa chọn học viên");
-    await updatePracticeRlpSession(rlpTargetStudentId, no, payload);
-    await refreshPracticeRlp();
-  };
-
-  const handleRlpDelete = async (no: number) => {
-    if (!rlpTargetStudentId) throw new Error("Chưa chọn học viên");
-    await deletePracticeRlpSession(rlpTargetStudentId, no);
-    await refreshPracticeRlp();
   };
 
   const handleRlpToggleHomework = async (row: import("@/lib/courseSchedule").RlpSession) => {
@@ -982,12 +916,7 @@ export default function HoTroTuHocPage() {
       prev.map((s) => (s.no === row.no ? { ...s, homeworkStatus: next } : s)),
     );
     try {
-      if (canEditRlp) {
-        if (!rlpTargetStudentId) throw new Error("Chưa chọn học viên");
-        await updatePracticeRlpSession(rlpTargetStudentId, row.no, { homeworkStatus: next });
-      } else {
-        await updatePracticeRlpHomeworkForStudent(row.no, { homeworkStatus: next });
-      }
+      await updatePracticeRlpHomeworkForStudent(row.no, { homeworkStatus: next });
     } catch (err) {
       console.error("Failed to toggle homework:", err);
       await refreshPracticeRlp(); // revert on error
@@ -1734,39 +1663,11 @@ export default function HoTroTuHocPage() {
               title="Đăng ký lớp luyện đề"
               className="w-full"
               transparentTab={true}
-              isOpen={panel3Open || canEditRlp}
-              hideToggle={!practiceJoined && !canEditRlp}
+              isOpen={panel3Open}
+              hideToggle={!practiceJoined}
               onToggle={setPanel3Open}
               topContent={
                 <div className="space-y-4">
-                  {canEditRlp ? (
-                    <div className="rounded-2xl border border-primary/20 bg-primary-soft/40 px-4 py-3 flex flex-wrap items-center gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-primary">
-                          RLP lớp luyện đề — chọn học viên
-                        </div>
-                        <p className="text-[11px] font-medium text-muted mt-0.5">
-                          Minh Tâm / Học vụ chỉnh RLP theo từng HV (không dùng tài khoản GV).
-                        </p>
-                      </div>
-                      <select
-                        value={practiceRlpStudentId}
-                        onChange={(e) => setPracticeRlpStudentId(e.target.value)}
-                        className="h-10 min-w-[220px] max-w-full rounded-xl border border-primary/25 bg-white px-3 text-xs font-bold outline-none focus:ring-2 focus:ring-primary/15"
-                      >
-                        {practiceRlpStudents.length === 0 ? (
-                          <option value="">Chưa có HV đăng ký / RLP</option>
-                        ) : (
-                          practiceRlpStudents.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.name}
-                              {s.email ? ` · ${s.email}` : ""}
-                            </option>
-                          ))
-                        )}
-                      </select>
-                    </div>
-                  ) : null}
                   {/* ── Weekly Practice Class info card ── */}
                   <div className="rounded-2xl border border-zinc-100 bg-[#595082] p-5 flex items-center justify-between gap-4 flex-wrap">
                     <div className="flex items-center gap-4">
@@ -1835,23 +1736,20 @@ export default function HoTroTuHocPage() {
                 </div>
               }
             >
-                {(practiceJoined || canEditRlp) && (
+                {practiceJoined && (
                 <PracticeClassPanel
                   registeredSlotIds={registeredPracticeSlotIds}
                   onRegisterSlot={handleRegisterPracticeSlot}
                   onUnregisterSlot={handleUnregisterPracticeSlot}
-                  onResetTest={canEditRlp ? undefined : handleResetPracticeTest}
+                  onResetTest={handleResetPracticeTest}
                   scoresRows={practiceHistoryWithScoreRows.length > 0 ? practiceHistoryWithScoreRows : undefined}
                   examWeekNumber={examWeekNumber > 0 ? examWeekNumber : undefined}
                   weekAnnouncement={practiceCurrentWeek?.announcement}
                   weekMeetLink={practiceCurrentWeek?.linkMeet}
-                  studentId={canEditRlp ? rlpTargetStudentId : student.id}
+                  studentId={student.id}
                   rlpSessions={rlpSessions}
-                  showRlp={canViewRlp && (!canEditRlp || Boolean(rlpTargetStudentId))}
-                  canEditRlp={canEditRlp && Boolean(rlpTargetStudentId)}
-                  onRlpAdd={canEditRlp ? handleRlpAdd : undefined}
-                  onRlpUpdate={canEditRlp ? handleRlpUpdate : undefined}
-                  onRlpDelete={canEditRlp ? handleRlpDelete : undefined}
+                  showRlp={canViewRlp}
+                  canEditRlp={false}
                   onToggleHomework={handleRlpToggleHomework}
                 />
               )}

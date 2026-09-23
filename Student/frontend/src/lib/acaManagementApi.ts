@@ -375,8 +375,12 @@ export interface Aca11Class {
   }[];
 }
 
+/** Staff roles được gọi /api/aca/* (localStorage fallback cho HS). */
 export function canUseAcaApi(): boolean {
-  return true;
+  if (isAuthDisabled()) return true;
+  if (!getAuthToken()) return false;
+  const role = getCachedAuthUser()?.role;
+  return role === "ACA" || role === "SALE" || role === "GRADER" || role === "GV";
 }
 
 async function parseJson<T>(response: Response): Promise<T> {

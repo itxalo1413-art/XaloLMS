@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -18,26 +19,32 @@ import {
   UpdatePracticeRlpSessionDto,
 } from './dto/practice-rlp.dto';
 import { PracticeRlpService } from './practice-rlp.service';
+import { assertCanEditPracticeRlp } from './practice-rlp-access.util';
 
 /**
  * Teacher/ACA endpoints for Practice Class RLP.
- * FE further restricts GV edit to Minh Tâm; ACA all.
+ * Mutate: ACA hoặc GV Minh Tâm. Read list: cùng nhóm.
  */
 @Controller('teacher/practice-rlp')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('GV', 'ACA', 'GRADER')
+@Roles('GV', 'ACA')
 export class TeacherPracticeRlpController {
   constructor(private readonly svc: PracticeRlpService) {}
 
   /** GET /api/teacher/practice-rlp/students */
   @Get('students')
-  listStudents() {
+  listStudents(@Req() req: { user?: { role?: string; name?: string; email?: string } }) {
+    assertCanEditPracticeRlp(req.user);
     return this.svc.listKnownStudents();
   }
 
   /** GET /api/teacher/practice-rlp?studentId=xxx */
   @Get()
-  list(@Query('studentId') studentId: string) {
+  list(
+    @Query('studentId') studentId: string,
+    @Req() req: { user?: { role?: string; name?: string; email?: string } },
+  ) {
+    assertCanEditPracticeRlp(req.user);
     return this.svc.listSessions(studentId);
   }
 
@@ -46,7 +53,9 @@ export class TeacherPracticeRlpController {
   add(
     @Query('studentId') studentId: string,
     @Body() body: CreatePracticeRlpSessionDto,
+    @Req() req: { user?: { role?: string; name?: string; email?: string } },
   ) {
+    assertCanEditPracticeRlp(req.user);
     return this.svc.addSession(studentId, body);
   }
 
@@ -56,7 +65,9 @@ export class TeacherPracticeRlpController {
     @Param('no', ParseIntPipe) no: number,
     @Query('studentId') studentId: string,
     @Body() body: UpdatePracticeRlpSessionDto,
+    @Req() req: { user?: { role?: string; name?: string; email?: string } },
   ) {
+    assertCanEditPracticeRlp(req.user);
     const session = await this.svc.updateSession(studentId, no, body ?? {});
     return { session };
   }
@@ -66,7 +77,9 @@ export class TeacherPracticeRlpController {
   remove(
     @Param('no', ParseIntPipe) no: number,
     @Query('studentId') studentId: string,
+    @Req() req: { user?: { role?: string; name?: string; email?: string } },
   ) {
+    assertCanEditPracticeRlp(req.user);
     return this.svc.deleteSession(studentId, no);
   }
 }

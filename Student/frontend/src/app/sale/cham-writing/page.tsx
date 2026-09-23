@@ -46,7 +46,6 @@ export default function SaleWritingEntrancePage() {
   const [modalOpen, setModalOpen] = useState(false);
 
   const [gradingBooking, setGradingBooking] = useState<EntranceTestBooking | null>(null);
-  const [scoreWritingDraft, setScoreWritingDraft] = useState("");
   const [feedbackDraft, setFeedbackDraft] = useState("");
   const [savingGrade, setSavingGrade] = useState(false);
 
@@ -123,25 +122,22 @@ export default function SaleWritingEntrancePage() {
     }
   };
 
-  const openGradingModal = (b: EntranceTestBooking) => {
+  const openNoteModal = (b: EntranceTestBooking) => {
     setGradingBooking(b);
-    setScoreWritingDraft(b.scoreWriting || "");
     setFeedbackDraft(b.feedback || "");
   };
 
-  const handleSaveGrade = async () => {
+  const handleSaveNote = async () => {
     if (!gradingBooking) return;
     setSavingGrade(true);
     try {
       await updateEntranceTestBooking(gradingBooking.id, {
-        scoreWriting: scoreWritingDraft.trim() || undefined,
         feedback: feedbackDraft.trim() || undefined,
-        status: scoreWritingDraft.trim() ? "graded" : gradingBooking.status,
       });
       setGradingBooking(null);
       void loadData();
     } catch (err: any) {
-      alert("Lưu điểm thất bại: " + (err?.message || "lỗi"));
+      alert("Lưu ghi chú thất bại: " + (err?.message || "lỗi"));
     } finally {
       setSavingGrade(false);
     }
@@ -291,13 +287,7 @@ export default function SaleWritingEntrancePage() {
                             <span className="text-sm">{b.scoreWriting}</span>
                           </div>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => openGradingModal(b)}
-                            className="text-[10px] font-bold text-sky-700 hover:underline cursor-pointer bg-sky-50 hover:bg-sky-100 border border-sky-200 px-2 py-1 rounded-lg transition-all"
-                          >
-                            + Nhập điểm
-                          </button>
+                          <span className="text-[10px] font-bold text-zinc-400">Chờ Grader</span>
                         )}
                       </td>
                       <td className="px-4 py-3.5">
@@ -311,9 +301,9 @@ export default function SaleWritingEntrancePage() {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
-                            onClick={() => openGradingModal(b)}
+                            onClick={() => openNoteModal(b)}
                             className="rounded-lg p-1.5 text-zinc-400 hover:text-primary hover:bg-zinc-100 transition-colors cursor-pointer"
-                            title="Cập nhật điểm"
+                            title="Ghi chú Sale"
                           >
                             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path
@@ -359,22 +349,13 @@ export default function SaleWritingEntrancePage() {
             className="absolute inset-0 bg-black/40 backdrop-blur-xs"
           />
           <div className="relative w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl space-y-4">
-            <h3 className="text-base font-black text-zinc-900">Nhập Điểm Writing Entrance</h3>
+            <h3 className="text-base font-black text-zinc-900">Ghi chú Writing Entrance</h3>
             <p className="text-xs text-zinc-500">
-              {gradingBooking.candidateName} · {gradingBooking.graderName || "Grader tự phân"}
+              {gradingBooking.candidateName} · Điểm do Grader nhập
+              {gradingBooking.scoreWriting ? ` · Band ${gradingBooking.scoreWriting}` : ""}
             </p>
             <div>
-              <label className="block text-xs font-bold text-zinc-700 mb-1">Band Writing</label>
-              <input
-                type="text"
-                value={scoreWritingDraft}
-                onChange={(e) => setScoreWritingDraft(e.target.value)}
-                placeholder="vd. 6.0"
-                className="w-full rounded-xl border border-zinc-200 px-3.5 py-2 text-sm font-black text-primary outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-zinc-700 mb-1">Nhận xét</label>
+              <label className="block text-xs font-bold text-zinc-700 mb-1">Ghi chú Sale</label>
               <textarea
                 rows={3}
                 value={feedbackDraft}
@@ -393,10 +374,10 @@ export default function SaleWritingEntrancePage() {
               <button
                 type="button"
                 disabled={savingGrade}
-                onClick={() => void handleSaveGrade()}
+                onClick={() => void handleSaveNote()}
                 className="rounded-xl px-5 py-2 text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-50"
               >
-                {savingGrade ? "Đang lưu..." : "Lưu Điểm"}
+                {savingGrade ? "Đang lưu..." : "Lưu ghi chú"}
               </button>
             </div>
           </div>

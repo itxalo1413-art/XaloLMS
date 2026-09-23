@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import type { JwtPayload } from '../auth/auth.types';
 import { UsersService } from '../users/users.service';
 import { CreateWritingSubmissionDto } from './dto/create-writing-submission.dto';
 import { GradeWritingSubmissionDto } from './dto/grade-writing-submission.dto';
@@ -297,6 +298,7 @@ export class WritingSubmissionService {
   async grade(
     id: string,
     payload: GradeWritingSubmissionDto,
+    actor?: JwtPayload,
   ): Promise<WritingSubmissionPublic> {
     const doc = await this.findByIdOrThrow(id);
     const nextStatus = payload.status ?? doc.status;
@@ -315,7 +317,11 @@ export class WritingSubmissionService {
     const task1 = payload.task1?.trim() !== undefined ? payload.task1.trim() : doc.task1;
     const task2 = payload.task2?.trim() !== undefined ? payload.task2.trim() : doc.task2;
     const note = payload.note?.trim() !== undefined ? payload.note.trim() : doc.note;
-    const assignedGrader = payload.assignedGrader?.trim() !== undefined ? payload.assignedGrader.trim() : doc.assignedGrader;
+    // Grader cannot reassign or change the assigned grader of a submission
+    let assignedGrader = doc.assignedGrader;
+    if (actor?.role !== 'GRADER') {
+      assignedGrader = payload.assignedGrader?.trim() !== undefined ? payload.assignedGrader.trim() : doc.assignedGrader;
+    }
     const criteriaScores =
       payload.criteriaScores !== undefined ? payload.criteriaScores : doc.criteriaScores;
 

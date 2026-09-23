@@ -7,6 +7,7 @@ import {
   Post,
   Put,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -356,8 +357,14 @@ export class AcaManagementController {
 
   @Put('entrance-bookings/:id')
   @Roles(...STAFF)
-  async updateEntranceBooking(@Param('id') id: string, @Body() body: any) {
-    return this.service.updateEntranceBooking(id, body ?? {});
+  async updateEntranceBooking(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() req: { user?: { role?: string } },
+  ) {
+    return this.service.updateEntranceBooking(id, body ?? {}, {
+      role: req.user?.role,
+    });
   }
 
   @Delete('entrance-bookings/:id')

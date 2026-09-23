@@ -34,6 +34,7 @@ export class AcaMockTestController {
   }
 
   @Patch(':id/approve')
+  @Roles('ACA', 'SALE')
   async approve(@Param('id') id: string, @Body() body: ReviewMockTestDto) {
     const request = await this.mockTests.approve(id, body ?? {});
     return { request };

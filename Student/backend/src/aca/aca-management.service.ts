@@ -2584,19 +2584,66 @@ export class AcaManagementService implements OnModuleInit {
     return this.toBookingPublic(doc);
   }
 
-  async updateEntranceBooking(id: string, patch: Record<string, unknown>) {
-    const allowed = [
-      'status', 'scoreSpeaking', 'scoreWriting', 'feedback',
-      'note', 'meetLink', 'examLink', 'submissionLink',
-      'speakingCriteria', 'writingCriteria', 'bcbData',
+  async updateEntranceBooking(
+    id: string,
+    patch: Record<string, unknown>,
+    actor?: { role?: string },
+  ) {
+    const role = String(actor?.role || '').toUpperCase();
+    // Sale: lịch/link/ghi chú + BCB overview/L&R. Điểm & criteria W/S do Grader.
+    const saleAllowed = [
+      'status',
+      'feedback',
+      'note',
+      'meetLink',
+      'examLink',
+      'submissionLink',
+      'bcbData',
     ];
+    const graderAllowed = [
+      ...saleAllowed,
+      'scoreSpeaking',
+      'scoreWriting',
+      'speakingCriteria',
+      'writingCriteria',
+    ];
+    const allowed = role === 'SALE' ? saleAllowed : graderAllowed;
     const update: Record<string, unknown> = {};
     for (const key of allowed) {
       if (patch[key] !== undefined) update[key] = patch[key];
     }
 
+    if (role === 'SALE') {
+      const blocked = [
+        'scoreSpeaking',
+        'scoreWriting',
+        'speakingCriteria',
+        'writingCriteria',
+      ].filter((k) => patch[k] !== undefined);
+      if (blocked.length) {
+        throw new ForbiddenException(
+          'Sale không được nhập điểm / tiêu chí W·S Entrance. Việc này do Grader.',
+        );
+      }
+    }
+
     const existing = await this.entranceBookingModel.findById(id).lean().exec();
     if (!existing) throw new Error('Không tìm thấy lịch thi');
+
+    // Sale không ghi đè speaking/writing BCB đã có từ Grader.
+    if (role === 'SALE' && update.bcbData !== undefined) {
+      const prevBcb =
+        ((existing as { bcbData?: Record<string, unknown> | null }).bcbData as Record<
+          string,
+          unknown
+        > | null) || {};
+      const nextBcb = (update.bcbData as Record<string, unknown>) || {};
+      update.bcbData = {
+        ...nextBcb,
+        speaking: prevBcb.speaking,
+        writing: prevBcb.writing,
+      };
+    }
 
     const speakingCriteria = update.speakingCriteria as
       | Record<string, unknown>

@@ -32,6 +32,8 @@ interface FinalTestBcbDrawerProps {
   onSaved: () => void;
   /** Override title (e.g. Entrance). */
   title?: string;
+  /** Sale: không cho sửa điểm / criteria Writing·Speaking (Grader). */
+  lockWsScores?: boolean;
   /** Custom persist — dùng cho Entrance booking thay vì Final. */
   persistOverride?: (
     id: string,
@@ -52,12 +54,16 @@ export function FinalTestBcbDrawer({
   onClose,
   onSaved,
   title = "Bảng Chẩn Bệnh (BCB) Final Test",
+  lockWsScores = false,
   persistOverride,
 }: FinalTestBcbDrawerProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<"speaking" | "writing" | "listening" | "reading" | "overview">("speaking");
+  const [activeTab, setActiveTab] = useState<"speaking" | "writing" | "listening" | "reading" | "overview">(
+    lockWsScores ? "listening" : "speaking",
+  );
+  const canEditWs = isEditing && !lockWsScores;
   const [writingTaskMode, setWritingTaskMode] = useState<"task1" | "task2">("task1");
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
@@ -162,43 +168,49 @@ export function FinalTestBcbDrawer({
   const handleSave = async () => {
     setSaving(true);
     try {
+      const speakingFromRecord = record.bcbData?.speaking;
+      const writingFromRecord = record.bcbData?.writing;
       const bcbData: FinalTestBcbData = {
         overviewTitle: overviewTitle.trim() || undefined,
         overviewSummary: overviewSummary.trim() || undefined,
-        speaking: {
-          fc: spkFc.trim() || "0",
-          lr: spkLr.trim() || "0",
-          gra: spkGra.trim() || "0",
-          pr: spkPr.trim() || "0",
-          strengths: spkStrengths.trim() || undefined,
-          weaknesses: spkWeaknesses.trim() || undefined,
-          prescription: spkPrescription.trim() || undefined,
-          summary: spkSummary.trim() || undefined,
-        },
-        writing: {
-          task1: {
-            ta: wriTask1Ta.trim() || "0",
-            cc: wriTask1Cc.trim() || "0",
-            lr: wriTask1Lr.trim() || "0",
-            gra: wriTask1Gra.trim() || "0",
-            notes: wriTask1Notes.trim() || undefined,
-          },
-          task2: {
-            tr: wriTask2Tr.trim() || "0",
-            cc: wriTask2Cc.trim() || "0",
-            lr: wriTask2Lr.trim() || "0",
-            gra: wriTask2Gra.trim() || "0",
-            notes: wriTask2Notes.trim() || undefined,
-          },
-          task1Notes: wriTask1Notes.trim() || undefined,
-          task2Notes: wriTask2Notes.trim() || undefined,
-          prescription: wriPrescription.trim() || undefined,
-          summary: wriSummary.trim() || undefined,
-          ta: wriTask1Ta.trim() || undefined,
-          cc: wriTask1Cc.trim() || undefined,
-          lr: wriTask1Lr.trim() || undefined,
-          gra: wriTask1Gra.trim() || undefined,
-        },
+        speaking: lockWsScores
+          ? speakingFromRecord
+          : {
+              fc: spkFc.trim() || "0",
+              lr: spkLr.trim() || "0",
+              gra: spkGra.trim() || "0",
+              pr: spkPr.trim() || "0",
+              strengths: spkStrengths.trim() || undefined,
+              weaknesses: spkWeaknesses.trim() || undefined,
+              prescription: spkPrescription.trim() || undefined,
+              summary: spkSummary.trim() || undefined,
+            },
+        writing: lockWsScores
+          ? writingFromRecord
+          : {
+              task1: {
+                ta: wriTask1Ta.trim() || "0",
+                cc: wriTask1Cc.trim() || "0",
+                lr: wriTask1Lr.trim() || "0",
+                gra: wriTask1Gra.trim() || "0",
+                notes: wriTask1Notes.trim() || undefined,
+              },
+              task2: {
+                tr: wriTask2Tr.trim() || "0",
+                cc: wriTask2Cc.trim() || "0",
+                lr: wriTask2Lr.trim() || "0",
+                gra: wriTask2Gra.trim() || "0",
+                notes: wriTask2Notes.trim() || undefined,
+              },
+              task1Notes: wriTask1Notes.trim() || undefined,
+              task2Notes: wriTask2Notes.trim() || undefined,
+              prescription: wriPrescription.trim() || undefined,
+              summary: wriSummary.trim() || undefined,
+              ta: wriTask1Ta.trim() || undefined,
+              cc: wriTask1Cc.trim() || undefined,
+              lr: wriTask1Lr.trim() || undefined,
+              gra: wriTask1Gra.trim() || undefined,
+            },
         lr: {
           listeningCorrect: lrListeningCorrect.trim() || undefined,
           readingCorrect: lrReadingCorrect.trim() || undefined,
@@ -214,30 +226,30 @@ export function FinalTestBcbDrawer({
         targetAchieved,
       };
 
+      const patchScores = lockWsScores
+        ? {
+            scoreOverall: scoreOverall.trim() || undefined,
+            scoreListening: scoreListening.trim() || undefined,
+            scoreReading: scoreReading.trim() || undefined,
+            status: scoreOverall || scoreListening || scoreReading ? "graded" : record.status,
+            bcbData,
+          }
+        : {
+            scoreOverall: scoreOverall.trim() || undefined,
+            scoreListening: scoreListening.trim() || undefined,
+            scoreReading: scoreReading.trim() || undefined,
+            scoreWriting:
+              scoreWriting.trim() ||
+              (calculatedWritingOverall > 0 ? String(calculatedWritingOverall) : undefined),
+            scoreSpeaking: scoreSpeaking.trim() || undefined,
+            status: scoreOverall || scoreSpeaking || scoreWriting ? "graded" : record.status,
+            bcbData,
+          };
+
       if (persistOverride) {
-        await persistOverride(record.id, {
-          scoreOverall: scoreOverall.trim() || undefined,
-          scoreListening: scoreListening.trim() || undefined,
-          scoreReading: scoreReading.trim() || undefined,
-          scoreWriting:
-            scoreWriting.trim() ||
-            (calculatedWritingOverall > 0 ? String(calculatedWritingOverall) : undefined),
-          scoreSpeaking: scoreSpeaking.trim() || undefined,
-          status: scoreOverall || scoreSpeaking || scoreWriting ? "graded" : record.status,
-          bcbData,
-        });
+        await persistOverride(record.id, patchScores);
       } else {
-        await updateFinalTestRecord(record.id, {
-          scoreOverall: scoreOverall.trim() || undefined,
-          scoreListening: scoreListening.trim() || undefined,
-          scoreReading: scoreReading.trim() || undefined,
-          scoreWriting:
-            scoreWriting.trim() ||
-            (calculatedWritingOverall > 0 ? String(calculatedWritingOverall) : undefined),
-          scoreSpeaking: scoreSpeaking.trim() || undefined,
-          status: scoreOverall || scoreSpeaking || scoreWriting ? "graded" : record.status,
-          bcbData,
-        });
+        await updateFinalTestRecord(record.id, patchScores);
       }
 
       setIsEditing(false);
@@ -453,7 +465,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
 
               <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-3 text-center">
                 <div className="text-[10px] font-bold text-zinc-500 uppercase">Writing</div>
-                {isEditing ? (
+                {isEditing && !lockWsScores ? (
                   <input
                     type="text"
                     value={scoreWriting}
@@ -468,7 +480,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
 
               <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-3 text-center">
                 <div className="text-[10px] font-bold text-zinc-500 uppercase">Speaking</div>
-                {isEditing ? (
+                {isEditing && !lockWsScores ? (
                   <input
                     type="text"
                     value={scoreSpeaking}
@@ -525,6 +537,11 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
           {/* TAB 1: SPEAKING */}
           {activeTab === "speaking" && (
             <div className="space-y-4 animate-in fade-in">
+              {lockWsScores ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-900">
+                  Tiêu chí Speaking do Grader nhập — Sale chỉ xem.
+                </div>
+              ) : null}
               <div className="p-4 rounded-2xl border border-purple-100 bg-purple-50/40">
                 <div className="text-[10px] font-black text-purple-700 uppercase tracking-widest">
                   Đặc trưng Speaking Band {scoreSpeaking ? formatBandScore(scoreSpeaking) : "—"} (Chuẩn Cambridge)
@@ -544,7 +561,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                   <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-center">
                     <div className="text-[10px] font-bold text-zinc-500">Fluency & Coherence</div>
-                    {isEditing ? (
+                    {canEditWs ? (
                       <input
                         type="text"
                         value={spkFc}
@@ -559,7 +576,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
 
                   <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-center">
                     <div className="text-[10px] font-bold text-zinc-500">Lexical Resource</div>
-                    {isEditing ? (
+                    {canEditWs ? (
                       <input
                         type="text"
                         value={spkLr}
@@ -574,7 +591,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
 
                   <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-center">
                     <div className="text-[10px] font-bold text-zinc-500">Grammar (GRA)</div>
-                    {isEditing ? (
+                    {canEditWs ? (
                       <input
                         type="text"
                         value={spkGra}
@@ -589,7 +606,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
 
                   <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-center">
                     <div className="text-[10px] font-bold text-zinc-500">Pronunciation (PR)</div>
-                    {isEditing ? (
+                    {canEditWs ? (
                       <input
                         type="text"
                         value={spkPr}
@@ -604,7 +621,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
                 </div>
               </div>
 
-              {!isEditing && (Number(spkFc) > 0 || Number(spkLr) > 0 || Number(spkGra) > 0 || Number(spkPr) > 0 || Number(scoreSpeaking) > 0) && (
+              {(!isEditing || lockWsScores) && (Number(spkFc) > 0 || Number(spkLr) > 0 || Number(spkGra) > 0 || Number(spkPr) > 0 || Number(scoreSpeaking) > 0) && (
                 <SpeakingCriteriaPanel
                   scores={{
                     fluencyCoherence: Number(spkFc) || Number(scoreSpeaking) || 0,
@@ -620,6 +637,11 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
           {/* TAB 2: WRITING (TÁCH BIỆT TASK 1 & TASK 2) */}
           {activeTab === "writing" && (
             <div className="space-y-5 animate-in fade-in">
+              {lockWsScores ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-900">
+                  Tiêu chí Writing do Grader nhập — Sale chỉ xem.
+                </div>
+              ) : null}
               <div className="flex items-center justify-between border-b border-zinc-200 pb-3">
                 <div className="flex items-center gap-2">
                   <button
@@ -665,7 +687,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                     <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-center">
                       <div className="text-[10px] font-bold text-zinc-500">Task Achievement (TA)</div>
-                      {isEditing ? (
+                      {canEditWs ? (
                         <input
                           type="text"
                           value={wriTask1Ta}
@@ -680,7 +702,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
 
                     <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-center">
                       <div className="text-[10px] font-bold text-zinc-500">Coherence & Cohesion</div>
-                      {isEditing ? (
+                      {canEditWs ? (
                         <input
                           type="text"
                           value={wriTask1Cc}
@@ -695,7 +717,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
 
                     <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-center">
                       <div className="text-[10px] font-bold text-zinc-500">Lexical Resource (LR)</div>
-                      {isEditing ? (
+                      {canEditWs ? (
                         <input
                           type="text"
                           value={wriTask1Lr}
@@ -710,7 +732,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
 
                     <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-center">
                       <div className="text-[10px] font-bold text-zinc-500">Grammar (GRA)</div>
-                      {isEditing ? (
+                      {canEditWs ? (
                         <input
                           type="text"
                           value={wriTask1Gra}
@@ -726,7 +748,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
 
                   <div>
                     <label className="block text-[11px] font-bold text-zinc-700 mb-1">Nhận xét chi tiết Task 1</label>
-                    {isEditing ? (
+                    {canEditWs ? (
                       <textarea
                         rows={3}
                         value={wriTask1Notes}
@@ -741,7 +763,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
                     )}
                   </div>
 
-                  {!isEditing && (
+                  {(!isEditing || lockWsScores) && (
                     <WritingTask1CriteriaPanel
                       scores={{
                         taskAchievement: Number(wriTask1Ta) || task1Band,
@@ -769,7 +791,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                     <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-center">
                       <div className="text-[10px] font-bold text-zinc-500">Task Response (TR)</div>
-                      {isEditing ? (
+                      {canEditWs ? (
                         <input
                           type="text"
                           value={wriTask2Tr}
@@ -784,7 +806,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
 
                     <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-center">
                       <div className="text-[10px] font-bold text-zinc-500">Coherence & Cohesion</div>
-                      {isEditing ? (
+                      {canEditWs ? (
                         <input
                           type="text"
                           value={wriTask2Cc}
@@ -799,7 +821,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
 
                     <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-center">
                       <div className="text-[10px] font-bold text-zinc-500">Lexical Resource (LR)</div>
-                      {isEditing ? (
+                      {canEditWs ? (
                         <input
                           type="text"
                           value={wriTask2Lr}
@@ -814,7 +836,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
 
                     <div className="p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-center">
                       <div className="text-[10px] font-bold text-zinc-500">Grammar (GRA)</div>
-                      {isEditing ? (
+                      {canEditWs ? (
                         <input
                           type="text"
                           value={wriTask2Gra}
@@ -830,7 +852,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
 
                   <div>
                     <label className="block text-[11px] font-bold text-zinc-700 mb-1">Nhận xét chi tiết Task 2</label>
-                    {isEditing ? (
+                    {canEditWs ? (
                       <textarea
                         rows={3}
                         value={wriTask2Notes}
@@ -845,7 +867,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
                     )}
                   </div>
 
-                  {!isEditing && (
+                  {(!isEditing || lockWsScores) && (
                     <WritingTask2CriteriaPanel
                       scores={{
                         taskResponse: Number(wriTask2Tr) || task2Band,
@@ -862,7 +884,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
               <div className="pt-2 space-y-3">
                 <div>
                   <label className="block text-[11px] font-bold text-amber-800 mb-1">Phác đồ cải thiện Writing</label>
-                  {isEditing ? (
+                  {canEditWs ? (
                     <textarea
                       rows={2}
                       value={wriPrescription}

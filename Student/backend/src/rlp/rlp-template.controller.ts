@@ -27,13 +27,13 @@ export class RlpTemplateController {
 
   /** Catalog RLP từ các lớp ACA thật. */
   @Get('from-classes')
-  @Roles('GV', 'ACA', 'GRADER', 'HS', 'SALE')
+  @Roles('GV', 'ACA')
   async listFromClasses() {
     return this.rlp.listClassRlpCatalog();
   }
 
   @Get('from-classes/:sourceClassId')
-  @Roles('GV', 'ACA', 'GRADER', 'HS', 'SALE')
+  @Roles('GV', 'ACA')
   async getFromClass(@Param('sourceClassId') sourceClassId: string) {
     return this.rlp.getClassRlpSource(sourceClassId);
   }
@@ -48,13 +48,13 @@ export class RlpTemplateController {
   }
 
   @Get()
-  @Roles('GV', 'ACA', 'GRADER', 'HS', 'SALE')
+  @Roles('GV', 'ACA')
   async list() {
     return this.rlp.listTemplates();
   }
 
   @Get(':idOrKey')
-  @Roles('GV', 'ACA', 'GRADER', 'HS', 'SALE')
+  @Roles('GV', 'ACA')
   async getOne(@Param('idOrKey') idOrKey: string) {
     return this.rlp.getTemplate(idOrKey);
   }

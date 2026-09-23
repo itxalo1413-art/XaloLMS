@@ -871,46 +871,34 @@ export function DiagnosisEditorSection({
         {section === "lr" && (
           <div className="space-y-10 animate-in fade-in duration-150">
             {/* 1. Listening Diagnostic Section */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-black uppercase tracking-widest text-[#796eb2] flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-[#796eb2]" />
-                1. Bảng Chẩn Bệnh Kỹ Năng Listening
-              </h3>
-              <BcbSkillDiagnosticSection
-                skill="listening"
-                bandScore={form.scores.listening}
-                onBandScoreChange={(score) => setScores({ listening: score })}
-                summaryText={form.skillSummaries.listening}
-                onSummaryTextChange={(val) => setSkillSummary("listening", val)}
-                rows={form.bcbListening}
-                onRowsChange={(bcbListening) =>
-                  variant === "student"
-                    ? setStudentForm((f) => ({ ...f, bcbListening }))
-                    : setGuestForm((f) => ({ ...f, bcbListening }))
-                }
-              />
-            </div>
+            <BcbSkillDiagnosticSection
+              skill="listening"
+              bandScore={form.scores.listening}
+              onBandScoreChange={(score) => setScores({ listening: score })}
+              summaryText={form.skillSummaries.listening}
+              onSummaryTextChange={(val) => setSkillSummary("listening", val)}
+              rows={form.bcbListening}
+              onRowsChange={(bcbListening) =>
+                variant === "student"
+                  ? setStudentForm((f) => ({ ...f, bcbListening }))
+                  : setGuestForm((f) => ({ ...f, bcbListening }))
+              }
+            />
 
             {/* 2. Reading Diagnostic Section */}
-            <div className="space-y-3 pt-6 border-t-2 border-[#796eb2]/20">
-              <h3 className="text-xs font-black uppercase tracking-widest text-[#796eb2] flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-[#796eb2]" />
-                2. Bảng Chẩn Bệnh Kỹ Năng Reading
-              </h3>
-              <BcbSkillDiagnosticSection
-                skill="reading"
-                bandScore={form.scores.reading}
-                onBandScoreChange={(score) => setScores({ reading: score })}
-                summaryText={form.skillSummaries.reading}
-                onSummaryTextChange={(val) => setSkillSummary("reading", val)}
-                rows={form.bcbReading}
-                onRowsChange={(bcbReading) =>
-                  variant === "student"
-                    ? setStudentForm((f) => ({ ...f, bcbReading }))
-                    : setGuestForm((f) => ({ ...f, bcbReading }))
-                }
-              />
-            </div>
+            <BcbSkillDiagnosticSection
+              skill="reading"
+              bandScore={form.scores.reading}
+              onBandScoreChange={(score) => setScores({ reading: score })}
+              summaryText={form.skillSummaries.reading}
+              onSummaryTextChange={(val) => setSkillSummary("reading", val)}
+              rows={form.bcbReading}
+              onRowsChange={(bcbReading) =>
+                variant === "student"
+                  ? setStudentForm((f) => ({ ...f, bcbReading }))
+                  : setGuestForm((f) => ({ ...f, bcbReading }))
+              }
+            />
           </div>
         )}
 
