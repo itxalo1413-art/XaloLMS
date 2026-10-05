@@ -25,6 +25,7 @@ import {
   WRITING_TASK2_STANDARD_DESCRIPTIONS,
 } from "@/lib/bcbStandardReference";
 import { formatBandScore } from "@/lib/formatBandScore";
+import { shortClassLabel } from "@/lib/acaManagementApi";
 
 interface FinalTestBcbDrawerProps {
   record: FinalTestRecord;
@@ -267,7 +268,7 @@ BẢNG CHẨN BỆNH (BCB) ${persistOverride ? "ENTRANCE" : "FINAL"} TEST - XALO
 --------------------------------------------
 Học viên: ${record.candidateName}
 SĐT: ${record.candidatePhone}
-Lớp: ${record.className || record.classCode || "Lớp học viên"}
+Lớp: ${shortClassLabel(record.classCode, record.className) || "Lớp học viên"}
 Mục tiêu: ${record.targetBand || "—"} IELTS
 Giám khảo chấm: ${record.examinerName}
 Ngày thi: ${record.date} lúc ${record.time}
@@ -359,7 +360,7 @@ Lộ trình khóa học đề xuất: ${nextCourse || "Khóa nâng cao tiếp th
               </span>
             </div>
             <p className="text-xs text-zinc-500 font-medium mt-0.5">
-              {record.candidateName} • {record.className || record.classCode || "Khóa IELTS"}
+              {record.candidateName} • {shortClassLabel(record.classCode, record.className) || "Khóa IELTS"}
             </p>
           </div>
 

@@ -37,6 +37,12 @@ import { UsersService } from '../users/users.service';
 import { MockTestService } from '../mock-test/mock-test.service';
 import { PracticeClassService } from '../practice-class/practice-class.service';
 import { getCurrentRealtimePracticeWeekRange, type PracticeWeekLean } from '../practice-class/practice-class-week.util';
+import type { JwtPayload } from '../auth/auth.types';
+import {
+  graderFieldsMatchFilter,
+  isGraderActor,
+  resolveGraderIdentity,
+} from '../domain/grader-identity.util';
 
 import { DailyNote, DailyNoteDocument } from './schemas/daily-note.schema';
 import { MockTestRequest, MockTestRequestDocument } from './schemas/mock-test-request.schema';
@@ -346,7 +352,7 @@ export class AcaManagementService implements OnModuleInit {
 
     // Seed Practice Weeks
     const weekCount = await this.practiceWeekModel.countDocuments().exec();
-    const defaultZoomLink = "https://zoom.us/j/84219634521?pwd=example-lrw";
+    const defaultZoomLink = "https://zoom.us/j/85154525397";
     if (weekCount === 0) {
       const initialWeeks = [
         {
@@ -354,6 +360,9 @@ export class AcaManagementService implements OnModuleInit {
           examWeekNumber: 36,
           linkMeet: defaultZoomLink,
           linkTab: "https://docs.google.com/spreadsheets/d/1track-practice-test-1",
+          linkZalo: "https://zalo.me/g/e2vslsobotb3em3nh8gr",
+          zoomId: "851 5452 5397",
+          zoomPassword: "123456",
           announcement: "[Thông báo về lịch học lớp LĐ]\n\nTuần 20/4:\n - Lớp có học Speaking vào 19h45-21h45 thứ 7 25/4\n - Lớp không có lịch test tập trung vào CN\n\nNhận được tin thì em react/confirm giúp chị nhé",
           templateMessage: "Em ơi, chủ nhật tuần này (26/4) lớp mình không có lịch test tập trung, các bạn tham gia học Speaking vào thứ 7 (25/4) lúc 19h45-21h45 nhé!"
         },
@@ -362,6 +371,9 @@ export class AcaManagementService implements OnModuleInit {
           examWeekNumber: 37,
           linkMeet: defaultZoomLink,
           linkTab: "https://docs.google.com/spreadsheets/d/1track-practice-test-2",
+          linkZalo: "https://zalo.me/g/e2vslsobotb3em3nh8gr",
+          zoomId: "851 5452 5397",
+          zoomPassword: "123456",
           announcement: "[Thông báo về lịch học lớp LĐ]\n\nTuần 27/4:\n - Lớp nghỉ, không có lịch học vào T3 và T7\n - Lớp có lịch test tập trung vào CN 3/5 9h-11h30\n\nNhận được tin thì em react/confirm giúp chị nhé",
           templateMessage: "Em ơi, chủ nhật tuần này (3/5) chị có lịch test lớp luyện đề lúc 9h00 - 11h30, em tham gia được thì phản hồi lại giúp chị nha!"
         },
@@ -370,6 +382,9 @@ export class AcaManagementService implements OnModuleInit {
           examWeekNumber: 38,
           linkMeet: defaultZoomLink,
           linkTab: "https://docs.google.com/spreadsheets/d/1track-practice-test-3",
+          linkZalo: "https://zalo.me/g/e2vslsobotb3em3nh8gr",
+          zoomId: "851 5452 5397",
+          zoomPassword: "123456",
           announcement: "[Thông báo về lịch học lớp LĐ]\n\nTuần 8/6:\n - Lớp học bình thường vào thứ 3 và thứ 7\n - Lớp có lịch test tập trung vào CN 14/6 9h-11h30\n\nNhận được tin thì em react/confirm giúp chị nhé",
           templateMessage: "Em ơi, chủ nhật tuần này (14/6) chị có lịch test lớp luyện đề lúc 9h00 - 11h30, em tham gia được thì phản hồi lại giúp chị nha!"
         }
@@ -1594,25 +1609,29 @@ export class AcaManagementService implements OnModuleInit {
     const exists = weeks.some((w) => w.weekRange === currentRange);
     if (!exists) {
       try {
-        const defaultZoomLink = "https://zoom.us/j/84219634521?pwd=example-lrw";
+        const defaultZoomLink = "https://zoom.us/j/85154525397";
         const created = await this.practiceWeekModel.create({
           weekRange: currentRange,
           examWeekNumber: await this.nextExamWeekNumber(),
           linkMeet: defaultZoomLink,
           linkTab: "",
+          linkZalo: "https://zalo.me/g/e2vslsobotb3em3nh8gr",
           announcement: `[Thông báo về lịch học lớp LĐ]\n\nTuần ${currentRange}:\n - Lớp học bình thường vào thứ 3, thứ 5 và thứ 7\n - Lớp có lịch test tập trung vào CN`,
           templateMessage: `Em ơi, tuần này (${currentRange}) chị gửi lịch lớp Luyện Đề T3, T5, T7 và test tập trung CN nhé!`,
-          zoomId: "842 1963 4521",
-          zoomPassword: "XaloLrw26",
+          zoomId: "851 5452 5397",
+          zoomPassword: "123456",
           scheduleTueTitle: "Luyện tập Speaking theo chuyên đề",
           scheduleTueTime: "19h45 – 21h45",
-          scheduleTueInfo: "Tham gia bằng Zoom, học với Giáo viên, phân tích bộ đề Speaking 3 part, được cung cấp từ vựng/phương pháp tiếp cận và luyện tập trực tiếp với Giáo viên.",
+          scheduleTueInfo:
+            "Tham gia qua Zoom, học với Giáo viên, được cung cấp từ vựng/phương pháp tiếp cận và luyện tập trực tiếp với Giáo viên.",
           scheduleThuTitle: "Chữa đề L-R-W",
           scheduleThuTime: "19h45 – 21h45",
-          scheduleThuInfo: "Tham gia bằng Zoom, học với Giáo viên, tập trung chữa đề Writing và các thắc mắc về Listening – Reading.",
+          scheduleThuInfo:
+            "Tham gia qua Zoom, học với Giáo viên, tập trung chữa đề W và các giải đáp thắc mắc về L-R.",
           scheduleSatTitle: "Làm đề L-R-W tập trung",
           scheduleSatTime: "19h – 21h30",
-          scheduleSatInfo: "Tham gia bằng Zoom, làm bài trên Google Docs, có nhân viên canh thời gian làm bài và các bạn học viên khác tham gia.",
+          scheduleSatInfo:
+            "Tham gia qua Zoom, làm bài trên Google Docs, có Giáo viên canh thời gian làm bài và các bạn học viên khác tham gia.",
         });
         weeks.push(created.toObject ? created.toObject() : (created as any));
         try {
@@ -2487,9 +2506,16 @@ export class AcaManagementService implements OnModuleInit {
     };
   }
 
-  async listEntranceBookings() {
+  async listEntranceBookings(actor?: JwtPayload | null) {
+    const filter: Record<string, unknown> = {};
+    if (isGraderActor(actor)) {
+      const mine = resolveGraderIdentity(actor);
+      const scoped = graderFieldsMatchFilter(['graderName'], mine);
+      if (scoped) Object.assign(filter, scoped);
+      else return [];
+    }
     const rows = await this.entranceBookingModel
-      .find()
+      .find(filter)
       .sort({ createdAt: -1 })
       .lean()
       .exec();
@@ -2843,9 +2869,19 @@ export class AcaManagementService implements OnModuleInit {
     return (value || '').replace(/\D/g, '');
   }
 
-  async listFinalTests() {
+  async listFinalTests(actor?: JwtPayload | null) {
+    const filter: Record<string, unknown> = {};
+    if (isGraderActor(actor)) {
+      const mine = resolveGraderIdentity(actor);
+      const scoped = graderFieldsMatchFilter(
+        ['graderSpeaking', 'examinerName'],
+        mine,
+      );
+      if (scoped) Object.assign(filter, scoped);
+      else return [];
+    }
     const rows = await this.finalTestModel
-      .find()
+      .find(filter)
       .sort({ date: -1, time: -1, createdAt: -1 })
       .lean()
       .exec();
@@ -2855,10 +2891,16 @@ export class AcaManagementService implements OnModuleInit {
   async listFinalTestsForExaminer(examinerName: string) {
     const name = (examinerName || '').trim();
     if (!name) return [];
+    const scoped = graderFieldsMatchFilter(
+      ['graderSpeaking', 'examinerName'],
+      name,
+    );
     const rows = await this.finalTestModel
       .find({
         status: { $ne: 'cancelled' },
-        examinerName: new RegExp(`^${this.escapeRegex(name)}$`, 'i'),
+        ...(scoped || {
+          examinerName: new RegExp(`^${this.escapeRegex(name)}$`, 'i'),
+        }),
       })
       .sort({ date: -1, time: -1, createdAt: -1 })
       .lean()
@@ -3932,9 +3974,15 @@ export class AcaManagementService implements OnModuleInit {
     return created._id.toString();
   }
 
-  /** Phân chia đều Grader 1/2/3 giống luồng nộp Writing của học viên. */
+  /** Phân chia đều Grader theo danh sách chuẩn. */
   private async selectNextWritingGrader(): Promise<string> {
-    const graders = ['Grader 1', 'Grader 2', 'Grader 3'] as const;
+    const graders = [
+      'Huỳnh Gia Phú',
+      'Lê Thị Diệu Linh',
+      'Nguyễn Văn Đăng Duy',
+      'Huỳnh Minh Phương',
+      'Nguyễn Thị Hoàng Sa',
+    ] as const;
     const counts = await Promise.all(
       graders.map(async (g) => ({
         g,

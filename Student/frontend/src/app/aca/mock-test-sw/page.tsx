@@ -78,9 +78,9 @@ export default function MockTestSwPage() {
                             href={sub.fileLink}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-primary hover:underline font-black"
+                            className="text-primary hover:underline font-black whitespace-nowrap"
                           >
-                            Xem bài làm Drive/Doc ↗
+                            Xem bài làm Drive/Doc
                           </a>
                         </td>
                         <td className="px-6 py-4">

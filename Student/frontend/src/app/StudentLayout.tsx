@@ -13,6 +13,10 @@ import { ProfileModal } from "@/components/student/ProfileModal";
 import { StudentAuthProvider } from "@/contexts/StudentAuthContext";
 import { useStudentProfile } from "@/hooks/useStudentProfile";
 import { StudentAcademicWarningAlert } from "@/components/student/StudentAcademicWarningAlert";
+import {
+  StudentOnboardingModal,
+  STUDENT_ONBOARDING_KEY,
+} from "@/components/student/StudentOnboardingModal";
 
 const LOGIN_QUOTE_POPUP_KEY = "xalo.showLoginQuotePopup";
 const ALWAYS_SHOW_LOGIN_QUOTE = false;
@@ -75,6 +79,7 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
   const { profile, openProfile, profileModalProps } = useStudentProfile();
   const [showDailyNote, setShowDailyNote] = React.useState(false);
   const [dailyNote, setDailyNote] = React.useState(() => getStudentDailyNote());
+  const [showOnboarding, setShowOnboarding] = React.useState(false);
 
   const pageTitle =
     pathname === "/"
@@ -96,6 +101,29 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
     { href: "/tai-lieu-them", label: "Kho tài liệu", match: (p: string) => p.startsWith("/tai-lieu-them") },
     { href: "/luu-tru-test", label: "Lưu trữ bài test", match: (p: string) => p.startsWith("/luu-tru-test") },
   ];
+
+  // Auto-show Onboarding Guide for first-time visitors
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const hasSeen = localStorage.getItem(STUDENT_ONBOARDING_KEY);
+      if (!hasSeen) {
+        const timer = setTimeout(() => {
+          setShowOnboarding(true);
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Listen to manual open event
+  React.useEffect(() => {
+    const handleOpen = () => setShowOnboarding(true);
+    window.addEventListener("xalo.openStudentGuide", handleOpen);
+    return () => window.removeEventListener("xalo.openStudentGuide", handleOpen);
+  }, []);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -124,7 +152,7 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-transparent">
       <div className="flex min-h-screen w-full">
         {/* Left Sidebar */}
-        <Sidebar onOpenProfile={openProfile} />
+        <Sidebar onOpenProfile={openProfile} onOpenGuide={() => setShowOnboarding(true)} />
 
         {/* Main Content Area */}
         <div className="flex h-screen min-w-0 flex-1 flex-col overflow-y-auto md:pl-20 transition-all duration-300">
@@ -299,6 +327,22 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
                 );
               })}
             </nav>
+
+            <div className="mt-4 pt-4 border-t border-zinc-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setShowOnboarding(true);
+                }}
+                className="w-full flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 transition-all cursor-pointer"
+              >
+                <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>Hướng dẫn sử dụng web</span>
+              </button>
+            </div>
           </aside>
         </div>
       ) : null}
@@ -329,6 +373,10 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
         </div>
       ) : null}
       <ProfileModal {...profileModalProps} />
+      <StudentOnboardingModal
+        isOpen={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+      />
     </div>
   );
 }

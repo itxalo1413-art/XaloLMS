@@ -538,11 +538,27 @@ export class AcademicWarningService {
 
       let handledStatus: AcademicWarningHandledStatus =
         (existing?.handledStatus as AcademicWarningHandledStatus) || 'pending';
+      // Chỉ mở lại bảng học vụ khi mới đủ điều kiện lần đầu, hoặc số liệu xấu hơn.
+      // Không đưa lại pending nếu học vụ đã xử lý (contacted/resolved/...) mà tình trạng không xấu thêm.
       if (onAcaTable && (firstAcaVisible || worsened)) {
         handledStatus = 'pending';
       } else if (!onAcaTable) {
-        // Soft t3: không cần học vụ xử lý trên bảng
-        handledStatus = existing?.handledStatus === 'contacted' ? 'contacted' : 'pending';
+        // Soft t3: giữ trạng thái đã xử lý nếu có
+        if (
+          existing?.handledStatus === 'contacted' ||
+          existing?.handledStatus === 'resolved' ||
+          existing?.handledStatus === 'supplement_scheduled'
+        ) {
+          handledStatus = existing.handledStatus as AcademicWarningHandledStatus;
+        } else {
+          handledStatus = 'pending';
+        }
+      } else if (
+        existing?.handledStatus === 'contacted' ||
+        existing?.handledStatus === 'resolved' ||
+        existing?.handledStatus === 'supplement_scheduled'
+      ) {
+        handledStatus = existing.handledStatus as AcademicWarningHandledStatus;
       }
 
       const shouldAutoNotifyStudent = firstSoftAbsent;

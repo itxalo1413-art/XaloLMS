@@ -1,0 +1,164 @@
+{
+  "total": 26,
+  "fail": 0,
+  "pass": 19,
+  "note": 7,
+  "findings": [
+    {
+      "area": "Auth",
+      "fn": "API login",
+      "kq": "Pass",
+      "ct": "GV Nghiêm Doãn Quỳnh Châu"
+    },
+    {
+      "area": "Danh sách lớp",
+      "fn": "Load trang",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher"
+    },
+    {
+      "area": "Danh sách lớp",
+      "fn": "Chọn lớp",
+      "kq": "Note",
+      "ct": "không có lớp hiển thị"
+    },
+    {
+      "area": "RLP",
+      "fn": "Load trang",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/rlp"
+    },
+    {
+      "area": "RLP",
+      "fn": "Form thêm buổi",
+      "kq": "Note",
+      "ct": "không thấy CTA"
+    },
+    {
+      "area": "RLP",
+      "fn": "Điểm danh",
+      "kq": "Note",
+      "ct": "không có CTA attendance"
+    },
+    {
+      "area": "Practice RLP",
+      "fn": "Load trang",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/practice-rlp"
+    },
+    {
+      "area": "Practice RLP",
+      "fn": "CTA thêm/lưu",
+      "kq": "Note",
+      "ct": "no CTA"
+    },
+    {
+      "area": "Writing",
+      "fn": "Load danh sách",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/cham-writing"
+    },
+    {
+      "area": "Writing",
+      "fn": "Mở form chấm",
+      "kq": "Pass",
+      "ct": "opened"
+    },
+    {
+      "area": "Final Test",
+      "fn": "Load trang",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/final-test"
+    },
+    {
+      "area": "Final Test",
+      "fn": "CTA nhập/chấm",
+      "kq": "Pass",
+      "ct": "clicked"
+    },
+    {
+      "area": "Mock Test",
+      "fn": "Load trang",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/mock-test"
+    },
+    {
+      "area": "Mock Test",
+      "fn": "Mở form nhập điểm",
+      "kq": "Pass",
+      "ct": "opened"
+    },
+    {
+      "area": "Lịch",
+      "fn": "Load lịch",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/lich"
+    },
+    {
+      "area": "Lịch",
+      "fn": "Nav lịch",
+      "kq": "Note",
+      "ct": "không thấy nav"
+    },
+    {
+      "area": "Materials",
+      "fn": "Load trang",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/teaching-materials"
+    },
+    {
+      "area": "Materials",
+      "fn": "CTA thêm/lưu",
+      "kq": "Note",
+      "ct": "no CTA"
+    },
+    {
+      "area": "Performance",
+      "fn": "Load trang",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/performance"
+    },
+    {
+      "area": "Performance",
+      "fn": "Đổi tháng filter",
+      "kq": "Pass",
+      "ct": "select changed"
+    },
+    {
+      "area": "Cảnh báo",
+      "fn": "Load trang",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher"
+    },
+    {
+      "area": "Cảnh báo",
+      "fn": "CTA thêm/gửi",
+      "kq": "Note",
+      "ct": "no CTA"
+    },
+    {
+      "area": "BCB",
+      "fn": "Load trang",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/bcb"
+    },
+    {
+      "area": "Profile",
+      "fn": "Load hồ sơ",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/profile"
+    },
+    {
+      "area": "Profile",
+      "fn": "Lưu hồ sơ",
+      "kq": "Pass",
+      "ct": "HTTP 201"
+    },
+    {
+      "area": "Shell",
+      "fn": "Đăng xuất",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/login"
+    }
+  ]
+}

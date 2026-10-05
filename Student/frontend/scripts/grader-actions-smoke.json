@@ -1,0 +1,104 @@
+{
+  "total": 16,
+  "fail": 0,
+  "pass": 14,
+  "note": 2,
+  "findings": [
+    {
+      "area": "Auth",
+      "fn": "API login",
+      "kq": "Pass",
+      "ct": "GRADER Huỳnh Gia Phú"
+    },
+    {
+      "area": "Writing",
+      "fn": "Load danh sách (scoped)",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/grader/cham-writing"
+    },
+    {
+      "area": "Writing",
+      "fn": "Mở form chấm",
+      "kq": "Pass",
+      "ct": "grade UI"
+    },
+    {
+      "area": "Writing",
+      "fn": "Nhập điểm",
+      "kq": "Note",
+      "ct": "không thấy input điểm (có thể empty queue)"
+    },
+    {
+      "area": "Writing",
+      "fn": "Không hiện phân grader",
+      "kq": "Pass",
+      "ct": "scoped grader UI"
+    },
+    {
+      "area": "Speaking",
+      "fn": "Load danh sách",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/grader/test-speaking"
+    },
+    {
+      "area": "Speaking",
+      "fn": "Mở form thêm ca",
+      "kq": "Pass",
+      "ct": "modal"
+    },
+    {
+      "area": "Speaking",
+      "fn": "Form chấm Speaking",
+      "kq": "Note",
+      "ct": "không có ca để chấm"
+    },
+    {
+      "area": "Speaking",
+      "fn": "CTA hủy ca hiện",
+      "kq": "Pass",
+      "ct": "visible (không click destructive)"
+    },
+    {
+      "area": "Lịch rảnh",
+      "fn": "Load lịch tuần",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/grader/lich-ranh"
+    },
+    {
+      "area": "Lịch rảnh",
+      "fn": "Meet link đã có",
+      "kq": "Pass",
+      "ct": "skip overwrite"
+    },
+    {
+      "area": "Lịch rảnh",
+      "fn": "Toggle/tạo ca rảnh",
+      "kq": "Pass",
+      "ct": "HTTP 201"
+    },
+    {
+      "area": "Profile",
+      "fn": "Load hồ sơ",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/grader/profile"
+    },
+    {
+      "area": "Profile",
+      "fn": "Lưu hồ sơ",
+      "kq": "Pass",
+      "ct": "HTTP 200"
+    },
+    {
+      "area": "Scope",
+      "fn": "Writing không UI ACA-full",
+      "kq": "Pass",
+      "ct": "grader-scoped labels"
+    },
+    {
+      "area": "Shell",
+      "fn": "Đăng xuất",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/login"
+    }
+  ]
+}

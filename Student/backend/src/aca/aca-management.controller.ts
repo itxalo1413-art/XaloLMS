@@ -11,11 +11,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import type { JwtPayload } from '../auth/auth.types';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { Public } from '../auth/public.decorator';
 import { ACA_GRADER, ACA_GV, ACA_SALE, ANY_AUTH, STAFF } from '../domain/role';
 import { AcaManagementService } from './aca-management.service';
+
+type AuthedRequest = { user?: JwtPayload };
 
 @Controller('aca')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -345,8 +348,8 @@ export class AcaManagementController {
   // --- Entrance Test Bookings ---
   @Get('entrance-bookings')
   @Roles(...STAFF)
-  async listEntranceBookings() {
-    return this.service.listEntranceBookings();
+  async listEntranceBookings(@Req() req: AuthedRequest) {
+    return this.service.listEntranceBookings(req.user);
   }
 
   @Post('entrance-bookings')
@@ -360,7 +363,7 @@ export class AcaManagementController {
   async updateEntranceBooking(
     @Param('id') id: string,
     @Body() body: any,
-    @Req() req: { user?: { role?: string } },
+    @Req() req: AuthedRequest,
   ) {
     return this.service.updateEntranceBooking(id, body ?? {}, {
       role: req.user?.role,
@@ -374,14 +377,16 @@ export class AcaManagementController {
   }
 
   // --- Final Tests ---
+  // Danh sách toàn hệ thống chỉ staff; học viên dùng /api/student/final-tests
+  // Grader chỉ thấy ca gán cho mình (graderSpeaking / examinerName)
   @Get('final-tests')
-  @Roles(...ANY_AUTH)
-  async listFinalTests() {
-    return this.service.listFinalTests();
+  @Roles(...STAFF)
+  async listFinalTests(@Req() req: AuthedRequest) {
+    return this.service.listFinalTests(req.user);
   }
 
   @Post('final-tests')
-  @Roles(...ANY_AUTH)
+  @Roles(...STAFF)
   async createFinalTest(@Body() body: any) {
     return this.service.createFinalTest(body ?? {});
   }

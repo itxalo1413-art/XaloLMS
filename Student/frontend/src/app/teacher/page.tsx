@@ -14,6 +14,7 @@ import {
   type AcaStudentCycle,
   displayClassCode,
   classCodesMatch,
+  shortClassLabel,
 } from "@/lib/acaManagementApi";
 import { calculateGradingDeadline, type RlpSession, type Attendance, type HomeworkStatus } from "@/lib/courseSchedule";
 import { addRlpSession, deleteRlpSession, getCourseRlpSessions, refreshRlpSessions, updateRlpSession } from "@/lib/rlpSessionStore";
@@ -939,14 +940,9 @@ export default function TeacherClassesPage() {
                             className="hover:bg-zinc-50/80 align-middle transition-colors cursor-pointer"
                           >
                             <td className="px-6 py-4 min-w-[280px]">
-                              <div className="font-black text-primary hover:underline">{c.name}</div>
-                              {c.classCode && (
-                                <div className="mt-1">
-                                  <span className="inline-flex items-center rounded-md bg-secondary/10 px-1.5 py-0.5 text-[9px] font-black text-secondary tracking-wide">
-                                    {displayClassCode(c.classCode)}
-                                  </span>
-                                </div>
-                              )}
+                              <div className="font-black text-primary hover:underline text-sm">
+                                {displayClassCode(c.classCode) || shortClassLabel(c.name)}
+                              </div>
                             </td>
                             <td className="px-6 py-4 text-zinc-500 min-w-[130px]">{c.openDate}</td>
                             <td className="px-6 py-4 min-w-[130px]">

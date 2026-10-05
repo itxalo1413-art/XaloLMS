@@ -7,14 +7,19 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import type { JwtPayload } from '../auth/auth.types';
 import { Roles } from '../auth/roles.decorator';
 import { RolesGuard } from '../auth/roles.guard';
 import { CreateStaffMockTestDto } from './dto/create-staff-mock-test.dto';
 import { ReviewMockTestDto } from './dto/review-mock-test.dto';
 import { MockTestService } from './mock-test.service';
+
+type AuthedRequest = Request & { user: JwtPayload };
 
 @Controller('aca/mock-tests')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -23,8 +28,8 @@ export class AcaMockTestController {
   constructor(private readonly mockTests: MockTestService) {}
 
   @Get()
-  list(@Query('status') status?: string) {
-    return this.mockTests.listForAca(status);
+  list(@Req() req: AuthedRequest, @Query('status') status?: string) {
+    return this.mockTests.listForAca(status, req.user);
   }
 
   @Post()

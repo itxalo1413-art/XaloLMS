@@ -8,14 +8,11 @@ import {
  * Danh sách Grader chuẩn (CHỈ gồm bộ phận Grader, TUYỆT ĐỐI KHÔNG gồm Giáo viên và ACA).
  */
 export const DEFAULT_GRADER_OPTIONS = [
-  "Bộ phận Grader 1",
-  "Bộ phận Grader 2",
-  "Bộ phận Grader 3",
-  "Grader 1",
-  "Grader 2",
-  "Grader 3",
-  "Grader Hệ thống",
-  "Quản lý Grader",
+  "Huỳnh Gia Phú",
+  "Lê Thị Diệu Linh",
+  "Nguyễn Văn Đăng Duy",
+  "Huỳnh Minh Phương",
+  "Nguyễn Thị Hoàng Sa",
 ] as const;
 
 /**
@@ -45,7 +42,6 @@ export const MOCK_TEST_TEACHER_OPTIONS_EVENT = "xalo-mock-test-teacher-options-u
 
 // Danh sách tên GV / ACA cần loại bỏ triệt để khỏi danh sách Grader
 const EXCLUDED_NON_GRADER_NAMES = new Set([
-  "lê thị diệu linh",
   "lê nguyễn khánh thi",
   "nghiêm doãn quỳnh châu",
   "lê minh trang",

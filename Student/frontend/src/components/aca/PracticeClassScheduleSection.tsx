@@ -42,8 +42,8 @@ function overridesFromSlots(
       title: slot.title ?? "",
       detail: slot.detail ?? "",
       platform: slot.platform ?? "Zoom",
-      meetingId: slot.meeting?.meetingId ?? "842 1963 4521",
-      password: slot.meeting?.password ?? "XaloLrw26",
+      meetingId: slot.meeting?.meetingId ?? "851 5452 5397",
+      password: slot.meeting?.password ?? "123456",
       joinUrl: slot.meeting?.joinUrl ?? "",
     };
   }
@@ -149,7 +149,7 @@ export function PracticeClassScheduleSection() {
       <section className="rounded-2xl border border-primary/15 bg-primary/5 p-5">
         <h2 className="text-sm font-bold text-foreground">Lịch tuần & Thông tin Zoom/Meet — Lớp luyện đề tập trung</h2>
         <p className="mt-2 text-xs font-medium leading-relaxed text-muted">
-          Cập nhật ngày, giờ học, <strong>ID phòng Zoom (vd: 842 1963 4521)</strong>, <strong>Mật khẩu Zoom (vd: XaloLrw26)</strong> và nội dung bài học. Sau khi bấm <strong>LƯU LỊCH TUẦN</strong>, học viên sẽ thấy ngay thông tin mới trên trang <strong>Hỗ trợ tự học</strong> và <strong>Thời khoá biểu</strong>.
+          Cập nhật ngày, giờ học, <strong>ID phòng Zoom (vd: 851 5452 5397)</strong>, <strong>Mật khẩu Zoom (vd: 123456)</strong> và nội dung bài học. Sau khi bấm <strong>LƯU LỊCH TUẦN</strong>, học viên sẽ thấy ngay thông tin mới trên trang <strong>Hỗ trợ tự học</strong> và <strong>Thời khoá biểu</strong>.
         </p>
         {!canUsePracticeClassApi() ? (
           <p className="mt-2 text-xs font-bold text-amber-800">
@@ -271,7 +271,7 @@ export function PracticeClassScheduleSection() {
                         type="text"
                         value={draft.meetingId}
                         onChange={(e) => updateSlot(id, "meetingId", e.target.value)}
-                        placeholder="842 1963 4521"
+                        placeholder="851 5452 5397"
                         className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs font-bold text-indigo-900 outline-none focus:border-primary/40"
                       />
                     </div>
@@ -283,7 +283,7 @@ export function PracticeClassScheduleSection() {
                         type="text"
                         value={draft.password}
                         onChange={(e) => updateSlot(id, "password", e.target.value)}
-                        placeholder="XaloLrw26"
+                        placeholder="123456"
                         className="mt-1.5 w-full rounded-xl border border-zinc-200 px-3 py-2 text-xs font-bold text-indigo-900 outline-none focus:border-primary/40"
                       />
                     </div>

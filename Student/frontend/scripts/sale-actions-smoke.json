@@ -1,0 +1,98 @@
+{
+  "total": 15,
+  "fail": 0,
+  "pass": 8,
+  "note": 7,
+  "findings": [
+    {
+      "area": "Auth",
+      "fn": "API login",
+      "kq": "Pass",
+      "ct": "SALE Nguyễn Phương Thảo"
+    },
+    {
+      "area": "BCB",
+      "fn": "Load bảng chẩn bệnh",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/sale/bcb"
+    },
+    {
+      "area": "BCB",
+      "fn": "Form/row HV",
+      "kq": "Note",
+      "ct": "không thấy CTA"
+    },
+    {
+      "area": "BCB",
+      "fn": "CTA Lưu BCB",
+      "kq": "Note",
+      "ct": "không thấy (cần chọn HV trước)"
+    },
+    {
+      "area": "BCB Entrance",
+      "fn": "Load trang",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/sale/bcb-entrance"
+    },
+    {
+      "area": "BCB Entrance",
+      "fn": "CTA chọn booking",
+      "kq": "Note",
+      "ct": "no CTA"
+    },
+    {
+      "area": "Speaking Entrance",
+      "fn": "Load danh sách",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/sale/test-speaking"
+    },
+    {
+      "area": "Speaking Entrance",
+      "fn": "Form đặt lịch",
+      "kq": "Note",
+      "ct": "không thấy CTA"
+    },
+    {
+      "area": "Speaking Entrance",
+      "fn": "CTA hủy ca",
+      "kq": "Note",
+      "ct": "không có ca pending"
+    },
+    {
+      "area": "Writing Entrance",
+      "fn": "Load trang",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/sale/cham-writing"
+    },
+    {
+      "area": "Writing Entrance",
+      "fn": "Nộp link Writing",
+      "kq": "Note",
+      "ct": "submitted UI"
+    },
+    {
+      "area": "Lịch rảnh",
+      "fn": "Load lịch",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/sale/lich-ranh"
+    },
+    {
+      "area": "Lịch rảnh",
+      "fn": "Ô lịch",
+      "kq": "Note",
+      "ct": "không click được"
+    },
+    {
+      "area": "Guest diagnosis",
+      "fn": "Mở trang public (Sale session)",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/guest-diagnosis"
+    },
+    {
+      "area": "Shell",
+      "fn": "Đăng xuất",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/login"
+    }
+  ]
+}

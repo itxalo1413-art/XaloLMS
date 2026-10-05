@@ -4,9 +4,21 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:webpack": "next dev --webpack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "smoke:hs-ho-tro": "node scripts/smoke-hs-ho-tro-ui.mjs",
+    "smoke:hs-pages": "node scripts/smoke-hs-all-pages.mjs",
+    "smoke:hs-actions": "node scripts/smoke-hs-actions.mjs",
+    "smoke:aca-pages": "node scripts/smoke-aca-all-pages.mjs",
+    "smoke:aca-actions": "node scripts/smoke-aca-actions.mjs",
+    "smoke:grader-pages": "node scripts/smoke-grader-all-pages.mjs",
+    "smoke:grader-actions": "node scripts/smoke-grader-actions.mjs",
+    "smoke:teacher-pages": "node scripts/smoke-teacher-all-pages.mjs",
+    "smoke:teacher-actions": "node scripts/smoke-teacher-actions.mjs",
+    "smoke:sale-pages": "node scripts/smoke-sale-all-pages.mjs",
+    "smoke:sale-actions": "node scripts/smoke-sale-actions.mjs"
   },
   "dependencies": {
     "next": "16.2.4",
@@ -21,6 +33,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "playwright": "^1.63.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

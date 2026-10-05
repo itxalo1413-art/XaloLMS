@@ -1477,8 +1477,8 @@ export default function Lop11Page() {
                     {selectedClass.zoomLink ? (
                       <div className="flex gap-1">
                         <a href={selectedClass.zoomLink} target="_blank" rel="noreferrer"
-                          className="flex-1 text-center bg-primary text-white py-1 rounded-lg font-black text-[10px] hover:opacity-90 block">
-                          VÀO HỌC ↗
+                          className="flex-1 text-center bg-primary text-white py-1 rounded-lg font-black text-[10px] hover:opacity-90 block whitespace-nowrap">
+                          VÀO HỌC
                         </a>
                         <button onClick={() => handleCopy(selectedClass.zoomLink!, "Link Zoom")}
                           className="px-2 border border-zinc-200 rounded-lg text-zinc-500 hover:bg-zinc-50 font-black text-[9px]">
@@ -1492,8 +1492,8 @@ export default function Lop11Page() {
                     {selectedClass.successorLink ? (
                       <div className="flex gap-1">
                         <a href={selectedClass.successorLink} target="_blank" rel="noreferrer"
-                          className="flex-1 text-center bg-secondary text-white py-1 rounded-lg font-black text-[10px] hover:opacity-90 block">
-                          MỞ LINK ↗
+                          className="flex-1 text-center bg-secondary text-white py-1 rounded-lg font-black text-[10px] hover:opacity-90 block whitespace-nowrap">
+                          MỞ LINK
                         </a>
                         <button onClick={() => handleCopy(selectedClass.successorLink!, "Link Tab")}
                           className="px-2 border border-zinc-200 rounded-lg text-zinc-500 hover:bg-zinc-50 font-black text-[9px]">
@@ -1507,8 +1507,8 @@ export default function Lop11Page() {
                     {selectedClass.materials ? (
                       <div className="flex gap-1">
                         <a href={selectedClass.materials} target="_blank" rel="noreferrer"
-                          className="flex-1 text-center bg-amber-600 text-white py-1 rounded-lg font-black text-[10px] hover:opacity-90 block">
-                          THƯ MỤC ↗
+                          className="flex-1 text-center bg-amber-600 text-white py-1 rounded-lg font-black text-[10px] hover:opacity-90 block whitespace-nowrap">
+                          THƯ MỤC
                         </a>
                         <button onClick={() => handleCopy(selectedClass.materials!, "Link Drive")}
                           className="px-2 border border-zinc-200 rounded-lg text-zinc-500 hover:bg-zinc-50 font-black text-[9px]">

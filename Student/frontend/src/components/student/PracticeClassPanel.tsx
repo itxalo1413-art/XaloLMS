@@ -13,6 +13,7 @@ import {
   getPracticeCurrentWeek,
   PRACTICE_CLASS_SCHEDULE_UPDATE_EVENT,
   PRACTICE_CLASS_UPDATE_EVENT,
+  DEFAULT_PRACTICE_ZALO_LINK,
   type PracticeSlotId,
 } from "@/lib/practiceClass";
 import { PracticeClassRlpTable } from "@/components/student/PracticeClassRlpTable";
@@ -40,6 +41,8 @@ type PracticeClassPanelProps = {
   weekAnnouncement?: string;
   /** Link Meet/Zoom tuần từ ACA. */
   weekMeetLink?: string;
+  /** Link Zalo lớp luyện đề. */
+  weekZaloLink?: string;
   /** Student ID for RLP API */
   studentId?: string;
   /** RLP sessions for this student */
@@ -66,6 +69,7 @@ export function PracticeClassPanel({
   examWeekNumber,
   weekAnnouncement,
   weekMeetLink,
+  weekZaloLink,
   studentId = "",
   rlpSessions = [],
   showRlp = false,
@@ -81,6 +85,10 @@ export function PracticeClassPanel({
   const announcement =
     weekAnnouncement?.trim() || currentWeek?.announcement?.trim() || "";
   const meetLink = weekMeetLink?.trim() || currentWeek?.linkMeet?.trim() || "";
+  const zaloLink =
+    weekZaloLink?.trim() ||
+    currentWeek?.linkZalo?.trim() ||
+    DEFAULT_PRACTICE_ZALO_LINK;
   const folderWeek =
     currentWeek?.weekRange?.trim() || weekRangeLabel?.trim() || "";
   const [selectedSlotId, setSelectedSlotId] = useState<PracticeSlotId | null>(null);
@@ -135,6 +143,27 @@ export function PracticeClassPanel({
             className="inline-flex h-9 shrink-0 items-center rounded-xl bg-primary px-4 text-[10px] font-black uppercase tracking-widest text-white hover:bg-primary/90"
           >
             Mở Meet / Zoom
+          </a>
+        </div>
+      ) : null}
+
+      {zaloLink ? (
+        <div className="rounded-2xl border border-sky-200 bg-sky-50/70 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[10px] font-black uppercase tracking-widest text-sky-700">
+              Link Zalo của lớp
+            </div>
+            <p className="mt-0.5 text-xs font-semibold text-muted truncate max-w-[min(100%,28rem)]">
+              {zaloLink}
+            </p>
+          </div>
+          <a
+            href={zaloLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex h-9 shrink-0 items-center rounded-xl bg-sky-600 px-4 text-[10px] font-black uppercase tracking-widest text-white hover:bg-sky-700"
+          >
+            Mở nhóm Zalo
           </a>
         </div>
       ) : null}

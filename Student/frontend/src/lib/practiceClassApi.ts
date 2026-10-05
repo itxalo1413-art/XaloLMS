@@ -54,6 +54,7 @@ export type PracticeCurrentWeekResponse = {
   linkTab: string;
   linkMeet: string;
   linkFolder: string;
+  linkZalo: string;
   zoomId: string;
   zoomPassword: string;
 };

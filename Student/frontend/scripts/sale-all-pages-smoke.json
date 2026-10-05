@@ -1,0 +1,104 @@
+{
+  "total": 16,
+  "fail": 0,
+  "pass": 16,
+  "note": 0,
+  "findings": [
+    {
+      "vai": "SALE",
+      "fn": "API login",
+      "kq": "Pass",
+      "ct": "SALE Nguyễn Phương Thảo"
+    },
+    {
+      "vai": "SALE",
+      "fn": "Warm routes",
+      "kq": "Pass",
+      "ct": "9 paths"
+    },
+    {
+      "vai": "SALE",
+      "fn": "Session inject",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/sale"
+    },
+    {
+      "vai": "SALE",
+      "fn": "Sale home redirect",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/sale/bcb"
+    },
+    {
+      "vai": "SALE",
+      "fn": "Bảng Chẩn Bệnh (BCB)",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/sale/bcb"
+    },
+    {
+      "vai": "SALE",
+      "fn": "BCB Entrance",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/sale/bcb-entrance"
+    },
+    {
+      "vai": "SALE",
+      "fn": "Test Speaking Entrance",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/sale/test-speaking"
+    },
+    {
+      "vai": "SALE",
+      "fn": "Writing Entrance",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/sale/cham-writing"
+    },
+    {
+      "vai": "SALE",
+      "fn": "Lịch rảnh (Sale)",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/sale/test-speaking"
+    },
+    {
+      "vai": "SALE",
+      "fn": "Lưu trữ test → Speaking",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/sale/test-speaking"
+    },
+    {
+      "vai": "SALE",
+      "fn": "Đặt lịch test → Speaking",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/sale/test-speaking"
+    },
+    {
+      "vai": "SALE",
+      "fn": "Đặt lịch test → Writing",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/sale/cham-writing"
+    },
+    {
+      "vai": "SALE",
+      "fn": "ACA portal (deny stay)",
+      "kq": "Pass",
+      "ct": "rời → http://127.0.0.1:3000/grader/cham-writing"
+    },
+    {
+      "vai": "SALE",
+      "fn": "Teacher portal (deny stay)",
+      "kq": "Pass",
+      "ct": "rời → http://127.0.0.1:3000/sale/bcb"
+    },
+    {
+      "vai": "SALE",
+      "fn": "Grader portal (deny stay)",
+      "kq": "Pass",
+      "ct": "rời → http://127.0.0.1:3000/login"
+    },
+    {
+      "vai": "SALE",
+      "fn": "Console errors",
+      "kq": "Pass",
+      "ct": "none"
+    }
+  ]
+}

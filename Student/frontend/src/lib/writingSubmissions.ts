@@ -12,10 +12,52 @@ import {
 import { computeWritingDueDateFromSubmitted } from "@/lib/writingDeadline";
 
 export const ACA_GRADERS = [
-  "Grader 1",
-  "Grader 2",
-  "Grader 3",
+  "Huỳnh Gia Phú",
+  "Lê Thị Diệu Linh",
+  "Nguyễn Văn Đăng Duy",
+  "Huỳnh Minh Phương",
+  "Nguyễn Thị Hoàng Sa",
 ] as const;
+
+/** Map tên Grader cũ / alias → tên chuẩn hiện tại. */
+export const GRADER_NAME_ALIASES: Record<string, (typeof ACA_GRADERS)[number]> = {
+  "grader 1": "Huỳnh Gia Phú",
+  "bộ phận grader 1": "Huỳnh Gia Phú",
+  "gia phú": "Huỳnh Gia Phú",
+  "huỳnh gia phú": "Huỳnh Gia Phú",
+  "grader 2": "Lê Thị Diệu Linh",
+  "bộ phận grader 2": "Lê Thị Diệu Linh",
+  "diệu linh": "Lê Thị Diệu Linh",
+  "lê thị diệu linh": "Lê Thị Diệu Linh",
+  "grader 3": "Nguyễn Văn Đăng Duy",
+  "bộ phận grader 3": "Nguyễn Văn Đăng Duy",
+  "grader hệ thống": "Nguyễn Văn Đăng Duy",
+  "đăng duy": "Nguyễn Văn Đăng Duy",
+  "nguyễn văn đăng duy": "Nguyễn Văn Đăng Duy",
+  "minh phương": "Huỳnh Minh Phương",
+  "huỳnh minh phương": "Huỳnh Minh Phương",
+  "hoàng sa": "Nguyễn Thị Hoàng Sa",
+  "nguyễn thị hoàng sa": "Nguyễn Thị Hoàng Sa",
+};
+
+export function normalizeAssignedGraderName(
+  raw?: string | null,
+): (typeof ACA_GRADERS)[number] | "" {
+  const clean = String(raw || "").trim();
+  if (!clean) return "";
+  if ((ACA_GRADERS as readonly string[]).includes(clean)) {
+    return clean as (typeof ACA_GRADERS)[number];
+  }
+  const key = clean.toLowerCase();
+  if (GRADER_NAME_ALIASES[key]) return GRADER_NAME_ALIASES[key];
+  for (const [alias, canonical] of Object.entries(GRADER_NAME_ALIASES)) {
+    if (key.includes(alias) || alias.includes(key)) return canonical;
+  }
+  for (const g of ACA_GRADERS) {
+    if (key === g.toLowerCase() || key.includes(g.toLowerCase())) return g;
+  }
+  return "";
+}
 
 export type WritingSubmissionStatus = "pending" | "grading" | "graded";
 
@@ -74,8 +116,9 @@ export function selectNextAcaGrader(existingRows: WritingSubmission[]): string {
     counts[g] = 0;
   }
   for (const r of existingRows) {
-    if (r.assignedGrader && counts[r.assignedGrader] !== undefined) {
-      counts[r.assignedGrader]++;
+    const g = normalizeAssignedGraderName(r.assignedGrader);
+    if (g && counts[g] !== undefined) {
+      counts[g]++;
     }
   }
   let minCount = Infinity;
@@ -105,7 +148,11 @@ export function deduplicateWritingSubmissions(rows: WritingSubmission[]): Writin
     seenContent.add(contentKey);
 
     const clone = { ...r };
-    if (!clone.assignedGrader || !ACA_GRADERS.includes(clone.assignedGrader as (typeof ACA_GRADERS)[number])) {
+    const normalized = normalizeAssignedGraderName(clone.assignedGrader);
+    if (normalized) {
+      clone.assignedGrader = normalized;
+    } else if (!clone.assignedGrader?.trim()) {
+      // Chỉ gán mới khi thật sự chưa có grader — không xoá phân công cũ.
       clone.assignedGrader = selectNextAcaGrader(result);
     }
 

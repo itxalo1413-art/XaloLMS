@@ -1,0 +1,134 @@
+{
+  "total": 21,
+  "fail": 0,
+  "pass": 21,
+  "note": 0,
+  "findings": [
+    {
+      "vai": "GV",
+      "fn": "API login",
+      "kq": "Pass",
+      "ct": "GV Nghiêm Doãn Quỳnh Châu"
+    },
+    {
+      "vai": "GV",
+      "fn": "Warm routes",
+      "kq": "Pass",
+      "ct": "13 paths"
+    },
+    {
+      "vai": "GV",
+      "fn": "Session inject",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher"
+    },
+    {
+      "vai": "GV",
+      "fn": "Danh sách lớp",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher"
+    },
+    {
+      "vai": "GV",
+      "fn": "RLP",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/rlp"
+    },
+    {
+      "vai": "GV",
+      "fn": "RLP luyện đề",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/practice-rlp"
+    },
+    {
+      "vai": "GV",
+      "fn": "Chấm Writing",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/cham-writing"
+    },
+    {
+      "vai": "GV",
+      "fn": "Final Test",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/final-test"
+    },
+    {
+      "vai": "GV",
+      "fn": "Lịch",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/lich"
+    },
+    {
+      "vai": "GV",
+      "fn": "Teaching Materials",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/teaching-materials"
+    },
+    {
+      "vai": "GV",
+      "fn": "Performance",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/performance"
+    },
+    {
+      "vai": "GV",
+      "fn": "Hồ sơ GV",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/profile"
+    },
+    {
+      "vai": "GV",
+      "fn": "BCB",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/bcb"
+    },
+    {
+      "vai": "GV",
+      "fn": "Mock Test Speaking",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/mock-test"
+    },
+    {
+      "vai": "GV",
+      "fn": "Khóa học",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/khoa-hoc"
+    },
+    {
+      "vai": "GV",
+      "fn": "Cảnh báo học tập",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher"
+    },
+    {
+      "vai": "GV",
+      "fn": "Chi tiết học sinh",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/teacher/hoc-sinh/demo"
+    },
+    {
+      "vai": "GV",
+      "fn": "ACA portal (deny stay)",
+      "kq": "Pass",
+      "ct": "rời → http://127.0.0.1:3000/grader"
+    },
+    {
+      "vai": "GV",
+      "fn": "Grader portal (deny stay)",
+      "kq": "Pass",
+      "ct": "rời → http://127.0.0.1:3000/login"
+    },
+    {
+      "vai": "GV",
+      "fn": "Sale portal (deny stay)",
+      "kq": "Pass",
+      "ct": "rời → http://127.0.0.1:3000/teacher"
+    },
+    {
+      "vai": "GV",
+      "fn": "Console errors",
+      "kq": "Pass",
+      "ct": "none"
+    }
+  ]
+}

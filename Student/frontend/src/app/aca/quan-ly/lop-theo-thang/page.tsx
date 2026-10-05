@@ -18,6 +18,7 @@ import {
   type Aca11Class,
   displayClassCode,
   classCodesMatch,
+  shortClassLabel,
 } from "@/lib/acaManagementApi";
 import { confirmDialog } from "@/components/shared/ConfirmDialog";
 
@@ -150,6 +151,14 @@ interface ResolvedPhases {
 const isAcaClass = (value: AcaClass | Aca11Class | null | undefined): value is AcaClass => {
   return !!value && "classCode" in value;
 };
+
+/** Lớp tạm dừng — không mở tháng này & tương lai, chưa biết ngày mở lại. */
+const CLOSED_CLASS_TYPE = "Tạm đóng";
+
+function isClassTemporarilyClosed(cls: Pick<AcaClass, "type"> | null | undefined): boolean {
+  const t = String(cls?.type || "").trim().toLowerCase();
+  return t === CLOSED_CLASS_TYPE.toLowerCase() || t.includes("tạm đóng") || t.includes("tam dong");
+}
 
 const LEVEL_SEQUENCE = ["FOUND", "MMNT", "UPSTR", "SOAR", "ADV"];
 
@@ -881,6 +890,7 @@ export default function LopTheoThangPage() {
   }, [selectedMonth, selectedYear, ready, isKhanhThi]);
 
   const [activeTab, setActiveTab] = useState<"calendar" | "list">("calendar");
+  const [showClosedClasses, setShowClosedClasses] = useState(false);
   const [selectedClass, setSelectedClass] = useState<AcaClass | Aca11Class | null>(null);
   const [showHistoryInTimeline, setShowHistoryInTimeline] = useState(false);
   // Context of the clicked calendar event (which phase/date in the target month was selected)
@@ -1201,6 +1211,8 @@ export default function LopTheoThangPage() {
       newNext = "S-R";
     } else if (newCurrent.toUpperCase().includes("S") || newCurrent.toUpperCase().includes("R")) {
       newNext = "W-L";
+    } else if (newCurrent.toUpperCase().includes("PRE") || newCurrent.toUpperCase().includes("IELTS")) {
+      newNext = "CORE 2";
     }
 
     const newNextDate = calculateNextPhaseDate(newStartDate, fName);
@@ -1228,6 +1240,108 @@ export default function LopTheoThangPage() {
     setFNextPhase(newNext);
     setFNextPhaseStartDate(newNextDate);
     setFSlotsToEnroll(0); // Reset slots to enroll for the new phase
+  };
+
+  /**
+   * Tạm đóng lớp: không mở trong tháng đang xem & các tháng tới,
+   * chưa biết khi nào mở lại. (Khác với “qua chặng mới”.)
+   */
+  const handleCloseClass = async (cls: AcaClass) => {
+    if (isClassTemporarilyClosed(cls)) {
+      alert("Lớp này đã ở trạng thái Tạm đóng.");
+      return;
+    }
+
+    const today = formatDDMMYYYY(new Date());
+    const ok = await confirmDialog({
+      title: "Tạm đóng lớp",
+      message: [
+        `Lớp: ${displayClassCode(cls.classCode) || shortClassLabel(cls.name)}`,
+        `Chặng đang chạy: ${cls.currentPhase || "—"}`,
+        ``,
+        `Sau khi đóng:`,
+        `• Không hiện / không mở trên lịch tháng ${selectedMonth}/${selectedYear} và các tháng tới`,
+        `• Xóa lịch khai giảng chặng kế (chưa xếp ngày mở lại)`,
+        `• Slots cần tuyển → 0`,
+        ``,
+        `Có thể Mở lại bất cứ lúc nào khi đã biết ngày khai giảng mới.`,
+      ].join("\n"),
+      confirmText: "Tạm đóng",
+      cancelText: "Hủy",
+      variant: "danger",
+    });
+    if (!ok) return;
+
+    const noteLine = `Tạm đóng ${today} — chưa xếp ngày mở lại`;
+    const prevNote = String(cls.progressNote || "").trim();
+    const progressNote = prevNote.includes("Tạm đóng")
+      ? prevNote
+      : prevNote
+        ? `${prevNote}\n${noteLine}`
+        : noteLine;
+
+    try {
+      const updated = await updateAcaClass(cls.id, {
+        type: CLOSED_CLASS_TYPE,
+        nextPhaseStartDate: "",
+        slotsToEnroll: 0,
+        progressNote,
+      });
+      setClasses((prev) => prev.map((c) => (c.id === cls.id ? { ...c, ...updated } : c)));
+      if (selectedClass && !("className" in selectedClass) && selectedClass.id === cls.id) {
+        setSelectedClass({ ...selectedClass, ...updated });
+      }
+      if (editingClassId === cls.id) {
+        setFType(CLOSED_CLASS_TYPE);
+        setFNextPhaseStartDate("");
+        setFSlotsToEnroll(0);
+        setFProgressNote(updated.progressNote || progressNote);
+      }
+    } catch (err: any) {
+      alert("Tạm đóng thất bại: " + (err?.message || "lỗi"));
+    }
+  };
+
+  /** Mở lại lớp đã tạm đóng — ACA điền lại ngày khai giảng chặng khi có lịch. */
+  const handleReopenClass = async (cls: AcaClass) => {
+    if (!isClassTemporarilyClosed(cls)) {
+      alert("Lớp không ở trạng thái Tạm đóng.");
+      return;
+    }
+    const ok = await confirmDialog({
+      title: "Mở lại lớp",
+      message: [
+        `Lớp: ${displayClassCode(cls.classCode) || shortClassLabel(cls.name)}`,
+        ``,
+        `Đưa lớp về “Lớp đang diễn ra”.`,
+        `Nhớ cập nhật ngày khai giảng chặng kế trong form Sửa lớp khi đã có lịch.`,
+      ].join("\n"),
+      confirmText: "Mở lại",
+      cancelText: "Hủy",
+    });
+    if (!ok) return;
+
+    const today = formatDDMMYYYY(new Date());
+    const noteLine = `Mở lại ${today}`;
+    const prevNote = String(cls.progressNote || "").trim();
+    const progressNote = prevNote ? `${prevNote}\n${noteLine}` : noteLine;
+
+    try {
+      const updated = await updateAcaClass(cls.id, {
+        type: "Lớp đang diễn ra",
+        progressNote,
+      });
+      setClasses((prev) => prev.map((c) => (c.id === cls.id ? { ...c, ...updated } : c)));
+      if (selectedClass && !("className" in selectedClass) && selectedClass.id === cls.id) {
+        setSelectedClass({ ...selectedClass, ...updated });
+      }
+      if (editingClassId === cls.id) {
+        setFType("Lớp đang diễn ra");
+        setFProgressNote(updated.progressNote || progressNote);
+      }
+    } catch (err: any) {
+      alert("Mở lại thất bại: " + (err?.message || "lỗi"));
+    }
   };
 
   // Delete class
@@ -1291,13 +1405,18 @@ export default function LopTheoThangPage() {
       // Never show 1:1 classes in group class list (học phần)
       if (isClass11(c)) return false;
 
+      // Tạm đóng: ẩn khỏi lịch/tháng đang xem (và tương lai), trừ khi bật “Hiện lớp tạm đóng”
+      if (isClassTemporarilyClosed(c) && !showClosedClasses) return false;
+
       // 1. Strict month match
       if (c.month === selectedMonth) return true;
       
-      // 2. Has projected events in the target month/year
-      const stopAt = stopAtMap.get(c.id) || undefined;
-      const events = getProjectedEventsForMonth(c, selectedMonth, selectedYear, stopAt);
-      if (events.length > 0) return true;
+      // 2. Has projected events in the target month/year (lớp tạm đóng không chiếu lịch)
+      if (!isClassTemporarilyClosed(c)) {
+        const stopAt = stopAtMap.get(c.id) || undefined;
+        const events = getProjectedEventsForMonth(c, selectedMonth, selectedYear, stopAt);
+        if (events.length > 0) return true;
+      }
       
       // 3. Or if it's "Đang diễn ra" and selected date falls within the class duration
       const openParts = c.openDate?.split("/");
@@ -1310,6 +1429,9 @@ export default function LopTheoThangPage() {
         const target = new Date(selectedYear, selectedMonth - 1, 1);
         
         if (target >= start) {
+          if (isClassTemporarilyClosed(c)) {
+            return showClosedClasses;
+          }
           if (c.endDate) {
             const endParts = c.endDate.split("/");
             if (endParts.length === 3) {
@@ -1328,11 +1450,15 @@ export default function LopTheoThangPage() {
       return false;
     });
     return dedupeClassesByCode(matched, selectedMonth);
-  }, [classes, selectedMonth, selectedYear, stopAtMap]);
+  }, [classes, selectedMonth, selectedYear, stopAtMap, showClosedClasses]);
 
   /** Bản lớp đã gộp trùng mã — dùng cho lịch / timeline để không hiện 2 lần cùng lớp. */
   const classesForCalendar = useMemo(
-    () => dedupeClassesByCode(classes.filter(c => !isClass11(c)), selectedMonth),
+    () =>
+      dedupeClassesByCode(
+        classes.filter((c) => !isClass11(c) && !isClassTemporarilyClosed(c)),
+        selectedMonth,
+      ),
     [classes, selectedMonth],
   );
 
@@ -1698,12 +1824,23 @@ export default function LopTheoThangPage() {
                 Danh sách lớp học
               </button>
             </div>
-            <button
-              onClick={openAddModal}
-              className="h-10 rounded-xl bg-primary text-white px-4 text-xs font-black uppercase shadow-premium hover:shadow-hover hover:-translate-y-0.5 transition-all"
-            >
-              + Thêm lớp
-            </button>
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 h-10 rounded-xl border border-zinc-200 bg-white px-3 text-[10px] font-bold text-zinc-600 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={showClosedClasses}
+                  onChange={(e) => setShowClosedClasses(e.target.checked)}
+                  className="rounded border-zinc-300 text-primary focus:ring-primary/30"
+                />
+                Hiện lớp tạm đóng
+              </label>
+              <button
+                onClick={openAddModal}
+                className="h-10 rounded-xl bg-primary text-white px-4 text-xs font-black uppercase shadow-premium hover:shadow-hover hover:-translate-y-0.5 transition-all"
+              >
+                + Thêm lớp
+              </button>
+            </div>
           </div>
         </div>
 
@@ -1923,6 +2060,8 @@ export default function LopTheoThangPage() {
                   onSelectClass={setSelectedClass}
                   onEditClass={openEditModal}
                   onDeleteClass={handleDeleteClass}
+                  onClosePhase={(cls) => void handleCloseClass(cls)}
+                  onReopenClass={(cls) => void handleReopenClass(cls)}
                 />
                 
                 {/* Pagination Controls */}
@@ -2040,13 +2179,10 @@ export default function LopTheoThangPage() {
                   {"className" in selectedClass ? "Lớp kèm 1:1" : selectedClass.type}
                 </span>
                 <h3 className="text-base font-black text-foreground">
-                  {"className" in selectedClass ? selectedClass.className : selectedClass.name}
+                  {"className" in selectedClass
+                    ? shortClassLabel(selectedClass.className)
+                    : (displayClassCode(selectedClass.classCode) || shortClassLabel(selectedClass.name))}
                 </h3>
-                {!("className" in selectedClass) && selectedClass.classCode && (
-                  <span className="inline-flex items-center mt-1 px-2 py-0.5 rounded-lg bg-secondary/10 text-secondary text-[11px] font-black">
-                    {displayClassCode(selectedClass.classCode)}
-                  </span>
-                )}
               </div>
               <button
                 onClick={() => { setSelectedClass(null); setSelectedEventContext(null); }}
@@ -2346,20 +2482,43 @@ export default function LopTheoThangPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="pt-3 border-t border-zinc-100 flex justify-end gap-3">
+            <div className="pt-3 border-t border-zinc-100 flex flex-wrap justify-end gap-3">
               {selectedClass && !("className" in selectedClass) && (
-                <button
-                  onClick={() => {
-                    const classToEdit = selectedClass as AcaClass;
-                    setSelectedClass(null);
-                    openEditModal(classToEdit);
-                  }}
-                  className="h-9 rounded-xl bg-primary text-white px-5 text-xs font-black uppercase shadow-soft hover:shadow-hover hover:-translate-y-0.5 transition-all"
-                >
-                  Chỉnh sửa lớp
-                </button>
+                <>
+                  {isClassTemporarilyClosed(selectedClass as AcaClass) ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleReopenClass(selectedClass as AcaClass)}
+                      className="h-9 rounded-xl bg-emerald-600 text-white px-5 text-xs font-black uppercase shadow-soft hover:bg-emerald-700 hover:shadow-hover hover:-translate-y-0.5 transition-all"
+                      title="Mở lại lớp — điền ngày khai giảng khi đã có lịch"
+                    >
+                      Mở lại
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void handleCloseClass(selectedClass as AcaClass)}
+                      className="h-9 rounded-xl bg-amber-600 text-white px-5 text-xs font-black uppercase shadow-soft hover:bg-amber-700 hover:shadow-hover hover:-translate-y-0.5 transition-all"
+                      title="Tạm đóng: không mở tháng này & tương lai, chưa biết khi mở lại"
+                    >
+                      Tạm đóng
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const classToEdit = selectedClass as AcaClass;
+                      setSelectedClass(null);
+                      openEditModal(classToEdit);
+                    }}
+                    className="h-9 rounded-xl bg-primary text-white px-5 text-xs font-black uppercase shadow-soft hover:shadow-hover hover:-translate-y-0.5 transition-all"
+                  >
+                    Chỉnh sửa lớp
+                  </button>
+                </>
               )}
               <button
+                type="button"
                 onClick={() => { setSelectedClass(null); setSelectedEventContext(null); }}
                 className="h-9 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 px-5 text-xs font-black uppercase"
               >
@@ -2379,22 +2538,76 @@ export default function LopTheoThangPage() {
               {crudMode === "add" ? "Thêm lớp học mới" : "Chỉnh sửa thông tin lớp"}
             </h3>
             <form onSubmit={handleCrudSubmit} className="space-y-4 text-xs font-semibold overflow-y-auto flex-1">
-              {/* Transition chặng banner */}
+              {/* Tạm đóng / chuyển chặng */}
               {crudMode === "edit" && (
-                <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 flex items-center justify-between gap-4">
-                  <div className="space-y-0.5">
-                    <div className="font-black text-primary text-xs uppercase tracking-wider">Chuyển sang chặng kế tiếp?</div>
-                    <p className="text-[10px] text-zinc-500 font-medium leading-relaxed">
-                      Nâng cấp lớp lên chặng **{fNextPhase || "chặng mới"}** bắt đầu ngày **{fNextPhaseStartDate || "chưa xếp"}**. Hệ thống tự động cập nhật sĩ số chặng hiện tại dựa trên logic học viên và reset sĩ số cần tuyển về 0.
-                    </p>
+                <div className="space-y-3">
+                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-0.5 min-w-0">
+                      <div className="font-black text-amber-800 text-xs uppercase tracking-wider">
+                        Tạm đóng lớp
+                      </div>
+                      <p className="text-[10px] text-zinc-600 font-medium leading-relaxed">
+                        Lớp không mở trong tháng đang xem và các tháng tới; chưa biết khi nào mở lại.
+                        Xóa lịch khai giảng chặng kế, slots tuyển = 0. Có thể Mở lại sau.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 shrink-0">
+                      {fType === CLOSED_CLASS_TYPE ? (
+                        <button
+                          type="button"
+                          disabled={!editingClassId}
+                          onClick={() => {
+                            const cls = classes.find((c) => c.id === editingClassId);
+                            if (cls) void handleReopenClass(cls);
+                          }}
+                          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-wider rounded-xl text-[9px] disabled:opacity-40"
+                        >
+                          Mở lại
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={!editingClassId}
+                          onClick={() => {
+                            const cls = classes.find((c) => c.id === editingClassId);
+                            if (cls) {
+                              void handleCloseClass({
+                                ...cls,
+                                currentPhase: fCurrentPhase,
+                                nextPhase: fNextPhase,
+                                nextPhaseStartDate: fNextPhaseStartDate,
+                                progressNote: fProgressNote,
+                              });
+                            }
+                          }}
+                          className="px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-black uppercase tracking-wider rounded-xl text-[9px] disabled:opacity-40"
+                        >
+                          Tạm đóng
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleTransitionToNextPhase}
-                    className="px-4 py-2.5 bg-primary hover:bg-primary-soft text-white font-black uppercase tracking-wider rounded-xl shadow-soft hover:shadow-hover hover:-translate-y-0.5 transition-all text-[9px] shrink-0"
-                  >
-                    Qua chặng mới ➔
-                  </button>
+                  <div className="bg-primary/5 border border-primary/10 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-0.5 min-w-0">
+                      <div className="font-black text-primary text-xs uppercase tracking-wider">
+                        Qua chặng mới (vẫn mở lớp)
+                      </div>
+                      <p className="text-[10px] text-zinc-500 font-medium leading-relaxed">
+                        Chỉ điền form:{" "}
+                        <span className="font-black text-zinc-800">{fCurrentPhase || "—"}</span>
+                        {" → "}
+                        <span className="font-black text-zinc-800">{fNextPhase || "chặng mới"}</span>
+                        . Nhớ bấm Lưu lại.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleTransitionToNextPhase}
+                      className="px-4 py-2.5 bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-wider rounded-xl text-[9px] shrink-0"
+                    >
+                      Điền form ➔
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -2477,6 +2690,7 @@ export default function LopTheoThangPage() {
                     <option>Lớp đang diễn ra</option>
                     <option>Lớp mới</option>
                     <option>Lớp sắp mở</option>
+                    <option>Tạm đóng</option>
                     <option>Lớp đã kết thúc</option>
                   </select>
                 </div>
@@ -2785,6 +2999,8 @@ function ClassTableList({
   onSelectClass,
   onEditClass,
   onDeleteClass,
+  onClosePhase,
+  onReopenClass,
 }: { 
   classes: AcaClass[];
   students: AcaStudent[];
@@ -2792,6 +3008,8 @@ function ClassTableList({
   onSelectClass: (cls: AcaClass) => void;
   onEditClass: (cls: AcaClass) => void;
   onDeleteClass: (id: string) => void;
+  onClosePhase: (cls: AcaClass) => void;
+  onReopenClass: (cls: AcaClass) => void;
 }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
@@ -2807,31 +3025,29 @@ function ClassTableList({
               <th className="px-6 py-4 min-w-[220px]">Chặng tiếp theo</th>
               <th className="px-6 py-4 text-center min-w-[120px]">Cần tuyển</th>
               <th className="px-6 py-4 min-w-[160px]">Trạng thái</th>
-              <th className="px-6 py-4 text-center min-w-[120px]">Hành động</th>
+              <th className="px-6 py-4 text-center min-w-[200px]">Hành động</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100 font-semibold text-zinc-700">
             {classes.length > 0 ? (
               classes.map((c) => {
                 const recruitedCount = students.filter(st => isRecruitedForNextPhase(st, c, selectedYear)).length;
+                const closed = isClassTemporarilyClosed(c);
                 return (
                   <tr 
                     key={c.id} 
-                    className="hover:bg-zinc-50/80 align-middle transition-colors"
+                    className={`align-middle transition-colors ${closed ? "bg-zinc-50/80 opacity-80" : "hover:bg-zinc-50/80"}`}
                   >
                     <td
                       className="px-6 py-4 min-w-[340px] cursor-pointer"
                       onClick={() => onSelectClass(c)}
                       title="Click để xem chi tiết và danh sách học viên"
                     >
-                      <div className="font-black text-primary hover:underline">{c.name}</div>
-                      <div className="flex items-center gap-2 mt-1">
-                        {c.classCode && (
-                          <span className="inline-flex items-center rounded-md bg-secondary/10 px-1.5 py-0.5 text-[9px] font-black text-secondary tracking-wide">
-                            {displayClassCode(c.classCode)}
-                          </span>
-                        )}
-                        <span className="text-[10px] text-zinc-400 font-bold">GV: {c.teacher}</span>
+                      <div className="font-black text-primary hover:underline text-sm">
+                        {displayClassCode(c.classCode) || shortClassLabel(c.name)}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[11px] text-zinc-400 font-medium">GV: {c.teacher}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-zinc-500 min-w-[160px]">{c.openDate}</td>
@@ -2844,22 +3060,51 @@ function ClassTableList({
                     <td className="px-6 py-4 text-center font-bold tabular-nums text-foreground min-w-[140px]">{c.phaseStudents}</td>
                     <td className="px-6 py-4 min-w-[220px]">
                       <div className="text-zinc-800 font-black">{c.nextPhase}</div>
-                      <div className="text-[10px] text-zinc-400 mt-0.5">Khai giảng: {c.nextPhaseStartDate}</div>
+                      <div className="text-[10px] text-zinc-400 mt-0.5">
+                        Khai giảng: {c.nextPhaseStartDate || (closed ? "chưa xếp mở lại" : "—")}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-center font-bold tabular-nums text-warning min-w-[120px]">{recruitedCount}/{c.slotsToEnroll}</td>
                     <td className="px-6 py-4 min-w-[160px]">
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-success/15 px-2.5 py-1 text-[9px] font-black uppercase text-success">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-black uppercase ${
+                          closed
+                            ? "bg-amber-100 text-amber-800"
+                            : "bg-success/15 text-success"
+                        }`}
+                      >
                         {c.type}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-center whitespace-nowrap min-w-[120px]">
+                    <td className="px-6 py-4 text-center whitespace-nowrap min-w-[200px]">
+                      {closed ? (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); onReopenClass(c); }}
+                          className="text-emerald-700 hover:text-emerald-900 mr-3 font-black"
+                          title="Mở lại lớp"
+                        >
+                          Mở lại
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); onClosePhase(c); }}
+                          className="text-amber-700 hover:text-amber-900 mr-3 font-black"
+                          title="Tạm đóng: không mở tháng này & tương lai"
+                        >
+                          Tạm đóng
+                        </button>
+                      )}
                       <button
+                        type="button"
                         onClick={(e) => { e.stopPropagation(); onEditClass(c); }}
                         className="text-primary hover:text-primary-soft mr-3 font-black"
                       >
                         Sửa
                       </button>
                       <button
+                        type="button"
                         onClick={(e) => { e.stopPropagation(); onDeleteClass(c.id); }}
                         className="text-danger hover:text-red-400 font-black"
                       >

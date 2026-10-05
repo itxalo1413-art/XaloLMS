@@ -75,7 +75,7 @@ export default function AcaBcbFinalPage() {
   const [scoreSpeaking, setScoreSpeaking] = useState("");
   const [scoreOverall, setScoreOverall] = useState("");
   const [bcbSpreadsheetLink, setBcbSpreadsheetLink] = useState("");
-  const [graderW, setGraderW] = useState("Bộ phận Grader 1");
+  const [graderW, setGraderW] = useState("Huỳnh Gia Phú");
   const [hasTakenTest, setHasTakenTest] = useState(true);
   const [isChecked, setIsChecked] = useState(false);
   const [resultStatus, setResultStatus] = useState<"Đạt" | "Không đạt">("Không đạt");
@@ -429,7 +429,7 @@ export default function AcaBcbFinalPage() {
     setScoreSpeaking("");
     setScoreOverall("");
     setBcbSpreadsheetLink("");
-    setGraderW("Bộ phận Grader 1");
+    setGraderW("Huỳnh Gia Phú");
     setHasTakenTest(true);
     setIsChecked(false);
     setResultStatus("Không đạt");
@@ -455,7 +455,7 @@ export default function AcaBcbFinalPage() {
     setScoreSpeaking(r.scoreSpeaking || "");
     setScoreOverall(r.scoreOverall || "");
     setBcbSpreadsheetLink(r.bcbSpreadsheetLink || "");
-    setGraderW(r.graderWTask1 || r.graderWTask2 || "Bộ phận Grader 1");
+    setGraderW(r.graderWTask1 || r.graderWTask2 || "Huỳnh Gia Phú");
     setHasTakenTest(r.hasTakenTest ?? false);
     setIsChecked(r.isChecked ?? false);
     setResultStatus(r.resultStatus || "Không đạt");
@@ -757,9 +757,9 @@ export default function AcaBcbFinalPage() {
                               target="_blank"
                               rel="noreferrer"
                               onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1 text-primary font-bold hover:underline"
+                              className="inline-flex items-center gap-1 text-primary font-bold hover:underline whitespace-nowrap"
                             >
-                              FINAL ↗
+                              FINAL
                             </a>
                           ) : (
                             <span className="text-zinc-300">—</span>
@@ -774,9 +774,9 @@ export default function AcaBcbFinalPage() {
                               target="_blank"
                               rel="noreferrer"
                               onClick={(e) => e.stopPropagation()}
-                              className="inline-flex items-center gap-1 text-sky-600 font-bold hover:underline"
+                              className="inline-flex items-center gap-1 text-sky-600 font-bold hover:underline whitespace-nowrap"
                             >
-                              MOM_Test ↗
+                              MOM_Test
                             </a>
                           ) : (
                             <span className="text-zinc-300">—</span>
@@ -1059,7 +1059,7 @@ export default function AcaBcbFinalPage() {
                   <option value="">-- Chọn học viên để điền nhanh thông tin --</option>
                   {students.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.name} {s.phone ? `(${s.phone})` : ""} {s.l1 ? `• ${s.l1}` : ""}
+                      {s.name} {s.phone ? `(${s.phone})` : ""} {s.l1 ? `• ${shortClassLabel(s.l1)}` : ""}
                     </option>
                   ))}
                 </select>

@@ -1,112 +1,117 @@
 import type { PracticeRlpSession } from "@/lib/practiceRlpApi";
 
-/** Dữ liệu demo RLP lớp luyện đề — hiển thị khi API chưa có dữ liệu. */
-export const PRACTICE_RLP_DEMO_SESSIONS: PracticeRlpSession[] = [
-  {
-    no: 1,
-    date: "08/07/2026",
-    skill: "Listening",
-    contents: "Listening Section 1-2 — Form completion & map labelling (Đề tuần 27)",
-    teacherNote: "Ổn phần điền từ, cần luyện thêm chính tả số và tên riêng",
-    deadline: "15/07/2026",
-    homeworkStatus: "submitted",
-    attendance: "present",
-    lessonFileUrl: "https://drive.google.com/file/d/demo-practice-rlp-1",
-    homeworkFileUrl: "https://docs.google.com/document/d/demo-practice-hw-1",
-    recordingUrl: "https://drive.google.com/file/d/demo-practice-rec-1",
-  },
-  {
-    no: 2,
-    date: "10/07/2026",
-    skill: "Reading",
-    contents: "Reading — Matching headings & True/False/Not Given (Đề tuần 27)",
-    teacherNote: "Đọc kỹ đoạn đầu để bắt keyword",
-    deadline: "17/07/2026",
-    homeworkStatus: "submitted",
-    attendance: "present",
-    lessonFileUrl: "https://drive.google.com/file/d/demo-practice-rlp-2",
-    homeworkFileUrl: "https://docs.google.com/document/d/demo-practice-hw-2",
-    recordingUrl: "",
-  },
-  {
-    no: 3,
-    date: "15/07/2026",
-    skill: "Writing",
-    contents: "Writing Task 1 — Biểu đồ cột, overview & body paragraph",
-    teacherNote: "Overview rõ ràng; body cần so sánh số liệu chính xác hơn",
-    deadline: "22/07/2026",
-    homeworkStatus: "submitted_waiting",
-    attendance: "present",
-    lessonFileUrl: "https://drive.google.com/file/d/demo-practice-rlp-3",
-    homeworkFileUrl: "https://docs.google.com/document/d/demo-practice-hw-3",
-    recordingUrl: "https://drive.google.com/file/d/demo-practice-rec-3",
-  },
-  {
-    no: 4,
-    date: "17/07/2026",
-    skill: "Speaking",
-    contents: "Speaking Part 2 — Describe a memorable trip",
+function addDays(dateStr: string, days: number): string {
+  const m = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return "";
+  const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  if (isNaN(d.getTime())) return "";
+  d.setDate(d.getDate() + days);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}/${mm}/${d.getFullYear()}`;
+}
+
+function sess(
+  no: number,
+  date: string,
+  skill: string,
+  contents: string,
+  recordingUrl: string,
+): PracticeRlpSession {
+  return {
+    no,
+    date,
+    skill,
+    contents,
     teacherNote: "—",
-    deadline: "24/07/2026",
-    homeworkStatus: "overdue",
-    attendance: "absent",
-    lessonFileUrl: "https://drive.google.com/file/d/demo-practice-rlp-4",
-    homeworkFileUrl: "https://docs.google.com/document/d/demo-practice-hw-4",
-    recordingUrl: "",
-  },
-  {
-    no: 5,
-    date: "22/07/2026",
-    skill: "Listening",
-    contents: "Listening Section 3-4 — Multiple choice & matching (Đề tuần 28)",
-    teacherNote: "Tập trung nghe từ đồng nghĩa trong đề bài",
-    deadline: "29/07/2026",
-    homeworkStatus: "in_progress",
-    attendance: "present",
-    lessonFileUrl: "https://drive.google.com/file/d/demo-practice-rlp-5",
-    homeworkFileUrl: "https://docs.google.com/document/d/demo-practice-hw-5",
-    recordingUrl: "https://drive.google.com/file/d/demo-practice-rec-5",
-  },
-  {
-    no: 6,
-    date: "24/07/2026",
-    skill: "Reading",
-    contents: "Reading — Summary completion & flow-chart (Đề tuần 28)",
-    teacherNote: "—",
-    deadline: "31/07/2026",
-    homeworkStatus: "in_progress",
-    attendance: "present",
-    lessonFileUrl: "https://drive.google.com/file/d/demo-practice-rlp-6",
-    homeworkFileUrl: "https://docs.google.com/document/d/demo-practice-hw-6",
-    recordingUrl: "",
-  },
-  {
-    no: 13,
-    date: "05/08/2026",
-    skill: "Writing",
-    contents: "Writing Task 2 — Discuss both views (Chặng 2, Đề tuần 31)",
-    teacherNote: "Chặng 2: luyện outline trước khi viết full bài",
-    deadline: "12/08/2026",
+    deadline: addDays(date, 7),
     homeworkStatus: "not_assigned",
     attendance: "present",
-    lessonFileUrl: "https://drive.google.com/file/d/demo-practice-rlp-13",
+    lessonFileUrl: "",
     homeworkFileUrl: "",
-    recordingUrl: "https://drive.google.com/file/d/demo-practice-rec-13",
-  },
-  {
-    no: 14,
-    date: "07/08/2026",
-    skill: "Speaking",
-    contents: "Speaking mock — Full test simulation (Chặng 2)",
-    teacherNote: "Buổi test tập trung CN — chuẩn bị cue card Part 2",
-    deadline: "14/08/2026",
-    homeworkStatus: "not_assigned",
-    attendance: "present",
-    lessonFileUrl: "https://drive.google.com/file/d/demo-practice-rlp-14",
-    homeworkFileUrl: "https://docs.google.com/document/d/demo-practice-hw-14",
-    recordingUrl: "",
-  },
-];
+    recordingUrl,
+  };
+}
+
+/**
+ * RLP lớp luyện đề LĐ 33–44 (fallback FE khi API trống).
+ * Test 37: sheet 8/6 → 08/08/2026.
+ */
+export const PRACTICE_RLP_DEMO_SESSIONS: PracticeRlpSession[] = (() => {
+  const rows: Array<{
+    date: string;
+    speaking?: [string, string];
+    writing?: [string, string];
+  }> = [
+    {
+      date: "11/07/2026",
+      speaking: ["LĐ 33 | Speaking - Topic: Daily routines & Habits", "https://youtu.be/pxjPBS1rjmQ"],
+      writing: ["LĐ 33 | Writing (Process + Advantages/Disadvantages)", "https://youtu.be/CQXCQZziqns"],
+    },
+    {
+      date: "18/07/2026",
+      speaking: ["LĐ 34 | Speaking - Topic: Music", "https://youtu.be/iRbTj9NJpAI"],
+      writing: ["LĐ 34 | Writing (Mixed charts + Two-part Questions)", "https://youtu.be/YVTXBM7mftg"],
+    },
+    {
+      date: "25/07/2026",
+      speaking: ["LĐ 35 | Speaking - Topic: Animals", "https://youtu.be/SbVJk1phB2c"],
+      writing: ["LĐ 35 | Writing (Dynamic charts + Positive/Negative)", "https://youtu.be/bZYVky3kr-c"],
+    },
+    {
+      date: "01/08/2026",
+      speaking: ["LĐ 36 | Speaking - Topic: Communication", "https://youtu.be/8fQ00Lgv2XA"],
+      writing: ["LĐ 36 | Writing (Dynamic charts + Agree/Disagree)", "https://youtu.be/BT3o7qK6NaE"],
+    },
+    {
+      date: "08/08/2026",
+      speaking: ["LĐ 37 | Speaking - Topic: Clothes & Shopping", "https://youtu.be/cP7WKt0YC3Y"],
+      writing: ["LĐ 37 | Writing (Static charts + Discussion)", "https://youtu.be/f5GPUbOcMxM"],
+    },
+    {
+      date: "15/08/2026",
+      speaking: ["LĐ 38 | Speaking - Topic: Buildings & Accommodation", "https://youtu.be/sL3N0R6RMb4"],
+      writing: ["LĐ 38 | Writing (Maps + Two-part Questions)", "https://youtu.be/rwrqQtwtai0"],
+    },
+    {
+      date: "22/08/2026",
+      speaking: ["LĐ 39 | Speaking - Topic: Movies", "https://youtu.be/rf3xj1o0ER0"],
+      writing: ["LĐ 39 | Writing (Process + Two-part Questions)", "https://youtu.be/WeEPyo8eSdc"],
+    },
+    {
+      date: "29/08/2026",
+      writing: ["LĐ 40 | Writing (Dynamic charts + Agree/Disagree)", "https://youtu.be/x_SFFDj2Wkc"],
+    },
+    {
+      date: "05/09/2026",
+      speaking: ["LĐ 41 | Speaking - Topic: Environment", "https://youtu.be/nieLV0QUI_s"],
+      writing: ["LĐ 41 | Writing (Static charts + Discussion)", "https://youtu.be/wuerpp7Ae2E"],
+    },
+    {
+      date: "12/09/2026",
+      speaking: ["LĐ 42 | Speaking - Topic: Sports", "https://youtu.be/bUSSBu7zTxQ"],
+      writing: ["LĐ 42 | Writing (Maps + Positive/Negative)", "https://youtu.be/t8o4tnEr_E0"],
+    },
+    {
+      date: "19/09/2026",
+      speaking: ["LĐ 43 | Speaking - Topic: Study & Education", "https://youtu.be/ZWu-pNoc4qo"],
+      writing: ["LĐ 43 | Writing (Process + Agree/Disagree)", "https://youtu.be/NPCP1zUYh4I"],
+    },
+    {
+      date: "26/09/2026",
+      speaking: ["LĐ 44 | Speaking - Topic: Science & Medicine", ""],
+      writing: ["LĐ 44 | WRITING", ""],
+    },
+  ];
+
+  const out: PracticeRlpSession[] = [];
+  let no = 1;
+  for (const row of rows) {
+    if (row.speaking) out.push(sess(no++, row.date, "Speaking", row.speaking[0], row.speaking[1]));
+    if (row.writing) out.push(sess(no++, row.date, "Writing", row.writing[0], row.writing[1]));
+  }
+  return out;
+})();
 
 export function withPracticeRlpDemoFallback(
   sessions: PracticeRlpSession[],

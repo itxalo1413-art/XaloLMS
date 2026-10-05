@@ -1,0 +1,108 @@
+{
+  "total": 17,
+  "fail": 0,
+  "findings": [
+    {
+      "vai": "HS",
+      "fn": "API login",
+      "kq": "Pass",
+      "ct": "HS Dương Ngọc Khôi Nguyên"
+    },
+    {
+      "vai": "HS",
+      "fn": "Warm routes (curl)",
+      "kq": "Pass",
+      "ct": "13 paths"
+    },
+    {
+      "vai": "HS",
+      "fn": "Session inject",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/"
+    },
+    {
+      "vai": "HS",
+      "fn": "Thông tin học viên",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/"
+    },
+    {
+      "vai": "HS",
+      "fn": "Alias /student → home",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/student"
+    },
+    {
+      "vai": "HS",
+      "fn": "Thông tin khóa học (/skill)",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/skill"
+    },
+    {
+      "vai": "HS",
+      "fn": "Thông tin khóa học (/course-info)",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/course-info"
+    },
+    {
+      "vai": "HS",
+      "fn": "Hỗ trợ tự học",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/ho-tro-tu-hoc"
+    },
+    {
+      "vai": "HS",
+      "fn": "Kho tài liệu",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/tai-lieu-them"
+    },
+    {
+      "vai": "HS",
+      "fn": "Lưu trữ bài test",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/luu-tru-test"
+    },
+    {
+      "vai": "HS",
+      "fn": "Chi tiết tài liệu",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/tai-lieu-them/xem/listening-map-01"
+    },
+    {
+      "vai": "HS",
+      "fn": "Guest diagnosis (public)",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/guest-diagnosis"
+    },
+    {
+      "vai": "HS",
+      "fn": "ACA home (deny)",
+      "kq": "Pass",
+      "ct": "đã rời staff → http://127.0.0.1:3000/login"
+    },
+    {
+      "vai": "HS",
+      "fn": "Teacher home (deny)",
+      "kq": "Pass",
+      "ct": "đã rời staff → http://127.0.0.1:3000/"
+    },
+    {
+      "vai": "HS",
+      "fn": "Grader home (deny)",
+      "kq": "Pass",
+      "ct": "đã rời staff → http://127.0.0.1:3000/login"
+    },
+    {
+      "vai": "HS",
+      "fn": "Sale home (deny)",
+      "kq": "Pass",
+      "ct": "đã rời staff → http://127.0.0.1:3000/"
+    },
+    {
+      "vai": "HS",
+      "fn": "Console errors",
+      "kq": "Pass",
+      "ct": "none"
+    }
+  ]
+}

@@ -20,11 +20,14 @@ export class AcaPracticeWeek {
   @Prop({ trim: true, default: '' })
   templateMessage: string;
 
-  @Prop({ trim: true, default: '842 1963 4521' })
+  @Prop({ trim: true, default: '851 5452 5397' })
   zoomId: string;
 
-  @Prop({ trim: true, default: 'XaloLrw26' })
+  @Prop({ trim: true, default: '123456' })
   zoomPassword: string;
+
+  @Prop({ trim: true, default: 'https://zalo.me/g/e2vslsobotb3em3nh8gr' })
+  linkZalo: string;
 
   @Prop({ trim: true, default: '' })
   scheduleTueInfo: string;

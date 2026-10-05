@@ -29,11 +29,11 @@ const WEEKDAYS = [
 ];
 
 const ACA_GRADERS = [
+  "Huỳnh Gia Phú",
   "Lê Thị Diệu Linh",
-  "Trần Thị Thu Hà",
-  "Nguyễn Văn An",
-  "Đỗ Hoài Phương",
-  "Phạm Đức Anh",
+  "Nguyễn Văn Đăng Duy",
+  "Huỳnh Minh Phương",
+  "Nguyễn Thị Hoàng Sa",
 ];
 
 const WEEKS_OPTIONS = [
@@ -58,7 +58,7 @@ export interface SpeakingTestRow {
 }
 
 export function AcaDailyScheduleSection() {
-  const [selectedGrader, setSelectedGrader] = useState("Lê Thị Diệu Linh");
+  const [selectedGrader, setSelectedGrader] = useState("Huỳnh Gia Phú");
   const [selectedWeek, setSelectedWeek] = useState("week-2");
   const [activeSlotType, setActiveSlotType] = useState<"online" | "offline" | "task">("online");
 
@@ -406,9 +406,9 @@ export function AcaDailyScheduleSection() {
               href={graderMeetLink}
               target="_blank"
               rel="noreferrer"
-              className="h-8 inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-3 text-xs font-black text-white hover:bg-emerald-800 shadow-2xs shrink-0"
+              className="h-8 inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-3 text-xs font-black text-white hover:bg-emerald-800 shadow-2xs shrink-0 whitespace-nowrap"
             >
-              Link test spk ↗
+              Link test spk
             </a>
           </div>
 
@@ -528,10 +528,10 @@ export function AcaDailyScheduleSection() {
                         href={graderMeetLink}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-1 text-[9.5px] font-black hover:bg-emerald-100"
+                        className="inline-flex items-center gap-1 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-1 text-[9.5px] font-black hover:bg-emerald-100 whitespace-nowrap"
                         title={`Link Google Meet cố định của ${selectedGrader}`}
                       >
-                        Meet ↗
+                        Meet
                       </a>
                     </td>
                     <td className="py-2.5 px-2 text-center">

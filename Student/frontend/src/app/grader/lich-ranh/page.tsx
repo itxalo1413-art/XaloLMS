@@ -330,9 +330,9 @@ export default function AcaLichRanhPage() {
                 href={graderMeetLink}
                 target="_blank"
                 rel="noreferrer"
-                className="h-9 inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3 text-xs font-black text-white hover:bg-emerald-800 transition-all shrink-0"
+                className="h-9 inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3 text-xs font-black text-white hover:bg-emerald-800 transition-all shrink-0 whitespace-nowrap"
               >
-                Mở Meet ↗
+                Mở Meet
               </a>
             </div>
           </div>
@@ -510,9 +510,9 @@ export default function AcaLichRanhPage() {
                   href={graderMeetLink || "#"}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[10px] text-primary font-bold hover:underline inline-flex items-center gap-1"
+                  className="text-[10px] text-primary font-bold hover:underline inline-flex items-center gap-1 whitespace-nowrap"
                 >
-                  Link test speak ↗
+                  Link test speak
                 </a>
               </div>
 
@@ -522,7 +522,7 @@ export default function AcaLichRanhPage() {
                 <div className="overflow-x-auto border border-zinc-200 rounded-2xl">
                   <table className="w-full text-left text-[11px] border-collapse min-w-[850px]">
                     <thead>
-                      <tr className="bg-zinc-50 border-b border-zinc-200 text-center font-bold text-zinc-600 text-[10px]">
+                      <tr className="bg-zinc-50 border-b border-zinc-200 text-center font-bold text-zinc-600 text-[10px] whitespace-nowrap">
                         <th className="px-1 py-2 border-r border-zinc-200 bg-zinc-100/50 w-8"></th>
                         <th className="px-2 py-2 border-r border-zinc-200">HÌNH THỨC</th>
                         <th className="px-2 py-2 border-r border-zinc-200">NGÀY</th>
@@ -711,11 +711,10 @@ export default function AcaLichRanhPage() {
                                       href={meetUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 transition-colors shadow-2xs"
+                                      className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 transition-colors shadow-2xs whitespace-nowrap"
                                       title={`Link Meet: ${meetUrl}`}
                                     >
                                       <span>Mở Meet</span>
-                                      <span className="text-[9px]">↗</span>
                                     </a>
                                   );
                                 })()}

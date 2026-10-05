@@ -111,9 +111,11 @@ export class UsersService implements OnModuleInit {
       { name: 'Lê Nguyễn Khánh Thi', email: 'aca@xaloenglish.vn', role: 'ACA' as const },
     ];
     const graderAccounts = [
-      { name: 'Bộ phận Grader 1', email: 'aca_1@gmail.com', role: 'GRADER' as const },
-      { name: 'Bộ phận Grader 2', email: 'aca_2@gmail.com', role: 'GRADER' as const },
-      { name: 'Grader Hệ thống', email: 'aca@xalo.internal', role: 'GRADER' as const },
+      { name: 'Huỳnh Gia Phú', email: 'aca_1@gmail.com', role: 'GRADER' as const },
+      { name: 'Lê Thị Diệu Linh', email: 'aca_2@gmail.com', role: 'GRADER' as const },
+      { name: 'Nguyễn Văn Đăng Duy', email: 'aca@xalo.internal', role: 'GRADER' as const },
+      { name: 'Huỳnh Minh Phương', email: 'grader.phuong@xalo.internal', role: 'GRADER' as const },
+      { name: 'Nguyễn Thị Hoàng Sa', email: 'grader.sa@xalo.internal', role: 'GRADER' as const },
     ];
     const passwordHash = await bcrypt.hash('test@123!', SALT_ROUNDS);
 

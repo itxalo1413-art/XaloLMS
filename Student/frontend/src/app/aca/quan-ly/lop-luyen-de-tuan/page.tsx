@@ -25,10 +25,13 @@ export default function LopLuyenDeTuanPage() {
 
   // Week Metadata Edit States
   const [isEditingMeetingInfo, setIsEditingMeetingInfo] = useState(false);
-  const [editZoomId, setEditZoomId] = useState("842 1963 4521");
-  const [editZoomPassword, setEditZoomPassword] = useState("XaloLrw26");
+  const [editZoomId, setEditZoomId] = useState("851 5452 5397");
+  const [editZoomPassword, setEditZoomPassword] = useState("123456");
   const [editLinkMeet, setEditLinkMeet] = useState("");
   const [editLinkTab, setEditLinkTab] = useState("");
+  const [editLinkZalo, setEditLinkZalo] = useState(
+    "https://zalo.me/g/e2vslsobotb3em3nh8gr",
+  );
 
   const [isEditingAnnouncement, setIsEditingAnnouncement] = useState(false);
   const [editAnnouncementText, setEditAnnouncementText] = useState("");
@@ -41,19 +44,19 @@ export default function LopLuyenDeTuanPage() {
   const [editTueTitle, setEditTueTitle] = useState("Luyện tập Speaking theo chuyên đề");
   const [editTueTime, setEditTueTime] = useState("19h45 – 21h45");
   const [editTueDetail, setEditTueDetail] = useState(
-    "Tham gia bằng Zoom, học với Giáo viên, phân tích bộ đề Speaking 3 part, được cung cấp từ vựng/phương pháp tiếp cận và luyện tập trực tiếp với Giáo viên."
+    "Tham gia qua Zoom, học với Giáo viên, được cung cấp từ vựng/phương pháp tiếp cận và luyện tập trực tiếp với Giáo viên."
   );
 
   const [editThuTitle, setEditThuTitle] = useState("Chữa đề L-R-W");
   const [editThuTime, setEditThuTime] = useState("19h45 – 21h45");
   const [editThuDetail, setEditThuDetail] = useState(
-    "Tham gia bằng Zoom, học với Giáo viên, tập trung chữa đề Writing và các thắc mắc về Listening – Reading."
+    "Tham gia qua Zoom, học với Giáo viên, tập trung chữa đề W và các giải đáp thắc mắc về L-R."
   );
 
   const [editSatTitle, setEditSatTitle] = useState("Làm đề L-R-W tập trung");
   const [editSatTime, setEditSatTime] = useState("19h – 21h30");
   const [editSatDetail, setEditSatDetail] = useState(
-    "Tham gia bằng Zoom, làm bài trên Google Docs, có nhân viên canh thời gian làm bài và các bạn học viên khác tham gia."
+    "Tham gia qua Zoom, làm bài trên Google Docs, có Giáo viên canh thời gian làm bài và các bạn học viên khác tham gia."
   );
 
   // Registrations from student side
@@ -174,12 +177,15 @@ export default function LopLuyenDeTuanPage() {
 
   useEffect(() => {
     if (activeWeekInfo) {
-      const zid = activeWeekInfo.zoomId || "842 1963 4521";
-      const zpass = activeWeekInfo.zoomPassword || "XaloLrw26";
+      const zid = activeWeekInfo.zoomId || "851 5452 5397";
+      const zpass = activeWeekInfo.zoomPassword || "123456";
       setEditZoomId(zid);
       setEditZoomPassword(zpass);
       setEditLinkMeet(activeWeekInfo.linkMeet || "");
       setEditLinkTab(activeWeekInfo.linkTab || "");
+      setEditLinkZalo(
+        activeWeekInfo.linkZalo || "https://zalo.me/g/e2vslsobotb3em3nh8gr",
+      );
       setEditLinkFolder(activeWeekInfo.linkFolder || "");
       setEditAnnouncementText(activeWeekInfo.announcement || "");
       setEditTemplateMessageText(activeWeekInfo.templateMessage || "");
@@ -410,6 +416,7 @@ export default function LopLuyenDeTuanPage() {
                             zoomPassword: editZoomPassword,
                             linkMeet: editLinkMeet,
                             linkTab: editLinkTab,
+                            linkZalo: editLinkZalo,
                           });
                           setIsEditingMeetingInfo(false);
                         } else {
@@ -432,7 +439,7 @@ export default function LopLuyenDeTuanPage() {
                           disabled={!isEditingMeetingInfo}
                           value={editZoomId}
                           onChange={(e) => setEditZoomId(e.target.value)}
-                          placeholder="842 1963 4521"
+                          placeholder="851 5452 5397"
                           className={`flex-1 min-w-0 h-8 rounded-xl border px-3 text-xs font-black outline-none ${
                             isEditingMeetingInfo ? "border-primary bg-white text-zinc-900" : "border-zinc-200 bg-zinc-50 text-indigo-900"
                           }`}
@@ -455,7 +462,7 @@ export default function LopLuyenDeTuanPage() {
                           disabled={!isEditingMeetingInfo}
                           value={editZoomPassword}
                           onChange={(e) => setEditZoomPassword(e.target.value)}
-                          placeholder="XaloLrw26"
+                          placeholder="123456"
                           className={`flex-1 min-w-0 h-8 rounded-xl border px-3 text-xs font-black outline-none ${
                             isEditingMeetingInfo ? "border-primary bg-white text-zinc-900" : "border-zinc-200 bg-zinc-50 text-indigo-900"
                           }`}
@@ -500,6 +507,44 @@ export default function LopLuyenDeTuanPage() {
                       </div>
                     </div>
                     
+                    {/* Link Zalo lớp */}
+                    <div>
+                      <div className="text-[9px] font-black uppercase text-muted tracking-wider mb-1">LINK ZALO CỦA LỚP</div>
+                      <div className="flex gap-1.5">
+                        {isEditingMeetingInfo ? (
+                          <input
+                            type="text"
+                            value={editLinkZalo}
+                            onChange={(e) => setEditLinkZalo(e.target.value)}
+                            placeholder="https://zalo.me/g/..."
+                            className="flex-1 h-8 rounded-xl border border-primary bg-white px-2.5 text-xs font-bold outline-none"
+                          />
+                        ) : (
+                          <a
+                            href={editLinkZalo || activeWeekInfo.linkZalo || "https://zalo.me/g/e2vslsobotb3em3nh8gr"}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex-1 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center text-xs font-black hover:opacity-90 truncate px-2"
+                          >
+                            Mở nhóm Zalo
+                          </a>
+                        )}
+                        <button
+                          onClick={() =>
+                            handleCopy(
+                              editLinkZalo ||
+                                activeWeekInfo.linkZalo ||
+                                "https://zalo.me/g/e2vslsobotb3em3nh8gr",
+                              "Link Zalo",
+                            )
+                          }
+                          className="px-2.5 h-8 rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-50 text-xs font-bold shrink-0 cursor-pointer"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+
                     {/* Link Tab */}
                     <div>
                       <div className="text-[9px] font-black uppercase text-muted tracking-wider mb-1">LINK TAB THEO DÕI (GOOGLE SHEET)</div>

@@ -255,9 +255,9 @@ export function FinalTestGradingSection() {
                         href={r.meetLink}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex h-9 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-bold text-emerald-800 hover:bg-emerald-100"
+                        className="inline-flex h-9 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-bold text-emerald-800 hover:bg-emerald-100 whitespace-nowrap"
                       >
-                        Meet ↗
+                        Meet
                       </a>
                     ) : null}
                     <button

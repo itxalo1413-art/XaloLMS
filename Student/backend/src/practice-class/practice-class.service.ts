@@ -13,6 +13,7 @@ import {
   isPracticeSlotId,
   DEFAULT_PRACTICE_ZOOM_ID,
   DEFAULT_PRACTICE_ZOOM_PASSWORD,
+  DEFAULT_PRACTICE_ZALO_LINK,
   PRACTICE_SCHEDULE_KEY,
   PRACTICE_SLOT_DEFINITIONS,
   PRACTICE_SLOT_IDS,
@@ -42,6 +43,7 @@ import {
 import {
   findPracticeWeekForDate,
   getCurrentRealtimePracticeWeekRange,
+  parsePracticeWeekRange,
   registrationMatchesWeekRange,
   resolveExamWeekNumber,
   resolveWeekRangeForTimestamp,
@@ -93,6 +95,7 @@ export type PracticeCurrentWeekPublic = {
   linkTab: string;
   linkMeet: string;
   linkFolder: string;
+  linkZalo: string;
   zoomId: string;
   zoomPassword: string;
 };
@@ -312,11 +315,15 @@ export class PracticeClassService implements OnModuleInit {
     const overrides =
       (doc?.slotOverrides as Record<string, PracticeSlotOverride>) ?? {};
     const hasOverrides = Object.keys(overrides).length > 0;
-    if (!hasOverrides || !doc?.weekRangeLabel?.trim()) {
-      const current = await this.resolveCurrentPracticeWeek();
-      if (current) {
-        return this.applyPracticeWeekToSchedule(current);
-      }
+    const current = await this.resolveCurrentPracticeWeek();
+    const currentRange = current?.weekRange?.trim() || '';
+    const labeled = doc?.weekRangeLabel?.trim() || '';
+    // Luôn gắn lịch học viên theo tuần đang diễn ra (theo ngày), không kẹt tuần cũ.
+    const needsSync =
+      Boolean(current) &&
+      (!hasOverrides || !labeled || (currentRange && labeled !== currentRange));
+    if (needsSync && current) {
+      return this.applyPracticeWeekToSchedule(current);
     }
     return this.buildScheduleResponse(doc, overrides);
   }
@@ -328,8 +335,11 @@ export class PracticeClassService implements OnModuleInit {
 
   async resolveCurrentPracticeWeek(): Promise<PracticeWeekLean | null> {
     const weeks = await this.listPracticeWeeksLean();
-    const current = findPracticeWeekForDate(weeks, new Date());
-    if (current) return current;
+    const realtime = getCurrentRealtimePracticeWeekRange();
+    const byDate = findPracticeWeekForDate(weeks, new Date());
+    if (byDate) return byDate;
+    const byRealtime = weeks.find((w) => w.weekRange === realtime);
+    if (byRealtime) return byRealtime;
     const scheduleDoc = await this.scheduleModel
       .findOne({ key: PRACTICE_SCHEDULE_KEY })
       .lean()
@@ -340,12 +350,15 @@ export class PracticeClassService implements OnModuleInit {
       if (match) return match;
     }
     if (weeks.length === 0) return null;
-    const sorted = [...weeks].sort((a, b) => {
-      const ar = a.weekRange;
-      const br = b.weekRange;
-      return br.localeCompare(ar);
-    });
-    return sorted[0] ?? null;
+    // Ưu tiên tuần gần nhất theo ngày bắt đầu (không sort chuỗi dd/mm).
+    const sorted = [...weeks]
+      .map((w) => ({ w, range: parsePracticeWeekRange(w.weekRange) }))
+      .filter((x) => x.range)
+      .sort(
+        (a, b) =>
+          (b.range!.start.getTime() || 0) - (a.range!.start.getTime() || 0),
+      );
+    return sorted[0]?.w ?? null;
   }
 
   async applyPracticeWeekToSchedule(
@@ -404,6 +417,8 @@ export class PracticeClassService implements OnModuleInit {
       linkTab: week.linkTab?.trim() ?? '',
       linkMeet: week.linkMeet?.trim() ?? '',
       linkFolder: week.linkFolder?.trim() ?? '',
+      linkZalo:
+        week.linkZalo?.trim() || DEFAULT_PRACTICE_ZALO_LINK,
       zoomId: schedule.zoomId,
       zoomPassword: schedule.zoomPassword,
     };

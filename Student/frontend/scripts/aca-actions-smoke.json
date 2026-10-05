@@ -1,0 +1,200 @@
+{
+  "total": 32,
+  "fail": 0,
+  "pass": 26,
+  "note": 6,
+  "findings": [
+    {
+      "area": "Auth",
+      "fn": "API login",
+      "kq": "Pass",
+      "ct": "ACA Lê Nguyễn Khánh Thi"
+    },
+    {
+      "area": "Lớp tháng",
+      "fn": "Load danh sách",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/lop-theo-thang"
+    },
+    {
+      "area": "Lớp tháng",
+      "fn": "Mở form tạo lớp",
+      "kq": "Pass",
+      "ct": "create UI"
+    },
+    {
+      "area": "Học viên",
+      "fn": "Load danh sách",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/hoc-vien-lop"
+    },
+    {
+      "area": "Học viên",
+      "fn": "Mở form thêm HV",
+      "kq": "Pass",
+      "ct": "modal/form"
+    },
+    {
+      "area": "Lớp 1:1",
+      "fn": "Load trang",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/lop-1-1"
+    },
+    {
+      "area": "Lớp 1:1",
+      "fn": "CTA tạo/thêm",
+      "kq": "Pass",
+      "ct": "opened"
+    },
+    {
+      "area": "RLP mẫu",
+      "fn": "Load trang",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/rlp-mau"
+    },
+    {
+      "area": "RLP mẫu",
+      "fn": "CTA tạo template",
+      "kq": "Pass",
+      "ct": "opened"
+    },
+    {
+      "area": "BCB Final",
+      "fn": "Load trang",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/bcb-final"
+    },
+    {
+      "area": "BCB Final",
+      "fn": "Toggle trạng thái",
+      "kq": "Note",
+      "ct": "không có row action"
+    },
+    {
+      "area": "Điểm E/F",
+      "fn": "Load bảng điểm",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/diem-dau-vao-cuoi-khoa"
+    },
+    {
+      "area": "Điểm E/F",
+      "fn": "CTA Lưu/Import",
+      "kq": "Note",
+      "ct": "không thấy"
+    },
+    {
+      "area": "Luyện đề tuần",
+      "fn": "Load trang",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/lop-luyen-de-tuan"
+    },
+    {
+      "area": "Luyện đề tuần",
+      "fn": "Folder input",
+      "kq": "Note",
+      "ct": "không thấy input"
+    },
+    {
+      "area": "Practice RLP",
+      "fn": "Load trang",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/practice-rlp"
+    },
+    {
+      "area": "Chấm Writing",
+      "fn": "Load danh sách",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/cham-writing"
+    },
+    {
+      "area": "Chấm Writing",
+      "fn": "CTA chấm/lưu",
+      "kq": "Pass",
+      "ct": "visible"
+    },
+    {
+      "area": "Speaking",
+      "fn": "Load đăng ký",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/test-speaking"
+    },
+    {
+      "area": "Speaking",
+      "fn": "Mở form thêm đăng ký",
+      "kq": "Pass",
+      "ct": "modal"
+    },
+    {
+      "area": "Giáo viên",
+      "fn": "Load danh sách",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/giao-vien"
+    },
+    {
+      "area": "Giáo viên",
+      "fn": "CTA thêm GV",
+      "kq": "Note",
+      "ct": "no CTA"
+    },
+    {
+      "area": "Note",
+      "fn": "Load trang",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/note"
+    },
+    {
+      "area": "Note",
+      "fn": "Lưu note/quote",
+      "kq": "Note",
+      "ct": "ACA smoke note 9656"
+    },
+    {
+      "area": "Lịch rảnh",
+      "fn": "Load lịch",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/lich-ranh"
+    },
+    {
+      "area": "Lịch rảnh",
+      "fn": "Toggle ca",
+      "kq": "Note",
+      "ct": "không click được ô lịch"
+    },
+    {
+      "area": "Người dùng",
+      "fn": "Load (mock)",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/nguoi-dung"
+    },
+    {
+      "area": "Người dùng",
+      "fn": "Toggle khóa (demo)",
+      "kq": "Pass",
+      "ct": "clicked"
+    },
+    {
+      "area": "Nội dung",
+      "fn": "Load catalog",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/noi-dung"
+    },
+    {
+      "area": "Phân tích",
+      "fn": "Load dashboard",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/phan-tich"
+    },
+    {
+      "area": "Profile",
+      "fn": "Load hồ sơ",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/profile"
+    },
+    {
+      "area": "Shell",
+      "fn": "Đăng xuất",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/login"
+    }
+  ]
+}

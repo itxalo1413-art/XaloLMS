@@ -1198,10 +1198,9 @@ export default function StudentLuuTruTestPage() {
                             href={activeWritingTest.submissionLink}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sky-700 hover:text-sky-900 hover:underline font-extrabold text-[11px] inline-flex items-center gap-1 shrink-0"
+                            className="text-sky-700 hover:text-sky-900 hover:underline font-extrabold text-[11px] inline-flex items-center gap-1 shrink-0 whitespace-nowrap"
                           >
                             <span>Mở Google Docs bài làm</span>
-                            <span>↗</span>
                           </a>
                         </div>
                       )}
@@ -1286,10 +1285,9 @@ export default function StudentLuuTruTestPage() {
                                       href={r.submissionLink}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 rounded-md bg-sky-50 border border-sky-200 px-2 py-1 text-[10px] font-bold text-sky-700 hover:bg-sky-100 transition-colors shadow-2xs"
+                                      className="inline-flex items-center gap-1 rounded-md bg-sky-50 border border-sky-200 px-2 py-1 text-[10px] font-bold text-sky-700 hover:bg-sky-100 transition-colors shadow-2xs whitespace-nowrap"
                                     >
                                       <span>Mở bài làm</span>
-                                      <span className="text-[9px]">↗</span>
                                     </a>
                                   ) : isWriting ? (
                                     <button
@@ -1319,11 +1317,10 @@ export default function StudentLuuTruTestPage() {
                                         href={r.examLink}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200 px-2 py-1 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 transition-colors shadow-2xs"
+                                        className="inline-flex items-center gap-1 rounded-md bg-emerald-50 border border-emerald-200 px-2 py-1 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 transition-colors shadow-2xs whitespace-nowrap"
                                         title="Mở bài chấm Google Docs"
                                       >
                                         <span>Bài chấm</span>
-                                        <span className="text-[9px]">↗</span>
                                       </a>
                                     ) : (
                                       <span className="text-zinc-400 text-[10px]">—</span>

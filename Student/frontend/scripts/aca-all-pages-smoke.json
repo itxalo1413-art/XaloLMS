@@ -1,0 +1,218 @@
+{
+  "total": 35,
+  "fail": 0,
+  "pass": 34,
+  "note": 1,
+  "findings": [
+    {
+      "vai": "ACA",
+      "fn": "API login",
+      "kq": "Pass",
+      "ct": "ACA Lê Nguyễn Khánh Thi"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Warm routes",
+      "kq": "Pass",
+      "ct": "27 paths"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Session inject",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca"
+    },
+    {
+      "vai": "ACA",
+      "fn": "ACA home redirect",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/lop-theo-thang"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Hồ sơ ACA",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/profile"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Phân tích & báo cáo",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/phan-tich"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Lớp theo tháng",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/lop-theo-thang"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Danh sách học viên",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/hoc-vien-lop"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Lớp 1:1",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/lop-1-1"
+    },
+    {
+      "vai": "ACA",
+      "fn": "RLP Mẫu",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/rlp-mau"
+    },
+    {
+      "vai": "ACA",
+      "fn": "BCB Final",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/bcb-final"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Điểm Entrance/Final",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/diem-dau-vao-cuoi-khoa"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Phân tích Final Test",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/phan-tich-final-test"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Lớp luyện đề tuần",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/lop-luyen-de-tuan"
+    },
+    {
+      "vai": "ACA",
+      "fn": "RLP luyện đề",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/practice-rlp"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Thống kê luyện đề",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/thong-ke-luyen-de"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Chấm Writing",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/cham-writing"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Đăng ký Speaking",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/test-speaking"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Hiệu suất Giáo viên",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/giao-vien"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Quotes & Note",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/note"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Lịch rảnh Grader",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/lich-ranh"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Lớp luyện đề (cũ)",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/lop-luyen-de"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Người dùng",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/nguoi-dung"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Nội dung",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/noi-dung"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Hệ thống",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/he-thong"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Mock Test S-W (demo)",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/mock-test-sw"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Hệ thống W-S (demo)",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/he-thong-ws"
+    },
+    {
+      "vai": "ACA",
+      "fn": "BCB redirect → Sale",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/lop-theo-thang"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Cảnh báo → học viên",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/hoc-vien-lop"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Weekly docs → luyện đề tuần",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/aca/quan-ly/lop-luyen-de-tuan"
+    },
+    {
+      "vai": "ACA",
+      "fn": "HS home (should leave or not as staff home)",
+      "kq": "Note",
+      "ct": "http://127.0.0.1:3000/login"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Teacher portal (deny stay)",
+      "kq": "Pass",
+      "ct": "rời → http://127.0.0.1:3000/aca/quan-ly/lop-theo-thang"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Grader portal",
+      "kq": "Pass",
+      "ct": "rời → http://127.0.0.1:3000/aca/quan-ly/lop-theo-thang"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Sale portal (deny stay)",
+      "kq": "Pass",
+      "ct": "rời → http://127.0.0.1:3000/aca/quan-ly/lop-theo-thang"
+    },
+    {
+      "vai": "ACA",
+      "fn": "Console errors",
+      "kq": "Pass",
+      "ct": "none"
+    }
+  ]
+}

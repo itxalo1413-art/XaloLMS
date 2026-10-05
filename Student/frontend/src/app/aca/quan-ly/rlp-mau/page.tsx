@@ -433,7 +433,7 @@ export default function RlpMauPage() {
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-xs">
               <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-zinc-50 border-b border-zinc-200 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                <thead className="bg-zinc-50 border-b border-zinc-200 text-[10px] font-bold uppercase tracking-wider text-zinc-400 whitespace-nowrap">
                   <tr>
                     <th className="px-5 py-3 w-14 text-center">STT</th>
                     <th className="px-5 py-3 w-48 whitespace-nowrap">Mã mẫu</th>
@@ -634,7 +634,7 @@ export default function RlpMauPage() {
                 {/* Bảng RLP 36 Buổi của Lớp Mẫu */}
                 <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-xs">
                   <table className="w-full min-w-[850px] text-left text-xs border-collapse">
-                    <thead className="bg-zinc-50 border-b border-zinc-200 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    <thead className="bg-zinc-50 border-b border-zinc-200 text-[10px] font-bold uppercase tracking-wider text-zinc-400 whitespace-nowrap">
                       <tr>
                         <th className="px-5 py-3 w-16 text-center">Buổi</th>
                         <th className="px-5 py-3 w-28 text-center">Skill</th>

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -31,10 +32,91 @@ import {
 } from '../aca/schemas/final-test.schema';
 
 export const ACA_GRADERS = [
-  'Grader 1',
-  'Grader 2',
-  'Grader 3',
+  'Huỳnh Gia Phú',
+  'Lê Thị Diệu Linh',
+  'Nguyễn Văn Đăng Duy',
+  'Huỳnh Minh Phương',
+  'Nguyễn Thị Hoàng Sa',
 ] as const;
+
+const GRADER_NAME_ALIASES: Record<string, (typeof ACA_GRADERS)[number]> = {
+  'grader 1': 'Huỳnh Gia Phú',
+  'bộ phận grader 1': 'Huỳnh Gia Phú',
+  'gia phú': 'Huỳnh Gia Phú',
+  'huỳnh gia phú': 'Huỳnh Gia Phú',
+  'grader 2': 'Lê Thị Diệu Linh',
+  'bộ phận grader 2': 'Lê Thị Diệu Linh',
+  'diệu linh': 'Lê Thị Diệu Linh',
+  'lê thị diệu linh': 'Lê Thị Diệu Linh',
+  'grader 3': 'Nguyễn Văn Đăng Duy',
+  'bộ phận grader 3': 'Nguyễn Văn Đăng Duy',
+  'grader hệ thống': 'Nguyễn Văn Đăng Duy',
+  'đăng duy': 'Nguyễn Văn Đăng Duy',
+  'nguyễn văn đăng duy': 'Nguyễn Văn Đăng Duy',
+  'minh phương': 'Huỳnh Minh Phương',
+  'huỳnh minh phương': 'Huỳnh Minh Phương',
+  'hoàng sa': 'Nguyễn Thị Hoàng Sa',
+  'nguyễn thị hoàng sa': 'Nguyễn Thị Hoàng Sa',
+};
+
+export function normalizeAssignedGraderName(
+  raw?: string | null,
+): (typeof ACA_GRADERS)[number] | '' {
+  const clean = String(raw || '').trim();
+  if (!clean) return '';
+  if ((ACA_GRADERS as readonly string[]).includes(clean)) {
+    return clean as (typeof ACA_GRADERS)[number];
+  }
+  const key = clean.toLowerCase();
+  if (GRADER_NAME_ALIASES[key]) return GRADER_NAME_ALIASES[key];
+  for (const [alias, canonical] of Object.entries(GRADER_NAME_ALIASES)) {
+    if (key.includes(alias) || alias.includes(key)) return canonical;
+  }
+  for (const g of ACA_GRADERS) {
+    if (key === g.toLowerCase() || key.includes(g.toLowerCase())) return g;
+  }
+  return '';
+}
+
+const LEGACY_GRADER_EMAILS = new Set([
+  'aca_1@gmail.com',
+  'aca_2@gmail.com',
+  'aca@xalo.internal',
+  'grader.phuong@xalo.internal',
+  'grader.sa@xalo.internal',
+]);
+
+function isGraderActor(actor?: JwtPayload | null): boolean {
+  if (!actor) return false;
+  const role = String(actor.role || '').toUpperCase();
+  if (role === 'GRADER') return true;
+  const email = String(actor.email || '').trim().toLowerCase();
+  return role === 'ACA' && LEGACY_GRADER_EMAILS.has(email);
+}
+
+function resolveGraderIdentity(actor?: JwtPayload | null): string {
+  if (!actor) return '';
+  const email = String(actor.email || '').trim().toLowerCase();
+  const name = String(actor.name || '').trim();
+  if (email === 'aca_1@gmail.com') return 'Huỳnh Gia Phú';
+  if (email === 'aca_2@gmail.com') return 'Lê Thị Diệu Linh';
+  if (email === 'aca@xalo.internal') return 'Nguyễn Văn Đăng Duy';
+  if (email === 'grader.phuong@xalo.internal') return 'Huỳnh Minh Phương';
+  if (email === 'grader.sa@xalo.internal') return 'Nguyễn Thị Hoàng Sa';
+  return normalizeAssignedGraderName(name) || name;
+}
+
+function isAssignedToGrader(
+  assignedRaw: string | undefined | null,
+  graderIdentity: string,
+): boolean {
+  const mine = normalizeAssignedGraderName(graderIdentity) || graderIdentity.trim();
+  if (!mine) return false;
+  const assigned =
+    normalizeAssignedGraderName(assignedRaw) || String(assignedRaw || '').trim();
+  if (!assigned) return false;
+  return assigned.toLowerCase() === mine.toLowerCase();
+}
 
 export type WritingSubmissionPublic = {
   id: string;
@@ -85,8 +167,9 @@ export class WritingSubmissionService {
       counts[g] = 0;
     }
     for (const s of allSubmissions) {
-      if (s.assignedGrader && counts[s.assignedGrader] !== undefined) {
-        counts[s.assignedGrader]++;
+      const g = normalizeAssignedGraderName(s.assignedGrader);
+      if (g && counts[g] !== undefined) {
+        counts[g]++;
       }
     }
     let minCount = Infinity;
@@ -130,7 +213,7 @@ export class WritingSubmissionService {
       task1: doc.task1,
       task2: doc.task2,
       note: doc.note,
-      assignedGrader: doc.assignedGrader || '',
+      assignedGrader: normalizeAssignedGraderName(doc.assignedGrader) || doc.assignedGrader || '',
       source: doc.source || 'support',
       submittedByRole: this.resolveSubmittedByRole(doc),
       entranceBookingId: doc.entranceBookingId || '',
@@ -178,9 +261,29 @@ export class WritingSubmissionService {
 
   async listForTeacher(
     status?: string,
+    actor?: JwtPayload,
   ): Promise<WritingSubmissionPublic[]> {
-    // Backfill missing assignedGrader — không để lỗi 1 document làm fail cả API
+    // Chuẩn hoá tên Grader cũ + backfill bài chưa gán
     try {
+      const legacy = await this.model
+        .find({
+          assignedGrader: {
+            $exists: true,
+            $nin: [...ACA_GRADERS, '', null],
+          },
+        })
+        .select('_id assignedGrader')
+        .lean()
+        .exec();
+      for (const row of legacy) {
+        const next = normalizeAssignedGraderName(row.assignedGrader);
+        if (next && next !== row.assignedGrader) {
+          await this.model
+            .updateOne({ _id: row._id }, { $set: { assignedGrader: next } })
+            .exec();
+        }
+      }
+
       const unassigned = await this.model
         .find({
           $or: [
@@ -210,6 +313,15 @@ export class WritingSubmissionService {
     if (status && status !== 'all' && isWritingSubmissionStatus(status)) {
       filter.status = status;
     }
+
+    // Grader chỉ thấy bài được phân cho mình; ACA/GV thấy tất cả.
+    if (isGraderActor(actor)) {
+      const mine = resolveGraderIdentity(actor);
+      if (mine) {
+        filter.assignedGrader = mine;
+      }
+    }
+
     const rows = await this.model
       .find(filter)
       .sort({ createdAt: -1 })
@@ -317,10 +429,22 @@ export class WritingSubmissionService {
     const task1 = payload.task1?.trim() !== undefined ? payload.task1.trim() : doc.task1;
     const task2 = payload.task2?.trim() !== undefined ? payload.task2.trim() : doc.task2;
     const note = payload.note?.trim() !== undefined ? payload.note.trim() : doc.note;
-    // Grader cannot reassign or change the assigned grader of a submission
+    // Grader chỉ được chấm bài của mình và không được đổi phân công.
+    const graderOnly = isGraderActor(actor);
+    if (graderOnly) {
+      const mine = resolveGraderIdentity(actor);
+      if (mine && !isAssignedToGrader(doc.assignedGrader, mine)) {
+        throw new ForbiddenException(
+          'Bạn chỉ được chấm bài Writing được phân công cho mình',
+        );
+      }
+    }
     let assignedGrader = doc.assignedGrader;
-    if (actor?.role !== 'GRADER') {
-      assignedGrader = payload.assignedGrader?.trim() !== undefined ? payload.assignedGrader.trim() : doc.assignedGrader;
+    if (!graderOnly) {
+      assignedGrader =
+        payload.assignedGrader?.trim() !== undefined
+          ? payload.assignedGrader.trim()
+          : doc.assignedGrader;
     }
     const criteriaScores =
       payload.criteriaScores !== undefined ? payload.criteriaScores : doc.criteriaScores;

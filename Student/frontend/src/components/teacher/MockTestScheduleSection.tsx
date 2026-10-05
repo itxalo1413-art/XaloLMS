@@ -165,9 +165,9 @@ export function MockTestScheduleSection() {
             href={graderMeetUrl}
             target="_blank"
             rel="noreferrer"
-            className="h-8 inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-3 text-xs font-black text-white hover:bg-emerald-800 shadow-2xs shrink-0"
+            className="h-8 inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-3 text-xs font-black text-white hover:bg-emerald-800 shadow-2xs shrink-0 whitespace-nowrap"
           >
-            Mở Meet ↗
+            Mở Meet
           </a>
         </div>
       </div>
@@ -297,13 +297,13 @@ export function MockTestScheduleSection() {
                         href={getGraderMeetLink(r.examTeacher || teacherName)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition-all shadow-2xs"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-black text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition-all shadow-2xs whitespace-nowrap"
                         title="Link Google Meet cố định của Grader (Link test spk)"
                       >
                         <svg className="h-3.5 w-3.5 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                         </svg>
-                        Link test spk (Meet) ↗
+                        Link test spk (Meet)
                       </a>
                     </div>
                   </div>

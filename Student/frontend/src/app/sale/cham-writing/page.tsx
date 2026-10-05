@@ -272,9 +272,9 @@ export default function SaleWritingEntrancePage() {
                             href={b.submissionLink}
                             target="_blank"
                             rel="noreferrer"
-                            className="text-xs font-bold text-primary hover:underline truncate max-w-[220px] inline-block"
+                            className="text-xs font-bold text-primary hover:underline whitespace-nowrap inline-block"
                           >
-                            Mở bài làm ↗
+                            Mở bài làm
                           </a>
                         ) : (
                           <span className="text-zinc-400">—</span>

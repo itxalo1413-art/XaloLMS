@@ -24,7 +24,13 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Sidebar({ onOpenProfile }: { onOpenProfile?: () => void }) {
+export function Sidebar({
+  onOpenProfile,
+  onOpenGuide,
+}: {
+  onOpenProfile?: () => void;
+  onOpenGuide?: () => void;
+}) {
   const pathname = usePathname();
   const { logout } = useStudentAuth();
 
@@ -81,8 +87,32 @@ export function Sidebar({ onOpenProfile }: { onOpenProfile?: () => void }) {
             );
           })}
 
+          {/* Guide / Help button */}
+          {onOpenGuide ? (
+            <div className="mt-auto pt-3 border-t border-zinc-100 w-full flex justify-center">
+              <button
+                type="button"
+                onClick={onOpenGuide}
+                className="group relative flex h-11 w-11 items-center justify-center rounded-xl transition-all cursor-pointer"
+                aria-label="Hướng dẫn sử dụng"
+              >
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-all duration-200 hover:bg-primary hover:text-white hover:scale-105 shadow-2xs">
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+
+                {/* Floating Tooltip Label on Hover */}
+                <div className="absolute left-full ml-3 px-3 py-1.5 bg-zinc-900 text-white text-xs font-bold rounded-xl whitespace-nowrap shadow-xl opacity-0 pointer-events-none -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 z-50 flex items-center">
+                  <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-zinc-900 rotate-45" />
+                  <span className="relative z-10">Hướng dẫn sử dụng</span>
+                </div>
+              </button>
+            </div>
+          ) : null}
+
           {/* Bottom Logout Button */}
-          <div className="mt-auto pt-4 border-t border-zinc-100 w-full flex justify-center">
+          <div className={`${onOpenGuide ? "pt-2" : "mt-auto pt-4 border-t border-zinc-100"} w-full flex justify-center`}>
             <button
               type="button"
               onClick={logout}

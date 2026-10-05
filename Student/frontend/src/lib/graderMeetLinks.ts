@@ -6,17 +6,24 @@ export const GRADER_MEET_LINKS_EVENT = "xalo_grader_meet_links_updated";
 const KV_NAMESPACE = "graderMeetLinks";
 
 export const DEFAULT_GRADER_MEET_LINKS: Record<string, string> = {
+  "Huỳnh Gia Phú": "https://meet.google.com/giaphu-speaking-test",
   "Lê Thị Diệu Linh": "https://meet.google.com/dieulinh-speaking-test",
+  "Nguyễn Văn Đăng Duy": "https://meet.google.com/dangduy-speaking-test",
+  "Huỳnh Minh Phương": "https://meet.google.com/minhphuong-speaking-test",
+  "Nguyễn Thị Hoàng Sa": "https://meet.google.com/hoangsa-speaking-test",
+  "Gia Phú": "https://meet.google.com/giaphu-speaking-test",
+  "Diệu Linh": "https://meet.google.com/dieulinh-speaking-test",
+  "Đăng Duy": "https://meet.google.com/dangduy-speaking-test",
   "Trần Thị Thu Hà": "https://meet.google.com/thuha-speaking-test",
   "Nguyễn Văn An": "https://meet.google.com/vanan-speaking-test",
   "Đỗ Hoài Phương": "https://meet.google.com/hoaiphuong-speaking-test",
   "Phạm Đức Anh": "https://meet.google.com/ducanh-speaking-test",
-  "Grader 1": "https://meet.google.com/grader1-speaking-test",
-  "Bộ phận Grader 1": "https://meet.google.com/grader1-speaking-test",
-  "Grader 2": "https://meet.google.com/grader2-speaking-test",
-  "Bộ phận Grader 2": "https://meet.google.com/grader2-speaking-test",
-  "Grader 3": "https://meet.google.com/grader3-speaking-test",
-  "Bộ phận Grader 3": "https://meet.google.com/grader3-speaking-test",
+  "Grader 1": "https://meet.google.com/giaphu-speaking-test",
+  "Bộ phận Grader 1": "https://meet.google.com/giaphu-speaking-test",
+  "Grader 2": "https://meet.google.com/dieulinh-speaking-test",
+  "Bộ phận Grader 2": "https://meet.google.com/dieulinh-speaking-test",
+  "Grader 3": "https://meet.google.com/dangduy-speaking-test",
+  "Bộ phận Grader 3": "https://meet.google.com/dangduy-speaking-test",
   "Quản lý Grader": "https://meet.google.com/hih-aaa-aie",
   "Lê Nguyễn Khánh Thi": "https://meet.google.com/khanhthi-speaking-test",
   "Nghiêm Doãn Quỳnh Châu": "https://meet.google.com/quynhchau-speaking-test",
@@ -140,10 +147,11 @@ export function getGraderMeetLink(teacherName?: string | null): string {
   }
 
   // 5. Special keyword matching
-  if (lower.includes("grader 1")) return DEFAULT_GRADER_MEET_LINKS["Grader 1"];
-  if (lower.includes("grader 2")) return DEFAULT_GRADER_MEET_LINKS["Grader 2"];
-  if (lower.includes("grader 3")) return DEFAULT_GRADER_MEET_LINKS["Grader 3"];
-  if (lower.includes("diệu linh") || lower.includes("dieu linh")) return DEFAULT_GRADER_MEET_LINKS["Lê Thị Diệu Linh"];
+  if (lower.includes("grader 1") || lower.includes("gia phú") || lower.includes("gia phu")) return DEFAULT_GRADER_MEET_LINKS["Huỳnh Gia Phú"];
+  if (lower.includes("grader 2") || lower.includes("diệu linh") || lower.includes("dieu linh")) return DEFAULT_GRADER_MEET_LINKS["Lê Thị Diệu Linh"];
+  if (lower.includes("grader 3") || lower.includes("đăng duy") || lower.includes("dang duy")) return DEFAULT_GRADER_MEET_LINKS["Nguyễn Văn Đăng Duy"];
+  if (lower.includes("minh phương") || lower.includes("minh phuong")) return DEFAULT_GRADER_MEET_LINKS["Huỳnh Minh Phương"];
+  if (lower.includes("hoàng sa") || lower.includes("hoang sa")) return DEFAULT_GRADER_MEET_LINKS["Nguyễn Thị Hoàng Sa"];
   if (lower.includes("thu hà") || lower.includes("thu ha")) return DEFAULT_GRADER_MEET_LINKS["Trần Thị Thu Hà"];
   if (lower.includes("văn an") || lower.includes("van an")) return DEFAULT_GRADER_MEET_LINKS["Nguyễn Văn An"];
   if (lower.includes("hoài phương") || lower.includes("hoai phuong")) return DEFAULT_GRADER_MEET_LINKS["Đỗ Hoài Phương"];

@@ -1,0 +1,134 @@
+{
+  "total": 21,
+  "fail": 0,
+  "pass": 10,
+  "note": 11,
+  "findings": [
+    {
+      "area": "Guest",
+      "fn": "Form tư vấn",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/guest-diagnosis?leadId=lead-1791176468203"
+    },
+    {
+      "area": "Auth",
+      "fn": "API login",
+      "kq": "Pass",
+      "ct": "Dương Ngọc Khôi Nguyên"
+    },
+    {
+      "area": "Shell",
+      "fn": "Mở hướng dẫn",
+      "kq": "Pass",
+      "ct": "modal/guide opened"
+    },
+    {
+      "area": "Shell",
+      "fn": "Dismiss cảnh báo học vụ",
+      "kq": "Note",
+      "ct": "không có cảnh báo active"
+    },
+    {
+      "area": "Profile",
+      "fn": "Lưu SĐT hồ sơ",
+      "kq": "Pass",
+      "ct": "HTTP 200"
+    },
+    {
+      "area": "Profile",
+      "fn": "Chọn avatar mẫu",
+      "kq": "Note",
+      "ct": "không thấy mẫu"
+    },
+    {
+      "area": "Profile",
+      "fn": "Đổi mật khẩu",
+      "kq": "Note",
+      "ct": "bỏ qua (destructive) — chỉ kiểm tra section"
+    },
+    {
+      "area": "Home",
+      "fn": "Study Habits (weeklyHours)",
+      "kq": "Pass",
+      "ct": "HTTP 200"
+    },
+    {
+      "area": "Home",
+      "fn": "Focus skills Xác nhận",
+      "kq": "Note",
+      "ct": "confirmed UI / no API"
+    },
+    {
+      "area": "Home",
+      "fn": "Ngày thi dự kiến",
+      "kq": "Pass",
+      "ct": "HTTP 200 date=2026-12-05"
+    },
+    {
+      "area": "RLP",
+      "fn": "Nộp homework",
+      "kq": "Note",
+      "ct": "không có nút Nộp bài (chưa giao BT?)"
+    },
+    {
+      "area": "Hỗ trợ",
+      "fn": "Writing gửi link",
+      "kq": "Pass",
+      "ct": "HTTP 201"
+    },
+    {
+      "area": "Hỗ trợ",
+      "fn": "Speaking đặt lịch",
+      "kq": "Note",
+      "ct": "không có ngày có ca rảnh"
+    },
+    {
+      "area": "Hỗ trợ",
+      "fn": "Luyện đề đăng ký buổi",
+      "kq": "Note",
+      "ct": "đã đăng ký hoặc không có slot"
+    },
+    {
+      "area": "Hỗ trợ",
+      "fn": "Lưu Drive folder",
+      "kq": "Note",
+      "ct": "input folder không thấy"
+    },
+    {
+      "area": "Hỗ trợ",
+      "fn": "Practice RLP",
+      "kq": "Note",
+      "ct": "không có bảng RLP practice"
+    },
+    {
+      "area": "Lưu trữ test",
+      "fn": "Mở modal Final Speaking",
+      "kq": "Pass",
+      "ct": "modal"
+    },
+    {
+      "area": "Lưu trữ test",
+      "fn": "Final LRW modal",
+      "kq": "Note",
+      "ct": "nút disabled / không đủ điều kiện"
+    },
+    {
+      "area": "Lưu trữ test",
+      "fn": "Final Writing nộp link",
+      "kq": "Note",
+      "ct": "chưa có ca / form ẩn"
+    },
+    {
+      "area": "Tài liệu",
+      "fn": "Lưu progress đọc (local)",
+      "kq": "Pass",
+      "ct": "doc=listening-map-01"
+    },
+    {
+      "area": "Shell",
+      "fn": "Đăng xuất",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/login"
+    }
+  ]
+}

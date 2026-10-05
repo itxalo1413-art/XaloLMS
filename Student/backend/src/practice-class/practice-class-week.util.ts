@@ -62,6 +62,7 @@ export type PracticeWeekLean = {
   templateMessage?: string;
   zoomId?: string;
   zoomPassword?: string;
+  linkZalo?: string;
   scheduleTueInfo?: string;
   scheduleThuInfo?: string;
   scheduleSatInfo?: string;

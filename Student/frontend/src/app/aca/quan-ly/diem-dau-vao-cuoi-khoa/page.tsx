@@ -416,7 +416,7 @@ export default function DiemDauVaoCuoiKhoaPage() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1200px] border-collapse text-left text-xs">
                 <thead>
-                  <tr className="border-b border-zinc-200 bg-zinc-50 text-[10px] font-black uppercase tracking-widest text-muted">
+                  <tr className="border-b border-zinc-200 bg-zinc-50 text-[10px] font-black uppercase tracking-widest text-muted whitespace-nowrap">
                     <th className="px-4 py-4 min-w-[180px]">Học viên & Email</th>
                     <th className="px-4 py-4 min-w-[150px]">Lớp học</th>
                     

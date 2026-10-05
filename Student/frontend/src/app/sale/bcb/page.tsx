@@ -670,7 +670,7 @@ function SaleBcbContent() {
                   </h2>
                   {activeIsAssigned ? (
                     <span className="rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-[10px] font-black uppercase text-emerald-700">
-                      Học viên ({activeStudent.l1 || "Đã xếp lớp"})
+                      Học viên ({shortClassLabel(activeStudent.l1) || "Đã xếp lớp"})
                     </span>
                   ) : (
                     <span className="rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-[10px] font-black uppercase text-amber-800">
@@ -680,7 +680,7 @@ function SaleBcbContent() {
                 </div>
                 <p className="text-xs font-semibold text-zinc-500 mt-1">
                   Email: {activeStudent.email || "—"} · SĐT: {activeStudent.phone || "—"} · Lớp:{" "}
-                  {activeStudent.l1 || "Chưa gán"}
+                  {shortClassLabel(activeStudent.l1) || "Chưa gán"}
                 </p>
               </div>
               <button
@@ -709,7 +709,7 @@ function SaleBcbContent() {
                     <option value="">-- Chưa xếp lớp (Guest) --</option>
                     {classes.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name} {c.classCode ? `(${c.classCode})` : ""}
+                        {shortClassLabel(c.classCode, c.name)}
                       </option>
                     ))}
                   </select>

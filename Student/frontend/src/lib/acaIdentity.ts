@@ -4,6 +4,8 @@ const LEGACY_GRADER_EMAILS = new Set([
   "aca_1@gmail.com",
   "aca_2@gmail.com",
   "aca@xalo.internal",
+  "grader.phuong@xalo.internal",
+  "grader.sa@xalo.internal",
 ]);
 
 /** Grader = role GRADER, hoặc token cũ vẫn mang role ACA với email grader. */

@@ -296,6 +296,7 @@ export interface AcaPracticeWeek {
   templateMessage: string;
   zoomId?: string;
   zoomPassword?: string;
+  linkZalo?: string;
   scheduleTueInfo?: string;
   scheduleThuInfo?: string;
   scheduleSatInfo?: string;
@@ -604,24 +605,28 @@ export async function ensureCurrentRealtimeWeekExists(existingWeeks: AcaPractice
   const exists = existingWeeks.some(w => w.weekRange === currentRange);
   if (!exists) {
     try {
-      const defaultZoomLink = "https://zoom.us/j/84219634521?pwd=example-lrw";
+      const defaultZoomLink = "https://zoom.us/j/85154525397";
       const created = await createAcaPracticeWeek({
         weekRange: currentRange,
         linkMeet: defaultZoomLink,
         linkTab: "",
         announcement: `[Thông báo về lịch học lớp LĐ]\n\nTuần ${currentRange}:\n - Lớp học bình thường vào thứ 3, thứ 5 và thứ 7\n - Lớp có lịch test tập trung vào CN`,
         templateMessage: `Em ơi, tuần này (${currentRange}) chị gửi lịch lớp Luyện Đề T3, T5, T7 và test tập trung CN nhé!`,
-        zoomId: "842 1963 4521",
-        zoomPassword: "XaloLrw26",
+        zoomId: "851 5452 5397",
+        zoomPassword: "123456",
+        linkZalo: "https://zalo.me/g/e2vslsobotb3em3nh8gr",
         scheduleTueTitle: "Luyện tập Speaking theo chuyên đề",
         scheduleTueTime: "19h45 – 21h45",
-        scheduleTueInfo: "Tham gia bằng Zoom, học với Giáo viên, phân tích bộ đề Speaking 3 part, được cung cấp từ vựng/phương pháp tiếp cận và luyện tập trực tiếp với Giáo viên.",
+        scheduleTueInfo:
+          "Tham gia qua Zoom, học với Giáo viên, được cung cấp từ vựng/phương pháp tiếp cận và luyện tập trực tiếp với Giáo viên.",
         scheduleThuTitle: "Chữa đề L-R-W",
         scheduleThuTime: "19h45 – 21h45",
-        scheduleThuInfo: "Tham gia bằng Zoom, học với Giáo viên, tập trung chữa đề Writing và các thắc mắc về Listening – Reading.",
+        scheduleThuInfo:
+          "Tham gia qua Zoom, học với Giáo viên, tập trung chữa đề W và các giải đáp thắc mắc về L-R.",
         scheduleSatTitle: "Làm đề L-R-W tập trung",
         scheduleSatTime: "19h – 21h30",
-        scheduleSatInfo: "Tham gia bằng Zoom, làm bài trên Google Docs, có nhân viên canh thời gian làm bài và các bạn học viên khác tham gia.",
+        scheduleSatInfo:
+          "Tham gia qua Zoom, làm bài trên Google Docs, có Giáo viên canh thời gian làm bài và các bạn học viên khác tham gia.",
       });
       return sortAcaPracticeWeeksDescending([created, ...existingWeeks]);
     } catch (e) {

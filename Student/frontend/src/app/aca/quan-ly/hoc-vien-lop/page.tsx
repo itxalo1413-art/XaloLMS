@@ -16,6 +16,7 @@ import {
   AcaStudentCycle,
   displayClassCode,
   classCodesMatch,
+  shortClassLabel,
 } from "@/lib/acaManagementApi";
 import { confirmDialog } from "@/components/shared/ConfirmDialog";
 import {
@@ -1168,9 +1169,7 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
                 <option value="all">Tất cả các lớp</option>
                 {filteredClassesDropdown.map((cls: AcaClass) => (
                   <option key={cls.id} value={cls.id}>
-                    {cls.classCode
-                      ? `[${displayClassCode(cls.classCode)}] ${cls.name}`
-                      : cls.name}
+                    {displayClassCode(cls.classCode) || shortClassLabel(cls.name)}
                   </option>
                 ))}
               </select>
@@ -1238,7 +1237,7 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1500px] border-collapse text-left text-xs">
               <thead>
-                <tr className="border-b border-zinc-200 bg-zinc-50 text-[10px] font-black uppercase tracking-widest text-muted">
+                <tr className="border-b border-zinc-200 bg-zinc-50 text-[10px] font-black uppercase tracking-widest text-muted whitespace-nowrap">
                   <th className="px-4 py-4 text-center w-12">STT</th>
                   <th className="px-4 py-4 text-center w-12">Chi tiết</th>
                   <th className="px-4 py-4 min-w-[150px]">Họ và tên</th>
@@ -1419,7 +1418,7 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
                           <div className="flex items-center gap-2">
                             <Link
                               href={`/sale/bcb?studentId=${st.id}`}
-                              className="text-[10px] font-bold px-2 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                              className="text-[10px] font-bold px-2 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors whitespace-nowrap"
                               title="Chỉnh sửa chi tiết BCB cho học viên này"
                             >
                               Sửa BCB
@@ -1739,9 +1738,7 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
                       >
                         {classesList.map((cls) => (
                           <option key={cls.id} value={cls.id}>
-                            {cls.classCode
-                              ? `[${displayClassCode(cls.classCode)}] ${cls.name}`
-                              : cls.name}
+                            {displayClassCode(cls.classCode) || shortClassLabel(cls.name)}
                           </option>
                         ))}
                       </select>
@@ -1883,9 +1880,7 @@ const isStudentFinishedClass = (st: AcaStudent, classCode: string): boolean => {
                               <option value="">-- Chọn mã lớp (Trống) --</option>
                               {classesList.map((cls) => (
                                 <option key={cls.id} value={cls.classCode || ""}>
-                                  {cls.classCode
-                                    ? `[${displayClassCode(cls.classCode)}] ${cls.name}`
-                                    : cls.name}
+                                  {displayClassCode(cls.classCode) || shortClassLabel(cls.name)}
                                 </option>
                               ))}
                               {cycle.classCode && !classesList.some((cls) => cls.classCode === cycle.classCode) && (

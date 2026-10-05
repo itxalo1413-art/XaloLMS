@@ -25,8 +25,8 @@ export class TeacherWritingSubmissionController {
   constructor(private readonly writing: WritingSubmissionService) {}
 
   @Get()
-  list(@Query('status') status?: string) {
-    return this.writing.listForTeacher(status);
+  list(@Req() req: AuthedRequest, @Query('status') status?: string) {
+    return this.writing.listForTeacher(status, req.user);
   }
 
   @Patch(':id/grade')

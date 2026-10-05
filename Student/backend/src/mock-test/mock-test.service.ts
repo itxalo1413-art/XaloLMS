@@ -7,6 +7,12 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { UsersService } from '../users/users.service';
+import type { JwtPayload } from '../auth/auth.types';
+import {
+  graderFieldsMatchFilter,
+  isGraderActor,
+  resolveGraderIdentity,
+} from '../domain/grader-identity.util';
 import {
   EntranceTestBooking,
   type EntranceTestBookingDocument,
@@ -162,11 +168,23 @@ export class MockTestService {
     return (rows as MockTestLean[]).map((r) => this.toPublic(r));
   }
 
-  async listForAca(status?: string): Promise<MockTestRequestPublic[]> {
+  async listForAca(
+    status?: string,
+    actor?: JwtPayload | null,
+  ): Promise<MockTestRequestPublic[]> {
     const filter: Record<string, unknown> = {};
     if (status && status !== 'all' && isMockTestStatus(status)) {
       filter.status = status;
     }
+
+    // Grader chỉ thấy ca được gán (examTeacher); ACA/Sale/GV xem tất cả.
+    if (isGraderActor(actor)) {
+      const mine = resolveGraderIdentity(actor);
+      const scoped = graderFieldsMatchFilter(['examTeacher'], mine);
+      if (scoped) Object.assign(filter, scoped);
+      else return [];
+    }
+
     const rows = await this.model
       .find(filter)
       .sort({ createdAt: -1 })

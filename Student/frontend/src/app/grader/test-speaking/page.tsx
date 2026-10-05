@@ -27,6 +27,7 @@ import {
 import { resolveGraderTaskKind, resolveSubmittedByRole, SUBMITTED_BY_ROLE_LABEL, submittedByRoleTone } from "@/lib/selfStudyFormat";
 import { getCachedAuthUser } from "@/lib/auth";
 import { isGraderUser } from "@/lib/acaIdentity";
+import { normalizeAssignedGraderName } from "@/lib/writingSubmissions";
 import { confirmDialog } from "@/components/shared/ConfirmDialog";
 import { formatBandScore } from "@/lib/formatBandScore";
 import {
@@ -43,16 +44,11 @@ const EMPTY_SPEAKING_CRITERIA: SpeakingCriterionScores = {
 };
 
 const GRADER_OPTIONS = [
-  "Gia Phú",
-  "Diệu Linh",
-  "Ms. Thanh Tâm",
-  "Mr. Alex",
-  "Lê Nguyễn Khánh Thi",
-  "Nghiêm Doãn Quỳnh Châu",
-  "Lê Minh Trang",
-  "Phạm Hoàng An",
-  "Trần Thu Lan",
-  "Ms. Lan Anh",
+  "Huỳnh Gia Phú",
+  "Lê Thị Diệu Linh",
+  "Nguyễn Văn Đăng Duy",
+  "Huỳnh Minh Phương",
+  "Nguyễn Thị Hoàng Sa",
 ] as const;
 
 export interface SpeakingRegistrationItem {
@@ -88,25 +84,41 @@ export default function AcaTestSpeakingPage() {
   }, [currentUser]);
 
   const currentGraderName = useMemo(() => {
-    if (!currentUser) return "Gia Phú";
+    if (!currentUser) return "Huỳnh Gia Phú";
     const name = (currentUser.name || "").trim();
     const email = (currentUser.email || "").trim().toLowerCase();
-    if (email === "aca_1@gmail.com" || name.toLowerCase().includes("grader 1") || name.toLowerCase().includes("aca 1")) return "Grader 1";
-    if (email === "aca_2@gmail.com" || name.toLowerCase().includes("grader 2") || name.toLowerCase().includes("aca 2")) return "Grader 2";
-    if (email === "aca@xalo.internal" || name.toLowerCase().includes("grader 3") || name.toLowerCase().includes("aca 3")) return "Grader 3";
+    if (email === "aca_1@gmail.com" || name.toLowerCase().includes("grader 1") || name.toLowerCase().includes("aca 1") || name.toLowerCase().includes("gia phú") || name.toLowerCase().includes("gia phu")) return "Huỳnh Gia Phú";
+    if (email === "aca_2@gmail.com" || name.toLowerCase().includes("grader 2") || name.toLowerCase().includes("aca 2") || name.toLowerCase().includes("diệu linh") || name.toLowerCase().includes("dieu linh")) return "Lê Thị Diệu Linh";
+    if (email === "aca@xalo.internal" || name.toLowerCase().includes("grader 3") || name.toLowerCase().includes("aca 3") || name.toLowerCase().includes("đăng duy") || name.toLowerCase().includes("dang duy")) return "Nguyễn Văn Đăng Duy";
+    if (email === "grader.phuong@xalo.internal" || name.toLowerCase().includes("minh phương") || name.toLowerCase().includes("minh phuong")) return "Huỳnh Minh Phương";
+    if (email === "grader.sa@xalo.internal" || name.toLowerCase().includes("hoàng sa") || name.toLowerCase().includes("hoang sa")) return "Nguyễn Thị Hoàng Sa";
     for (const g of GRADER_OPTIONS) {
       if (name.toLowerCase() === g.toLowerCase() || name.toLowerCase().includes(g.toLowerCase())) return g;
     }
-    return name || "Gia Phú";
+    return normalizeAssignedGraderName(name) || name || "Huỳnh Gia Phú";
   }, [currentUser]);
+
+  const isAssignedToMe = useCallback(
+    (graderName?: string | null) => {
+      const assigned =
+        normalizeAssignedGraderName(graderName) || String(graderName || "").trim();
+      const mine =
+        normalizeAssignedGraderName(currentGraderName) || currentGraderName.trim();
+      if (!assigned || !mine) return false;
+      return assigned.toLowerCase() === mine.toLowerCase();
+    },
+    [currentGraderName],
+  );
 
   const [items, setItems] = useState<SpeakingRegistrationItem[]>([]);
   const [students, setStudents] = useState<AcaStudent[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters
+  // Filters — grader luôn khóa theo chính mình, không xem list grader khác
   const [search, setSearch] = useState("");
-  const [graderFilter, setGraderFilter] = useState("all");
+  const [graderFilter, setGraderFilter] = useState(() =>
+    isGrader ? currentGraderName : "all",
+  );
   const [typeFilter, setTypeFilter] = useState<"all" | "support_test" | "final_test" | "entrance_test">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "cancelled" | "graded">("all");
 
@@ -128,7 +140,7 @@ export default function AcaTestSpeakingPage() {
   const [formTestType, setFormTestType] = useState<"support_test" | "final_test">("support_test");
   const [formDate, setFormDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [formTime, setFormTime] = useState("19:30");
-  const [formGrader, setFormGrader] = useState<string>(() => (isGrader ? currentGraderName : "Gia Phú"));
+  const [formGrader, setFormGrader] = useState<string>(() => (isGrader ? currentGraderName : "Huỳnh Gia Phú"));
   const [formMeetLink, setFormMeetLink] = useState("");
 
   const loadData = useCallback(async () => {
@@ -140,7 +152,7 @@ export default function AcaTestSpeakingPage() {
         .filter((r) => r.skill.toLowerCase().includes("speaking") || r.skill.toLowerCase().includes("full"))
         .map((r) => {
           const dStr = `${r.year}-${String(r.month + 1).padStart(2, "0")}-${String(r.day).padStart(2, "0")}`;
-          const gName = r.examTeacher || "Gia Phú";
+          const gName = r.examTeacher || "Huỳnh Gia Phú";
           const kind = resolveGraderTaskKind(r);
           const isEntrance = kind === "Entrance";
           return {
@@ -184,7 +196,7 @@ export default function AcaTestSpeakingPage() {
             (!b.mockTestId || !mockIdsInList.has(b.mockTestId)),
         )
         .map((b) => {
-          const gName = b.graderName || "Gia Phú";
+          const gName = b.graderName || "Huỳnh Gia Phú";
           return {
             id: `entrance-${b.id}`,
             source: "entrance_test",
@@ -222,7 +234,7 @@ export default function AcaTestSpeakingPage() {
       const finalSpeaking: SpeakingRegistrationItem[] = finalRecords
         .filter((r) => r.testType === "speaking" || r.testType === "full_4_skills")
         .map((r) => {
-          const gName = r.graderSpeaking || r.examinerName || "Gia Phú";
+          const gName = r.graderSpeaking || r.examinerName || "Huỳnh Gia Phú";
           const sp = r.bcbData?.speaking;
           return {
             id: `final-${r.id}`,
@@ -286,6 +298,12 @@ export default function AcaTestSpeakingPage() {
     };
   }, [loadData]);
 
+  useEffect(() => {
+    if (isGrader && currentGraderName) {
+      setGraderFilter(currentGraderName);
+    }
+  }, [isGrader, currentGraderName]);
+
   // Unique list of Graders in active items + defaults
   const activeGraders = useMemo(() => {
     const set = new Set<string>(GRADER_OPTIONS);
@@ -295,10 +313,18 @@ export default function AcaTestSpeakingPage() {
     return Array.from(set);
   }, [items]);
 
+  // Grader chỉ thấy ca của mình; ACA xem tất cả
+  const scopedItems = useMemo(() => {
+    if (!isGrader) return items;
+    return items.filter((it) => isAssignedToMe(it.graderName));
+  }, [items, isGrader, isAssignedToMe]);
+
   // Filtered List
   const filtered = useMemo(() => {
-    return items.filter((it) => {
-      if (graderFilter !== "all" && it.graderName !== graderFilter) return false;
+    return scopedItems.filter((it) => {
+      if (!isGrader && graderFilter !== "all" && it.graderName !== graderFilter) {
+        return false;
+      }
       if (typeFilter !== "all" && it.source !== typeFilter) return false;
       if (statusFilter === "cancelled" && it.status !== "cancelled") return false;
       if (statusFilter === "graded" && !(it.status === "graded" && it.scoreSpeaking)) return false;
@@ -314,16 +340,16 @@ export default function AcaTestSpeakingPage() {
 
       return true;
     });
-  }, [items, graderFilter, typeFilter, statusFilter, search]);
+  }, [scopedItems, isGrader, graderFilter, typeFilter, statusFilter, search]);
 
   // Stats Metrics
   const stats = useMemo(() => {
-    const total = items.length;
-    const cancelled = items.filter((i) => i.status === "cancelled").length;
-    const graded = items.filter((i) => i.status === "graded" && i.scoreSpeaking).length;
-    const graderCount = activeGraders.length;
+    const total = scopedItems.length;
+    const cancelled = scopedItems.filter((i) => i.status === "cancelled").length;
+    const graded = scopedItems.filter((i) => i.status === "graded" && i.scoreSpeaking).length;
+    const graderCount = isGrader ? 1 : activeGraders.length;
     return { total, cancelled, graded, graderCount };
-  }, [items, activeGraders]);
+  }, [scopedItems, activeGraders, isGrader]);
 
   const handleCancelSpeaking = async (item: SpeakingRegistrationItem) => {
     if (item.status === "cancelled") return;
@@ -335,7 +361,7 @@ export default function AcaTestSpeakingPage() {
       variant: "danger",
     });
     if (!ok) return;
-    if (isGrader && currentGraderName && item.graderName?.trim().toLowerCase() !== currentGraderName.toLowerCase() && !item.graderName?.trim().toLowerCase().includes(currentGraderName.toLowerCase())) {
+    if (isGrader && !isAssignedToMe(item.graderName)) {
       alert("Bạn không thể hủy ca thi Speaking của Grader khác.");
       return;
     }
@@ -392,6 +418,10 @@ export default function AcaTestSpeakingPage() {
   const handleSaveGrade = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!gradingItem) return;
+    if (isGrader && !isAssignedToMe(gradingItem.graderName)) {
+      alert("Bạn chỉ được chấm ca Speaking được phân công cho mình.");
+      return;
+    }
     const needsCriteria =
       gradingItem.source === "final_test" || gradingItem.source === "entrance_test";
     try {
@@ -513,7 +543,7 @@ export default function AcaTestSpeakingPage() {
               setFormTestType("support_test");
               setFormDate(new Date().toISOString().split("T")[0]);
               setFormTime("19:30");
-              setFormGrader(isGrader ? currentGraderName : "Gia Phú");
+              setFormGrader(isGrader ? currentGraderName : "Huỳnh Gia Phú");
               setIsAddModalOpen(true);
             }}
             className="px-5 py-2.5 rounded-xl bg-primary hover:bg-[#6a5acd] text-white text-xs font-black transition-all shadow-md active:scale-95 cursor-pointer"
@@ -555,17 +585,23 @@ export default function AcaTestSpeakingPage() {
               />
             </div>
 
-            {/* Filter by Grader */}
-            <select
-              value={graderFilter}
-              onChange={(e) => setGraderFilter(e.target.value)}
-              className="h-10 rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-xs font-bold text-zinc-700 outline-none"
-            >
-              <option value="all">Tất cả Grader phụ trách ({activeGraders.length})</option>
-              {activeGraders.map((g) => (
-                <option key={g} value={g}>{g}</option>
-              ))}
-            </select>
+            {/* Filter by Grader — chỉ ACA mới được xem/đổi sang grader khác */}
+            {!isGrader ? (
+              <select
+                value={graderFilter}
+                onChange={(e) => setGraderFilter(e.target.value)}
+                className="h-10 rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-xs font-bold text-zinc-700 outline-none"
+              >
+                <option value="all">Tất cả Grader phụ trách ({activeGraders.length})</option>
+                {activeGraders.map((g) => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+            ) : (
+              <div className="h-10 inline-flex items-center rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-xs font-bold text-zinc-700">
+                Grader: {currentGraderName}
+              </div>
+            )}
 
             {/* Filter by Type */}
             <select
@@ -605,7 +641,7 @@ export default function AcaTestSpeakingPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-zinc-200 bg-zinc-50/80 text-[10px] font-black uppercase tracking-wider text-zinc-500">
+                  <tr className="border-b border-zinc-200 bg-zinc-50/80 text-[10px] font-black uppercase tracking-wider text-zinc-500 whitespace-nowrap">
                     <th className="px-4 py-3.5">Học Viên & Liên Hệ</th>
                     <th className="px-3.5 py-3.5">Loại Ca Thi</th>
                     <th className="px-3.5 py-3.5">Ngày & Giờ Thi</th>
@@ -636,9 +672,9 @@ export default function AcaTestSpeakingPage() {
 
                         {/* 2. Loại ca */}
                         <td className="px-3.5 py-3.5">
-                          <div className="flex flex-wrap items-center gap-1.5">
+                          <div className="flex flex-col items-start gap-1">
                             <span
-                              className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold border ${
+                              className={`inline-flex rounded-md px-2 py-0.5 text-[10px] font-bold border whitespace-nowrap ${
                                 it.source === "final_test"
                                   ? "bg-purple-50 text-purple-700 border-purple-200"
                                   : it.source === "entrance_test"
@@ -649,7 +685,7 @@ export default function AcaTestSpeakingPage() {
                               {it.testTypeLabel}
                             </span>
                             <span
-                              className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold ${submittedByRoleTone(it.submittedByRole)}`}
+                              className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold whitespace-nowrap ${submittedByRoleTone(it.submittedByRole)}`}
                             >
                               {SUBMITTED_BY_ROLE_LABEL[it.submittedByRole]}
                             </span>
@@ -657,7 +693,7 @@ export default function AcaTestSpeakingPage() {
                         </td>
 
                         {/* 3. Ngày giờ thi */}
-                        <td className="px-3.5 py-3.5 font-mono text-zinc-800">
+                        <td className="px-3.5 py-3.5 font-mono text-zinc-800 whitespace-nowrap">
                           <div className="font-bold">{it.date}</div>
                           <div className="text-[10px] text-zinc-500">{it.time}</div>
                         </td>
@@ -666,7 +702,7 @@ export default function AcaTestSpeakingPage() {
                         <td className="px-4 py-3.5 bg-primary/5 border-x border-primary/10">
                           {isGrader ? (
                             <span
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-primary/20 text-xs font-black text-primary shadow-2xs"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-primary/20 text-xs font-black text-primary shadow-2xs whitespace-nowrap"
                               title="Grader không có quyền phân công người phụ trách khác"
                             >
                               👤 {it.graderName || "Chưa phân công"}
@@ -696,9 +732,9 @@ export default function AcaTestSpeakingPage() {
                               href={it.meetLink}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 text-[11px] font-bold transition-all shadow-2xs"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 text-[11px] font-bold transition-all shadow-2xs whitespace-nowrap"
                             >
-                              Meet thi ↗
+                              Meet thi
                             </a>
                           ) : (
                             <span className="text-zinc-400 italic text-xs">—</span>
@@ -708,7 +744,7 @@ export default function AcaTestSpeakingPage() {
                         {/* 6. Trạng thái: Cancelled hoặc điểm Speaking */}
                         <td className="px-3.5 py-3.5 text-center">
                           {isCancelled ? (
-                            <span className="inline-flex rounded-md bg-rose-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-rose-700 border border-rose-200">
+                            <span className="inline-flex rounded-md bg-rose-50 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-rose-700 border border-rose-200 whitespace-nowrap">
                               Cancelled
                             </span>
                           ) : isGraded ? (
@@ -751,7 +787,7 @@ export default function AcaTestSpeakingPage() {
                                 >
                                   {isGraded ? "Sửa điểm" : "Nhập điểm"}
                                 </button>
-                                {!isGraded && (!isGrader || (Boolean(currentGraderName) && it.graderName?.toLowerCase().includes(currentGraderName.toLowerCase()))) && (
+                                {!isGraded && (!isGrader || isAssignedToMe(it.graderName)) && (
                                   <button
                                     type="button"
                                     onClick={() => void handleCancelSpeaking(it)}

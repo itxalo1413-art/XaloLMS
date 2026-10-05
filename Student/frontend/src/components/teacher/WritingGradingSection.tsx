@@ -20,6 +20,7 @@ import {
   ACA_GRADERS,
   deduplicateWritingSubmissions,
   gradeWritingSubmission,
+  normalizeAssignedGraderName,
   rebalanceWritingSubmissions,
   refreshWritingSubmissionsForTeacher,
   WRITING_SUBMISSIONS_EVENT,
@@ -31,7 +32,7 @@ import { WRITING_TASK1_CRITERIA } from "@/lib/writingTask1BandDescriptors";
 import { WRITING_TASK2_CRITERIA } from "@/lib/writingTask2BandDescriptors";
 import { resolveWritingBands } from "@/lib/writingScore";
 import { getCachedAuthUser } from "@/lib/auth";
-import { isGraderUser } from "@/lib/acaIdentity";
+import { isAcaAcademicHead, isGraderUser } from "@/lib/acaIdentity";
 import {
   getWritingDeadlineStatus,
   resolveWritingDueDate,
@@ -162,14 +163,20 @@ export function WritingGradingSection() {
     const name = (user.name || "").trim().toLowerCase();
     const email = (user.email || "").trim().toLowerCase();
 
-    if (email === "aca_1@gmail.com" || name.includes("aca 1") || name.includes("aca_1") || name.includes("grader 1")) {
-      return "Grader 1";
+    if (email === "aca_1@gmail.com" || name.includes("aca 1") || name.includes("aca_1") || name.includes("grader 1") || name.includes("gia phú") || name.includes("gia phu")) {
+      return "Huỳnh Gia Phú";
     }
-    if (email === "aca_2@gmail.com" || name.includes("aca 2") || name.includes("aca_2") || name.includes("grader 2")) {
-      return "Grader 2";
+    if (email === "aca_2@gmail.com" || name.includes("aca 2") || name.includes("aca_2") || name.includes("grader 2") || name.includes("diệu linh") || name.includes("dieu linh")) {
+      return "Lê Thị Diệu Linh";
     }
-    if (email === "aca@xalo.internal" || name.includes("aca 3") || name.includes("grader 3")) {
-      return "Grader 3";
+    if (email === "aca@xalo.internal" || name.includes("aca 3") || name.includes("grader 3") || name.includes("đăng duy") || name.includes("dang duy")) {
+      return "Nguyễn Văn Đăng Duy";
+    }
+    if (name.includes("minh phương") || name.includes("minh phuong")) {
+      return "Huỳnh Minh Phương";
+    }
+    if (name.includes("hoàng sa") || name.includes("hoang sa")) {
+      return "Nguyễn Thị Hoàng Sa";
     }
     for (const g of ACA_GRADERS) {
       if (name === g.toLowerCase() || name.includes(g.toLowerCase())) return g;
@@ -177,17 +184,26 @@ export function WritingGradingSection() {
     return null;
   }, []);
 
-  // Graders only see their own assigned submissions; Học vụ Khánh Thi sees all.
+  // Grader chỉ thấy bài của mình; ACA / GV xem tất cả.
   const visibleRows = useMemo(() => {
-    if (isKhanhThi) return rows;
     const user = getCachedAuthUser();
-    const loginName = (user?.name || "").trim().toLowerCase();
+    if (!user) return rows;
+    if (isKhanhThi || isAcaAcademicHead(user) || user.role === "GV") return rows;
+    if (!isGraderUser(user) && user.role !== "GRADER") return rows;
+
+    const mine =
+      normalizeAssignedGraderName(currentGraderName) ||
+      normalizeAssignedGraderName(user.name) ||
+      (currentGraderName || "").trim() ||
+      (user.name || "").trim();
+    if (!mine) return [];
+
     return rows.filter((r) => {
-      const assigned = (r.assignedGrader || "").trim().toLowerCase();
-      if (!assigned) return true;
-      if (currentGraderName && assigned === currentGraderName.toLowerCase()) return true;
-      if (loginName && assigned === loginName) return true;
-      return false;
+      const assignedRaw = (r.assignedGrader || "").trim();
+      if (!assignedRaw) return false;
+      const assigned =
+        normalizeAssignedGraderName(assignedRaw) || assignedRaw;
+      return assigned.toLowerCase() === mine.toLowerCase();
     });
   }, [rows, isKhanhThi, currentGraderName]);
 
@@ -482,15 +498,15 @@ export function WritingGradingSection() {
       ) : (
         <div className="overflow-hidden rounded-2xl border border-primary/10 bg-white shadow-soft">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1000px] text-left text-sm">
+            <table className="w-full min-w-[1180px] text-left text-sm">
               <thead>
                 <tr className="border-b border-primary/10 bg-background text-[10px] font-black uppercase tracking-widest text-muted">
-                  <th className="px-4 py-3">Deadline chấm</th>
-                  <th className="px-4 py-3">Tên học viên</th>
+                  <th className="px-4 py-3 min-w-[110px]">Deadline chấm</th>
+                  <th className="px-4 py-3 min-w-[130px]">Tên học viên</th>
                   <th className="px-4 py-3 min-w-[140px]">Grader Chấm bài</th>
-                  <th className="px-4 py-3">Gmail</th>
-                  <th className="px-4 py-3">Bài làm (BCB)</th>
-                  <th className="px-4 py-3">Phân loại</th>
+                  <th className="px-4 py-3 min-w-[140px]">Gmail</th>
+                  <th className="px-4 py-3 min-w-[140px] whitespace-nowrap">Bài làm (BCB)</th>
+                  <th className="px-4 py-3 min-w-[150px] whitespace-nowrap">Phân loại</th>
                   <th className="px-4 py-3">Tổng W</th>
                   <th className="px-4 py-3">Task 1</th>
                   <th className="px-4 py-3">Task 2</th>
@@ -513,10 +529,10 @@ export function WritingGradingSection() {
                             <div
                               className={
                                 deadline.isOverdue && row.status !== "graded"
-                                  ? "font-bold text-rose-600"
-                                  : deadline.daysLate > 0
                                     ? "font-bold text-rose-600"
-                                    : "text-muted"
+                                    : deadline.daysLate > 0
+                                      ? "font-bold text-rose-600"
+                                      : "text-muted"
                               }
                             >
                               {deadline.dueDate}
@@ -561,18 +577,19 @@ export function WritingGradingSection() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-zinc-500 font-medium">{row.studentGmail || "—"}</td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 text-center">
                       {formatExternalUrl(row.examLink) ? (
                         <a
                           href={formatExternalUrl(row.examLink)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 rounded bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-primary hover:bg-primary/20 transition-all"
+                          className="inline-flex flex-col items-center justify-center rounded-lg bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-primary hover:bg-primary/20 transition-all text-center leading-tight whitespace-nowrap"
                         >
-                          Mở file bài làm ↗
+                          <span>Mở file</span>
+                          <span>bài làm</span>
                         </a>
                       ) : (
-                        <span className="text-zinc-400 text-[11px] italic">Chưa có link</span>
+                        <span className="text-zinc-400 text-[11px] italic whitespace-nowrap">Chưa có link</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -581,14 +598,14 @@ export function WritingGradingSection() {
                         const label = resolveRowTypeLabel(row);
                         const by = resolveSubmittedByRole(row);
                         return (
-                          <div className="flex flex-wrap items-center gap-1.5">
+                          <div className="flex flex-col items-start gap-1">
                             <span
-                              className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold ${graderTaskKindTone(kind)}`}
+                              className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold whitespace-nowrap shrink-0 ${graderTaskKindTone(kind)}`}
                             >
                               {label}
                             </span>
                             <span
-                              className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold ${submittedByRoleTone(by)}`}
+                              className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold whitespace-nowrap shrink-0 ${submittedByRoleTone(by)}`}
                               title="Nguồn người nộp / tạo task"
                             >
                               {SUBMITTED_BY_ROLE_LABEL[by]}
@@ -763,7 +780,7 @@ export function WritingGradingSection() {
                       rel="noopener noreferrer"
                       className="text-[10px] font-black uppercase text-primary hover:underline flex items-center gap-1"
                     >
-                      Mở tab mới ↗
+                      Mở tab mới
                     </a>
                   ) : null}
                 </div>
@@ -782,7 +799,7 @@ export function WritingGradingSection() {
                       rel="noopener noreferrer"
                       className="h-10 px-3 rounded-xl bg-primary text-white flex items-center justify-center text-xs font-black hover:bg-primary/90 shrink-0"
                     >
-                      Vào link ↗
+                      Vào link
                     </a>
                   ) : null}
                 </div>

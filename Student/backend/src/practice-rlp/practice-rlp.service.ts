@@ -11,7 +11,7 @@ import {
   CreatePracticeRlpSessionDto,
   UpdatePracticeRlpSessionDto,
 } from './dto/practice-rlp.dto';
-import { PRACTICE_RLP_DEMO_SESSIONS } from './practice-rlp.seed';
+import { PRACTICE_RLP_DEMO_SESSIONS, PRACTICE_RLP_CURRICULUM_STUDENT_ID } from './practice-rlp.seed';
 
 @Injectable()
 export class PracticeRlpService implements OnModuleInit {
@@ -23,10 +23,18 @@ export class PracticeRlpService implements OnModuleInit {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    await this.seedDemoSessionsIfEmpty();
+    await this.seedCurriculumAndDemoStudent();
   }
 
-  private async seedDemoSessionsIfEmpty(): Promise<void> {
+  /** Luôn upsert curriculum mẫu; seed HV demo nếu store trống. */
+  private async seedCurriculumAndDemoStudent(): Promise<void> {
+    const sessions = PRACTICE_RLP_DEMO_SESSIONS;
+    await this.storeModel.updateOne(
+      { studentId: PRACTICE_RLP_CURRICULUM_STUDENT_ID },
+      { $set: { sessions } },
+      { upsert: true },
+    );
+
     const email = (
       process.env.STUDENT_SEED_EMAIL ?? 'nguyenduong939705@gmail.com'
     )
@@ -41,7 +49,7 @@ export class PracticeRlpService implements OnModuleInit {
 
     await this.storeModel.updateOne(
       { studentId },
-      { $set: { sessions: PRACTICE_RLP_DEMO_SESSIONS } },
+      { $set: { sessions } },
       { upsert: true },
     );
   }
@@ -58,7 +66,11 @@ export class PracticeRlpService implements OnModuleInit {
 
   // ── List all sessions for a student ─────────────────────────────────────────
   async listSessions(studentId: string): Promise<RlpSessionRecord[]> {
-    return this.ensureStore(studentId);
+    const id = String(studentId || '').trim();
+    if (!id) {
+      throw new BadRequestException('Thiếu studentId');
+    }
+    return this.ensureStore(id);
   }
 
   /** Học viên đã có RLP luyện đề hoặc đã từng đăng ký ca — cho Minh Tâm/ACA chọn. */
@@ -79,7 +91,9 @@ export class PracticeRlpService implements OnModuleInit {
       regIds = [];
     }
 
-    const allIds = [...new Set([...storeIds, ...regIds])].filter(Boolean);
+    const allIds = [...new Set([...storeIds, ...regIds])]
+      .filter(Boolean)
+      .filter((id) => id !== PRACTICE_RLP_CURRICULUM_STUDENT_ID);
     if (allIds.length === 0) return [];
 
     const objectIds = allIds.filter((id) => /^[a-f\d]{24}$/i.test(id));
@@ -103,7 +117,9 @@ export class PracticeRlpService implements OnModuleInit {
     studentId: string,
     dto: CreatePracticeRlpSessionDto,
   ): Promise<RlpSessionRecord> {
-    const sessions = await this.ensureStore(studentId);
+    const id = String(studentId || '').trim();
+    if (!id) throw new BadRequestException('Thiếu studentId');
+    const sessions = await this.ensureStore(id);
     // Prevent duplicate 'no'
     const existingNos = new Set(sessions.map((s) => s.no));
     const no = dto.no ?? (sessions.length > 0 ? Math.max(...sessions.map((s) => s.no)) + 1 : 1);

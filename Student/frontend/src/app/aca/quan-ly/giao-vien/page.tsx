@@ -8,6 +8,8 @@ import {
   fetchAcaStudents,
   type AcaClass,
   type AcaStudent,
+  displayClassCode,
+  shortClassLabel,
 } from "@/lib/acaManagementApi";
 import {
   refreshWritingSubmissionsForTeacher,
@@ -760,7 +762,7 @@ export default function AcaTeacherManagementPage() {
                       {selectedTeacher.classes.length > 0 ? (
                         selectedTeacher.classes.map((c) => (
                           <div key={c.id} className="rounded-lg bg-white border border-zinc-200 px-2.5 py-1 text-xs font-bold text-zinc-800 shadow-2xs">
-                            {c.classCode} <span className="text-zinc-400 font-normal">({c.name})</span>
+                            {displayClassCode(c.classCode) || shortClassLabel(c.name)}
                           </div>
                         ))
                       ) : (
@@ -870,9 +872,9 @@ export default function AcaTeacherManagementPage() {
                                 href={item.sub.examLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-[9px] font-bold text-primary hover:underline"
+                                className="text-[9px] font-bold text-primary hover:underline whitespace-nowrap"
                               >
-                                Xem bài làm học viên ↗
+                                Xem bài làm học viên
                               </a>
                               <span className="text-[9px] text-zinc-400 font-bold uppercase">{item.sub.type || "Writing"}</span>
                             </div>

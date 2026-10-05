@@ -374,9 +374,9 @@ function SaleTestSpeakingPage() {
               href={graderMeetLink}
               target="_blank"
               rel="noreferrer"
-              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-[11px] font-black text-white transition-all shrink-0 shadow-xs"
+              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-[11px] font-black text-white transition-all shrink-0 shadow-xs whitespace-nowrap"
             >
-              Mở Meet ↗
+              Mở Meet
             </a>
           )}
         </div>
@@ -756,9 +756,9 @@ function SaleTestSpeakingPage() {
                                   href={b.meetLink}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 hover:underline"
+                                  className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 hover:underline whitespace-nowrap"
                                 >
-                                  Google Meet ↗
+                                  Google Meet
                                 </a>
                               </div>
                             )}
@@ -770,9 +770,9 @@ function SaleTestSpeakingPage() {
                                 href={b.submissionLink}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 border border-sky-200 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-50 border border-sky-200 text-xs font-bold text-sky-800 hover:bg-sky-100 transition-colors whitespace-nowrap"
                               >
-                                <span>Bài nộp học viên ↗</span>
+                                <span>Bài nộp học viên</span>
                               </a>
                             ) : (
                               <span className="text-[11px] text-zinc-400 italic">Chưa đính kèm bài nộp</span>
@@ -783,10 +783,10 @@ function SaleTestSpeakingPage() {
                                   href={b.examLink}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="text-[11px] font-bold text-zinc-500 hover:text-zinc-800 hover:underline truncate max-w-[150px] inline-block"
+                                  className="text-[11px] font-bold text-zinc-500 hover:text-zinc-800 hover:underline truncate max-w-[150px] inline-block whitespace-nowrap"
                                   title={b.examLink}
                                 >
-                                  Đề bài Writing ↗
+                                  Đề bài Writing
                                 </a>
                               </div>
                             )}

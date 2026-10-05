@@ -1,0 +1,98 @@
+{
+  "total": 15,
+  "fail": 0,
+  "pass": 15,
+  "note": 0,
+  "findings": [
+    {
+      "vai": "GRADER",
+      "fn": "API login",
+      "kq": "Pass",
+      "ct": "GRADER Huỳnh Gia Phú"
+    },
+    {
+      "vai": "GRADER",
+      "fn": "Warm routes",
+      "kq": "Pass",
+      "ct": "8 paths"
+    },
+    {
+      "vai": "GRADER",
+      "fn": "Session inject",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/grader"
+    },
+    {
+      "vai": "GRADER",
+      "fn": "Grader home redirect",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/grader/cham-writing"
+    },
+    {
+      "vai": "GRADER",
+      "fn": "Chấm Writing",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/grader/cham-writing"
+    },
+    {
+      "vai": "GRADER",
+      "fn": "Test Speaking",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/grader/test-speaking"
+    },
+    {
+      "vai": "GRADER",
+      "fn": "Lịch rảnh",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/grader/lich-ranh"
+    },
+    {
+      "vai": "GRADER",
+      "fn": "Hồ sơ Grader",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/grader/profile"
+    },
+    {
+      "vai": "GRADER",
+      "fn": "Legacy ACA Writing → Grader",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/grader/cham-writing"
+    },
+    {
+      "vai": "GRADER",
+      "fn": "Legacy ACA Speaking → Grader",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/grader/test-speaking"
+    },
+    {
+      "vai": "GRADER",
+      "fn": "Legacy ACA lịch rảnh → Grader",
+      "kq": "Pass",
+      "ct": "http://127.0.0.1:3000/grader/lich-ranh"
+    },
+    {
+      "vai": "GRADER",
+      "fn": "ACA home (should leave to grader)",
+      "kq": "Pass",
+      "ct": "rời → http://127.0.0.1:3000/grader/cham-writing"
+    },
+    {
+      "vai": "GRADER",
+      "fn": "Teacher portal (deny stay)",
+      "kq": "Pass",
+      "ct": "rời → http://127.0.0.1:3000/login?error=role"
+    },
+    {
+      "vai": "GRADER",
+      "fn": "Sale portal (deny stay)",
+      "kq": "Pass",
+      "ct": "rời → http://127.0.0.1:3000/grader/cham-writing"
+    },
+    {
+      "vai": "GRADER",
+      "fn": "Console errors",
+      "kq": "Pass",
+      "ct": "none"
+    }
+  ]
+}
