@@ -3,6 +3,7 @@ import {
   fetchAcaFreeSlots,
   fetchAcaGraders,
 } from "@/lib/acaManagementApi";
+import { XALO_GV_NAMES } from "@/lib/xaloTeacherRoster";
 
 /**
  * Danh sách Grader chuẩn (CHỈ gồm bộ phận Grader, TUYỆT ĐỐI KHÔNG gồm Giáo viên và ACA).
@@ -18,21 +19,7 @@ export const DEFAULT_GRADER_OPTIONS = [
 /**
  * Danh sách Giáo viên chuẩn (dành riêng cho các ca Speaking / GV đứng lớp).
  */
-export const DEFAULT_TEACHER_OPTIONS = [
-  "Lê Thị Diệu Linh",
-  "Nghiêm Doãn Quỳnh Châu",
-  "Lê Minh Trang",
-  "Phạm Hoàng An",
-  "Lê Như Hải",
-  "Tất Duy Khải",
-  "Trần Quang Minh",
-  "Thái Đỗ Đăng Khoa",
-  "Nguyễn Lưu Minh Tâm",
-  "Nguyễn Lê Trung Dũng",
-  "Thanh Tâm",
-  "Đặng Duy",
-  "Trần Thu Lan",
-] as const;
+export const DEFAULT_TEACHER_OPTIONS = [...XALO_GV_NAMES] as readonly string[];
 
 export const DEFAULT_MOCK_TEST_TEACHER_OPTIONS = DEFAULT_GRADER_OPTIONS;
 export const MOCK_TEST_TEACHER_OPTIONS = DEFAULT_GRADER_OPTIONS;
@@ -42,20 +29,9 @@ export const MOCK_TEST_TEACHER_OPTIONS_EVENT = "xalo-mock-test-teacher-options-u
 
 // Danh sách tên GV / ACA cần loại bỏ triệt để khỏi danh sách Grader
 const EXCLUDED_NON_GRADER_NAMES = new Set([
-  "lê nguyễn khánh thi",
-  "nghiêm doãn quỳnh châu",
-  "lê minh trang",
-  "phạm hoàng an",
-  "lê như hải",
-  "tất duy khải",
-  "trần quang minh",
-  "thái đỗ đăng khoa",
-  "nguyễn lưu minh tâm",
-  "nguyễn lê trung dũng",
-  "thanh tâm",
+  ...XALO_GV_NAMES.map((n) => n.toLowerCase()),
   "lê thanh tâm",
   "đặng duy",
-  "trần thu lan",
   "bộ phận học vụ (aca)",
   "bộ phận học vụ",
   "học vụ",

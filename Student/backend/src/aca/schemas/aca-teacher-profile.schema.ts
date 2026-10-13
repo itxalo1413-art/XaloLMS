@@ -28,6 +28,9 @@ export class AcaTeacherProfile {
 
   @Prop({ required: false, trim: true, default: '' })
   notes: string;
+
+  @Prop({ required: false, trim: true, default: '' })
+  materialsDriveUrl: string;
 }
 
 export const AcaTeacherProfileSchema = SchemaFactory.createForClass(AcaTeacherProfile);

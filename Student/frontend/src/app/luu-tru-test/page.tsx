@@ -1543,7 +1543,7 @@ export default function StudentLuuTruTestPage() {
                           </p>
                           {latestCompleted?.bcbData?.nextCourseRecommendation && (
                             <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-primary/10 border border-primary/20 text-xs font-bold text-primary">
-                              <span>🎯 Lộ trình nâng cao đề xuất:</span>
+                              <span> Lộ trình nâng cao đề xuất:</span>
                               <span className="font-extrabold">{latestCompleted.bcbData.nextCourseRecommendation}</span>
                             </div>
                           )}

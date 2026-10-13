@@ -43,6 +43,26 @@ import {
   isGraderActor,
   resolveGraderIdentity,
 } from '../domain/grader-identity.util';
+import { XALO_GV_ROSTER } from '../domain/xalo-teacher-roster';
+import {
+  HOANG_SA_ONGOING_GROUP_CLASSES,
+  HOANG_SA_ONGOING_11_CLASSES,
+  HOANG_SA_STALE_CLASS_CODES,
+  NHU_HAI_ONGOING_GROUP_CLASSES,
+  NHU_HAI_ONGOING_11_CLASSES,
+  DANG_DUY_ONGOING_GROUP_CLASSES,
+  DANG_DUY_ONGOING_11_CLASSES,
+  MINH_TAM_ONGOING_GROUP_CLASSES,
+  MINH_TAM_ONGOING_11_CLASSES,
+  THANH_TAM_ONGOING_GROUP_CLASSES,
+  THANH_TAM_ONGOING_11_CLASSES,
+  DUY_KHAI_ONGOING_GROUP_CLASSES,
+  DUY_KHAI_ONGOING_11_CLASSES,
+  GIA_PHU_ONGOING_GROUP_CLASSES,
+  GIA_PHU_ONGOING_11_CLASSES,
+  type OngoingGroupClassSeed,
+  type Ongoing11ClassSeed,
+} from '../domain/teacher-ongoing-classes';
 
 import { DailyNote, DailyNoteDocument } from './schemas/daily-note.schema';
 import { MockTestRequest, MockTestRequestDocument } from './schemas/mock-test-request.schema';
@@ -77,6 +97,7 @@ import {
   THIEU_THAO_CHI_ONL_11_RLP,
   THIEU_THAO_CHI_SUPPORT_SPEAKING,
 } from './thieu-thao-chi.seed';
+import { CORE_UPSTREAM_MOMENTUM_SESSIONS } from '../rlp/rlp-defaults';
 import { buildRlpSchedulePlan, formatViDate, parseViDate } from '../rlp/rlp-schedule.util';
 import {
   FinalTest,
@@ -349,6 +370,10 @@ export class AcaManagementService implements OnModuleInit {
 
     await this.ensureVanThiThanhTruc();
     await this.ensureThieuThaoChi();
+    await this.ensureNguyenBaoKhoi();
+    await this.ensureNgoNguyenXuanDinh();
+    await this.ensureNguyenLanAnh();
+    await this.ensurePhanNgocBaoNghi();
 
     // Seed Practice Weeks
     const weekCount = await this.practiceWeekModel.countDocuments().exec();
@@ -443,10 +468,114 @@ export class AcaManagementService implements OnModuleInit {
       ];
       await this.teacherAssignmentModel.insertMany(initialAssignments);
     }
+
+    await this.ensureTeacherOngoingClasses();
+  }
+
+  /** Đồng bộ lớp Ongoing từ Drive theo từng GV (upsert classCode / className). */
+  private async ensureTeacherOngoingClasses() {
+    await this.upsertOngoingGroupClasses([
+      ...HOANG_SA_ONGOING_GROUP_CLASSES,
+      ...NHU_HAI_ONGOING_GROUP_CLASSES,
+      ...DANG_DUY_ONGOING_GROUP_CLASSES,
+      ...MINH_TAM_ONGOING_GROUP_CLASSES,
+      ...THANH_TAM_ONGOING_GROUP_CLASSES,
+      ...DUY_KHAI_ONGOING_GROUP_CLASSES,
+      ...GIA_PHU_ONGOING_GROUP_CLASSES,
+    ]);
+    await this.upsertOngoing11Classes([
+      ...HOANG_SA_ONGOING_11_CLASSES,
+      ...NHU_HAI_ONGOING_11_CLASSES,
+      ...DANG_DUY_ONGOING_11_CLASSES,
+      ...MINH_TAM_ONGOING_11_CLASSES,
+      ...THANH_TAM_ONGOING_11_CLASSES,
+      ...DUY_KHAI_ONGOING_11_CLASSES,
+      ...GIA_PHU_ONGOING_11_CLASSES,
+    ]);
+
+    if (HOANG_SA_STALE_CLASS_CODES.length > 0) {
+      await this.classModel
+        .deleteMany({ classCode: { $in: [...HOANG_SA_STALE_CLASS_CODES] } })
+        .exec();
+    }
+  }
+
+  private async upsertOngoingGroupClasses(classes: OngoingGroupClassSeed[]) {
+    for (const cls of classes) {
+      const { syncAllByClassCode, ...payload } = cls;
+      const setFields = {
+        name: payload.name,
+        type: payload.type,
+        openDate: payload.openDate,
+        teacher: payload.teacher,
+        currentPhase: payload.currentPhase,
+        phaseStartDate: payload.phaseStartDate,
+        schedule: payload.schedule,
+        links: payload.links,
+        nextPhase: payload.nextPhase,
+        nextPhaseStartDate: payload.nextPhaseStartDate,
+      };
+
+      const existingCount = await this.classModel.countDocuments({ classCode: cls.classCode }).exec();
+      if (existingCount > 0) {
+        if (syncAllByClassCode) {
+          await this.classModel.updateMany({ classCode: cls.classCode }, { $set: setFields }).exec();
+        } else {
+          await this.classModel
+            .updateOne(
+              { classCode: cls.classCode },
+              { $set: { ...setFields, month: payload.month } },
+            )
+            .exec();
+        }
+      } else {
+        await this.classModel.create({
+          ...payload,
+          rlpCohortKey: slugCohortDate(payload.openDate) || 'default',
+        });
+      }
+    }
+  }
+
+  private async upsertOngoing11Classes(classes: Ongoing11ClassSeed[]) {
+    for (const c of classes) {
+      const legacyNames = c.legacyClassNames || [];
+      const existing =
+        (await this.aca11Model.findOne({ className: c.className }).exec()) ||
+        (legacyNames.length
+          ? await this.aca11Model.findOne({ className: { $in: legacyNames } }).exec()
+          : null);
+
+      const setFields = {
+        className: c.className,
+        status: c.status,
+        studentName: c.studentName,
+        teacher: c.teacher,
+        progress: c.progress,
+        materials: c.materials,
+        schedule: c.schedule,
+        startDate: c.startDate,
+        endDate: c.endDate,
+      };
+
+      if (existing) {
+        await this.aca11Model.updateOne({ _id: existing._id }, { $set: setFields }).exec();
+      } else {
+        await this.aca11Model.create({
+          ...setFields,
+          inputNeed: '',
+          output: '',
+          otherNote: '',
+          zoomLink: '',
+          successorLink: '',
+        });
+      }
+    }
   }
 
   // --- Classes CRUD ---
   async findAllClasses() {
+    await this.ensureTeacherOngoingClasses();
     return this.classModel.find().lean().exec();
   }
   async createClass(data: any) {
@@ -1055,6 +1184,1177 @@ export class AcaManagementService implements OnModuleInit {
         { $set: { rlpCohortKey: cohort } },
       )
       .exec();
+    await this.rlpCourseStoreModel
+      .findOneAndUpdate(
+        { key: buildRlpStoreKey(classId, cohort) },
+        { $set: { sessions, classId, cohortKey: cohort } },
+        { upsert: true },
+      )
+      .exec();
+  }
+
+  /** Upsert học viên Nguyễn Bảo Khôi + lớp 2024RLP-OFF-NHUHAI-M (GV Lê Như Hải). */
+  private async ensureNguyenBaoKhoi() {
+    const name = 'Nguyễn Bảo Khôi';
+    const email = 'baokhoi342009@gmail.com';
+    const phone = '0903830409';
+    const prevEmail = 'baokhoi.nguyen@gmail.com';
+    const schedule = 'Thứ 2: 19h45-21h30\nThứ 4: 19h45-21h30\nThứ 6: 19h45-21h30';
+    const phases = [
+      { name: 'Chặng 1', date: '18/05/2026' },
+      { name: 'Chặng 2', date: '29/06/2026' },
+    ];
+    const driveFolderUrl =
+      'https://drive.google.com/drive/folders/1flBoX_KgMSPDxIvD3pzkoSsQvHABIghF';
+
+    // 1. Tìm hoặc tạo lớp 2024RLP-OFF-NHUHAI-M
+    let cls = await this.classModel
+      .findOne({
+        $or: [
+          { classCode: '2024RLP-OFF-NHUHAI-M' },
+          { name: '2024RLP-OFF-NHUHAI-M' },
+          { classCode: 'M246C2', teacher: /Như Hải/i },
+          { name: /Momentum - 246 - C2.*Như Hải/i },
+        ],
+      })
+      .exec();
+
+    if (!cls) {
+      cls = await this.classModel.create({
+        classCode: '2024RLP-OFF-NHUHAI-M',
+        name: '2024RLP-OFF-NHUHAI-M',
+        month: 5,
+        type: 'Lớp đang diễn ra',
+        openDate: '18/05/2026',
+        teacher: 'Lê Như Hải',
+        room: '----',
+        currentPhase: 'Chặng 1',
+        phaseStartDate: '18/05/2026',
+        nextPhase: 'Chặng 2',
+        nextPhaseStartDate: '29/06/2026',
+        schedule,
+        phases,
+        slotsToEnroll: 10,
+        phaseStudents: 1,
+        links: [
+          {
+            id: 'lesson',
+            label: 'THƯ MỤC BÀI GIẢNG',
+            value: 'OFF - M M/W/F - 19452130 - 030524',
+            url: driveFolderUrl,
+          },
+        ],
+      });
+    } else {
+      await this.classModel
+        .updateOne(
+          { _id: cls._id },
+          {
+            $set: {
+              classCode: '2024RLP-OFF-NHUHAI-M',
+              name: '2024RLP-OFF-NHUHAI-M',
+              teacher: 'Lê Như Hải',
+              room: '----',
+              schedule,
+              phases,
+              openDate: '18/05/2026',
+              currentPhase: 'Chặng 1',
+              phaseStartDate: '18/05/2026',
+              nextPhase: 'Chặng 2',
+              nextPhaseStartDate: '29/06/2026',
+            },
+          },
+        )
+        .exec();
+    }
+
+    // 2. Điểm đầu vào & Điểm đầu ra
+    const entranceScores = {
+      l: '6.0',
+      r: '6.0',
+      w: '4.5',
+      s: '5.0',
+      o: '5.5',
+    };
+    const finalScores = {
+      l: '7.5',
+      r: '7.0',
+      w: '6.5',
+      s: '6.0',
+      o: '7.0',
+    };
+
+    // 3. Upsert học viên trong danh sách AcaStudent
+    const emailRe = (val: string) =>
+      new RegExp(`^${val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+    let student = await this.studentModel
+      .findOne({
+        $or: [
+          { email: emailRe(email) },
+          { email: emailRe(prevEmail) },
+          { phone },
+          { name: emailRe(name) },
+        ],
+      })
+      .exec();
+
+    if (!student) {
+      const last = await this.studentModel
+        .findOne()
+        .sort({ stt: -1 })
+        .select({ stt: 1 })
+        .lean()
+        .exec();
+      student = await this.studentModel.create({
+        name,
+        email,
+        phone,
+        classification: 'Lớp lẻ mới',
+        rawClassification: 'M',
+        scores: entranceScores,
+        finalScores,
+        aim: '7.0',
+        classId: cls._id.toString(),
+        l1: '2024RLP-OFF-NHUHAI-M',
+        f1: 'Full',
+        note: 'Học viên lớp 2024RLP-OFF-NHUHAI-M - GV Lê Như Hải',
+        stt: Number((last as { stt?: number } | null)?.stt || 0) + 1,
+      });
+    } else {
+      await this.studentModel
+        .updateOne(
+          { _id: student._id },
+          {
+            $set: {
+              name,
+              email,
+              phone,
+              scores: entranceScores,
+              finalScores,
+              aim: '7.0',
+              classId: cls._id.toString(),
+              l1: '2024RLP-OFF-NHUHAI-M',
+              rawClassification: 'M',
+            },
+          },
+        )
+        .exec();
+    }
+
+    // 4. Đồng bộ tài khoản người dùng
+    await this.usersService.renameLoginEmail(prevEmail, email);
+    await this.ensureUserAccountForStudent({ name, email });
+
+    // 5. Lưu DiagnosisData chi tiết vào profileStore
+    const diagnosisData = {
+      studentName: name,
+      studentEmail: email,
+      studentPhone: phone,
+      aim: '7.0',
+      bcbOverviewTitle: 'Đánh giá năng lực đầu vào & Mục tiêu đầu ra',
+      bcbOverviewSummary:
+        'Điểm đầu vào: Listening 6.0, Reading 6.0, Writing 4.5, Speaking 5.0 (Overall 5.5). Mục tiêu đầu ra: Listening 7.5, Reading 7.0, Writing 6.5, Speaking 6.0 (Overall 7.0). Khóa học: 2024RLP-OFF-NHUHAI-M - GV Lê Như Hải.',
+      scores: {
+        listening: 6.0,
+        reading: 6.0,
+        writing: 4.5,
+        speaking: 5.0,
+        overall: 5.5,
+      },
+      finalScores: {
+        listening: 7.5,
+        reading: 7.0,
+        writing: 6.5,
+        speaking: 6.0,
+        overall: 7.0,
+      },
+    };
+
+    const persistIds: Types.ObjectId[] = [student._id as Types.ObjectId];
+    const user = await this.usersService.findByEmail(email);
+    if (user?._id && String(user._id) !== String(student._id)) {
+      persistIds.push(user._id as Types.ObjectId);
+    }
+
+    for (const userId of persistIds) {
+      await this.profileStore
+        .findOneAndUpdate(
+          { userId },
+          {
+            $set: {
+              diagnosisData,
+            },
+            $setOnInsert: { userId },
+          },
+          { upsert: true },
+        )
+        .exec();
+    }
+
+    // 6. Upsert cài đặt khóa học cho lớp này
+    await this.courseSettingsModel
+      .findOneAndUpdate(
+        { classId: cls._id.toString() },
+        {
+          $set: {
+            classId: cls._id.toString(),
+            course: '2024RLP-OFF-NHUHAI-M',
+            instructor: 'Lê Như Hải',
+            room: '----',
+            zoomPassword: '—',
+            schedule: [
+              'Thứ 2: 19h45-21h30',
+              'Thứ 4: 19h45-21h30',
+              'Thứ 6: 19h45-21h30',
+            ],
+            openDate: '18/05/2026',
+            endDate: '07/08/2026',
+            phases,
+          },
+        },
+        { upsert: true },
+      )
+      .exec();
+  }
+
+  /** Upsert học viên NGÔ NGUYÊN XUÂN ĐINH + lớp 2025RLP-ONL-NHUHAI-U (GV Lê Như Hải). */
+  private async ensureNgoNguyenXuanDinh() {
+    const name = 'NGÔ NGUYÊN XUÂN ĐINH';
+    const email = 'ngonguyenxuandinh@gmail.com';
+    const phone = '0909123456';
+    const schedule = 'Thứ 3: 18h00 - 19h45\nThứ 5: 18h00 - 19h45\nThứ 7: 18h00 - 19h45';
+    const phases = [
+      { name: 'Chặng 1', date: 'Bắt đầu chặng 20/12/2025 - Kết thúc: 31/01/2026' },
+      { name: 'Chặng 2', date: 'Bắt đầu chặng 24/02/2026 - Kết thúc: 04/04/2026' },
+    ];
+    const driveFolderUrl =
+      'https://drive.google.com/drive/folders/1flBoX_KgMSPDxIvD3pzkoSsQvHABIghF';
+
+    // 1. Tìm hoặc tạo lớp 2025RLP-ONL-NHUHAI-U
+    let cls = await this.classModel
+      .findOne({
+        $or: [
+          { classCode: '2025RLP-ONL-NHUHAI-U' },
+          { name: '2025RLP-ONL-NHUHAI-U' },
+          { classCode: 'U357C1', teacher: /Như Hải/i },
+          { name: /Upstream - 357 - C1.*Như Hải/i },
+        ],
+      })
+      .exec();
+
+    if (!cls) {
+      cls = await this.classModel.create({
+        classCode: '2025RLP-ONL-NHUHAI-U',
+        name: '2025RLP-ONL-NHUHAI-U',
+        month: 12,
+        type: 'Lớp đang diễn ra',
+        openDate: '20/12/2025',
+        endDate: '31/01/2026',
+        teacher: 'Lê Như Hải',
+        room: '',
+        zoomPassword: '—',
+        zoomLink: '',
+        currentPhase: 'Chặng 1',
+        phaseStartDate: '20/12/2025',
+        nextPhase: 'Kết thúc',
+        nextPhaseStartDate: '31/01/2026',
+        schedule,
+        phases,
+        slotsToEnroll: 10,
+        phaseStudents: 1,
+        links: [
+          {
+            id: 'lesson',
+            label: 'THƯ MỤC BÀI GIẢNG',
+            value: 'ONL - U T/T/S - 18001945 - 2025RLP-ONL-NHUHAI-U',
+            url: driveFolderUrl,
+          },
+        ],
+      });
+    } else {
+      await this.classModel
+        .updateOne(
+          { _id: cls._id },
+          {
+            $set: {
+              classCode: '2025RLP-ONL-NHUHAI-U',
+              name: '2025RLP-ONL-NHUHAI-U',
+              teacher: 'Lê Như Hải',
+              room: '',
+              zoomPassword: '—',
+              zoomLink: '',
+              schedule,
+              phases,
+              openDate: '20/12/2025',
+              endDate: '31/01/2026',
+              currentPhase: 'Chặng 1',
+              phaseStartDate: '20/12/2025',
+              nextPhase: 'Kết thúc',
+              nextPhaseStartDate: '31/01/2026',
+            },
+          },
+        )
+        .exec();
+    }
+
+    // 2. Điểm đầu vào & Điểm đầu ra
+    const entranceScores = {
+      l: '6.0',
+      r: '6.0',
+      w: '5.5',
+      s: '5.5',
+      o: '6.0',
+    };
+    const finalScores = {
+      l: '7.5',
+      r: '7.5',
+      w: '6.5',
+      s: '6.5',
+      o: '7.0',
+    };
+
+    // 3. Upsert học viên trong danh sách AcaStudent
+    const emailRe = (val: string) =>
+      new RegExp(`^${val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+    let student = await this.studentModel
+      .findOne({
+        $or: [
+          { email: emailRe(email) },
+          { name: emailRe(name) },
+        ],
+      })
+      .exec();
+
+    if (!student) {
+      const last = await this.studentModel
+        .findOne()
+        .sort({ stt: -1 })
+        .select({ stt: 1 })
+        .lean()
+        .exec();
+      student = await this.studentModel.create({
+        name,
+        email,
+        phone,
+        classification: 'Lớp lẻ mới',
+        rawClassification: 'U',
+        scores: entranceScores,
+        finalScores,
+        aim: '7.0',
+        classId: cls._id.toString(),
+        l1: '2025RLP-ONL-NHUHAI-U',
+        f1: 'Full',
+        note: 'Học viên lớp 2025RLP-ONL-NHUHAI-U - GV Lê Như Hải',
+        stt: Number((last as { stt?: number } | null)?.stt || 0) + 1,
+      });
+    } else {
+      await this.studentModel
+        .updateOne(
+          { _id: student._id },
+          {
+            $set: {
+              name,
+              email,
+              phone,
+              scores: entranceScores,
+              finalScores,
+              aim: '7.0',
+              classId: cls._id.toString(),
+              l1: '2025RLP-ONL-NHUHAI-U',
+              rawClassification: 'U',
+            },
+          },
+        )
+        .exec();
+    }
+
+    // 4. Đồng bộ tài khoản người dùng
+    await this.ensureUserAccountForStudent({ name, email });
+
+    // 5. Lưu DiagnosisData chi tiết vào profileStore
+    const diagnosisData = {
+      studentName: name,
+      studentEmail: email,
+      studentPhone: phone,
+      aim: '7.0',
+      bcbOverviewTitle: 'Đánh giá năng lực đầu vào & Mục tiêu đầu ra',
+      bcbOverviewSummary:
+        'Khóa học: 2025RLP-ONL-NHUHAI-U - GV Lê Như Hải. Lịch học: Thứ 3: 18h00 - 19h45, Thứ 5: 18h00 - 19h45, Thứ 7: 18h00 - 19h45. Chặng 1: Bắt đầu chặng 20/12/2025 - Kết thúc: 31/01/2026.',
+      scores: {
+        listening: 6.0,
+        reading: 6.0,
+        writing: 5.5,
+        speaking: 5.5,
+        overall: 6.0,
+      },
+      finalScores: {
+        listening: 7.5,
+        reading: 7.5,
+        writing: 6.5,
+        speaking: 6.5,
+        overall: 7.0,
+      },
+    };
+
+    const persistIds: Types.ObjectId[] = [student._id as Types.ObjectId];
+    const user = await this.usersService.findByEmail(email);
+    if (user?._id && String(user._id) !== String(student._id)) {
+      persistIds.push(user._id as Types.ObjectId);
+    }
+
+    for (const userId of persistIds) {
+      await this.profileStore
+        .findOneAndUpdate(
+          { userId },
+          {
+            $set: {
+              diagnosisData,
+            },
+            $setOnInsert: { userId },
+          },
+          { upsert: true },
+        )
+        .exec();
+    }
+
+    // 6. Upsert cài đặt khóa học cho lớp này
+    await this.courseSettingsModel
+      .findOneAndUpdate(
+        { classId: cls._id.toString() },
+        {
+          $set: {
+            classId: cls._id.toString(),
+            course: '2025RLP-ONL-NHUHAI-U',
+            instructor: 'Lê Như Hải',
+            room: '',
+            zoomPassword: '—',
+            zoomLink: '',
+            schedule: [
+              'Thứ 3: 18h00 - 19h45',
+              'Thứ 5: 18h00 - 19h45',
+              'Thứ 7: 18h00 - 19h45',
+            ],
+            openDate: '20/12/2025',
+            endDate: '31/01/2026',
+            phases,
+          },
+        },
+        { upsert: true },
+      )
+      .exec();
+
+    // 7. Seed 36 buổi học chuẩn Upstream khớp chính xác lịch NGÔ NGUYÊN XUÂN ĐINH
+    const cohort = '2025-12-20';
+    await this.classModel.updateOne({ _id: cls._id }, { $set: { rlpCohortKey: cohort } }).exec();
+    await this.studentModel.updateOne({ _id: student._id }, { $set: { rlpCohortKey: cohort } }).exec();
+
+    const datesCh1 = [
+      '20/12/2025', '23/12/2025', '25/12/2025', '27/12/2025', '30/12/2025',
+      '03/01/2026', '06/01/2026', '08/01/2026', '10/01/2026', '13/01/2026',
+      '15/01/2026', '17/01/2026', '20/01/2026', '22/01/2026', '24/01/2026',
+      '27/01/2026', '29/01/2026', '31/01/2026',
+    ];
+    const datesCh2 = [
+      '24/02/2026', '26/02/2026', '28/02/2026', '03/03/2026', '05/03/2026',
+      '07/03/2026', '10/03/2026', '12/03/2026', '14/03/2026', '17/03/2026',
+      '19/03/2026', '21/03/2026', '24/03/2026', '26/03/2026', '28/03/2026',
+      '31/03/2026', '02/04/2026', '04/04/2026',
+    ];
+    const allDates = [...datesCh1, ...datesCh2];
+
+    const upstreamSessions = CORE_UPSTREAM_MOMENTUM_SESSIONS.map((s, idx) => {
+      const sessionDate = allDates[idx] || '';
+      let deadline = '';
+      if (sessionDate) {
+        const parsed = parseViDate(sessionDate);
+        if (parsed) {
+          const due = new Date(parsed);
+          due.setDate(due.getDate() + 7);
+          deadline = formatViDate(due);
+        }
+      }
+      return {
+        no: s.no,
+        date: sessionDate,
+        skill: s.skill,
+        contents: s.contents,
+        teacherNote: s.teacherNote || '—',
+        deadline,
+        homeworkStatus: 'not_assigned' as const,
+        attendance: 'present' as const,
+        responsibleTeacher: 'Lê Như Hải',
+        lessonFileUrl: `https://drive.google.com/file/d/upstream-s${s.no}-slides`,
+        homeworkFileUrl: `https://docs.google.com/document/d/upstream-s${s.no}-hw`,
+        recordingUrl: '',
+        studentAttendance: {},
+        studentHomework: {},
+      };
+    });
+
+    const classIdStr = cls._id.toString();
+    await this.rlpCourseStoreModel
+      .findOneAndUpdate(
+        { key: buildRlpStoreKey(classIdStr, cohort) },
+        { $set: { sessions: upstreamSessions, classId: classIdStr, cohortKey: cohort } },
+        { upsert: true },
+      )
+      .exec();
+    await this.rlpCourseStoreModel
+      .findOneAndUpdate(
+        { key: classIdStr },
+        { $set: { sessions: upstreamSessions, classId: classIdStr, cohortKey: cohort } },
+        { upsert: true },
+      )
+      .exec();
+  }
+
+  /** Upsert học viên Nguyễn Lan Anh + Lớp Online 1:1 (9 tuần, 2 buổi/tuần, 2h/buổi). */
+  private async ensureNguyenLanAnh() {
+    const name = 'Nguyễn Lan Anh';
+    const email = 'lanhieltshehe@gmail.com';
+    const phone = '0985828131';
+    const dob = '25/08/2026';
+    const zodiac = 'Virgo';
+    const aim = '-';
+    const examDate = '15/12/2026';
+    const examCountdownAnchor = '2026-10-13'; // 15/12/2026 - 13/10/2026 = 63 ngày (63 DAYS LEFT)
+    const schedule = 'Online 1:1 · 2 hours/session · 2 sessions/week (9 weeks)';
+    const className = 'Online 1:1 Nguyễn Lan Anh';
+    const classCode = 'ONL11_LANANH';
+    const startDate = '13/10/2026';
+    const endDate = '15/12/2026';
+
+    const entranceScores = {
+      l: '5.0',
+      r: '5.5',
+      w: '5.0',
+      s: '4.5',
+      o: '5.0',
+    };
+
+    // 1. Tìm hoặc tạo lớp Online 1:1 trong aca_classes
+    let cls = await this.classModel
+      .findOne({
+        $or: [
+          { classCode: 'ONL11_LANANH' },
+          { name: className },
+          { name: /Online 1:1.*Lan Anh/i },
+        ],
+      })
+      .exec();
+
+    if (!cls) {
+      cls = await this.classModel.create({
+        classCode,
+        name: className,
+        month: 10,
+        type: 'Lớp đang diễn ra',
+        openDate: startDate,
+        endDate,
+        teacher: 'Nguyễn Thị Hoàng Sa',
+        room: 'Zoom 1:1',
+        currentPhase: 'Online 1:1',
+        phaseStartDate: startDate,
+        phases: [{ name: 'Online 1:1', date: startDate }],
+        schedule,
+        slotsToEnroll: 1,
+        phaseStudents: 1,
+        links: [
+          {
+            id: 'lesson',
+            label: 'THƯ MỤC BÀI GIẢNG 1:1',
+            value: 'Online 1:1 - Nguyễn Lan Anh',
+            url: 'https://drive.google.com/drive/folders/116R811fUeA4zhm_7qAw30y6DYUZUBXpv',
+          },
+        ],
+      });
+    } else {
+      await this.classModel
+        .updateOne(
+          { _id: cls._id },
+          {
+            $set: {
+              classCode,
+              name: className,
+              type: 'Lớp đang diễn ra',
+              teacher: 'Nguyễn Thị Hoàng Sa',
+              room: 'Zoom 1:1',
+              openDate: startDate,
+              endDate,
+              schedule,
+              phases: [{ name: 'Online 1:1', date: startDate }],
+              links: [
+                {
+                  id: 'lesson',
+                  label: 'THƯ MỤC BÀI GIẢNG 1:1',
+                  value: 'Online 1:1 - Nguyễn Lan Anh',
+                  url: 'https://drive.google.com/drive/folders/116R811fUeA4zhm_7qAw30y6DYUZUBXpv',
+                },
+              ],
+            },
+          },
+        )
+        .exec();
+    }
+
+    const classId = String(cls._id);
+
+    // 2. Upsert học viên trong danh sách AcaStudent
+    const emailRe = (val: string) =>
+      new RegExp(`^${val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+    let student = await this.studentModel
+      .findOne({
+        $or: [{ email: emailRe(email) }, { phone }, { name: emailRe(name) }],
+      })
+      .exec();
+
+    if (!student) {
+      const last = await this.studentModel
+        .findOne()
+        .sort({ stt: -1 })
+        .select({ stt: 1 })
+        .lean()
+        .exec();
+      student = await this.studentModel.create({
+        name,
+        email,
+        phone,
+        dob,
+        zodiac,
+        classification: 'Lớp lẻ mới',
+        rawClassification: '1:1',
+        scores: entranceScores,
+        aim,
+        classId,
+        l1: className,
+        f1: '1:1',
+        note: 'Online 1:1 (2h/buổi, 2 buổi/tuần, 9 tuần) · Dự kiến thi: 15/12/2026',
+        stt: Number((last as { stt?: number } | null)?.stt || 0) + 1,
+      });
+    } else {
+      await this.studentModel
+        .updateOne(
+          { _id: student._id },
+          {
+            $set: {
+              name,
+              email,
+              phone,
+              dob,
+              zodiac,
+              scores: entranceScores,
+              aim,
+              classId,
+              l1: className,
+              rawClassification: '1:1',
+            },
+          },
+        )
+        .exec();
+    }
+
+    // 3. Upsert vào aca_11_classes
+    await this.aca11Model
+      .findOneAndUpdate(
+        {
+          $or: [
+            { studentEmail: emailRe(email) },
+            { className },
+            { className: /Nguyễn Lan Anh/i },
+            { studentName: emailRe(name) },
+            { studentId: String(student._id) },
+          ],
+        },
+        {
+          $set: {
+            status: 'Đang diễn ra',
+            className,
+            studentEmail: email,
+            studentName: name,
+            studentId: String(student._id),
+            inputNeed: '5.0/Target -',
+            teacher: 'Nguyễn Thị Hoàng Sa',
+            schedule: '2 hours/session · 2 sessions/week (9 weeks)',
+            startDate,
+            endDate,
+            progress: '9 tuần · 18 buổi (36 giờ học)',
+            output: '-',
+            otherNote: 'Active status · Learning IELTS',
+            scores: entranceScores,
+            materials: 'https://drive.google.com/drive/folders/116R811fUeA4zhm_7qAw30y6DYUZUBXpv',
+          },
+        },
+        { upsert: true },
+      )
+      .exec();
+
+    // 4. Đồng bộ tài khoản người dùng
+    await this.ensureUserAccountForStudent({ name, email });
+
+    // 5. Lưu DiagnosisData & ProfileData chi tiết vào profileStore
+    const diagnosisData = {
+      studentName: name,
+      studentEmail: email,
+      studentPhone: phone,
+      aim,
+      examDate,
+      examCountdownAnchor,
+      bcbOverviewTitle: 'Đánh giá năng lực đầu vào & Mục tiêu học tập',
+      bcbOverviewSummary:
+        'Học viên: Nguyễn Lan Anh. Điểm đầu vào: Listening 5.0, Reading 5.5, Writing 5.0, Speaking 4.5 (Overall 5.0). Mục tiêu: Chưa xác định (-). Ngày thi dự kiến: 15/12/2026 (Còn 63 ngày). Lớp: Online 1:1 (2 giờ/buổi, 2 buổi/tuần, 9 tuần). Trạng thái: Đang học (Active).',
+      scores: {
+        listening: 5.0,
+        reading: 5.5,
+        writing: 5.0,
+        speaking: 4.5,
+        overall: 5.0,
+      },
+    };
+
+    const profileData = {
+      name,
+      email,
+      phone,
+      dob,
+      zodiac,
+      aim,
+      examDate,
+      ieltsMeaning: 'Learning IELTS',
+      method: 'Tập trung luyện đề',
+      weeklyHours: '4-6 giờ/tuần',
+      classEnvironment: 'Lớp 1:1 Online tập trung cao',
+      previousBand: '5.0',
+      focusSkills: ['Listening', 'Writing', 'Speaking'],
+      scores: {
+        listening: 5.0,
+        reading: 5.5,
+        writing: 5.0,
+        speaking: 4.5,
+        overall: 5.0,
+      },
+    };
+
+    const persistIds: Types.ObjectId[] = [student._id as Types.ObjectId];
+    const user = await this.usersService.findByEmail(email);
+    if (user?._id && String(user._id) !== String(student._id)) {
+      persistIds.push(user._id as Types.ObjectId);
+    }
+
+    for (const userId of persistIds) {
+      await this.profileStore
+        .findOneAndUpdate(
+          { userId },
+          {
+            $set: {
+              diagnosisData,
+              profileData,
+            },
+            $setOnInsert: { userId },
+          },
+          { upsert: true },
+        )
+        .exec();
+    }
+
+    // 6. Cài đặt khóa học cho lớp này
+    await this.courseSettingsModel
+      .findOneAndUpdate(
+        { classId },
+        {
+          $set: {
+            classId,
+            course: className,
+            instructor: 'Giáo viên 1:1',
+            room: 'Zoom 1:1',
+            zoomPassword: '—',
+            schedule: ['Online 1:1 · 2 hours/session · 2 sessions/week (9 weeks)'],
+            openDate: startDate,
+            endDate,
+            phases: [{ name: 'Online 1:1', date: startDate }],
+          },
+        },
+        { upsert: true },
+      )
+      .exec();
+
+    // 7. Seed 18 buổi học RLP (9 tuần x 2 buổi/tuần)
+    const lanAnhSyllabus = [
+      { skill: 'Writing', contents: 'Writing Task 1 - Dynamic charts & Trend vocabulary (2 hours)' },
+      { skill: 'Listening', contents: 'Listening Part 1 - Forms & Names completion strategies (2 hours)' },
+      { skill: 'Speaking', contents: 'Speaking Part 1 - Fluency, Vocabulary & Self-introduction (2 hours)' },
+      { skill: 'Reading', contents: 'Reading - Skimming, Scanning & Short-answer questions (2 hours)' },
+      { skill: 'Writing', contents: 'Writing Task 2 - Agree / Disagree Essay Structure & Ideas (2 hours)' },
+      { skill: 'Listening', contents: 'Listening Part 2 - Multiple Choice & Map Labeling (2 hours)' },
+      { skill: 'Speaking', contents: 'Speaking Part 2 - Describe an Experience / Storytelling Framework (2 hours)' },
+      { skill: 'Reading', contents: 'Reading - True / False / Not Given & Matching Headings (2 hours)' },
+      { skill: 'Writing', contents: 'Writing Task 1 - Static charts & Comparison language (2 hours)' },
+      { skill: 'Listening', contents: 'Listening Part 3 - Academic Discussion & Distractors (2 hours)' },
+      { skill: 'Speaking', contents: 'Speaking Part 3 - Developing Abstract Arguments & Opinions (2 hours)' },
+      { skill: 'Reading', contents: 'Reading - Summary Completion & Multiple Choice (2 hours)' },
+      { skill: 'Writing', contents: 'Writing Task 2 - Problem & Solution / Discussion Essay (2 hours)' },
+      { skill: 'Listening', contents: 'Listening Part 4 - Lecture Note-taking & Complex Vocabulary (2 hours)' },
+      { skill: 'Speaking', contents: 'Speaking Full Mock Test (Part 1, 2, 3) & Detailed Feedback (2 hours)' },
+      { skill: 'Writing', contents: 'Writing Full Mock Test (Task 1 & Task 2 timed practice) (2 hours)' },
+      { skill: 'Revision', contents: 'Full Listening & Reading Mock Exam + Error Analysis (2 hours)' },
+      { skill: 'Revision', contents: 'Final Review & Test-taking Strategy before Exam 15/12/2026 (2 hours)' },
+    ];
+
+    const sessions = lanAnhSyllabus.map((lesson, idx) => {
+      const d = new Date(2026, 9, 13);
+      d.setDate(d.getDate() + Math.floor(idx / 2) * 7 + (idx % 2 === 1 ? 3 : 0));
+      const dateStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+      return {
+        no: idx + 1,
+        date: dateStr,
+        skill: lesson.skill,
+        contents: lesson.contents,
+        responsibleTeacher: 'Giáo viên 1:1',
+        teacherNote: '—',
+        deadline: '',
+        homeworkStatus: 'not_assigned' as const,
+        attendance: 'present' as const,
+        lessonFileUrl: '',
+        homeworkFileUrl: '',
+        recordingUrl: '',
+      };
+    });
+
+    const cohort = slugCohortDate(startDate) || 'default';
+    await this.classModel.updateOne({ _id: cls._id }, { $set: { rlpCohortKey: cohort } }).exec();
+    await this.studentModel.updateOne({ _id: student._id }, { $set: { rlpCohortKey: cohort } }).exec();
+    await this.rlpCourseStoreModel
+      .findOneAndUpdate(
+        { key: buildRlpStoreKey(classId, cohort) },
+        { $set: { sessions, classId, cohortKey: cohort } },
+        { upsert: true },
+      )
+      .exec();
+  }
+
+  /** Upsert học viên Phan Ngọc Bảo Nghi + Lớp Online 1:1 (6 tuần, 3 buổi/tuần, 2h/buổi, Aim: 6.5). */
+  private async ensurePhanNgocBaoNghi() {
+    const name = 'Phan Ngọc Bảo Nghi';
+    const email = 'bnghi0206@gmail.com';
+    const phone = '0968700681';
+    const dob = '';
+    const zodiac = 'Capricorn';
+    const aim = '6.5';
+    const examDate = '14/11/2026';
+    const examCountdownAnchor = '2026-10-13'; // 14/11/2026 - 13/10/2026 = 32 ngày (32 DAYS LEFT)
+    const schedule = 'Online 1:1 · 2 hours/session · 3 sessions/week (6 weeks)';
+    const className = 'Online 1:1 Phan Ngọc Bảo Nghi';
+    const classCode = 'ONL11_BAONGHI';
+    const startDate = '13/10/2026';
+    const endDate = '14/11/2026';
+
+    const entranceScores = {
+      l: '4.5',
+      r: '4.0',
+      w: '4.0',
+      s: '4.5',
+      o: '4.5',
+    };
+
+    // 1. Tìm hoặc tạo lớp Online 1:1 trong aca_classes
+    let cls = await this.classModel
+      .findOne({
+        $or: [
+          { classCode: 'ONL11_BAONGHI' },
+          { name: className },
+          { name: /Online 1:1.*Bảo Nghi/i },
+          { name: /2026RLP_ONL 1:1 Phan Ngọc Bảo Nghi/i },
+        ],
+      })
+      .exec();
+
+    if (!cls) {
+      cls = await this.classModel.create({
+        classCode,
+        name: className,
+        month: 10,
+        type: 'Lớp đang diễn ra',
+        openDate: startDate,
+        endDate,
+        teacher: 'Nguyễn Thị Hoàng Sa',
+        room: 'Zoom 1:1',
+        currentPhase: 'Online 1:1',
+        phaseStartDate: startDate,
+        phases: [{ name: 'Online 1:1', date: startDate }],
+        schedule,
+        slotsToEnroll: 1,
+        phaseStudents: 1,
+        links: [
+          {
+            id: 'lesson',
+            label: 'THƯ MỤC BÀI GIẢNG 1:1',
+            value: 'Online 1:1 - Phan Ngọc Bảo Nghi',
+            url: 'https://drive.google.com/drive/folders/116R811fUeA4zhm_7qAw30y6DYUZUBXpv',
+          },
+        ],
+      });
+    } else {
+      await this.classModel
+        .updateOne(
+          { _id: cls._id },
+          {
+            $set: {
+              classCode,
+              name: className,
+              type: 'Lớp đang diễn ra',
+              teacher: 'Nguyễn Thị Hoàng Sa',
+              room: 'Zoom 1:1',
+              openDate: startDate,
+              endDate,
+              schedule,
+              phases: [{ name: 'Online 1:1', date: startDate }],
+              links: [
+                {
+                  id: 'lesson',
+                  label: 'THƯ MỤC BÀI GIẢNG 1:1',
+                  value: 'Online 1:1 - Phan Ngọc Bảo Nghi',
+                  url: 'https://drive.google.com/drive/folders/116R811fUeA4zhm_7qAw30y6DYUZUBXpv',
+                },
+              ],
+            },
+          },
+        )
+        .exec();
+    }
+
+    const classId = String(cls._id);
+
+    // 2. Upsert học viên trong danh sách AcaStudent
+    const emailRe = (val: string) =>
+      new RegExp(`^${val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i');
+    let student = await this.studentModel
+      .findOne({
+        $or: [{ email: emailRe(email) }, { phone }, { name: emailRe(name) }],
+      })
+      .exec();
+
+    if (!student) {
+      const last = await this.studentModel
+        .findOne()
+        .sort({ stt: -1 })
+        .select({ stt: 1 })
+        .lean()
+        .exec();
+      student = await this.studentModel.create({
+        name,
+        email,
+        phone,
+        dob,
+        zodiac,
+        classification: 'Lớp lẻ mới',
+        rawClassification: '1:1',
+        scores: entranceScores,
+        aim,
+        classId,
+        l1: className,
+        f1: '1:1',
+        note: 'Online 1:1 (2h/buổi, 3 buổi/tuần, 6 tuần) · Target: 6.5 · Dự kiến thi: 14/11/2026',
+        stt: Number((last as { stt?: number } | null)?.stt || 0) + 1,
+      });
+    } else {
+      await this.studentModel
+        .updateOne(
+          { _id: student._id },
+          {
+            $set: {
+              name,
+              email,
+              phone,
+              dob,
+              zodiac,
+              scores: entranceScores,
+              aim,
+              classId,
+              l1: className,
+              rawClassification: '1:1',
+            },
+          },
+        )
+        .exec();
+    }
+
+    // 3. Upsert vào aca_11_classes
+    await this.aca11Model
+      .findOneAndUpdate(
+        {
+          $or: [
+            { studentEmail: emailRe(email) },
+            { className },
+            { className: /Phan Ngọc Bảo Nghi/i },
+            { studentName: emailRe(name) },
+            { studentId: String(student._id) },
+          ],
+        },
+        {
+          $set: {
+            status: 'Đang diễn ra',
+            className,
+            studentEmail: email,
+            studentName: name,
+            studentId: String(student._id),
+            inputNeed: '4.5/Target 6.5',
+            teacher: 'Nguyễn Thị Hoàng Sa',
+            schedule: '2 hours/session · 3 sessions/week (6 weeks)',
+            startDate,
+            endDate,
+            progress: '6 tuần · 18 buổi (36 giờ học)',
+            output: '6.5',
+            otherNote: 'Active status · Learning IELTS',
+            scores: entranceScores,
+            materials: 'https://drive.google.com/drive/folders/116R811fUeA4zhm_7qAw30y6DYUZUBXpv',
+          },
+        },
+        { upsert: true },
+      )
+      .exec();
+
+    // 4. Đồng bộ tài khoản người dùng
+    await this.ensureUserAccountForStudent({ name, email });
+
+    // 5. Lưu DiagnosisData & ProfileData chi tiết vào profileStore
+    const diagnosisData = {
+      studentName: name,
+      studentEmail: email,
+      studentPhone: phone,
+      aim,
+      examDate,
+      examCountdownAnchor,
+      bcbOverviewTitle: 'Đánh giá năng lực đầu vào & Mục tiêu học tập',
+      bcbOverviewSummary:
+        'Học viên: Phan Ngọc Bảo Nghi. Điểm đầu vào: Listening 4.5, Reading 4.0, Writing 4.0, Speaking 4.5 (Overall 4.5). Mục tiêu đầu ra: 6.5 Overall. Ngày thi dự kiến: 14/11/2026 (Còn 32 ngày). Lớp: Online 1:1 (2 giờ/buổi, 3 buổi/tuần, 6 tuần). Trạng thái: Đang học (Active).',
+      scores: {
+        listening: 4.5,
+        reading: 4.0,
+        writing: 4.0,
+        speaking: 4.5,
+        overall: 4.5,
+      },
+      finalScores: {
+        listening: 6.5,
+        reading: 6.5,
+        writing: 6.0,
+        speaking: 6.5,
+        overall: 6.5,
+      },
+    };
+
+    const profileData = {
+      name,
+      email,
+      phone,
+      dob,
+      zodiac,
+      aim,
+      examDate,
+      ieltsMeaning: 'Learning IELTS',
+      method: 'Tập trung luyện đề',
+      weeklyHours: '6-8 giờ/tuần',
+      classEnvironment: 'Lớp 1:1 Online tập trung cao',
+      previousBand: '4.5',
+      focusSkills: ['Listening', 'Writing', 'Reading', 'Speaking'],
+      scores: {
+        listening: 4.5,
+        reading: 4.0,
+        writing: 4.0,
+        speaking: 4.5,
+        overall: 4.5,
+      },
+    };
+
+    const persistIds: Types.ObjectId[] = [student._id as Types.ObjectId];
+    const user = await this.usersService.findByEmail(email);
+    if (user?._id && String(user._id) !== String(student._id)) {
+      persistIds.push(user._id as Types.ObjectId);
+    }
+
+    for (const userId of persistIds) {
+      await this.profileStore
+        .findOneAndUpdate(
+          { userId },
+          {
+            $set: {
+              diagnosisData,
+              profileData,
+            },
+            $setOnInsert: { userId },
+          },
+          { upsert: true },
+        )
+        .exec();
+    }
+
+    // 6. Cài đặt khóa học cho lớp này
+    await this.courseSettingsModel
+      .findOneAndUpdate(
+        { classId },
+        {
+          $set: {
+            classId,
+            course: className,
+            instructor: 'Nguyễn Thị Hoàng Sa',
+            room: 'Zoom 1:1',
+            zoomPassword: '—',
+            schedule: ['Online 1:1 · 2 hours/session · 3 sessions/week (6 weeks)'],
+            openDate: startDate,
+            endDate,
+            phases: [{ name: 'Online 1:1', date: startDate }],
+          },
+        },
+        { upsert: true },
+      )
+      .exec();
+
+    // 7. Seed 18 buổi học RLP (6 tuần x 3 buổi/tuần: T3, T5, T7)
+    const baoNghiSyllabus = [
+      { skill: 'Writing', contents: 'Writing Task 1 - Dynamic charts (Line graph & Bar chart) overview & vocabulary (2 hours)' },
+      { skill: 'Listening', contents: 'Listening Part 1 - Essential test-taking skills, numbers & spelling (2 hours)' },
+      { skill: 'Speaking', contents: 'Speaking Part 1 - Fluency, sentence structures & topic Work/Study (2 hours)' },
+      { skill: 'Reading', contents: 'Reading - Skimming & Scanning methods, Sentence Completion (2 hours)' },
+      { skill: 'Writing', contents: 'Writing Task 2 - Opinion Essays structure, thesis statement & body paragraphs (2 hours)' },
+      { skill: 'Listening', contents: 'Listening Part 2 - Multiple choice questions & Map labeling strategies (2 hours)' },
+      { skill: 'Speaking', contents: 'Speaking Part 2 - Storytelling structure: Person, Object, Place (2 hours)' },
+      { skill: 'Reading', contents: 'Reading - True / False / Not Given identification & eliminating traps (2 hours)' },
+      { skill: 'Writing', contents: 'Writing Task 1 - Static charts & Tables, grouping data and comparisons (2 hours)' },
+      { skill: 'Listening', contents: 'Listening Part 3 - Academic discussions & tracking speakers (2 hours)' },
+      { skill: 'Speaking', contents: 'Speaking Part 3 - Developing extended answers with reasons and examples (2 hours)' },
+      { skill: 'Reading', contents: 'Reading - Matching Headings & Summary Completion (2 hours)' },
+      { skill: 'Writing', contents: 'Writing Task 2 - Discussion & Two-part question essays (2 hours)' },
+      { skill: 'Listening', contents: 'Listening Part 4 - Lecture completion & note-taking endurance (2 hours)' },
+      { skill: 'Speaking', contents: 'Speaking Mock Test Parts 1, 2, 3 with in-depth feedback & band score evaluation (2 hours)' },
+      { skill: 'Writing', contents: 'Writing Full Mock Test (Task 1 + Task 2 timed simulation) (2 hours)' },
+      { skill: 'Revision', contents: 'Listening & Reading Full Mock Test + Review common mistakes (2 hours)' },
+      { skill: 'Revision', contents: 'Final Intensive Review & Exam strategies for target 6.5 (2 hours)' },
+    ];
+
+    const sessions = baoNghiSyllabus.map((lesson, idx) => {
+      const weekIndex = Math.floor(idx / 3);
+      const dayOffsetInWeek = [0, 2, 4][idx % 3];
+      const d = new Date(2026, 9, 13);
+      d.setDate(d.getDate() + weekIndex * 7 + dayOffsetInWeek);
+      const dateStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+      return {
+        no: idx + 1,
+        date: dateStr,
+        skill: lesson.skill,
+        contents: lesson.contents,
+        responsibleTeacher: 'Nguyễn Thị Hoàng Sa',
+        teacherNote: '—',
+        deadline: '',
+        homeworkStatus: 'not_assigned' as const,
+        attendance: 'present' as const,
+        lessonFileUrl: '',
+        homeworkFileUrl: '',
+        recordingUrl: '',
+      };
+    });
+
+    const cohort = slugCohortDate(startDate) || 'default';
+    await this.classModel.updateOne({ _id: cls._id }, { $set: { rlpCohortKey: cohort } }).exec();
+    await this.studentModel.updateOne({ _id: student._id }, { $set: { rlpCohortKey: cohort } }).exec();
     await this.rlpCourseStoreModel
       .findOneAndUpdate(
         { key: buildRlpStoreKey(classId, cohort) },
@@ -1710,6 +3010,7 @@ export class AcaManagementService implements OnModuleInit {
 
   // --- 1:1 Classes CRUD ---
   async findAll11Classes() {
+    await this.ensureTeacherOngoingClasses();
     return this.aca11Model.find().lean().exec();
   }
   async create11Class(data: any) {
@@ -1923,164 +3224,93 @@ export class AcaManagementService implements OnModuleInit {
   }
 
   // --- Teacher Profiles CRUD ---
-  async findAllTeacherProfiles() {
-    const list = await this.teacherProfileModel.find().lean().exec();
-    if (list.length === 0) {
-      const seeded = await this.teacherProfileModel.insertMany([
-        {
-          id: "tch-1",
-          name: "Lê Nguyễn Khánh Thi",
-          email: "khanhthi.le@xalo.edu.vn",
-          phone: "0901 234 567",
-          skills: ["Writing", "Speaking"],
-          status: "active",
-          joinDate: "15/01/2024",
-          notes: "Chuyên sâu giảng dạy IELTS Writing Task 2 & Speaking Part 3",
-        },
-        {
-          id: "tch-2",
-          name: "Lê Thị Diệu Linh",
-          email: "dieulinh.le@xalo.edu.vn",
-          phone: "0912 345 678",
-          skills: ["Reading", "Listening"],
-          status: "active",
-          joinDate: "01/03/2024",
-          notes: "Phụ trách các lớp nâng band Reading chiến thuật",
-        },
-        {
-          id: "tch-3",
-          name: "Nghiêm Doãn Quỳnh Châu",
-          email: "quynhchau.nghiem@xalo.edu.vn",
-          phone: "0987 654 321",
-          skills: ["Writing", "Speaking", "Reading"],
-          status: "active",
-          joinDate: "10/09/2023",
-          notes: "Giảng viên chủ nhiệm lớp Chuyên sâu & Luyện đề",
-        },
-        {
-          id: "tch-4",
-          name: "Lê Minh Trang",
-          email: "minhtrang.le@xalo.edu.vn",
-          phone: "0934 567 890",
-          skills: ["Writing", "Reading"],
-          status: "active",
-          joinDate: "20/02/2024",
-          notes: "Chấm bài và feedback chi tiết Writing Task 1",
-        },
-        {
-          id: "tch-5",
-          name: "Phạm Hoàng An",
-          email: "hoangan.pham@xalo.edu.vn",
-          phone: "0945 678 901",
-          skills: ["Speaking", "Listening"],
-          status: "active",
-          joinDate: "05/05/2024",
-          notes: "Huấn luyện phát âm và giao tiếp tự nhiên",
-        },
-        {
-          id: "tch-6",
-          name: "Trần Thu Lan",
-          email: "thulan.tran@xalo.edu.vn",
-          phone: "0956 789 012",
-          skills: ["Reading", "Writing"],
-          status: "inactive",
-          joinDate: "12/08/2023",
-          notes: "Đang tạm nghỉ thai sản",
-        },
-        {
-          id: "tch-7",
-          name: "Lê Thanh Tâm",
-          email: "thanhtam.le@xalo.edu.vn",
-          phone: "0923 456 789",
-          skills: ["Listening", "Reading"],
-          status: "active",
-          joinDate: "15/01/2024",
-          notes: "Giảng viên lớp PRE CORE & Lớp luyện đề tuần",
-        },
-        {
-          id: "tch-8",
-          name: "Thái Đỗ Đăng Khoa",
-          email: "dangkhoa.thai@xalo.edu.vn",
-          phone: "0967 890 123",
-          skills: ["Writing", "Speaking"],
-          status: "active",
-          joinDate: "10/02/2024",
-          notes: "Giảng viên Upstream & IELTS Advanced",
-        },
-        {
-          id: "tch-9",
-          name: "Tất Duy Khải",
-          email: "duykhai.tat@xalo.edu.vn",
-          phone: "0978 901 234",
-          skills: ["Reading", "Listening"],
-          status: "active",
-          joinDate: "05/03/2024",
-          notes: "Giảng viên Upstream & Cụm lớp 2-4-6",
-        },
-        {
-          id: "tch-10",
-          name: "Lê Như Hải",
-          email: "nhuhai.le@xalo.edu.vn",
-          phone: "0989 012 345",
-          skills: ["Writing", "Reading"],
-          status: "active",
-          joinDate: "12/04/2024",
-          notes: "Giảng viên Momentum, Soar & Upstream",
-        },
-        {
-          id: "tch-11",
-          name: "Nguyễn Lê Trung Dũng",
-          email: "trungdung.nguyen@xalo.edu.vn",
-          phone: "0990 123 456",
-          skills: ["Speaking", "Writing"],
-          status: "active",
-          joinDate: "20/04/2024",
-          notes: "Giảng viên Momentum & Advanced",
-        },
-        {
-          id: "tch-12",
-          name: "Nguyễn Lưu Minh Tâm",
-          email: "minhtam.nguyen@xalo.edu.vn",
-          phone: "0901 234 567",
-          skills: ["Listening", "Speaking"],
-          status: "active",
-          joinDate: "01/05/2024",
-          notes: "Giảng viên Soar & PRE CORE",
-        },
-        {
-          id: "tch-13",
-          name: "Trần Quang Minh",
-          email: "quangminh.tran@xalo.edu.vn",
-          phone: "0912 345 679",
-          skills: ["Writing", "Reading"],
-          status: "active",
-          joinDate: "10/05/2024",
-          notes: "Giảng viên Soar & Luyện đề tập trung",
-        },
-        {
-          id: "tch-14",
-          name: "Đặng Duy",
-          email: "dangduy@xalo.edu.vn",
-          phone: "0934 567 891",
-          skills: ["Foundation", "Grammar"],
-          status: "active",
-          joinDate: "01/06/2024",
-          notes: "Giảng viên Foundation & Khóa bổ trợ",
-        },
-        {
-          id: "tch-15",
-          name: "ACA",
-          email: "aca@xalo.edu.vn",
-          phone: "024 777 999",
-          skills: ["Quản lý", "Chăm sóc học viên"],
-          status: "active",
-          joinDate: "01/01/2023",
-          notes: "Bộ phận Học vụ & Giám sát chất lượng giảng dạy",
-        },
-      ]);
-      return seeded;
+  private async ensureTeacherProfilesFromRoster() {
+    for (const t of XALO_GV_ROSTER) {
+      const email = String(t.email).trim().toLowerCase();
+      const existing = await this.teacherProfileModel.findOne({ email }).exec();
+      const payload = {
+        id: t.id,
+        name: t.name,
+        email,
+        materialsDriveUrl: t.materialsDriveUrl,
+        status: 'active' as const,
+      };
+      if (existing) {
+        await this.teacherProfileModel
+          .updateOne(
+            { email },
+            {
+              $set: {
+                name: payload.name,
+                materialsDriveUrl: payload.materialsDriveUrl,
+                status: payload.status,
+              },
+            },
+          )
+          .exec();
+      } else {
+        await this.teacherProfileModel.create({
+          ...payload,
+          phone: '',
+          skills: ['Writing', 'Speaking', 'Reading', 'Listening'],
+          joinDate: '',
+          notes: '',
+        });
+      }
     }
-    return list;
+
+    // Gắn ghi chú hồ sơ GV với danh sách lớp Ongoing (Drive)
+    const noteByTeacherId: Record<string, string> = {
+      'tch-hoangsa': [
+        'Ongoing (Drive):',
+        ...HOANG_SA_ONGOING_GROUP_CLASSES.map((c) => `• ${c.name}`),
+        ...HOANG_SA_ONGOING_11_CLASSES.map((c) => `• ${c.className}`),
+      ].join('\n'),
+      'tch-nhuhai': [
+        'Ongoing (Drive):',
+        ...NHU_HAI_ONGOING_GROUP_CLASSES.map((c) => `• ${c.name}`),
+        ...NHU_HAI_ONGOING_11_CLASSES.map((c) => `• ${c.className}`),
+      ].join('\n'),
+      'tch-dangduy': [
+        'Ongoing (Drive):',
+        ...DANG_DUY_ONGOING_GROUP_CLASSES.map((c) => `• ${c.name}`),
+        ...DANG_DUY_ONGOING_11_CLASSES.map((c) => `• ${c.className}`),
+      ].join('\n'),
+      'tch-minhtam': [
+        'Ongoing (Drive):',
+        ...MINH_TAM_ONGOING_GROUP_CLASSES.map((c) => `• ${c.name}`),
+        ...MINH_TAM_ONGOING_11_CLASSES.map((c) => `• ${c.className}`),
+      ].join('\n'),
+      'tch-thanhtam': [
+        'Ongoing (Drive):',
+        ...THANH_TAM_ONGOING_GROUP_CLASSES.map((c) => `• ${c.name}`),
+        ...THANH_TAM_ONGOING_11_CLASSES.map((c) => `• ${c.className}`),
+      ].join('\n'),
+      'tch-duykhai': [
+        'Ongoing (Drive):',
+        ...DUY_KHAI_ONGOING_GROUP_CLASSES.map((c) => `• ${c.name}`),
+        ...DUY_KHAI_ONGOING_11_CLASSES.map((c) => `• ${c.className}`),
+      ].join('\n'),
+      'tch-giaphu': [
+        'Ongoing (Drive):',
+        ...GIA_PHU_ONGOING_11_CLASSES.map((c) => `• ${c.className}`),
+      ].join('\n'),
+    };
+    for (const [teacherId, classNote] of Object.entries(noteByTeacherId)) {
+      const teacher = XALO_GV_ROSTER.find((t) => t.id === teacherId);
+      if (!teacher) continue;
+      await this.teacherProfileModel
+        .updateOne(
+          { email: teacher.email.toLowerCase() },
+          { $set: { notes: classNote, materialsDriveUrl: teacher.materialsDriveUrl } },
+        )
+        .exec();
+    }
+  }
+
+  async findAllTeacherProfiles() {
+    await this.ensureTeacherProfilesFromRoster();
+    return this.teacherProfileModel.find().lean().exec();
   }
 
   async createTeacherProfile(data: any) {
@@ -2215,18 +3445,22 @@ export class AcaManagementService implements OnModuleInit {
           .map((line: string) => line.trim())
           .filter(Boolean)
       : [];
-    const phases: { name: string; date: string }[] = [];
-    if (cls.currentPhase || cls.phaseStartDate || cls.openDate) {
-      phases.push({
-        name: cls.currentPhase || 'Chặng 1',
-        date: cls.phaseStartDate || cls.openDate || '',
-      });
-    }
-    if (cls.nextPhase || cls.nextPhaseStartDate) {
-      phases.push({
-        name: cls.nextPhase || 'Chặng 2',
-        date: cls.nextPhaseStartDate || '',
-      });
+    let phases: { name: string; date: string }[] = [];
+    if (Array.isArray(cls.phases) && cls.phases.length > 0) {
+      phases = cls.phases;
+    } else {
+      if (cls.currentPhase || cls.phaseStartDate || cls.openDate) {
+        phases.push({
+          name: cls.currentPhase || 'Chặng 1',
+          date: cls.phaseStartDate || cls.openDate || '',
+        });
+      }
+      if (cls.nextPhase || cls.nextPhaseStartDate) {
+        phases.push({
+          name: cls.nextPhase || 'Chặng 2',
+          date: cls.nextPhaseStartDate || '',
+        });
+      }
     }
     return {
       classId: String(cls._id || ''),

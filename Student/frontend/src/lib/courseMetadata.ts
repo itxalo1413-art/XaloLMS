@@ -37,21 +37,24 @@ type CourseImportantLinkLike = {
   url: string;
 };
 
-/** Template ACA / offline — không dùng làm dữ liệu học viên khi đã login. */
+/** Template ACA / offline — thông tin khóa học chuẩn */
 export const DEFAULT_COURSE_METADATA: CourseMetadata = {
-  course: "Offline Momentum",
-  instructor: "Nghiêm Doãn Quỳnh Châu",
-  room: "Phòng 3.1",
+  course: "2025RLP-ONL-NHUHAI-U",
+  instructor: "Lê Như Hải",
+  room: "",
   zoomPassword: "—",
+  zoomLink: "",
   schedule: [
-    "Thứ 3: 19h45 - 21h30",
-    "Thứ 5: 19h45 - 21h30",
-    "Thứ 7: 19h45 - 21h30",
+    "Thứ 3: 18h00 - 19h45",
+    "Thứ 5: 18h00 - 19h45",
+    "Thứ 7: 18h00 - 19h45",
   ],
   phases: [
-    { name: "Chặng 1: Speaking - Reading", date: "09/10/2025" },
-    { name: "Chặng 2: Writing - Listening", date: "30/04/2026" },
+    { name: "Chặng 1", date: "Bắt đầu chặng 20/12/2025 - Kết thúc: 31/01/2026" },
+    { name: "Chặng 2", date: "Bắt đầu chặng 24/02/2026 - Kết thúc: 04/04/2026" },
   ],
+  openDate: "20/12/2025",
+  endDate: "31/01/2026",
 };
 
 export const EMPTY_COURSE_METADATA: CourseMetadata = {

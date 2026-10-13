@@ -43,8 +43,8 @@ export function getAuthBypassUser(): AuthUser {
   if (cached?.role === "HS") return cached;
   return {
     id: "6a0d62e43376dcbcd0b1d76f",
-    email: "student.demo@xalo.local",
-    name: "Dương Ngọc Khôi Nguyên",
+    email: "ngonguyenxuandinh@gmail.com",
+    name: "NGÔ NGUYÊN XUÂN ĐINH",
     role: "HS",
     status: "active",
     createdAt: "2020-01-01T00:00:00.000Z",

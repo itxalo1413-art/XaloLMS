@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   cacheAuthUser,
   clearAuthToken,
@@ -17,150 +16,6 @@ import {
 } from "@/lib/auth";
 
 const LOGIN_QUOTE_POPUP_KEY = "xalo.showLoginQuotePopup";
-
-export type RoleCategory = "ALL" | "HS" | "ACA" | "GRADER" | "GV" | "SALE";
-
-// Tài khoản thật đã seed trong MongoDB — dùng để test nhanh
-const REAL_ACCOUNTS: { label: string; email: string; password: string; role: "HS" | "ACA" | "GRADER" | "GV" | "SALE" }[] = [
-  {
-    label: "SALE — Nguyễn Phương Thảo",
-    email: "sale@xalo.edu.vn",
-    password: "Sale@123!",
-    role: "SALE",
-  },
-  {
-    label: "Học viên — Dương Ngọc Khôi Nguyên",
-    email: "nguyenduong939705@gmail.com",
-    password: "Student@123!",
-    role: "HS",
-  },
-  {
-    label: "Học viên — Văn Thị Thanh Trúc",
-    email: "thankxetai0911@gmail.com",
-    password: "Student@123!",
-    role: "HS",
-  },
-  {
-    label: "Học viên — Thiều Thảo Chi",
-    email: "tchithieu@gmail.com",
-    password: "Student@123!",
-    role: "HS",
-  },
-  {
-    label: "ACA Full Quyền — Lê Nguyễn Khánh Thi",
-    email: "aca@xaloenglish.vn",
-    password: "test@123!",
-    role: "ACA",
-  },
-  {
-    label: "Grader — Huỳnh Gia Phú",
-    email: "aca_1@gmail.com",
-    password: "test@123!",
-    role: "GRADER",
-  },
-  {
-    label: "Grader — Lê Thị Diệu Linh",
-    email: "aca_2@gmail.com",
-    password: "test@123!",
-    role: "GRADER",
-  },
-  {
-    label: "Grader — Nguyễn Văn Đăng Duy",
-    email: "aca@xalo.internal",
-    password: "test@123!",
-    role: "GRADER",
-  },
-  {
-    label: "Grader — Huỳnh Minh Phương",
-    email: "grader.phuong@xalo.internal",
-    password: "test@123!",
-    role: "GRADER",
-  },
-  {
-    label: "Grader — Nguyễn Thị Hoàng Sa",
-    email: "grader.sa@xalo.internal",
-    password: "test@123!",
-    role: "GRADER",
-  },
-  {
-    label: "Giáo viên — Nghiêm Doãn Quỳnh Châu",
-    email: "quynhchau.nghiem@xalo.edu.vn",
-    password: "Teacher@123!",
-    role: "GV",
-  },
-  {
-    label: "Giáo viên — Lê Thị Diệu Linh",
-    email: "dieulinh.le@xalo.edu.vn",
-    password: "Teacher@123!",
-    role: "GV",
-  },
-  {
-    label: "Giáo viên — Lê Minh Trang",
-    email: "minhtrang.le@xalo.edu.vn",
-    password: "Teacher@123!",
-    role: "GV",
-  },
-  {
-    label: "Giáo viên — Phạm Hoàng An",
-    email: "hoangan.pham@xalo.edu.vn",
-    password: "Teacher@123!",
-    role: "GV",
-  },
-  {
-    label: "Giáo viên — Trần Thu Lan",
-    email: "thulan.tran@xalo.edu.vn",
-    password: "Teacher@123!",
-    role: "GV",
-  },
-  {
-    label: "Giáo viên — Lê Thanh Tâm",
-    email: "thanhtam.le@xalo.edu.vn",
-    password: "Teacher@123!",
-    role: "GV",
-  },
-  {
-    label: "Giáo viên — Thái Đỗ Đăng Khoa",
-    email: "dangkhoa.thai@xalo.edu.vn",
-    password: "Teacher@123!",
-    role: "GV",
-  },
-  {
-    label: "Giáo viên — Tất Duy Khải",
-    email: "duykhai.tat@xalo.edu.vn",
-    password: "Teacher@123!",
-    role: "GV",
-  },
-  {
-    label: "Giáo viên — Lê Như Hải",
-    email: "nhuhai.le@xalo.edu.vn",
-    password: "Teacher@123!",
-    role: "GV",
-  },
-  {
-    label: "Giáo viên — Nguyễn Lê Trung Dũng",
-    email: "trungdung.nguyen@xalo.edu.vn",
-    password: "Teacher@123!",
-    role: "GV",
-  },
-  {
-    label: "Giáo viên — Nguyễn Lưu Minh Tâm",
-    email: "minhtam.nguyen@xalo.edu.vn",
-    password: "Teacher@123!",
-    role: "GV",
-  },
-  {
-    label: "Giáo viên — Trần Quang Minh",
-    email: "quangminh.tran@xalo.edu.vn",
-    password: "Teacher@123!",
-    role: "GV",
-  },
-  {
-    label: "Giáo viên — Đặng Duy",
-    email: "dangduy@xalo.edu.vn",
-    password: "Teacher@123!",
-    role: "GV",
-  },
-];
 
 export function LoginForm() {
   const router = useRouter();
@@ -208,27 +63,12 @@ export function LoginForm() {
     roleError ? "Bạn đã đăng xuất. Vui lòng đăng nhập lại." : null,
   );
 
-  // Quick Login Filter States
-  const [activeCategory, setActiveCategory] = useState<RoleCategory>("ALL");
-  const [quickSearch, setQuickSearch] = useState("");
-
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetNewPass, setResetNewPass] = useState("");
   const [resetConfirmPass, setResetConfirmPass] = useState("");
   const [resetMsg, setResetMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [resetSubmitting, setResetSubmitting] = useState(false);
-
-  const filteredQuickAccounts = useMemo(() => {
-    return REAL_ACCOUNTS.filter((acc) => {
-      if (activeCategory !== "ALL" && acc.role !== activeCategory) return false;
-      if (quickSearch.trim()) {
-        const q = quickSearch.trim().toLowerCase();
-        return acc.label.toLowerCase().includes(q) || acc.email.toLowerCase().includes(q);
-      }
-      return true;
-    });
-  }, [activeCategory, quickSearch]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -258,31 +98,11 @@ export function LoginForm() {
       setTimeout(() => {
         setShowResetModal(false);
       }, 1400);
-    } catch (err: any) {
-      setResetMsg({ type: "error", text: "Lỗi: " + (err.message || "Thất bại") });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Thất bại";
+      setResetMsg({ type: "error", text: "Lỗi: " + message });
     } finally {
       setResetSubmitting(false);
-    }
-  };
-
-  /** Đăng nhập nhanh: pre-fill email+password rồi gọi login thật */
-  const handleQuickLogin = async (acc: typeof REAL_ACCOUNTS[0]) => {
-    setEmail(acc.email);
-    setPassword(acc.password);
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await login(acc.email, acc.password);
-      setAuthToken(result.access_token);
-      cacheAuthUser(result.user);
-      if (typeof window !== "undefined") {
-        window.sessionStorage.setItem(LOGIN_QUOTE_POPUP_KEY, "1");
-      }
-      router.replace(homePathForUser(result.user));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Đăng nhập thất bại");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -312,14 +132,18 @@ export function LoginForm() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-10 bg-[#f6f7fb] font-sans">
       {/* Main Container Card */}
-      <div className="w-full max-w-6xl rounded-3xl overflow-hidden border border-zinc-200 bg-white shadow-xl grid grid-cols-1 lg:grid-cols-12 min-h-[640px]">
+      <div className="w-full max-w-5xl rounded-3xl overflow-hidden border border-zinc-200/80 bg-white shadow-2xl grid grid-cols-1 lg:grid-cols-12 min-h-[580px]">
         
-        {/* Left Side: Brand Panel with Quick Login */}
-        <section className="lg:col-span-5 p-6 sm:p-8 lg:p-10 bg-gradient-to-br from-[#6a5acd] via-[#7b61ff] to-[#5b4ac0] border-b lg:border-b-0 lg:border-r border-primary/20 flex flex-col justify-between text-white">
-          <div>
+        {/* Left Side: Brand Panel */}
+        <section className="lg:col-span-5 p-8 sm:p-10 lg:p-12 bg-gradient-to-br from-[#6a5acd] via-[#7b61ff] to-[#5b4ac0] border-b lg:border-b-0 lg:border-r border-white/10 flex flex-col justify-between text-white relative overflow-hidden">
+          {/* Subtle Ambient Glow */}
+          <div className="pointer-events-none absolute -top-24 -left-24 w-72 h-72 rounded-full bg-white/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-indigo-950/30 blur-3xl" />
+
+          <div className="relative z-10">
             {/* Header Brand */}
             <div className="flex items-center gap-3">
-              <div className="bg-white rounded-xl p-1.5 shadow-sm">
+              <div className="bg-white rounded-xl p-2 shadow-sm flex items-center justify-center">
                 <img
                   src="/Logo_XLE.svg"
                   alt="Xa Lộ English Logo"
@@ -331,119 +155,25 @@ export function LoginForm() {
               </span>
             </div>
 
-            <h1 className="mt-6 text-2xl sm:text-3xl font-black tracking-tight leading-tight text-white">
+            <h1 className="mt-8 text-2xl sm:text-3xl font-black tracking-tight leading-tight text-white">
               Hệ thống Quản lý Học tập Xa Lộ English
             </h1>
-            <p className="mt-2 text-xs sm:text-sm text-white/80 leading-relaxed font-medium">
-              Đăng nhập tài khoản của bạn hoặc sử dụng bảng Đăng nhập nhanh để trải nghiệm hệ thống.
+            <p className="mt-3 text-xs sm:text-sm text-white/85 leading-relaxed font-medium">
+              Nền tảng đào tạo và khảo thí IELTS toàn diện dành cho Học viên, Giảng viên và Cán bộ Học vụ.
             </p>
+
+
           </div>
 
-          {/* Quick Login Section */}
-          <div className="mt-8 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black uppercase tracking-wider text-white/90">
-                Tài khoản dùng thử ({filteredQuickAccounts.length})
-              </h3>
-            </div>
-
-            {/* Category Filter Tabs */}
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-black/15 backdrop-blur-xs border border-white/15 text-[11px] font-bold">
-              {[
-                { key: "ALL", label: "Tất cả" },
-                { key: "HS", label: "HS" },
-                { key: "ACA", label: "ACA" },
-                { key: "GRADER", label: "Grader" },
-                { key: "GV", label: "GV" },
-                { key: "SALE", label: "Sale" },
-              ].map((tab) => (
-                <button
-                  key={tab.key}
-                  type="button"
-                  onClick={() => setActiveCategory(tab.key as RoleCategory)}
-                  className={`flex-1 py-1 rounded-lg transition-all cursor-pointer text-center ${
-                    activeCategory === tab.key
-                      ? "bg-white text-[#6a5acd] font-black shadow-sm"
-                      : "text-white/80 hover:text-white hover:bg-white/10"
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Search Input for Quick Login */}
-            <div className="relative">
-              <input
-                type="text"
-                value={quickSearch}
-                onChange={(e) => setQuickSearch(e.target.value)}
-                placeholder="Tìm tên hoặc email..."
-                className="w-full h-8 rounded-lg bg-white/15 border border-white/20 px-3 pl-8 text-xs text-white placeholder-white/60 outline-none focus:bg-white/25 focus:border-white/40"
-              />
-              <svg
-                className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/60 pointer-events-none"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-            </div>
-
-            {/* Quick Accounts List */}
-            <div className="space-y-1.5 max-h-[240px] sm:max-h-[270px] overflow-y-auto pr-1 text-xs">
-              {filteredQuickAccounts.length === 0 ? (
-                <div className="p-3 text-center text-white/60 text-xs rounded-xl bg-white/5 border border-white/10">
-                  Không tìm thấy tài khoản phù hợp.
-                </div>
-              ) : (
-                filteredQuickAccounts.map((acc) => (
-                  <button
-                    key={acc.email}
-                    type="button"
-                    disabled={loading}
-                    onClick={() => handleQuickLogin(acc)}
-                    className="w-full flex items-center justify-between gap-2.5 px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 transition-all text-left group cursor-pointer disabled:opacity-50"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="font-bold text-white truncate text-xs">
-                        {acc.label}
-                      </div>
-                      <div className="text-[10px] text-white/60 truncate font-mono">
-                        {acc.email}
-                      </div>
-                    </div>
-
-                    <span
-                      className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider ${
-                        acc.role === "HS"
-                          ? "bg-emerald-400 text-emerald-950"
-                          : acc.role === "ACA"
-                          ? "bg-amber-300 text-amber-950"
-                          : acc.role === "GRADER"
-                          ? "bg-violet-300 text-violet-950"
-                          : acc.role === "SALE"
-                          ? "bg-orange-300 text-orange-950"
-                          : "bg-white text-[#6a5acd]"
-                      }`}
-                    >
-                      {acc.role}
-                    </span>
-                  </button>
-                ))
-              )}
-            </div>
+          {/* Footer Info */}
+          <div className="relative z-10 pt-6 mt-8 border-t border-white/15 text-xs text-white/70 flex items-center justify-between">
+            <span>© 2026 Xa Lộ English</span>
+            <span className="font-semibold text-white/90">LMS Portal</span>
           </div>
         </section>
 
-        {/* Right Side: Clean Light Login Form */}
-        <section className="lg:col-span-7 p-6 sm:p-10 lg:p-12 bg-white flex flex-col justify-center">
+        {/* Right Side: Clean Modern Login Form */}
+        <section className="lg:col-span-7 p-8 sm:p-12 lg:p-14 bg-white flex flex-col justify-center">
           <div className="max-w-md mx-auto w-full space-y-6">
             
             {/* Header */}
@@ -452,7 +182,7 @@ export function LoginForm() {
                 Đăng nhập
               </h2>
               <p className="mt-2 text-xs sm:text-sm text-zinc-500 font-medium">
-                Vui lòng điền Email và Mật khẩu tài khoản của bạn.
+                Vui lòng nhập Email và Mật khẩu tài khoản của bạn để tiếp tục.
               </p>
             </div>
 
@@ -588,6 +318,14 @@ export function LoginForm() {
                 )}
               </button>
             </form>
+
+            {/* Help Support Footer */}
+            <div className="pt-4 text-center">
+              <p className="text-xs text-zinc-500">
+                Chưa có tài khoản hoặc gặp sự cố đăng nhập?{" "}
+                <span className="font-semibold text-[#7b61ff]">Liên hệ Giáo vụ (ACA)</span> để được hỗ trợ.
+              </p>
+            </div>
           </div>
         </section>
       </div>

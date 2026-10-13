@@ -13,54 +13,195 @@ import {
   getPublishedCatalogDocuments,
 } from "@/lib/contentCatalog";
 
-const listSachTangThem = [
-  "Tổng hợp Grammar Reference (with Exercises)",
-  "Cambridge 19",
-  "Self-practice book (4 skills)",
-  "Reading Vol.1",
-  "Complete IELTS Band 4.0-5.0",
-  "Get ready for IELTS",
-  "Basic IELTS",
-  "Cambridge Grammar for IELTS",
-  "Collins Grammar for IELTS",
-  "Collins Listening for IELTS",
-  "Collins Reading for IELTS",
-  "Collins Vocabulary For IELTS",
-  "Complete IELTS Band 5.0-6.5",
-  "Destination B1 & B2",
-  "English Collocation in Use - Intermediate",
-  "English Vocabulary in Use - Upper Intermediate",
-  "English Grammar in Use - Intermediate",
-  "Essential Words for IELTS (Barrons)",
-  "Inside Reading",
-  "Oxford Practice Grammar Intermediate",
-  "English Pronunciation in Use - Elementary",
-  "Mindset for IELTS Level 2",
-  "Bridge to IELTS",
-  "Reading Vol.2",
-  "Reading Vol.3",
-  "Reading Vol.4",
-  "Reading Vol.5",
-  "Guideline Speaking & Writing Band 4.5-5.5+",
-  "Writing Challenge",
-  "English Grammar in Use - Elementary",
-  "Oxford Practice Grammar Basic",
-  "English Vocabulary in Use - Elementary & Intermediate",
-  "Essential Reading for IELTS",
-  "Listening Practice Through Dictation",
-  "Mindset for IELTS Level 1",
-  "Mindset for IELTS Foundation",
-  "Tactics for Listening",
-  "Complete IELTS Band 6.5–7.5",
-  "Destination C1 & C2",
-  "English Collocations in Use – Advanced",
-  "English Grammar in Use – Advanced",
-  "English Pronunciation in Use – Advanced",
-  "English Vocabulary in Use – Advanced",
-  "IELTS Advantage Skills",
-  "Improve your Writing skill 6.0–7.5",
-  "Mindset for IELTS Level 3",
-  "Oxford Practice Grammar Advanced",
+const listSachTangThem: Array<{ title: string; url: string }> = [
+  {
+    title: "Tổng hợp Grammar Reference (with Exercises)",
+    url: "https://drive.google.com/drive/u/3/folders/1V53diH4dcW7albn9bf2d0gBJgR2tJAoX",
+  },
+  {
+    title: "Sách Cambridge 19",
+    url: "https://drive.google.com/drive/u/3/folders/1j-Akt37UZVLH0i15LVrYJA6j-rPjeaqF",
+  },
+  {
+    title: "Self-practice book (4 skills)",
+    url: "https://drive.google.com/drive/u/3/folders/1mDI1B1rVrm8d4T3mSTvO9sZEt6xGTgex",
+  },
+  {
+    title: "Reading (Edition 1 / Vol.1)",
+    url: "https://drive.google.com/drive/u/3/folders/17rE0DqNu2GeMEngqivRyhpPTAzcvOi2b",
+  },
+  {
+    title: "Sách Complete IELTS Band 4.0-5.0",
+    url: "https://drive.google.com/drive/u/3/folders/1H1CgsTuVN4dR41a5SyRioHCMlw0bXtPg",
+  },
+  {
+    title: "Sách Get ready for IELTS",
+    url: "https://drive.google.com/drive/u/3/folders/1Z3wYTvNfC2251p4jh8-Alr4sAaw_ZOTd",
+  },
+  {
+    title: "Sách Basic IELTS",
+    url: "https://drive.google.com/drive/u/3/folders/1U46V2qD7bsHcTGy_E7c76sgChnQhdr6T",
+  },
+  {
+    title: "Sách Cambridge Grammar for IELTS with answers",
+    url: "https://drive.google.com/drive/u/3/folders/1_zrmaL0ZOsbWJv7-81psio4Izx45sUts",
+  },
+  {
+    title: "Sách Collins Grammar for IELTS",
+    url: "https://drive.google.com/drive/u/3/folders/1gBJxRUv-Se371UFKkhoSTWDig72DpSKy",
+  },
+  {
+    title: "Sách Collins Listening for IELTS",
+    url: "https://drive.google.com/drive/u/3/folders/1T3TJaQpIjQ_KehH2uxg7Gmp32cEyVKGH",
+  },
+  {
+    title: "Sách Collins Reading for IELTS",
+    url: "https://drive.google.com/drive/u/3/folders/1UIZBGJd5qbXMglSUuNyND7gNTWIG1pZj",
+  },
+  {
+    title: "Sách Collins Vocabulary For IELTS",
+    url: "https://drive.google.com/drive/u/3/folders/14LpxPklNRZ2NN9A6r0mP3JLozxcvvIse",
+  },
+  {
+    title: "Sách Complete IELTS Band 5.0-6.5",
+    url: "https://drive.google.com/drive/u/3/folders/1aRZi-lWMIoC7Kjcf4D-b0uhbOktQPv0c",
+  },
+  {
+    title: "Sách Destination B1 & B2",
+    url: "https://drive.google.com/drive/u/3/folders/17i6gD1Xt8M8xFcicLI8DkUsP3Oez5NRa",
+  },
+  {
+    title: "Sách English Collocation in Use - Intermediate",
+    url: "https://drive.google.com/drive/u/3/folders/1wjbl54fhGRiBfioqJNpw3jAX0XQm6Drk",
+  },
+  {
+    title: "Sách English Vocabulary in Use - Upper Intermediate",
+    url: "https://drive.google.com/drive/u/3/folders/10sI_9yWGnxIgMgHNlA_T5hbIwbOpGx5J",
+  },
+  {
+    title: "Sách English Grammar in use - Intermediate",
+    url: "https://drive.google.com/drive/u/3/folders/1Z_jFlkLC--qhv-rQ2mpCdApjVAumMO75",
+  },
+  {
+    title: "Sách Essential Words for the IELTS - Barrons",
+    url: "https://drive.google.com/drive/u/3/folders/162HzB9Kbb4f5NY4ZmkcV33I1WKv2awmj",
+  },
+  {
+    title: "Inside Reading",
+    url: "https://drive.google.com/drive/u/3/folders/1zgcZBArqWsryCKRFCWUEcV6cCcbvsuxE",
+  },
+  {
+    title: "Sách Oxford Practice Grammar Intermediate",
+    url: "https://drive.google.com/drive/u/3/folders/1uH2-HR6ySm5cV4tbk9MRvbjDjcvsKEWe",
+  },
+  {
+    title: "Sách English Pronunciation in Use - Elementary",
+    url: "https://drive.google.com/drive/u/3/folders/1OMSRJp8cyYju1r4MAb1ZPoyUwUYZ2WkN",
+  },
+  {
+    title: "Sách Mindset for IELTS - Level 2",
+    url: "https://drive.google.com/drive/u/3/folders/1eKiHFhoXZJqnNIyR5SOo94IJQdQfEPr8",
+  },
+  {
+    title: "Sách Bridge to IELTS",
+    url: "https://drive.google.com/drive/folders/1ahoYc3w7UC2wgteaGmYngvhdGv171If_?usp=drive_link",
+  },
+  {
+    title: "Reading (Edition 2 / Vol.2)",
+    url: "https://drive.google.com/drive/u/1/folders/11EwettkI_seDlhkmXcEYOeheIOxLl_Ol",
+  },
+  {
+    title: "Reading (Edition 3 / Vol.3)",
+    url: "https://drive.google.com/drive/u/1/folders/1nnG8woXSdD1IpGxRhsqTuvFzFzXsOKMZ",
+  },
+  {
+    title: "Reading (Edition 4 / Vol.4)",
+    url: "https://drive.google.com/drive/u/1/folders/1NxbiTc3Fbbj99LejYh2nmbZOm7X9k3b7",
+  },
+  {
+    title: "Reading (Edition 5 / Vol.5)",
+    url: "https://drive.google.com/drive/u/1/folders/1JYzJTs_RaxBiPxURrIEAFFVC6Vp1WGk2",
+  },
+  {
+    title: "Bộ Guideline Speaking & Writing band 4.5 – 5.5+",
+    url: "https://drive.google.com/drive/u/1/folders/1RL9q1JGWMK93Wr4E-r35Tgd2gE9-7rj6",
+  },
+  {
+    title: "Writing Challenge",
+    url: "https://drive.google.com/drive/u/1/folders/1oFIeaV7NpuJSPiy9NMjHXXYDCbgU-pAJ",
+  },
+  {
+    title: "Sách English Grammar in Use - Elementary",
+    url: "https://drive.google.com/drive/u/1/folders/1_MrBBKM1GjKkSOym68LqpgR5cbZjd3L3",
+  },
+  {
+    title: "Sách Oxford Practice Grammar Basic",
+    url: "https://drive.google.com/drive/u/1/folders/1syVf54tvbWC7Lie0mzPkMtcKJAS40j3Q",
+  },
+  {
+    title: "Sách English Vocabulary in Use - Elementary and Intermediate",
+    url: "https://drive.google.com/drive/u/1/folders/1QAvNXa0jG0HF8HdVcgzOO6Z2wvRPn7Va",
+  },
+  {
+    title: "Sách Essential Reading for IELTS",
+    url: "https://drive.google.com/drive/u/1/folders/1vVy6p9u4NKtMsZEzx8UxbGUX7a4gkOLZ",
+  },
+  {
+    title: "Sách Listening Practice Through Dictation",
+    url: "https://drive.google.com/drive/u/1/folders/1XEenTBEEMacbF17_kQOtVl9PM0wqc6hP",
+  },
+  {
+    title: "Sách Mindset for IELTS - Level 1",
+    url: "https://drive.google.com/drive/u/1/folders/1_vMmDEtTO5RaLhv5Kxnmhr1B-Jo_rG4y",
+  },
+  {
+    title: "Sách Mindset for IELTS - Foundation",
+    url: "https://drive.google.com/drive/u/1/folders/1AbGqhEwzqZYx1smXOhOYx43imZOPqY9d",
+  },
+  {
+    title: "Sách Tactics for Listening",
+    url: "https://drive.google.com/drive/u/1/folders/1zP7fJkEleaOv-snydOl8Lts2SAA66_a7",
+  },
+  {
+    title: "Sách Complete IELTS Band 6.5–7.5",
+    url: "https://drive.google.com/drive/folders/1tjO2mCP_KKfn45Tj4PZN1RzwXkYwCRxf?usp=sharing",
+  },
+  {
+    title: "Sách Destination C1 & C2",
+    url: "https://drive.google.com/drive/u/1/folders/1-baJfJ5e7lZQt0XpVnmP0cWqkS6vJGLN",
+  },
+  {
+    title: "Sách English Collocations in Use - Advanced",
+    url: "https://drive.google.com/drive/u/1/folders/1HWMdssS6PQc15TewXO9RKTNdfjoqf-jo",
+  },
+  {
+    title: "Sách English Grammar in use - Advanced",
+    url: "https://drive.google.com/drive/u/1/folders/15JgmciSAbXbRFaOajrIClX50NHKI3kqU",
+  },
+  {
+    title: "Sách English Pronunciation in Use - Advanced",
+    url: "https://drive.google.com/drive/u/1/folders/1xF-ZAJOSd2o-NoL7tkGXxodT8hyHMfyr",
+  },
+  {
+    title: "Sách English Vocabulary in Use - Advanced",
+    url: "https://drive.google.com/drive/u/1/folders/1yB4KOkVijg2JNQI2Gh0gkQAh_1IgGUDF",
+  },
+  {
+    title: "Sách IELTS Advantage Skills",
+    url: "https://drive.google.com/drive/u/1/folders/1gIBl3sdjs7wLyyNiDpuSigRcvuBoZrIV",
+  },
+  {
+    title: "Sách Improve your Writing skill - 6.0-7.5",
+    url: "https://drive.google.com/drive/u/3/folders/1jtspgB9_uku8buk05wPB34Jqz1SqsAfb",
+  },
+  {
+    title: "Sách Mindset for IELTS - Level 3",
+    url: "https://drive.google.com/drive/u/1/folders/1j-rqnFudqYvsdzTT1XVx-E8YzoQv2j3x",
+  },
+  {
+    title: "Sách Oxford Practice Grammar Advanced",
+    url: "https://drive.google.com/drive/u/1/folders/1eBxM7w5_OvZiZy2vV2Q9AsrpywewWQrM",
+  },
 ];
 
 export default function TaiLieuThemPage() {
@@ -113,6 +254,14 @@ export default function TaiLieuThemPage() {
     return filteredDocuments.slice(0, 4);
   }, [query, filteredDocuments]);
 
+  const filteredSachTangThem = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) return listSachTangThem;
+    return listSachTangThem.filter((item) =>
+      item.title.toLowerCase().includes(normalized),
+    );
+  }, [query]);
+
   const subjects = Array.from(new Set(catalogDocs.map((doc) => doc.subject)));
 
   return (
@@ -133,63 +282,161 @@ export default function TaiLieuThemPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               {
-                label: "Computer trial",
-                color: "text-warning",
+                label: "Computer based trial",
+                badgeText: "4 bài thi thử",
+                borderClass: "border-indigo-100 hover:border-indigo-300",
+                badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200/60",
+                iconBg: "bg-indigo-50 text-indigo-600",
+                desc: "Đề thi thử máy tính mô phỏng kỳ thi chính thức qua hệ thống Inspera",
                 icon: (
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <rect x="3" y="4" width="18" height="12" rx="2" />
                     <path d="M8 20h8M10 16v4m4-4v4" />
                   </svg>
                 ),
-                items: ["LISTENING", "READING", "WRITING T1", "WRITING T2"],
+                items: [
+                  {
+                    title: "LISTENING",
+                    subtitle: "Demo Inspera Player",
+                    url: "https://demo-ielts.inspera.com/player/?assessmentRunId=131012334&context=exam#/section/128121996/question/128121965/scorableItem/1",
+                  },
+                  {
+                    title: "READING",
+                    subtitle: "Demo Inspera Player",
+                    url: "https://demo-ielts.inspera.com/player/?assessmentRunId=131013388&context=exam#/section/128121930/question/128121896/scorableItem/1",
+                  },
+                  {
+                    title: "WRITING (TASK 1)",
+                    subtitle: "Exam Inspera Player",
+                    url: "https://ielts.inspera.com/player/?assessmentRunId=189733708&context=exam#/section/166780572/question/145425559/scorableItem/1",
+                  },
+                  {
+                    title: "WRITING (TASK 2)",
+                    subtitle: "Exam Inspera Player",
+                    url: "https://ielts.inspera.com/player/?assessmentRunId=189733579&context=exam#/section/145423437/question/145422735/scorableItem/1",
+                  },
+                ],
               },
               {
-                label: "Registration guide",
-                color: "text-warning",
+                label: "REGISTRATION guide",
+                badgeText: "Google Docs",
+                borderClass: "border-emerald-100 hover:border-emerald-300",
+                badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200/60",
+                iconBg: "bg-emerald-50 text-emerald-600",
+                desc: "Hướng dẫn chi tiết từng bước đăng ký thi IELTS tại IDP & British Council",
                 icon: (
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
                     <path d="M14 3v6h6M8 13h8M8 17h6" />
                   </svg>
                 ),
-                items: ["HƯỚNG DẪN ĐĂNG KÝ THI.docx"],
+                items: [
+                  {
+                    title: "HƯỚNG DẪN ĐĂNG KÝ THI IELTS Ở IDP VÀ BRITISH COUNCIL.docx",
+                    subtitle: "Mở tài liệu Google Docs",
+                    url: "https://docs.google.com/document/d/1TjpPcFVRi4yKOF0EqRqQMipkkCm_vGap/edit#heading=h.mql4quhnwgn5",
+                  },
+                ],
               },
               {
-                label: "Orientation guide",
-                color: "text-warning",
+                label: "ORientation GUIDE",
+                badgeText: "Craft Page",
+                borderClass: "border-amber-100 hover:border-amber-300",
+                badgeClass: "bg-amber-50 text-amber-700 border-amber-200/60",
+                iconBg: "bg-amber-50 text-amber-600",
+                desc: "Tài liệu định hướng và phương pháp học lộ trình Solidifying Stage",
                 icon: (
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="12" cy="12" r="9" />
                     <path d="M10 14l1.5-4.5L16 8l-1.5 4.5L10 14z" />
                   </svg>
                 ),
-                items: ["Solidifying Stage Craft"],
+                items: [
+                  {
+                    title: "https://xle.craft.me/SolidifyingStage",
+                    subtitle: "Solidifying Stage Craft Guide",
+                    url: "https://xle.craft.me/SolidifyingStage",
+                  },
+                ],
               },
               {
-                label: "Resource Website",
-                color: "text-warning",
+                label: "STUDY RESOURCE WEBSITE",
+                badgeText: "Web Practice",
+                borderClass: "border-sky-100 hover:border-sky-300",
+                badgeClass: "bg-sky-50 text-sky-700 border-sky-200/60",
+                iconBg: "bg-sky-50 text-sky-600",
+                desc: "Kho đề thi thử IELTS Full Test & bài luyện tập trực tuyến miễn phí",
                 icon: (
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="12" cy="12" r="9" />
                     <path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18" />
                   </svg>
                 ),
-                items: ["bestmytest.com/ielts"],
+                items: [
+                  {
+                    title: "https://www.bestmytest.com/ielts/practice-test",
+                    subtitle: "BestMyTest IELTS Practice Test",
+                    url: "https://www.bestmytest.com/ielts/practice-test",
+                  },
+                ],
               },
             ].map((box, i) => (
-              <div key={i} className="bg-white p-6 rounded-2xl shadow-soft hover:shadow-hover transition-all group">
-                <div className="w-10 h-10 rounded-xl bg-background flex items-center justify-center text-foreground mb-4 group-hover:bg-primary/5 transition-colors">
-                  {box.icon}
+              <div
+                key={i}
+                className={`bg-white p-6 rounded-2xl shadow-soft hover:shadow-hover border ${box.borderClass} transition-all group flex flex-col justify-between`}
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <div className={`w-10 h-10 rounded-xl ${box.iconBg} flex items-center justify-center transition-transform group-hover:scale-105 shrink-0`}>
+                      {box.icon}
+                    </div>
+                    <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${box.badgeClass}`}>
+                      {box.badgeText}
+                    </span>
+                  </div>
+                  <div className="text-[11px] font-black uppercase tracking-wider text-foreground mb-1">
+                    {box.label}
+                  </div>
+                  <p className="text-[11px] text-muted font-medium mb-4 leading-relaxed">
+                    {box.desc}
+                  </p>
                 </div>
-                <div className={`text-[10px] font-black uppercase tracking-widest mb-3 ${box.color}`}>{box.label}</div>
-                <ul className="text-xs font-bold text-muted space-y-2">
+
+                <div className="space-y-2 mt-auto">
                   {box.items.map((it, j) => (
-                    <li key={j} className="flex items-center gap-2">
-                      <div className="w-1 h-1 rounded-full bg-background"></div>
-                      {it}
-                    </li>
+                    <a
+                      key={j}
+                      href={it.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="group/item flex items-center justify-between gap-2.5 p-2.5 rounded-xl border border-zinc-100 bg-zinc-50/50 hover:bg-white hover:border-primary/40 hover:shadow-xs transition-all"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-bold text-foreground group-hover/item:text-primary transition-colors truncate">
+                          {it.title}
+                        </div>
+                        {it.subtitle ? (
+                          <div className="text-[10px] text-muted font-medium truncate mt-0.5">
+                            {it.subtitle}
+                          </div>
+                        ) : null}
+                      </div>
+                      <svg
+                        className="w-4 h-4 text-muted/50 group-hover/item:text-primary shrink-0 transition-transform group-hover/item:translate-x-0.5 group-hover/item:-translate-y-0.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                        <polyline points="15 3 21 3 21 9" />
+                        <line x1="10" y1="14" x2="21" y2="3" />
+                      </svg>
+                    </a>
                   ))}
-                </ul>
+                </div>
               </div>
             ))}
           </div>
@@ -316,21 +563,52 @@ export default function TaiLieuThemPage() {
           </div>
         </section>
 
-        {/* List: Tài liệu khác */}
+        {/* List: Sách tặng thêm */}
         <section className="mt-12">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-1.5 h-6 bg-primary rounded-full"></div>
-            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-muted">Sách tặng thêm</h3>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-6 bg-primary rounded-full"></div>
+              <h3 className="text-sm font-black uppercase tracking-[0.2em] text-muted">
+                Sách tặng thêm ({filteredSachTangThem.length})
+              </h3>
+            </div>
+            <span className="text-[11px] font-bold text-muted/60 hidden sm:inline">
+              Nhấp vào sách để mở thư mục Google Drive
+            </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {listSachTangThem.map((item, index) => (
-              <div key={index} className="bg-white rounded-2xl shadow-soft p-4 flex items-center gap-4 hover:bg-background transition-all cursor-pointer group">
-                <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center text-[10px] font-black text-muted group-hover:bg-primary group-hover:text-white transition-all shrink-0">
-                  {(index + 1).toString().padStart(2, '0')}
+            {filteredSachTangThem.map((item, index) => (
+              <a
+                key={item.url || index}
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Mở Drive: ${item.title}`}
+                className="bg-white rounded-2xl shadow-soft p-4 flex items-center justify-between gap-3 hover:bg-zinc-50 hover:shadow-md hover:border-primary/30 border border-transparent transition-all cursor-pointer group"
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center text-[10px] font-black text-muted group-hover:bg-primary group-hover:text-white transition-all shrink-0">
+                    {(index + 1).toString().padStart(2, "0")}
+                  </div>
+                  <span className="text-xs font-bold text-muted leading-snug group-hover:text-foreground line-clamp-2">
+                    {item.title}
+                  </span>
                 </div>
-                <span className="text-xs font-bold text-muted leading-snug group-hover:text-foreground">{item}</span>
-              </div>
+                <svg
+                  className="w-4 h-4 text-muted/40 group-hover:text-primary shrink-0 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+              </a>
             ))}
           </div>
         </section>

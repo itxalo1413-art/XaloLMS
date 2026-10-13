@@ -79,9 +79,11 @@ const EMPTY_WRITING_CRITERIA: WritingCriterionInput = {
 
 const templateWritingBands = resolveWritingBands(TEMPLATE_WRITING_CRITERIA);
 
-/** Template cho form ACA khi soạn BCB mới — không dùng làm dữ liệu học viên. */
 export const DEFAULT_STUDENT_DIAGNOSIS: StudentDiagnosisRecord = {
-  aim: "7.5",
+  studentName: "NGÔ NGUYÊN XUÂN ĐINH",
+  studentEmail: "ngonguyenxuandinh@gmail.com",
+  studentPhone: "0909123456",
+  aim: "7.0",
   examDate: "",
   bcbOverviewTitle: "Người dùng Khá (Competent)",
   bcbOverviewSummary:

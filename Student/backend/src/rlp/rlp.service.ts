@@ -19,7 +19,11 @@ import {
   RlpTemplate,
   type RlpTemplateDocument,
 } from './schemas/rlp-template.schema';
-import { DEFAULT_RLP_TEMPLATES } from './rlp-templates.seed';
+import {
+  DEFAULT_RLP_TEMPLATES,
+  PRE_IELTS_24_SESSIONS,
+  FOUNDATION_18_SESSIONS,
+} from './rlp-templates.seed';
 import {
   ApplyClassRlpDto,
   ApplyRlpTemplateDto,
@@ -79,13 +83,209 @@ export class RlpService implements OnModuleInit {
           { upsert: true },
         );
       }
+      // Tự động đồng bộ giáo án cho tất cả các lớp đang có sẵn trong database:
+      // - Upstream, Momentum, Soar, Advanced, IELTS Core (36 buổi)
+      // - Pre-IELTS / PreCore (24 buổi)
+      // - Foundation (18 buổi)
+      await this.syncAllExistingClassesRlpStores();
     } catch (err) {
       console.warn('Không thể khởi tạo seed RLP Templates:', err);
     }
   }
 
-  private cloneDefaults(): RlpSessionRecord[] {
+  /**
+   * Phân loại lớp để xác định giáo án RLP tương ứng.
+   */
+  private classifyClassCategory(cls?: { name?: string; classCode?: string } | null): 'pre-ielts' | 'foundation' | 'core-36' | 'other' {
+    if (!cls) return 'core-36';
+    const name = String(cls.name || '').trim();
+    const code = String(cls.classCode || '').trim();
+    const blob = `${name} ${code}`.toUpperCase();
+
+    if (
+      blob.includes('PRE CORE') ||
+      blob.includes('PCORE') ||
+      blob.includes('PRECORE') ||
+      blob.includes('PRE IELTS') ||
+      blob.includes('PREIELTS') ||
+      code.toUpperCase().startsWith('PC')
+    ) {
+      return 'pre-ielts';
+    }
+
+    if (
+      blob.includes('FOUNDATION') ||
+      blob.includes('FOU_') ||
+      /\bF(246|357|SS)\b/.test(blob) ||
+      code.toUpperCase().startsWith('F246') ||
+      code.toUpperCase().startsWith('F357') ||
+      code.toUpperCase().startsWith('FSS') ||
+      (code.toUpperCase().startsWith('F') && !code.toUpperCase().startsWith('FOA'))
+    ) {
+      return 'foundation';
+    }
+
+    if (
+      blob.includes('UPSTREAM') ||
+      blob.includes('MOMENTUM') ||
+      blob.includes('SOAR') ||
+      blob.includes('ADVANCED') ||
+      blob.includes('CORE') ||
+      blob.includes('NHUHAI-U') ||
+      blob.includes('-U') ||
+      code.toUpperCase().startsWith('U') ||
+      code.toUpperCase().startsWith('M') ||
+      code.toUpperCase().startsWith('S') ||
+      code.toUpperCase().startsWith('A')
+    ) {
+      return 'core-36';
+    }
+
+    return 'other';
+  }
+
+  private getDefaultSessionsForClass(cls?: { name?: string; classCode?: string; teacher?: string } | null): RlpSessionRecord[] {
+    const category = this.classifyClassCategory(cls);
+    if (category === 'pre-ielts') {
+      return PRE_IELTS_24_SESSIONS.map((s) => ({
+        no: s.no,
+        date: '',
+        skill: s.skill,
+        contents: s.contents,
+        teacherNote: s.teacherNote || '—',
+        deadline: '',
+        homeworkStatus: 'not_assigned' as const,
+        attendance: 'present' as const,
+        lessonFileUrl: s.lessonFileUrl || '',
+        homeworkFileUrl: s.homeworkFileUrl || '',
+        recordingUrl: '',
+        responsibleTeacher: cls?.teacher || '',
+      }));
+    }
+    if (category === 'foundation') {
+      return FOUNDATION_18_SESSIONS.map((s) => ({
+        no: s.no,
+        date: '',
+        skill: s.skill,
+        contents: s.contents,
+        teacherNote: s.teacherNote || '—',
+        deadline: '',
+        homeworkStatus: 'not_assigned' as const,
+        attendance: 'present' as const,
+        lessonFileUrl: s.lessonFileUrl || '',
+        homeworkFileUrl: s.homeworkFileUrl || '',
+        recordingUrl: '',
+        responsibleTeacher: cls?.teacher || '',
+      }));
+    }
     return DEFAULT_RLP_SESSIONS.map((s) => ({
+      ...s,
+      responsibleTeacher: cls?.teacher || '',
+    }));
+  }
+
+  /**
+   * Đồng bộ nội dung giáo án chuẩn cho tất cả lớp học có sẵn trong database:
+   * - Upstream / Momentum / Soar / Advanced (36 buổi: Chặng 1 W-L 1-18, Chặng 2 S-R 19-36)
+   * - Pre-IELTS / PreCore (24 buổi: 3 giai đoạn)
+   * - Foundation (18 buổi: 2 tháng)
+   * Giữ nguyên ngày học, điểm danh, trạng thái bài tập, link record và ghi chú GV đã có.
+   */
+  async syncAllExistingClassesRlpStores(): Promise<{
+    core36Count: number;
+    preIeltsCount: number;
+    foundationCount: number;
+    total: number;
+  }> {
+    let core36Count = 0;
+    let preIeltsCount = 0;
+    let foundationCount = 0;
+
+    try {
+      const classes = await this.classModel.find({}).lean().exec();
+      if (!classes || classes.length === 0) {
+        return { core36Count: 0, preIeltsCount: 0, foundationCount: 0, total: 0 };
+      }
+
+      for (const cls of classes) {
+        const category = this.classifyClassCategory(cls);
+        if (category === 'other') continue;
+
+        const classId = String((cls as any)._id);
+        const { storeKey, cohortKey } = await this.resolveClassStoreContext(classId);
+        const existingDoc = await this.storeModel.findOne({ key: storeKey }).lean().exec();
+        const existingSessions = (existingDoc?.sessions as RlpSessionRecord[]) || [];
+        const plan = this.schedulePlanForClass(cls);
+        const defSessions = this.getDefaultSessionsForClass(cls);
+
+        const updatedSessions: RlpSessionRecord[] = defSessions.map((defItem) => {
+          const prev = existingSessions.find((s) => s.no === defItem.no);
+          const planDate = plan?.dates[defItem.no - 1] || '';
+          const sessionDate = prev?.date?.trim() ? prev.date : planDate;
+          let deadline = prev?.deadline?.trim() || '';
+          if (!deadline && sessionDate) {
+            const parsed = parseViDate(sessionDate);
+            if (parsed) {
+              const due = new Date(parsed);
+              due.setDate(due.getDate() + 7);
+              deadline = formatViDate(due);
+            }
+          }
+          return {
+            ...defItem,
+            date: sessionDate,
+            deadline,
+            attendance: prev?.attendance || defItem.attendance,
+            homeworkStatus: prev?.homeworkStatus || defItem.homeworkStatus,
+            teacherNote:
+              prev?.teacherNote && prev.teacherNote !== '—'
+                ? prev.teacherNote
+                : defItem.teacherNote || '—',
+            responsibleTeacher: prev?.responsibleTeacher || cls.teacher || '',
+            lessonFileUrl: prev?.lessonFileUrl?.trim() ? prev.lessonFileUrl : defItem.lessonFileUrl,
+            homeworkFileUrl: prev?.homeworkFileUrl?.trim() ? prev.homeworkFileUrl : defItem.homeworkFileUrl,
+            recordingUrl: prev?.recordingUrl?.trim() ? prev.recordingUrl : defItem.recordingUrl,
+            studentAttendance: prev?.studentAttendance || {},
+            studentHomework: prev?.studentHomework || {},
+          };
+        });
+
+        await this.storeModel.collection.updateOne(
+          { key: storeKey },
+          {
+            $set: {
+              sessions: updatedSessions,
+              classId,
+              cohortKey,
+            },
+          },
+          { upsert: true },
+        );
+
+        if (category === 'core-36') core36Count++;
+        else if (category === 'pre-ielts') preIeltsCount++;
+        else if (category === 'foundation') foundationCount++;
+      }
+    } catch (err) {
+      console.warn('Lỗi khi đồng bộ RLP cho các lớp có sẵn:', err);
+    }
+
+    return {
+      core36Count,
+      preIeltsCount,
+      foundationCount,
+      total: core36Count + preIeltsCount + foundationCount,
+    };
+  }
+
+  /** Wrapper tương thích ngược cho việc đồng bộ các lớp có sẵn */
+  async syncExistingUpstreamMomentumClasses(): Promise<number> {
+    const res = await this.syncAllExistingClassesRlpStores();
+    return res.total;
+  }
+
+  private cloneDefaults(cls?: any): RlpSessionRecord[] {
+    return this.getDefaultSessionsForClass(cls).map((s) => ({
       lessonFileUrl: '',
       homeworkFileUrl: '',
       recordingUrl: '',
@@ -93,8 +293,9 @@ export class RlpService implements OnModuleInit {
     }));
   }
 
-  private blankSession(no: number, date = ''): RlpSessionRecord {
-    const template = DEFAULT_RLP_SESSIONS[(no - 1) % DEFAULT_RLP_SESSIONS.length];
+  private blankSession(no: number, date = '', cls?: any): RlpSessionRecord {
+    const defaults = this.getDefaultSessionsForClass(cls);
+    const template = defaults[(no - 1) % defaults.length];
     let deadline = '';
     const parsed = parseViDate(date);
     if (parsed) {
@@ -107,22 +308,25 @@ export class RlpService implements OnModuleInit {
       date,
       skill: template?.skill || 'Speaking',
       contents: template?.contents || '—',
-      teacherNote: '—',
+      teacherNote: template?.teacherNote && template.teacherNote !== '—' ? template.teacherNote : '—',
       deadline,
       homeworkStatus: 'not_assigned',
       attendance: 'present',
-      lessonFileUrl: '',
-      homeworkFileUrl: '',
+      lessonFileUrl: template?.lessonFileUrl || '',
+      homeworkFileUrl: template?.homeworkFileUrl || '',
       recordingUrl: '',
+      responsibleTeacher: cls?.teacher || '',
     };
   }
 
   private buildSessionsForPlan(
     plan: RlpSchedulePlan,
     existing?: RlpSessionRecord[],
+    cls?: any,
   ): RlpSessionRecord[] {
     const byNo = new Map((existing ?? []).map((s) => [s.no, s]));
-    const total = plan.dates.length;
+    const defaults = this.getDefaultSessionsForClass(cls);
+    const total = plan.dates.length || defaults.length;
     const sessions: RlpSessionRecord[] = [];
     for (let i = 0; i < total; i++) {
       const no = i + 1;
@@ -135,7 +339,7 @@ export class RlpService implements OnModuleInit {
           date: prev.date?.trim() ? prev.date : date,
         });
       } else {
-        sessions.push(this.blankSession(no, date));
+        sessions.push(this.blankSession(no, date, cls));
       }
     }
     return sessions;
@@ -262,8 +466,8 @@ export class RlpService implements OnModuleInit {
 
     // Store đợt mới / lần đầu — lịch sạch, không clone từ đợt cũ hay `main`.
     const baseSessions = plan?.dates.length
-      ? this.buildSessionsForPlan(plan)
-      : this.cloneDefaults().map((s) => ({
+      ? this.buildSessionsForPlan(plan, undefined, cls)
+      : this.cloneDefaults(cls).map((s) => ({
           ...s,
           teacherNote: '—',
           homeworkStatus: 'not_assigned' as const,

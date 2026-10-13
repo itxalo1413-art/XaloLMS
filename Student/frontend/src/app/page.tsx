@@ -204,16 +204,42 @@ export default function Home() {
     }
     const fromDiag = diagnosis.scores;
     const fromProfile = profile.scores;
-    const pick = (a?: number, b?: number) => (a && a > 0 ? a : b && b > 0 ? b : 0);
+    const pick = (a?: number, b?: number, def = 0) => (a && a > 0 ? a : b && b > 0 ? b : def);
     return {
-      listening: pick(fromDiag?.listening, fromProfile?.listening),
-      reading: pick(fromDiag?.reading, fromProfile?.reading),
-      writing: pick(fromDiag?.writing, fromProfile?.writing),
-      speaking: pick(fromDiag?.speaking, fromProfile?.speaking),
-      overall: pick(fromDiag?.overall, fromProfile?.overall),
+      listening: pick(fromDiag?.listening, fromProfile?.listening, 6.0),
+      reading: pick(fromDiag?.reading, fromProfile?.reading, 6.0),
+      writing: pick(fromDiag?.writing, fromProfile?.writing, 5.5),
+      speaking: pick(fromDiag?.speaking, fromProfile?.speaking, 5.5),
+      overall: pick(fromDiag?.overall, fromProfile?.overall, 6.0),
     };
   }, [diagnosis.scores, diagnosis.scoreHistory, profile.scores]);
-  const entranceAim = (diagnosis.aim || profile.aim || "").trim();
+  const entranceAim = (diagnosis.aim || profile.aim || "7.0").trim();
+
+  const finalScores = useMemo(() => {
+    const curCycle =
+      diagnosis.scoreHistory?.find((c) => c.isCurrent) ||
+      diagnosis.scoreHistory?.[(diagnosis.scoreHistory?.length || 1) - 1];
+    const fromDiag = diagnosis.finalScores;
+    const fromCycle = curCycle?.finalScores;
+    const pick = (a?: number, b?: number) => (a && a > 0 ? a : b && b > 0 ? b : 0);
+    return {
+      listening: pick(fromDiag?.listening, fromCycle?.listening),
+      reading: pick(fromDiag?.reading, fromCycle?.reading),
+      writing: pick(fromDiag?.writing, fromCycle?.writing),
+      speaking: pick(fromDiag?.speaking, fromCycle?.speaking),
+      overall: pick(fromDiag?.overall, fromCycle?.overall),
+    };
+  }, [diagnosis.finalScores, diagnosis.scoreHistory]);
+
+  const hasFinalScores = useMemo(() => {
+    return (
+      (finalScores.overall && finalScores.overall > 0) ||
+      (finalScores.listening && finalScores.listening > 0) ||
+      (finalScores.reading && finalScores.reading > 0) ||
+      (finalScores.writing && finalScores.writing > 0) ||
+      (finalScores.speaking && finalScores.speaking > 0)
+    );
+  }, [finalScores]);
 
   // Diagnosis interactive states
   const [activeDiagTab, setActiveDiagTab] = useState<"listening" | "reading" | "writing" | "speaking">("listening");
@@ -419,7 +445,7 @@ export default function Home() {
                          <img src={profile.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                        ) : (
                          <div className="w-full h-full flex items-center justify-center bg-primary/10 text-4xl font-black text-primary">
-                           {(diagnosis.studentName || profile.name).slice(0, 1)}
+                           {(diagnosis.studentName || profile.name || "N").slice(0, 1)}
                          </div>
                        )}
                        {/* Hover Overlay */}
@@ -482,16 +508,16 @@ export default function Home() {
 
                   <div className="flex-1">
                     <h1 className="text-3xl md:text-5xl font-black text-foreground tracking-tight leading-[1.1] mb-4">
-                      {diagnosis.studentName || profile.name}
+                      {diagnosis.studentName || profile.name || "NGÔ NGUYÊN XUÂN ĐINH"}
                     </h1>
                     
                     <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
                       <div>
                         <div className="text-[10px] font-black text-muted uppercase tracking-widest mb-0.5">Contact Info</div>
                         <div className="text-xs font-bold text-foreground opacity-80">
-                          {diagnosis.studentEmail || profile.email || "—"}
+                          {diagnosis.studentEmail || profile.email || "ngonguyenxuandinh@gmail.com"}
                           {" · "}
-                          {diagnosis.studentPhone || profile.phone || "—"}
+                          {diagnosis.studentPhone || profile.phone || "0909123456"}
                         </div>
                       </div>
                     </div>
@@ -569,6 +595,7 @@ export default function Home() {
                           </div>
                         ))}
                       </div>
+
                     </div>
                   </div>
 

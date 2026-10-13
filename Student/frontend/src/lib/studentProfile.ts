@@ -72,9 +72,9 @@ export function pickStudyHabits(
 }
 
 export const DEFAULT_STUDENT_PROFILE: StudentProfile = {
-  name: "",
-  email: "",
-  phone: "",
+  name: "NGÔ NGUYÊN XUÂN ĐINH",
+  email: "ngonguyenxuandinh@gmail.com",
+  phone: "0909123456",
   dob: "",
   zodiac: "",
   avatarUrl: "",
@@ -85,13 +85,13 @@ export const DEFAULT_STUDENT_PROFILE: StudentProfile = {
   previousBand: STUDY_PREVIOUS_BAND_OPTIONS[0],
   focusSkills: ["Listening"],
   scores: {
-    listening: 0,
-    reading: 0,
-    writing: 0,
-    speaking: 0,
-    overall: 0,
+    listening: 6.0,
+    reading: 6.0,
+    writing: 5.5,
+    speaking: 5.5,
+    overall: 6.0,
   },
-  aim: "",
+  aim: "7.0",
   examDate: "",
 };
 

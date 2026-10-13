@@ -3,12 +3,16 @@
 import { useEffect, useState } from "react";
 import { TeacherLayout } from "@/components/teacher/TeacherLayout";
 import { TeacherTopbar } from "@/components/teacher/TeacherTopbar";
-import { apiFetch } from "@/lib/auth";
+import { apiFetch, getCachedAuthUser } from "@/lib/auth";
 import type { CourseImportantLink } from "@/lib/courseImportantLinks";
+import { findTeacherMaterialsDriveUrl } from "@/lib/xaloTeacherRoster";
 
 export default function TeachingMaterialsPage() {
   const [links, setLinks] = useState<CourseImportantLink[]>([]);
   const [loading, setLoading] = useState(true);
+  const personalDriveUrl =
+    findTeacherMaterialsDriveUrl(getCachedAuthUser()?.email) ||
+    findTeacherMaterialsDriveUrl(getCachedAuthUser()?.name);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +40,24 @@ export default function TeachingMaterialsPage() {
         subtitle="Tài nguyên học thuật lấy từ cài đặt khóa học trên hệ thống."
       />
       <main className="mx-auto max-w-6xl px-6 py-6 pb-16 md:px-8 space-y-6">
+        {personalDriveUrl ? (
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-primary">Thư mục cá nhân GV</p>
+              <p className="text-sm font-semibold text-zinc-800 mt-1">
+                Tài liệu giảng dạy trên Google Drive của bạn
+              </p>
+            </div>
+            <a
+              href={personalDriveUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex rounded-lg bg-primary px-4 py-2 text-xs font-black uppercase tracking-wider text-white hover:opacity-90 transition-opacity"
+            >
+              Mở Drive
+            </a>
+          </div>
+        ) : null}
         <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-soft">
           <div className="p-5 border-b border-zinc-100">
             <h3 className="text-sm font-bold text-zinc-950">Thư viện tài liệu giảng dạy</h3>

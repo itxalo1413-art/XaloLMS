@@ -6,6 +6,7 @@ import {
   updateAcaTeacherProfileApi,
   deleteAcaTeacherProfileApi,
 } from "./acaManagementApi";
+import { XALO_GV_ROSTER } from "./xaloTeacherRoster";
 
 export interface TeacherProfile {
   id: string;
@@ -16,82 +17,22 @@ export interface TeacherProfile {
   status: "active" | "inactive";
   joinDate: string;
   notes?: string;
+  materialsDriveUrl?: string;
 }
 
-export const DEFAULT_TEACHERS: TeacherProfile[] = [
-  {
-    id: "tch-1",
-    name: "Lê Nguyễn Khánh Thi",
-    email: "khanhthi.le@xalo.edu.vn",
-    phone: "0901 234 567",
-    skills: ["Writing", "Speaking"],
-    status: "active",
-    joinDate: "15/01/2024",
-    notes: "Chuyên sâu giảng dạy IELTS Writing Task 2 & Speaking Part 3",
-  },
-  {
-    id: "tch-2",
-    name: "Lê Thị Diệu Linh",
-    email: "dieulinh.le@xalo.edu.vn",
-    phone: "0912 345 678",
-    skills: ["Reading", "Listening"],
-    status: "active",
-    joinDate: "01/03/2024",
-    notes: "Phụ trách các lớp nâng band Reading chiến thuật",
-  },
-  {
-    id: "tch-3",
-    name: "Nghiêm Doãn Quỳnh Châu",
-    email: "quynhchau.nghiem@xalo.edu.vn",
-    phone: "0987 654 321",
-    skills: ["Writing", "Speaking", "Reading"],
-    status: "active",
-    joinDate: "10/09/2023",
-    notes: "Giảng viên chủ nhiệm lớp Chuyên sâu & Luyện đề",
-  },
-  {
-    id: "tch-4",
-    name: "Lê Minh Trang",
-    email: "minhtrang.le@xalo.edu.vn",
-    phone: "0934 567 890",
-    skills: ["Writing", "Reading"],
-    status: "active",
-    joinDate: "20/02/2024",
-    notes: "Chấm bài và feedback chi tiết Writing Task 1",
-  },
-  {
-    id: "tch-5",
-    name: "Phạm Hoàng An",
-    email: "hoangan.pham@xalo.edu.vn",
-    phone: "0945 678 901",
-    skills: ["Speaking", "Listening"],
-    status: "active",
-    joinDate: "05/05/2024",
-    notes: "Huấn luyện phát âm và giao tiếp tự nhiên",
-  },
-  {
-    id: "tch-6",
-    name: "Trần Thu Lan",
-    email: "thulan.tran@xalo.edu.vn",
-    phone: "0956 789 012",
-    skills: ["Reading", "Writing"],
-    status: "inactive",
-    joinDate: "12/08/2023",
-    notes: "Đang tạm nghỉ thai sản",
-  },
-  {
-    id: "tch-7",
-    name: "Grader",
-    email: "grader@xalo.edu.vn",
-    phone: "024 777 999",
-    skills: ["Quản lý", "Chấm bài Writing & Speaking"],
-    status: "active",
-    joinDate: "01/01/2023",
-    notes: "Bộ phận Grader & Giám sát chất lượng chấm bài",
-  },
-];
+export const DEFAULT_TEACHERS: TeacherProfile[] = XALO_GV_ROSTER.map((t) => ({
+  id: t.id,
+  name: t.name,
+  email: t.email,
+  phone: "",
+  skills: ["Writing", "Speaking", "Reading", "Listening"],
+  status: "active" as const,
+  joinDate: "",
+  notes: "",
+  materialsDriveUrl: t.materialsDriveUrl,
+}));
 
-const LOCAL_STORAGE_KEY = "xalo_aca_teacher_profiles_v2";
+const LOCAL_STORAGE_KEY = "xalo_aca_teacher_profiles_v3";
 
 export async function fetchTeacherProfilesAsync(): Promise<TeacherProfile[]> {
   try {

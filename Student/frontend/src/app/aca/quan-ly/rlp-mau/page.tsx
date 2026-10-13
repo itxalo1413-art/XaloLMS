@@ -18,6 +18,9 @@ const LEVEL_OPTIONS = [
   "Pre-IELTS",
   "IELTS Core 1",
   "IELTS Core 2",
+  "Core",
+  "Soar",
+  "Advanced",
   "Intensive",
   "Luyện đề",
   "Lớp 1:1",
@@ -30,6 +33,9 @@ const SKILL_OPTIONS = [
   "Listening",
   "Reading",
   "Grammar & Vocab",
+  "Pronunciation & Vocab",
+  "Revision & Skill application",
+  "Revision",
   "Mock Test",
   "Revision & Feedback",
 ];
@@ -47,7 +53,7 @@ export default function RlpMauPage() {
 
   // ── Selected Template Popup State ──
   const [selectedTemplate, setSelectedTemplate] = useState<RlpTemplate | null>(null);
-  const [popupPhaseFilter, setPopupPhaseFilter] = useState<"all" | "phase1" | "phase2">("all");
+  const [popupPhaseFilter, setPopupPhaseFilter] = useState<"all" | "phase1" | "phase2" | "phase3">("all");
   const [popupSkillFilter, setPopupSkillFilter] = useState<string>("all");
 
   // ── Edit Single Session in Template State ("Chỗ Edit") ──
@@ -128,10 +134,17 @@ export default function RlpMauPage() {
   // Filtered Sessions inside Template Popup
   const filteredPopupSessions = useMemo(() => {
     if (!selectedTemplate?.sessions) return [];
+    const is24 = selectedTemplate.totalSessions === 24 || selectedTemplate.sessions.length === 24;
     return [...selectedTemplate.sessions]
       .filter((s) => {
-        if (popupPhaseFilter === "phase1" && s.no > 18) return false;
-        if (popupPhaseFilter === "phase2" && (s.no <= 18 || s.no > 36)) return false;
+        if (is24) {
+          if (popupPhaseFilter === "phase1" && s.no > 9) return false;
+          if (popupPhaseFilter === "phase2" && (s.no <= 9 || s.no > 21)) return false;
+          if (popupPhaseFilter === "phase3" && s.no <= 21) return false;
+        } else {
+          if (popupPhaseFilter === "phase1" && s.no > 18) return false;
+          if (popupPhaseFilter === "phase2" && (s.no <= 18 || s.no > 36)) return false;
+        }
         if (popupSkillFilter === "all") return true;
         return s.skill?.toLowerCase().includes(popupSkillFilter.toLowerCase());
       })
@@ -448,8 +461,10 @@ export default function RlpMauPage() {
                     const cleanTitle = tpl.title
                       .replace("RLP Mẫu: ", "")
                       .replace(" (36 buổi)", "")
+                      .replace(" (24 buổi)", "")
                       .replace(" (2 tháng)", "");
-                    const isTwoMonths = tpl.totalSessions <= 18 || tpl.key === "foundation" || tpl.key === "pre-ielts";
+                    const is24Sessions = tpl.totalSessions === 24 || tpl.sessions?.length === 24;
+                    const isTwoMonths = !is24Sessions && (tpl.totalSessions <= 18 || tpl.key === "foundation");
                     return (
                       <tr
                         key={tpl.key}
@@ -470,12 +485,16 @@ export default function RlpMauPage() {
 
                         {/* Tên lớp mẫu */}
                         <td className="px-5 py-3.5 text-zinc-950 font-bold group-hover:text-primary transition-colors text-[13px]">
-                          {tpl.key === "pre-ielts" ? "PreCore" : cleanTitle}
+                          {tpl.key === "pre-ielts" ? "PreCore (Pre-IELTS)" : cleanTitle}
                         </td>
 
                         {/* Thời lượng */}
                         <td className="px-5 py-3.5 text-center whitespace-nowrap">
-                          {isTwoMonths ? (
+                          {is24Sessions ? (
+                            <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-sky-50 border border-sky-200 text-sky-800">
+                              24 buổi (3 giai đoạn)
+                            </span>
+                          ) : isTwoMonths ? (
                             <span className="px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 border border-amber-200 text-amber-800">
                               2 tháng ({tpl.totalSessions || tpl.sessions?.length || 18} buổi)
                             </span>
@@ -537,14 +556,17 @@ export default function RlpMauPage() {
                     </span>
                     <h3 className="text-base font-bold text-zinc-950">
                       {selectedTemplate.key === "pre-ielts"
-                        ? "PreCore"
+                        ? "PreCore (Pre-IELTS)"
                         : selectedTemplate.title
                             .replace("RLP Mẫu: ", "")
                             .replace(" (36 buổi)", "")
+                            .replace(" (24 buổi)", "")
                             .replace(" (2 tháng)", "")}
                     </h3>
                     <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-zinc-100 text-zinc-700">
-                      {selectedTemplate.totalSessions <= 18
+                      {selectedTemplate.totalSessions === 24 || selectedTemplate.sessions?.length === 24
+                        ? "Khóa 24 buổi (3 giai đoạn: Foundations - Academic - Review)"
+                        : selectedTemplate.totalSessions <= 18
                         ? `Khóa 2 tháng (${selectedTemplate.sessions?.length || 18} buổi)`
                         : `${selectedTemplate.sessions?.length || 36} buổi (2 chặng)`}
                     </span>
@@ -572,7 +594,46 @@ export default function RlpMauPage() {
                 {/* Thanh Chặng, Kỹ Năng & Thêm Buổi */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex flex-wrap items-center gap-2">
-                    {(selectedTemplate.totalSessions > 18 || (selectedTemplate.sessions?.length || 0) > 18) ? (
+                    {(selectedTemplate.totalSessions === 24 || (selectedTemplate.sessions?.length || 0) === 24) ? (
+                      <div className="flex items-center gap-1 rounded-xl bg-zinc-100 p-1">
+                        <button
+                          type="button"
+                          onClick={() => setPopupPhaseFilter("all")}
+                          className={`rounded-lg px-2.5 py-1 text-[11px] font-bold cursor-pointer transition-all ${
+                            popupPhaseFilter === "all" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-500 hover:text-zinc-900"
+                          }`}
+                        >
+                          Tất cả (24 buổi)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPopupPhaseFilter("phase1")}
+                          className={`rounded-lg px-2.5 py-1 text-[11px] font-bold cursor-pointer transition-all ${
+                            popupPhaseFilter === "phase1" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-500 hover:text-zinc-900"
+                          }`}
+                        >
+                          GĐ 1: Foundations (1 - 9)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPopupPhaseFilter("phase2")}
+                          className={`rounded-lg px-2.5 py-1 text-[11px] font-bold cursor-pointer transition-all ${
+                            popupPhaseFilter === "phase2" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-500 hover:text-zinc-900"
+                          }`}
+                        >
+                          GĐ 2: Academic (10 - 21)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setPopupPhaseFilter("phase3")}
+                          className={`rounded-lg px-2.5 py-1 text-[11px] font-bold cursor-pointer transition-all ${
+                            popupPhaseFilter === "phase3" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-500 hover:text-zinc-900"
+                          }`}
+                        >
+                          GĐ 3: Review (22 - 24)
+                        </button>
+                      </div>
+                    ) : (selectedTemplate.totalSessions > 18 || (selectedTemplate.sessions?.length || 0) > 18) ? (
                       <div className="flex items-center gap-1 rounded-xl bg-zinc-100 p-1">
                         <button
                           type="button"
@@ -666,8 +727,12 @@ export default function RlpMauPage() {
                                   ? "bg-purple-100 text-purple-700"
                                   : row.skill === "Listening"
                                   ? "bg-amber-100 text-amber-800"
-                                  : row.skill === "Mock Test"
+                                  : row.skill?.includes("Grammar")
                                   ? "bg-emerald-100 text-emerald-800"
+                                  : row.skill?.includes("Pronunciation")
+                                  ? "bg-sky-100 text-sky-800"
+                                  : row.skill?.includes("Mock")
+                                  ? "bg-rose-100 text-rose-800"
                                   : "bg-indigo-100 text-indigo-800"
                               }`}
                             >

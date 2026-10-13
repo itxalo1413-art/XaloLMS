@@ -217,7 +217,7 @@ function CourseOverviewSection() {
                   <span>{p.name}</span>
                   {p.date ? (
                     <>
-                      <span className="text-muted"> · </span>
+                      <span className="text-muted"> - </span>
                       <span>{p.date}</span>
                     </>
                   ) : null}

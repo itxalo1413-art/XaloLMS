@@ -7,9 +7,10 @@ import { getMongoUri } from './mongo-uri';
     MongooseModule.forRootAsync({
       useFactory: () => ({
         uri: getMongoUri(),
-        serverSelectionTimeoutMS: 10_000,
-        connectTimeoutMS: 10_000,
+        serverSelectionTimeoutMS: 30_000,
+        connectTimeoutMS: 30_000,
         socketTimeoutMS: 45_000,
+        family: 4,
         maxPoolSize: 10,
         retryWrites: true,
       }),

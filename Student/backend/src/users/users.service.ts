@@ -8,6 +8,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import * as bcrypt from 'bcryptjs';
 import { Model, Types } from 'mongoose';
+import { XALO_GV_ROSTER } from '../domain/xalo-teacher-roster';
 import { isRole, type Role } from '../domain/role';
 import { isUserStatus, type UserStatus } from '../domain/user-status';
 import { User, type UserDocument } from './schemas/user.schema';
@@ -206,22 +207,10 @@ export class UsersService implements OnModuleInit {
   }
 
   async ensureSeedTeachers(): Promise<void> {
-    const defaultTeachers = [
-      { name: 'Lê Nguyễn Khánh Thi', email: 'khanhthi.le@xalo.edu.vn' },
-      { name: 'Lê Thị Diệu Linh', email: 'dieulinh.le@xalo.edu.vn' },
-      { name: 'Nghiêm Doãn Quỳnh Châu', email: 'quynhchau.nghiem@xalo.edu.vn' },
-      { name: 'Lê Minh Trang', email: 'minhtrang.le@xalo.edu.vn' },
-      { name: 'Phạm Hoàng An', email: 'hoangan.pham@xalo.edu.vn' },
-      { name: 'Trần Thu Lan', email: 'thulan.tran@xalo.edu.vn' },
-      { name: 'Lê Thanh Tâm', email: 'thanhtam.le@xalo.edu.vn' },
-      { name: 'Thái Đỗ Đăng Khoa', email: 'dangkhoa.thai@xalo.edu.vn' },
-      { name: 'Tất Duy Khải', email: 'duykhai.tat@xalo.edu.vn' },
-      { name: 'Lê Như Hải', email: 'nhuhai.le@xalo.edu.vn' },
-      { name: 'Nguyễn Lê Trung Dũng', email: 'trungdung.nguyen@xalo.edu.vn' },
-      { name: 'Nguyễn Lưu Minh Tâm', email: 'minhtam.nguyen@xalo.edu.vn' },
-      { name: 'Trần Quang Minh', email: 'quangminh.tran@xalo.edu.vn' },
-      { name: 'Đặng Duy', email: 'dangduy@xalo.edu.vn' },
-    ];
+    const defaultTeachers = XALO_GV_ROSTER.map((t) => ({
+      name: t.name,
+      email: t.email,
+    }));
 
     const defaultPasswordHash = await bcrypt.hash('Teacher@123!', SALT_ROUNDS);
 

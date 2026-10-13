@@ -85,6 +85,18 @@ export class AcaClass {
   @Prop({ trim: true, default: '' })
   schedule: string;
 
+  /** Danh sách chặng cố định nếu có */
+  @Prop({
+    type: [
+      {
+        name: { type: String, required: true },
+        date: { type: String, required: true },
+      },
+    ],
+    default: [],
+  })
+  phases: { name: string; date: string }[];
+
   /** Link thư mục / tài nguyên theo lớp (RLP, bài giảng, bài tập, khảo sát…) */
   @Prop({
     type: [

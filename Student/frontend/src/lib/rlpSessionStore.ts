@@ -17,7 +17,7 @@ import {
   type UpdateRlpSessionPayload,
 } from "@/lib/rlpSessionApi";
 
-export const RLP_SESSIONS_STORAGE_KEY = "xalo.course.rlpSessions.v2";
+export const RLP_SESSIONS_STORAGE_KEY = "xalo.course.rlpSessions.v3";
 export const RLP_SESSIONS_UPDATE_EVENT = "xalo-rlp-sessions-updated";
 
 let sessionsCache: RlpSession[] = [];

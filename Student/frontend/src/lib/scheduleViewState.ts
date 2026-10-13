@@ -4,12 +4,12 @@ export type ScheduleViewState = {
   selectedDay: number | null;
 };
 
-const STORAGE_KEY = "xalo.student.scheduleView.v1";
+const STORAGE_KEY = "xalo.student.scheduleView.v2";
 
 export const DEFAULT_SCHEDULE_VIEW: ScheduleViewState = {
-  year: new Date().getFullYear(),
-  month: new Date().getMonth(),
-  selectedDay: null,
+  year: 2025,
+  month: 11,
+  selectedDay: 20,
 };
 
 export function loadScheduleViewState(): ScheduleViewState {

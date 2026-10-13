@@ -50,7 +50,14 @@ export function resolveRlpTargetDays(name: string, code = ''): number[] {
   if (blob.includes('S/S') || blob.includes('SS') || /\bS\s*\/\s*S\b/.test(blob)) {
     return [0, 6]; // CN + T7
   }
-  if (blob.includes('357')) return [2, 4, 6]; // T3 T5 T7
+  if (
+    blob.includes('357') ||
+    blob.includes('NHUHAI-U') ||
+    blob.includes('THỨ 3') ||
+    blob.includes('T3')
+  ) {
+    return [2, 4, 6]; // T3 T5 T7
+  }
   if (blob.includes('246')) return [1, 3, 5]; // T2 T4 T6
   // Mặc định lịch 246
   return [1, 3, 5];

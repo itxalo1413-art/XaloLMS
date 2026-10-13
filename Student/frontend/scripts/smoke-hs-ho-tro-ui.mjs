@@ -52,46 +52,24 @@ async function main() {
     if (msg.type() === "error") consoleErrors.push(msg.text());
   });
 
-  // Login via quick-account button (app handleQuickLogin)
+  // Login via standard form
   await page.goto(`${FE}/login`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: /^HS$/i }).click().catch(() => {});
+  await page.locator("#email").fill(EMAIL);
+  await page.locator("#password").fill(PASS);
   const loginRespPromise = page.waitForResponse(
     (r) => r.url().includes("/api/auth/login") && r.request().method() === "POST",
     { timeout: 20000 },
   );
-  await page
-    .getByRole("button", { name: /Dương Ngọc Khôi Nguyên|nguyenduong939705/i })
-    .first()
-    .click();
+  await page.getByRole("button", { name: /đăng nhập ngay/i }).click();
   const loginResp = await loginRespPromise.catch(() => null);
   const loginOk = loginResp ? loginResp.ok() : false;
   log(
     "HS",
-    "UI quick login",
+    "UI form login",
     loginOk ? "Pass" : "Fail",
     loginResp ? `HTTP ${loginResp.status()}` : "no /api/auth/login response",
   );
   await page.waitForURL((u) => !u.pathname.includes("/login"), { timeout: 20000 }).catch(() => {});
-
-  // Ensure we land on student self-study page
-  if (page.url().includes("/login")) {
-    // fallback: form login
-    await page.locator("#email").fill(EMAIL);
-    await page.locator("#password").fill(PASS);
-    const resp2 = page.waitForResponse(
-      (r) => r.url().includes("/api/auth/login") && r.request().method() === "POST",
-      { timeout: 15000 },
-    );
-    await page.getByRole("button", { name: /đăng nhập ngay/i }).click();
-    const r2 = await resp2.catch(() => null);
-    log(
-      "HS",
-      "UI form login fallback",
-      r2?.ok() ? "Pass" : "Fail",
-      r2 ? `HTTP ${r2.status()}` : "no response",
-    );
-    await page.waitForURL((u) => !u.pathname.includes("/login"), { timeout: 20000 }).catch(() => {});
-  }
 
   await page.goto(`${FE}/ho-tro-tu-hoc`, { waitUntil: "domcontentloaded" });
   try {

@@ -60,6 +60,9 @@ function formatDDMMYYYY(date: Date): string {
 
 function resolveActivePhasesForClass(cls: any, referenceDate: Date = new Date()): { name: string; date: string }[] {
   if (!cls) return [];
+  if (Array.isArray(cls.phases) && cls.phases.length > 0) {
+    return cls.phases;
+  }
   const nameUpper = String(cls.name || '').toUpperCase();
   const codeUpper = String(cls.classCode || '').toUpperCase();
   const isFoundation =
@@ -1231,7 +1234,7 @@ export class StudentProfileService implements OnModuleInit {
             ? `! Cần cải thiện: ${previousFinalBcb.speaking.weaknesses}`
             : '',
           previousFinalBcb.speaking?.prescription
-            ? `🎯 Phác đồ: ${previousFinalBcb.speaking.prescription}`
+            ? ` Phác đồ: ${previousFinalBcb.speaking.prescription}`
             : '',
         ]
           .filter(Boolean)
