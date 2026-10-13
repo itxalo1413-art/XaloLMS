@@ -97,6 +97,14 @@ import {
   THIEU_THAO_CHI_ONL_11_RLP,
   THIEU_THAO_CHI_SUPPORT_SPEAKING,
 } from './thieu-thao-chi.seed';
+import {
+  NGUYEN_LAN_ANH,
+  nguyenLanAnhDiagnosis,
+} from './nguyen-lan-anh.seed';
+import {
+  PHAN_NGOC_BAO_NGHI,
+  phanNgocBaoNghiDiagnosis,
+} from './phan-ngoc-bao-nghi.seed';
 import { CORE_UPSTREAM_MOMENTUM_SESSIONS } from '../rlp/rlp-defaults';
 import { buildRlpSchedulePlan, formatViDate, parseViDate } from '../rlp/rlp-schedule.util';
 import {
@@ -1892,23 +1900,15 @@ export class AcaManagementService implements OnModuleInit {
     await this.ensureUserAccountForStudent({ name, email });
 
     // 5. Lưu DiagnosisData & ProfileData chi tiết vào profileStore
+    const diagnosis = nguyenLanAnhDiagnosis();
     const diagnosisData = {
+      ...diagnosis,
       studentName: name,
       studentEmail: email,
       studentPhone: phone,
       aim,
       examDate,
       examCountdownAnchor,
-      bcbOverviewTitle: 'Đánh giá năng lực đầu vào & Mục tiêu học tập',
-      bcbOverviewSummary:
-        'Học viên: Nguyễn Lan Anh. Điểm đầu vào: Listening 5.0, Reading 5.5, Writing 5.0, Speaking 4.5 (Overall 5.0). Mục tiêu: Chưa xác định (-). Ngày thi dự kiến: 15/12/2026 (Còn 63 ngày). Lớp: Online 1:1 (2 giờ/buổi, 2 buổi/tuần, 9 tuần). Trạng thái: Đang học (Active).',
-      scores: {
-        listening: 5.0,
-        reading: 5.5,
-        writing: 5.0,
-        speaking: 4.5,
-        overall: 5.0,
-      },
     };
 
     const profileData = {
@@ -2216,23 +2216,15 @@ export class AcaManagementService implements OnModuleInit {
     await this.ensureUserAccountForStudent({ name, email });
 
     // 5. Lưu DiagnosisData & ProfileData chi tiết vào profileStore
+    const diagnosis = phanNgocBaoNghiDiagnosis();
     const diagnosisData = {
+      ...diagnosis,
       studentName: name,
       studentEmail: email,
       studentPhone: phone,
       aim,
       examDate,
       examCountdownAnchor,
-      bcbOverviewTitle: 'Đánh giá năng lực đầu vào & Mục tiêu học tập',
-      bcbOverviewSummary:
-        'Học viên: Phan Ngọc Bảo Nghi. Điểm đầu vào: Listening 4.5, Reading 4.0, Writing 4.0, Speaking 4.5 (Overall 4.5). Mục tiêu đầu ra: 6.5 Overall. Ngày thi dự kiến: 14/11/2026 (Còn 32 ngày). Lớp: Online 1:1 (2 giờ/buổi, 3 buổi/tuần, 6 tuần). Trạng thái: Đang học (Active).',
-      scores: {
-        listening: 4.5,
-        reading: 4.0,
-        writing: 4.0,
-        speaking: 4.5,
-        overall: 4.5,
-      },
       finalScores: {
         listening: 6.5,
         reading: 6.5,
