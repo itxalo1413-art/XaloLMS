@@ -21,7 +21,11 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization'],
     optionsSuccessStatus: 204,
   });
-  const port = Number(process.env.PORT) || 5001;
-  await app.listen(port, '0.0.0.0');
+  const rawPort = process.env.PORT || 5001;
+  if (typeof rawPort === 'string' && isNaN(Number(rawPort))) {
+    await app.listen(rawPort);
+  } else {
+    await app.listen(Number(rawPort), '0.0.0.0');
+  }
 }
 bootstrap();
